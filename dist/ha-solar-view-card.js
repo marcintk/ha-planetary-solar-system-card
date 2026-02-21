@@ -147,6 +147,8 @@ function createSvgElement(tag, attrs) {
   return el;
 }
 
+const DIAGONAL_ANGLE = (315 * Math.PI) / 180; // top-right diagonal
+
 function renderOrbit(svg, radius, auLabel) {
   svg.appendChild(
     createSvgElement("circle", {
@@ -160,15 +162,18 @@ function renderOrbit(svg, radius, auLabel) {
     })
   );
 
-  // AU label at top of orbit
+  // AU label along the top-right diagonal (315 degrees)
+  const labelX = CENTER + (radius + 8) * Math.cos(DIAGONAL_ANGLE);
+  const labelY = CENTER - (radius + 8) * Math.sin(DIAGONAL_ANGLE);
   svg.appendChild(
     createSvgElement("text", {
-      x: CENTER,
-      y: CENTER - radius - 4,
+      x: labelX,
+      y: labelY,
       fill: LABEL_COLOR,
       "font-size": "9",
       "font-family": "sans-serif",
-      "text-anchor": "middle",
+      "text-anchor": "start",
+      transform: `rotate(-45, ${labelX}, ${labelY})`,
     })
   ).textContent = `${auLabel} AU`;
 }
@@ -304,6 +309,99 @@ function renderObserverNeedle(svg, earthX, earthY, observerAngle) {
   );
 }
 
+const SEASON_LINE_COLOR = "rgba(255, 255, 255, 0.25)";
+const SEASON_LABEL_COLOR = "rgba(255, 255, 255, 0.5)";
+const SEASON_FONT_SIZE = 20;
+
+function renderSeasonOverlay(svg, hemisphere) {
+  // Dotted dividing lines through the Sun
+  svg.appendChild(
+    createSvgElement("line", {
+      x1: 0,
+      y1: CENTER,
+      x2: VIEW_SIZE,
+      y2: CENTER,
+      stroke: SEASON_LINE_COLOR,
+      "stroke-width": 1,
+      "stroke-dasharray": "4, 6",
+    })
+  );
+  svg.appendChild(
+    createSvgElement("line", {
+      x1: CENTER,
+      y1: 0,
+      x2: CENTER,
+      y2: VIEW_SIZE,
+      stroke: SEASON_LINE_COLOR,
+      "stroke-width": 1,
+      "stroke-dasharray": "4, 6",
+    })
+  );
+
+  // Season labels curved along Neptune's orbit
+  // Quadrant mapping (Northern Hemisphere):
+  //   bottom-left = Spring, bottom-right = Summer,
+  //   top-right = Autumn, top-left = Winter
+  const northSeasons = [
+    { name: "Winter", startAngle: 90, endAngle: 180 },    // top-left
+    { name: "Autumn", startAngle: 0, endAngle: 90 },      // top-right
+    { name: "Summer", startAngle: 270, endAngle: 360 },   // bottom-right
+    { name: "Spring", startAngle: 180, endAngle: 270 },   // bottom-left
+  ];
+
+  const southSeasons = [
+    { name: "Summer", startAngle: 90, endAngle: 180 },
+    { name: "Spring", startAngle: 0, endAngle: 90 },
+    { name: "Winter", startAngle: 270, endAngle: 360 },
+    { name: "Autumn", startAngle: 180, endAngle: 270 },
+  ];
+
+  const seasons = hemisphere === "south" ? southSeasons : northSeasons;
+  const labelRadius = MAX_RADIUS + 20;
+
+  const defs = svg.querySelector("defs") || svg.insertBefore(createSvgElement("defs", {}), svg.firstChild);
+
+  seasons.forEach((season, i) => {
+    const pathId = `season-arc-${i}`;
+
+    // Create arc path for textPath
+    // SVG arcs use clockwise angles from positive x-axis
+    // We need to convert our angle convention (counter-clockwise from right)
+    // to SVG convention (clockwise from right, y-axis flipped)
+    const startRad = (season.startAngle * Math.PI) / 180;
+    const endRad = (season.endAngle * Math.PI) / 180;
+
+    // In SVG coordinates (y increases downward), we negate the y component
+    const x1 = CENTER + labelRadius * Math.cos(startRad);
+    const y1 = CENTER - labelRadius * Math.sin(startRad);
+    const x2 = CENTER + labelRadius * Math.cos(endRad);
+    const y2 = CENTER - labelRadius * Math.sin(endRad);
+
+    // Arc path from start to end (counter-clockwise in math = clockwise in SVG)
+    // sweep-flag=0 for counter-clockwise (shorter arc in SVG coordinates)
+    const arcPath = createSvgElement("path", {
+      id: pathId,
+      d: `M ${x1} ${y1} A ${labelRadius} ${labelRadius} 0 0 0 ${x2} ${y2}`,
+      fill: "none",
+    });
+    defs.appendChild(arcPath);
+
+    const text = createSvgElement("text", {
+      fill: SEASON_LABEL_COLOR,
+      "font-size": SEASON_FONT_SIZE,
+      "font-family": "sans-serif",
+    });
+    const textPath = createSvgElement("textPath", {
+      href: `#${pathId}`,
+      startOffset: "50%",
+      "text-anchor": "middle",
+    });
+    textPath.textContent = season.name;
+    text.appendChild(textPath);
+    svg.appendChild(text);
+  });
+}
+
 function expandBounds(bounds, x, y, margin) {
   bounds.minX = Math.min(bounds.minX, x - margin);
   bounds.minY = Math.min(bounds.minY, y - margin);
@@ -314,9 +412,10 @@ function expandBounds(bounds, x, y, margin) {
 /**
  * Renders the solar system SVG and returns it with bounding box metadata.
  * @param {Date} date - date to calculate positions for
+ * @param {string} [hemisphere="north"] - "north" or "south" for season labels
  * @returns {{ svg: SVGElement, bounds: { minX: number, minY: number, maxX: number, maxY: number } }}
  */
-function renderSolarSystem(date) {
+function renderSolarSystem(date, hemisphere = "north") {
   const svg = createSvgElement("svg", {
     viewBox: `0 0 ${VIEW_SIZE} ${VIEW_SIZE}`,
     width: "100%",
@@ -329,6 +428,9 @@ function renderSolarSystem(date) {
   // Day/night split (rendered first, behind everything)
   const earthRadius = auToRadius(1.0);
   renderDayNightSplit(svg, earthRadius, date);
+
+  // Season quadrant overlay (after day/night, before orbits)
+  renderSeasonOverlay(svg, hemisphere);
 
   // Draw orbits
   for (const planet of PLANETS) {
@@ -379,7 +481,7 @@ function renderSolarSystem(date) {
 const ZOOM_IN_FACTOR = 0.8;
 const ZOOM_OUT_FACTOR = 1.25;
 const MIN_VIEW_SIZE = 100;
-const AUTO_FIT_MARGIN = 0.02;
+const FULL_SYSTEM_SIZE = 800;
 
 class SolarViewCard extends HTMLElement {
   constructor() {
@@ -391,7 +493,8 @@ class SolarViewCard extends HTMLElement {
     this._viewCenterY = null;
     this._viewWidth = null;
     this._viewHeight = null;
-    this._autoFitSize = null;
+    // Hemisphere for season labels (default: north)
+    this._hemisphere = "north";
     // Auto-update timer
     this._autoUpdateTimer = null;
     // Drag state
@@ -411,6 +514,7 @@ class SolarViewCard extends HTMLElement {
   }
 
   connectedCallback() {
+    this._detectHemisphere();
     this._render();
     clearInterval(this._autoUpdateTimer);
     this._autoUpdateTimer = setInterval(() => {
@@ -444,19 +548,27 @@ class SolarViewCard extends HTMLElement {
 
   _goToday() {
     this._currentDate = new Date();
-    // Reset view state so auto-fit recalculates
-    this._viewCenterX = null;
+    // Reset view to fixed full-system extent
+    this._viewCenterX = FULL_SYSTEM_SIZE / 2;
+    this._viewCenterY = FULL_SYSTEM_SIZE / 2;
+    this._viewWidth = FULL_SYSTEM_SIZE;
+    this._viewHeight = FULL_SYSTEM_SIZE;
     this._render();
   }
 
-  _calculateAutoFit(bounds) {
-    const bw = bounds.maxX - bounds.minX;
-    const bh = bounds.maxY - bounds.minY;
-    const size = Math.max(bw, bh);
-    const marginSize = size * (1 + 2 * AUTO_FIT_MARGIN);
-    const centerX = (bounds.minX + bounds.maxX) / 2;
-    const centerY = (bounds.minY + bounds.maxY) / 2;
-    return { centerX, centerY, viewSize: marginSize };
+  _detectHemisphere() {
+    if (typeof navigator !== "undefined" && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const newHemisphere = pos.coords.latitude < 0 ? "south" : "north";
+          if (newHemisphere !== this._hemisphere) {
+            this._hemisphere = newHemisphere;
+            this._render();
+          }
+        },
+        () => {} // Geolocation denied or unavailable — keep default
+      );
+    }
   }
 
   _zoomIn() {
@@ -470,8 +582,8 @@ class SolarViewCard extends HTMLElement {
   _zoomOut() {
     const newWidth = this._viewWidth * ZOOM_OUT_FACTOR;
     const newHeight = this._viewHeight * ZOOM_OUT_FACTOR;
-    this._viewWidth = Math.min(newWidth, this._autoFitSize);
-    this._viewHeight = Math.min(newHeight, this._autoFitSize);
+    this._viewWidth = Math.min(newWidth, FULL_SYSTEM_SIZE);
+    this._viewHeight = Math.min(newHeight, FULL_SYSTEM_SIZE);
     this._updateViewBox();
   }
 
@@ -529,7 +641,7 @@ class SolarViewCard extends HTMLElement {
         .card {
           background: #1e1e1e;
           border-radius: 12px;
-          padding: 16px;
+          padding: 2px;
           color: #ffffff;
           font-family: sans-serif;
         }
@@ -610,21 +722,15 @@ class SolarViewCard extends HTMLElement {
     `;
 
     const container = this.shadowRoot.getElementById("solar-view");
-    const { svg, bounds } = renderSolarSystem(this._currentDate);
+    const { svg } = renderSolarSystem(this._currentDate, this._hemisphere);
     container.appendChild(svg);
 
-    // Initialize or preserve view state
+    // Initialize view state to fixed full-system extent
     if (this._viewCenterX === null) {
-      const fit = this._calculateAutoFit(bounds);
-      this._viewCenterX = fit.centerX;
-      this._viewCenterY = fit.centerY;
-      this._viewWidth = fit.viewSize;
-      this._viewHeight = fit.viewSize;
-      this._autoFitSize = fit.viewSize;
-    } else {
-      // Recalculate auto-fit size for zoom-out clamping (planet positions may have changed)
-      const fit = this._calculateAutoFit(bounds);
-      this._autoFitSize = fit.viewSize;
+      this._viewCenterX = FULL_SYSTEM_SIZE / 2;
+      this._viewCenterY = FULL_SYSTEM_SIZE / 2;
+      this._viewWidth = FULL_SYSTEM_SIZE;
+      this._viewHeight = FULL_SYSTEM_SIZE;
     }
 
     this._updateViewBox();

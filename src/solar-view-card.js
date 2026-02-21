@@ -3,7 +3,7 @@ import { renderSolarSystem } from "./renderer.js";
 const ZOOM_IN_FACTOR = 0.8;
 const ZOOM_OUT_FACTOR = 1.25;
 const MIN_VIEW_SIZE = 100;
-const AUTO_FIT_MARGIN = 0.02;
+const FULL_SYSTEM_SIZE = 800;
 
 export class SolarViewCard extends HTMLElement {
   constructor() {
@@ -15,7 +15,8 @@ export class SolarViewCard extends HTMLElement {
     this._viewCenterY = null;
     this._viewWidth = null;
     this._viewHeight = null;
-    this._autoFitSize = null;
+    // Hemisphere for season labels (default: north)
+    this._hemisphere = "north";
     // Auto-update timer
     this._autoUpdateTimer = null;
     // Drag state
@@ -35,6 +36,7 @@ export class SolarViewCard extends HTMLElement {
   }
 
   connectedCallback() {
+    this._detectHemisphere();
     this._render();
     clearInterval(this._autoUpdateTimer);
     this._autoUpdateTimer = setInterval(() => {
@@ -68,19 +70,27 @@ export class SolarViewCard extends HTMLElement {
 
   _goToday() {
     this._currentDate = new Date();
-    // Reset view state so auto-fit recalculates
-    this._viewCenterX = null;
+    // Reset view to fixed full-system extent
+    this._viewCenterX = FULL_SYSTEM_SIZE / 2;
+    this._viewCenterY = FULL_SYSTEM_SIZE / 2;
+    this._viewWidth = FULL_SYSTEM_SIZE;
+    this._viewHeight = FULL_SYSTEM_SIZE;
     this._render();
   }
 
-  _calculateAutoFit(bounds) {
-    const bw = bounds.maxX - bounds.minX;
-    const bh = bounds.maxY - bounds.minY;
-    const size = Math.max(bw, bh);
-    const marginSize = size * (1 + 2 * AUTO_FIT_MARGIN);
-    const centerX = (bounds.minX + bounds.maxX) / 2;
-    const centerY = (bounds.minY + bounds.maxY) / 2;
-    return { centerX, centerY, viewSize: marginSize };
+  _detectHemisphere() {
+    if (typeof navigator !== "undefined" && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const newHemisphere = pos.coords.latitude < 0 ? "south" : "north";
+          if (newHemisphere !== this._hemisphere) {
+            this._hemisphere = newHemisphere;
+            this._render();
+          }
+        },
+        () => {} // Geolocation denied or unavailable — keep default
+      );
+    }
   }
 
   _zoomIn() {
@@ -94,8 +104,8 @@ export class SolarViewCard extends HTMLElement {
   _zoomOut() {
     const newWidth = this._viewWidth * ZOOM_OUT_FACTOR;
     const newHeight = this._viewHeight * ZOOM_OUT_FACTOR;
-    this._viewWidth = Math.min(newWidth, this._autoFitSize);
-    this._viewHeight = Math.min(newHeight, this._autoFitSize);
+    this._viewWidth = Math.min(newWidth, FULL_SYSTEM_SIZE);
+    this._viewHeight = Math.min(newHeight, FULL_SYSTEM_SIZE);
     this._updateViewBox();
   }
 
@@ -153,7 +163,7 @@ export class SolarViewCard extends HTMLElement {
         .card {
           background: #1e1e1e;
           border-radius: 12px;
-          padding: 16px;
+          padding: 2px;
           color: #ffffff;
           font-family: sans-serif;
         }
@@ -234,21 +244,15 @@ export class SolarViewCard extends HTMLElement {
     `;
 
     const container = this.shadowRoot.getElementById("solar-view");
-    const { svg, bounds } = renderSolarSystem(this._currentDate);
+    const { svg } = renderSolarSystem(this._currentDate, this._hemisphere);
     container.appendChild(svg);
 
-    // Initialize or preserve view state
+    // Initialize view state to fixed full-system extent
     if (this._viewCenterX === null) {
-      const fit = this._calculateAutoFit(bounds);
-      this._viewCenterX = fit.centerX;
-      this._viewCenterY = fit.centerY;
-      this._viewWidth = fit.viewSize;
-      this._viewHeight = fit.viewSize;
-      this._autoFitSize = fit.viewSize;
-    } else {
-      // Recalculate auto-fit size for zoom-out clamping (planet positions may have changed)
-      const fit = this._calculateAutoFit(bounds);
-      this._autoFitSize = fit.viewSize;
+      this._viewCenterX = FULL_SYSTEM_SIZE / 2;
+      this._viewCenterY = FULL_SYSTEM_SIZE / 2;
+      this._viewWidth = FULL_SYSTEM_SIZE;
+      this._viewHeight = FULL_SYSTEM_SIZE;
     }
 
     this._updateViewBox();

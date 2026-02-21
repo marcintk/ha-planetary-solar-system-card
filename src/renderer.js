@@ -37,6 +37,8 @@ function createSvgElement(tag, attrs) {
   return el;
 }
 
+const DIAGONAL_ANGLE = (315 * Math.PI) / 180; // top-right diagonal
+
 function renderOrbit(svg, radius, auLabel) {
   svg.appendChild(
     createSvgElement("circle", {
@@ -50,15 +52,18 @@ function renderOrbit(svg, radius, auLabel) {
     })
   );
 
-  // AU label at top of orbit
+  // AU label along the top-right diagonal (315 degrees)
+  const labelX = CENTER + (radius + 8) * Math.cos(DIAGONAL_ANGLE);
+  const labelY = CENTER - (radius + 8) * Math.sin(DIAGONAL_ANGLE);
   svg.appendChild(
     createSvgElement("text", {
-      x: CENTER,
-      y: CENTER - radius - 4,
+      x: labelX,
+      y: labelY,
       fill: LABEL_COLOR,
       "font-size": "9",
       "font-family": "sans-serif",
-      "text-anchor": "middle",
+      "text-anchor": "start",
+      transform: `rotate(-45, ${labelX}, ${labelY})`,
     })
   ).textContent = `${auLabel} AU`;
 }
@@ -194,6 +199,99 @@ function renderObserverNeedle(svg, earthX, earthY, observerAngle) {
   );
 }
 
+const SEASON_LINE_COLOR = "rgba(255, 255, 255, 0.25)";
+const SEASON_LABEL_COLOR = "rgba(255, 255, 255, 0.5)";
+const SEASON_FONT_SIZE = 20;
+
+function renderSeasonOverlay(svg, hemisphere) {
+  // Dotted dividing lines through the Sun
+  svg.appendChild(
+    createSvgElement("line", {
+      x1: 0,
+      y1: CENTER,
+      x2: VIEW_SIZE,
+      y2: CENTER,
+      stroke: SEASON_LINE_COLOR,
+      "stroke-width": 1,
+      "stroke-dasharray": "4, 6",
+    })
+  );
+  svg.appendChild(
+    createSvgElement("line", {
+      x1: CENTER,
+      y1: 0,
+      x2: CENTER,
+      y2: VIEW_SIZE,
+      stroke: SEASON_LINE_COLOR,
+      "stroke-width": 1,
+      "stroke-dasharray": "4, 6",
+    })
+  );
+
+  // Season labels curved along Neptune's orbit
+  // Quadrant mapping (Northern Hemisphere):
+  //   bottom-left = Spring, bottom-right = Summer,
+  //   top-right = Autumn, top-left = Winter
+  const northSeasons = [
+    { name: "Winter", startAngle: 90, endAngle: 180 },    // top-left
+    { name: "Autumn", startAngle: 0, endAngle: 90 },      // top-right
+    { name: "Summer", startAngle: 270, endAngle: 360 },   // bottom-right
+    { name: "Spring", startAngle: 180, endAngle: 270 },   // bottom-left
+  ];
+
+  const southSeasons = [
+    { name: "Summer", startAngle: 90, endAngle: 180 },
+    { name: "Spring", startAngle: 0, endAngle: 90 },
+    { name: "Winter", startAngle: 270, endAngle: 360 },
+    { name: "Autumn", startAngle: 180, endAngle: 270 },
+  ];
+
+  const seasons = hemisphere === "south" ? southSeasons : northSeasons;
+  const labelRadius = MAX_RADIUS + 20;
+
+  const defs = svg.querySelector("defs") || svg.insertBefore(createSvgElement("defs", {}), svg.firstChild);
+
+  seasons.forEach((season, i) => {
+    const pathId = `season-arc-${i}`;
+
+    // Create arc path for textPath
+    // SVG arcs use clockwise angles from positive x-axis
+    // We need to convert our angle convention (counter-clockwise from right)
+    // to SVG convention (clockwise from right, y-axis flipped)
+    const startRad = (season.startAngle * Math.PI) / 180;
+    const endRad = (season.endAngle * Math.PI) / 180;
+
+    // In SVG coordinates (y increases downward), we negate the y component
+    const x1 = CENTER + labelRadius * Math.cos(startRad);
+    const y1 = CENTER - labelRadius * Math.sin(startRad);
+    const x2 = CENTER + labelRadius * Math.cos(endRad);
+    const y2 = CENTER - labelRadius * Math.sin(endRad);
+
+    // Arc path from start to end (counter-clockwise in math = clockwise in SVG)
+    // sweep-flag=0 for counter-clockwise (shorter arc in SVG coordinates)
+    const arcPath = createSvgElement("path", {
+      id: pathId,
+      d: `M ${x1} ${y1} A ${labelRadius} ${labelRadius} 0 0 0 ${x2} ${y2}`,
+      fill: "none",
+    });
+    defs.appendChild(arcPath);
+
+    const text = createSvgElement("text", {
+      fill: SEASON_LABEL_COLOR,
+      "font-size": SEASON_FONT_SIZE,
+      "font-family": "sans-serif",
+    });
+    const textPath = createSvgElement("textPath", {
+      href: `#${pathId}`,
+      startOffset: "50%",
+      "text-anchor": "middle",
+    });
+    textPath.textContent = season.name;
+    text.appendChild(textPath);
+    svg.appendChild(text);
+  });
+}
+
 function expandBounds(bounds, x, y, margin) {
   bounds.minX = Math.min(bounds.minX, x - margin);
   bounds.minY = Math.min(bounds.minY, y - margin);
@@ -204,9 +302,10 @@ function expandBounds(bounds, x, y, margin) {
 /**
  * Renders the solar system SVG and returns it with bounding box metadata.
  * @param {Date} date - date to calculate positions for
+ * @param {string} [hemisphere="north"] - "north" or "south" for season labels
  * @returns {{ svg: SVGElement, bounds: { minX: number, minY: number, maxX: number, maxY: number } }}
  */
-export function renderSolarSystem(date) {
+export function renderSolarSystem(date, hemisphere = "north") {
   const svg = createSvgElement("svg", {
     viewBox: `0 0 ${VIEW_SIZE} ${VIEW_SIZE}`,
     width: "100%",
@@ -219,6 +318,9 @@ export function renderSolarSystem(date) {
   // Day/night split (rendered first, behind everything)
   const earthRadius = auToRadius(1.0);
   renderDayNightSplit(svg, earthRadius, date);
+
+  // Season quadrant overlay (after day/night, before orbits)
+  renderSeasonOverlay(svg, hemisphere);
 
   // Draw orbits
   for (const planet of PLANETS) {

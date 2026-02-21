@@ -202,11 +202,8 @@ describe("renderSolarSystem", () => {
     renderInto(container, new Date("2026-02-14T15:00:00"));
 
     const svg = container.querySelector("svg");
-    const lines = svg.querySelectorAll("line");
-    expect(lines.length).toBe(1);
-
-    const needle = lines[0];
-    expect(needle.getAttribute("stroke")).toBe("rgba(255, 255, 255, 0.7)");
+    const needle = svg.querySelector('line[stroke="rgba(255, 255, 255, 0.7)"]');
+    expect(needle).not.toBeNull();
     expect(needle.getAttribute("stroke-width")).toBe("2");
   });
 
@@ -217,7 +214,7 @@ describe("renderSolarSystem", () => {
     renderInto(container, date);
 
     const svg = container.querySelector("svg");
-    const needle = svg.querySelector("line");
+    const needle = svg.querySelector('line[stroke="rgba(255, 255, 255, 0.7)"]');
     const x1 = Number(needle.getAttribute("x1"));
     const y1 = Number(needle.getAttribute("y1"));
     const x2 = Number(needle.getAttribute("x2"));
@@ -248,6 +245,77 @@ describe("renderSolarSystem", () => {
     const dots = svg.querySelectorAll('circle[fill="rgba(255, 255, 255, 0.7)"]');
     expect(dots.length).toBe(1);
     expect(dots[0].getAttribute("r")).toBe("2");
+  });
+});
+
+describe("season overlay", () => {
+  it("renders two season dividing lines through the center", () => {
+    const container = document.createElement("div");
+    renderInto(container, new Date("2026-02-14"));
+
+    const svg = container.querySelector("svg");
+    const seasonLines = svg.querySelectorAll('line[stroke="rgba(255, 255, 255, 0.25)"]');
+    expect(seasonLines.length).toBe(2);
+
+    // One horizontal, one vertical
+    const horizontal = Array.from(seasonLines).find((l) => l.getAttribute("y1") === "400" && l.getAttribute("y2") === "400");
+    const vertical = Array.from(seasonLines).find((l) => l.getAttribute("x1") === "400" && l.getAttribute("x2") === "400");
+    expect(horizontal).not.toBeNull();
+    expect(vertical).not.toBeNull();
+  });
+
+  it("renders four season labels", () => {
+    const container = document.createElement("div");
+    renderInto(container, new Date("2026-02-14"));
+
+    const svg = container.querySelector("svg");
+    const textPaths = svg.querySelectorAll("textPath");
+    expect(textPaths.length).toBe(4);
+
+    const labels = Array.from(textPaths).map((tp) => tp.textContent);
+    expect(labels).toContain("Spring");
+    expect(labels).toContain("Summer");
+    expect(labels).toContain("Autumn");
+    expect(labels).toContain("Winter");
+  });
+
+  it("uses Northern Hemisphere mapping by default", () => {
+    const container = document.createElement("div");
+    renderInto(container, new Date("2026-02-14"));
+
+    const svg = container.querySelector("svg");
+    const textPaths = svg.querySelectorAll("textPath");
+    const labels = Array.from(textPaths).map((tp) => tp.textContent);
+    // Default (north): Winter, Autumn, Summer, Spring order
+    expect(labels).toEqual(["Winter", "Autumn", "Summer", "Spring"]);
+  });
+
+  it("swaps seasons for Southern Hemisphere", () => {
+    const container = document.createElement("div");
+    const { svg } = renderSolarSystem(new Date("2026-02-14"), "south");
+    container.appendChild(svg);
+
+    const textPaths = svg.querySelectorAll("textPath");
+    const labels = Array.from(textPaths).map((tp) => tp.textContent);
+    // South: Summer, Spring, Winter, Autumn order
+    expect(labels).toEqual(["Summer", "Spring", "Winter", "Autumn"]);
+  });
+
+  it("season dividing lines are rendered before orbits (behind them)", () => {
+    const container = document.createElement("div");
+    renderInto(container, new Date("2026-02-14"));
+
+    const svg = container.querySelector("svg");
+    const allElements = Array.from(svg.children);
+    const seasonLine = allElements.find(
+      (el) => el.tagName === "line" && el.getAttribute("stroke") === "rgba(255, 255, 255, 0.25)"
+    );
+    const firstOrbit = allElements.find(
+      (el) => el.tagName === "circle" && el.getAttribute("fill") === "none" && el.getAttribute("stroke-dasharray") === "5, 5"
+    );
+    const seasonIdx = allElements.indexOf(seasonLine);
+    const orbitIdx = allElements.indexOf(firstOrbit);
+    expect(seasonIdx).toBeLessThan(orbitIdx);
   });
 });
 

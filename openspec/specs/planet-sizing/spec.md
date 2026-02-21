@@ -10,19 +10,42 @@ All planets SHALL have a visual radius (SVG circle `r` attribute) between 8px an
 - **THEN** its circle radius SHALL be 14px
 
 ### Requirement: Planet size hierarchy
-Planets SHALL maintain the following size hierarchy: Earth > Jupiter = Saturn > Venus = Mars = Uranus = Neptune > Mercury.
+Planets SHALL maintain the following size hierarchy: Earth > Jupiter > Saturn body > Venus = Mars = Uranus = Neptune > Mercury. Saturn's rendered body radius SHALL be smaller than Jupiter to accommodate top-down ring rendering within the same total visual footprint.
 
 #### Scenario: Earth is the largest planet
 - **WHEN** all planets are rendered
 - **THEN** Earth's size (14px) SHALL be strictly greater than all other planets
 
-#### Scenario: Gas giants are larger than rocky planets
+#### Scenario: Jupiter is larger than Saturn body
 - **WHEN** Jupiter and Saturn are rendered
-- **THEN** their size (12px each) SHALL be greater than Venus, Mars, Uranus, and Neptune (10px each)
+- **THEN** Jupiter's body size (12px) SHALL be greater than Saturn's rendered body size, because Saturn's body is reduced to make room for rings
+
+#### Scenario: Saturn body reduced for ring accommodation
+- **WHEN** Saturn is rendered
+- **THEN** Saturn's body circle radius SHALL be approximately half of its data size value, so that the body plus ring fits within the original body-only diameter
 
 #### Scenario: Rocky planets share equal size
 - **WHEN** Venus, Mars, Uranus, and Neptune are rendered
 - **THEN** they SHALL all have the same size of 10px
+
+### Requirement: Saturn top-down ring rendering
+Saturn SHALL be rendered with a circular ring (viewed from above) instead of an angled ellipse. The ring SHALL be a circle centered on Saturn with a stroke, and the total visual footprint (body + ring) SHALL NOT exceed Saturn's original body-only diameter.
+
+#### Scenario: Saturn ring is a circle
+- **WHEN** Saturn's rings are rendered
+- **THEN** the ring SHALL be an SVG circle element (equal rx and ry, or a `<circle>`) centered at Saturn's position, NOT an ellipse with different rx/ry
+
+#### Scenario: Ring stroke styling
+- **WHEN** Saturn's ring circle is rendered
+- **THEN** the ring SHALL have a stroke derived from Saturn's body color with reduced opacity, a stroke-width of approximately 4px, and no fill
+
+#### Scenario: Total footprint within budget
+- **WHEN** Saturn's body and ring are rendered together
+- **THEN** the outermost edge of the ring (ring radius + half stroke-width) SHALL NOT exceed the original Saturn body radius from planet data
+
+#### Scenario: Ring color matches Saturn
+- **WHEN** Saturn's ring is rendered
+- **THEN** the ring stroke color SHALL be derived from Saturn's hex color with approximately 0.6 opacity
 
 ### Requirement: Moon visual size
 The Moon SHALL have a visual radius of 8px, equal to Mercury as the smallest rendered bodies.

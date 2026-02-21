@@ -37,18 +37,16 @@ This can be installed in Home Assistant as:
 ## TODO:
 
 ### Features
-- add WINTER/SPRING/SUMMER/FALL split
 - orbit around Moon
-- diplay a zoom level number
-- add some Comets i.e. Halley
+- display zoom level number
+- add some other object like comets i.e. Halley
 - add customization via configuration
 - revisit buttons: <<<,<<,<,today, >,>>,>>>, CurrentTime, +, -.
 - add Earth centric view (every update should move all objects except Earth)
 - add moon phases
+- add information if this Northern or Southern hemisphere
 
 ### Fixes
 - better zoom on start
 - sometimes Moon is on Venus position
-- Earth needle is too long (or revisit a visibility cone)
-- no margins between card and VIEW
 - card background is too dark

@@ -25,15 +25,15 @@ Where `earthOrbitalAngle` is Earth's current orbital position around the Sun, an
 - **THEN** the overlay SHALL use the same `rgba(255, 255, 255, 0.04)` fill and clip-path technique as the current day/night split
 
 ### Requirement: Observer needle indicator
-The system SHALL render a needle indicator on the Earth dot showing the observer's zenith direction — pointing toward the visible sky hemisphere. The needle SHALL point in the same direction as the center of the visible sky overlay (the observer angle). This represents the direction the observer is looking: away from the Sun at night, toward the Sun during the day.
+The system SHALL render a needle indicator on the Earth dot showing the observer's zenith direction — pointing toward the visible sky hemisphere. The needle SHALL extend from Earth's center to Earth's surface (Earth's body radius in pixels), with the tip at the surface. This represents the direction the observer is looking: away from the Sun at night, toward the Sun during the day.
 
 #### Scenario: Needle rendered at Earth's position
 - **WHEN** the solar system is rendered
-- **THEN** a needle line SHALL extend from the Earth dot's center, pointing in the observer's zenith direction (toward the visible sky hemisphere), with a length of approximately 15 pixels
+- **THEN** a needle line SHALL extend from the Earth dot's center to Earth's surface, with a length equal to Earth's body radius (size property from planet data), and the tip SHALL be positioned at the edge of Earth's circle
 
 #### Scenario: Needle visual style
 - **WHEN** the needle is rendered
-- **THEN** it SHALL be a white line with approximately 0.7 opacity, terminating with a small visual indicator (arrowhead or dot) for directionality
+- **THEN** it SHALL be a white line with approximately 0.7 opacity, terminating with a small dot (radius 2px) at the surface for directionality
 
 #### Scenario: Needle rotates with time
 - **WHEN** the local time changes (e.g., navigating to today at a different time)
@@ -50,6 +50,21 @@ The system SHALL render a needle indicator on the Earth dot showing the observer
 #### Scenario: Needle points away from Sun at 9pm
 - **WHEN** the date is set to any date at local time 21:00
 - **THEN** the needle SHALL point mostly away from the Sun (rotated 315° from noon, or equivalently 135° past midnight), reflecting that the observer is looking at the night sky
+
+### Requirement: Visibility cone originates from Earth's surface
+The day/night overlay boundary SHALL be anchored at Earth's surface (offset from Earth's orbital center by Earth's body radius along the observer direction), not at Earth's orbital center. This simulates the visible sky as seen by an observer standing on Earth's surface.
+
+#### Scenario: Cone boundary starts at Earth's surface
+- **WHEN** the day/night split overlay is rendered
+- **THEN** the half-plane boundary SHALL pass through a point offset from Earth's orbital position by Earth's body radius in the observer's zenith direction
+
+#### Scenario: Cone anchor accounts for Earth's body size
+- **WHEN** the day/night split anchor point is computed
+- **THEN** the anchor SHALL be at `(earthOrbitalX + earthSize * cos(observerAngle), earthOrbitalY - earthSize * sin(observerAngle))` where earthSize is Earth's body radius from planet data
+
+#### Scenario: Inner planets remain on day side
+- **WHEN** the day/night split is rendered
+- **THEN** Mercury and Venus (orbits inside Earth's) SHALL always be fully on the day side, as the boundary offset to Earth's surface does not change the half-plane orientation
 
 ### Requirement: Browser timezone usage
 The system SHALL derive the observer's local time from the browser's timezone using standard `Date` local time methods (`getHours()`, `getMinutes()`). No additional timezone configuration SHALL be required.

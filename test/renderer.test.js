@@ -23,8 +23,8 @@ describe("renderSolarSystem", () => {
     renderInto(container, new Date("2026-02-14"));
 
     const svg = container.querySelector("svg");
-    // Orbits are circles with stroke and no fill
-    const orbitCircles = svg.querySelectorAll('circle[fill="none"]');
+    // Orbits are dashed circles with stroke and no fill
+    const orbitCircles = svg.querySelectorAll('circle[fill="none"][stroke-dasharray="5, 5"]');
     expect(orbitCircles.length).toBe(8);
   });
 
@@ -54,16 +54,32 @@ describe("renderSolarSystem", () => {
     expect(texts).toContain("Moon");
   });
 
-  it("renders AU distance labels", () => {
+  it("renders AU distance labels on vertical axis in mirrored pairs", () => {
     const container = document.createElement("div");
     renderInto(container, new Date("2026-02-14"));
 
     const svg = container.querySelector("svg");
-    const texts = Array.from(svg.querySelectorAll("text")).map(
-      (t) => t.textContent
+    const auLabels = Array.from(svg.querySelectorAll("text")).filter((t) =>
+      t.textContent.endsWith(" AU")
     );
-    expect(texts).toContain("1 AU");
-    expect(texts).toContain("5.2 AU");
+
+    // 8 planets × 2 labels (top + bottom) = 16 AU labels
+    expect(auLabels.length).toBe(16);
+
+    // All labels should be centered on x=400 (vertical axis)
+    for (const label of auLabels) {
+      expect(label.getAttribute("x")).toBe("400");
+      expect(label.getAttribute("text-anchor")).toBe("middle");
+      // No rotation transform should be applied
+      expect(label.getAttribute("transform")).toBeNull();
+    }
+
+    // For each AU value, there should be one label above and one below center
+    const earthLabels = auLabels.filter((t) => t.textContent === "1 AU");
+    expect(earthLabels.length).toBe(2);
+    const ys = earthLabels.map((t) => Number(t.getAttribute("y")));
+    expect(ys.some((y) => y < 400)).toBe(true); // top
+    expect(ys.some((y) => y > 400)).toBe(true); // bottom
   });
 
   it("returns svg element without appending to container", () => {
@@ -147,21 +163,29 @@ describe("renderSolarSystem", () => {
     expect(dot).toBeGreaterThan(0);
   });
 
-  it("renders Saturn with ring ellipse", () => {
+  it("renders Saturn with top-down circular ring", () => {
     const container = document.createElement("div");
     renderInto(container, new Date("2026-02-14"));
 
     const svg = container.querySelector("svg");
-    // Saturn's ring is a stroke-only ellipse near Saturn's body
-    const ellipses = svg.querySelectorAll("ellipse");
-    expect(ellipses.length).toBe(1);
+    // Saturn's ring is a stroke-only circle (top-down view, not ellipse)
+    const ringCircles = svg.querySelectorAll('circle[fill="none"]:not([stroke-dasharray])');
+    expect(ringCircles.length).toBe(1);
 
-    const ring = ellipses[0];
+    const ring = ringCircles[0];
     expect(ring.getAttribute("fill")).toBe("none");
-    expect(ring.getAttribute("stroke")).toBe("rgba(224, 192, 128, 0.6)"); // Saturn #e0c080 with alpha
-    expect(ring.getAttribute("stroke-width")).toBe("6");
-    expect(ring.getAttribute("rx")).toBe("28"); // 20 * 1.4
-    expect(ring.getAttribute("ry")).toBe("10"); // 20 * 0.5
+    expect(ring.getAttribute("stroke")).toBe("rgba(224, 192, 128, 0.6)");
+    expect(ring.getAttribute("stroke-width")).toBe("4");
+    // Ring radius = body.size(20) - strokeWidth/2(2) = 18
+    expect(ring.getAttribute("r")).toBe("18");
+
+    // No ellipses should exist (replaced with circle)
+    expect(svg.querySelectorAll("ellipse").length).toBe(0);
+
+    // Saturn's body should be rendered at half its data size (10px)
+    const saturnBody = svg.querySelector('circle[fill="#e0c080"]');
+    expect(saturnBody).not.toBeNull();
+    expect(saturnBody.getAttribute("r")).toBe("10");
   });
 
   it("Saturn ring is centered on Saturn body", () => {
@@ -180,9 +204,9 @@ describe("renderSolarSystem", () => {
     renderInto(container, new Date("2026-02-14"));
 
     const svg = container.querySelector("svg");
-    // Only one ellipse should exist (Saturn's ring)
-    const ellipses = svg.querySelectorAll("ellipse");
-    expect(ellipses.length).toBe(1);
+    // No ellipses (ring is now a circle), and only one non-orbit, non-body stroke circle
+    const ringCircles = svg.querySelectorAll('circle[fill="none"]:not([stroke-dasharray])');
+    expect(ringCircles.length).toBe(1); // Only Saturn's ring
   });
 
   it("renders different planet positions for different dates", () => {
@@ -207,7 +231,7 @@ describe("renderSolarSystem", () => {
     expect(needle.getAttribute("stroke-width")).toBe("2");
   });
 
-  it("observer needle points in observer angle direction", () => {
+  it("observer needle points in observer angle direction with length equal to Earth body radius", () => {
     const earth = PLANETS.find((p) => p.name === "Earth");
     const date = new Date("2026-02-14T06:00:00");
     const container = document.createElement("div");
@@ -220,18 +244,19 @@ describe("renderSolarSystem", () => {
     const x2 = Number(needle.getAttribute("x2"));
     const y2 = Number(needle.getAttribute("y2"));
 
+    // Needle length should equal Earth's body radius (size = 10)
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const needleLength = Math.sqrt(dx * dx + dy * dy);
+    expect(needleLength).toBeCloseTo(earth.size, 1);
+
     // The needle direction should match the observer angle (toward visible sky)
     const earthAngle = calculatePlanetPosition(earth, date);
     const observerAngle = calculateObserverAngle(earthAngle, date);
-    const expectedAngle = observerAngle;
 
-    const dx = x2 - x1;
-    const dy = -(y2 - y1); // SVG y is flipped
-    const actualAngle = Math.atan2(dy, dx);
-
-    // Normalize both angles to [0, 2pi)
+    const actualAngle = Math.atan2(-dy, dx); // SVG y is flipped
     const norm = (a) => ((a % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
-    const diff = Math.abs(norm(actualAngle) - norm(expectedAngle));
+    const diff = Math.abs(norm(actualAngle) - norm(observerAngle));
     const angleDiff = Math.min(diff, 2 * Math.PI - diff);
     expect(angleDiff).toBeLessThan(0.01);
   });
@@ -299,6 +324,33 @@ describe("season overlay", () => {
     const labels = Array.from(textPaths).map((tp) => tp.textContent);
     // South: Summer, Spring, Winter, Autumn order
     expect(labels).toEqual(["Summer", "Spring", "Winter", "Autumn"]);
+  });
+
+  it("top-half season labels use reversed arc sweep for left-to-right reading", () => {
+    const container = document.createElement("div");
+    renderInto(container, new Date("2026-02-14"));
+
+    const svg = container.querySelector("svg");
+    const defs = svg.querySelector("defs");
+    // Season arcs: 0=Winter(top-left, 90-180°), 1=Autumn(top-right, 0-90°),
+    //              2=Summer(bottom-right, 270-360°), 3=Spring(bottom-left, 180-270°)
+    const topArcs = [
+      defs.querySelector("#season-arc-0"),
+      defs.querySelector("#season-arc-1"),
+    ];
+    const bottomArcs = [
+      defs.querySelector("#season-arc-2"),
+      defs.querySelector("#season-arc-3"),
+    ];
+
+    // Top-half arcs should use sweep-flag=1 (reversed for readability)
+    for (const arc of topArcs) {
+      expect(arc.getAttribute("d")).toMatch(/A \d+ \d+ 0 0 1/);
+    }
+    // Bottom-half arcs should use sweep-flag=0 (original direction)
+    for (const arc of bottomArcs) {
+      expect(arc.getAttribute("d")).toMatch(/A \d+ \d+ 0 0 0/);
+    }
   });
 
   it("season dividing lines are rendered before orbits (behind them)", () => {

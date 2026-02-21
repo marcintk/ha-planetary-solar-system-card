@@ -20,6 +20,17 @@ The date display SHALL format the year as 2 digits (last two digits of the full 
 - **WHEN** the date is 2030-01-01 at 00:00
 - **THEN** the date SHALL be displayed as `30-01-01 00:00`
 
+### Requirement: Card padding minimized
+The `.card` element SHALL use 2px padding on all sides to maximize the visualization area within the card.
+
+#### Scenario: Card padding value
+- **WHEN** the card is rendered
+- **THEN** the `.card` CSS padding SHALL be `2px`
+
+#### Scenario: Visualization fills card area
+- **WHEN** the solar system SVG is displayed inside the card
+- **THEN** the SVG SHALL occupy nearly the full card width and height, with only 2px of space on each edge
+
 ### Requirement: Saturn rings are narrow and bold
 Saturn's rings SHALL be rendered as a narrow, bold ellipse to ensure visibility at small rendering sizes.
 

@@ -93,16 +93,11 @@ describe("SolarViewCard", () => {
       card.remove();
     });
 
-    it("auto-fit includes 2% margin", () => {
+    it("uses fixed full-system viewBox of 800x800", () => {
       const card = createAndMount();
-      // The auto-fit viewBox should be larger than the raw bounds
-      const { bounds } = renderSolarSystem(card._currentDate);
-      const bw = bounds.maxX - bounds.minX;
-      const bh = bounds.maxY - bounds.minY;
-      const rawSize = Math.max(bw, bh);
-      const { width } = parseViewBox(card);
-      // With 2% margin on each side: size * 1.04
-      expect(width).toBeCloseTo(rawSize * 1.04, 0);
+      const { width, height } = parseViewBox(card);
+      expect(width).toBe(800);
+      expect(height).toBe(800);
       card.remove();
     });
   });

@@ -39,11 +39,12 @@ This can be installed in Home Assistant as:
 ### Features
 - add WINTER/SPRING/SUMMER/FALL split
 - orbit around Moon
-- add possible Zoom level and diplay a zoom level number
+- diplay a zoom level number
 - add some Comets i.e. Halley
 - add customization via configuration
 - revisit buttons: <<<,<<,<,today, >,>>,>>>, CurrentTime, +, -.
 - add Earth centric view (every update should move all objects except Earth)
+- add moon phases
 
 ### Fixes
 - better zoom on start

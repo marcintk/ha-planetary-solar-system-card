@@ -1,0 +1,25 @@
+{
+  "name": "ha-solar-view-card",
+  "version": "1.0.0",
+  "description": "Home Assistant custom Lovelace card displaying a planetary solar system visualization",
+  "type": "module",
+  "scripts": {
+    "build": "rollup -c",
+    "build:prod": "NODE_ENV=production rollup -c",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": [
+    "home-assistant",
+    "lovelace",
+    "solar-system"
+  ],
+  "license": "ISC",
+  "devDependencies": {
+    "@rollup/plugin-node-resolve": "^16.0.3",
+    "@rollup/plugin-terser": "^0.4.4",
+    "jsdom": "^28.0.0",
+    "rollup": "^4.57.1",
+    "vitest": "^4.0.18"
+  }
+}

@@ -24,8 +24,8 @@ describe("SolarViewCard", () => {
     expect(card.getCardSize()).toBe(6);
   });
 
-  it("getStubConfig returns empty object", () => {
-    expect(SolarViewCard.getStubConfig()).toEqual({});
+  it("getStubConfig returns default config with default_zoom 2", () => {
+    expect(SolarViewCard.getStubConfig()).toEqual({ default_zoom: 2 });
   });
 
   function createAndMount() {
@@ -93,7 +93,7 @@ describe("SolarViewCard", () => {
       card.remove();
     });
 
-    it("uses fixed full-system viewBox of 800x800", () => {
+    it("uses default zoom level 1 viewBox of 800x800", () => {
       const card = createAndMount();
       const { width, height } = parseViewBox(card);
       expect(width).toBe(800);
@@ -102,54 +102,66 @@ describe("SolarViewCard", () => {
     });
   });
 
-  describe("zoom controls (viewBox-based)", () => {
-    it("zoom in reduces viewBox dimensions by factor 0.8", () => {
+  describe("zoom controls (discrete levels)", () => {
+    it("zoom in steps to next level", () => {
       const card = createAndMount();
-      const before = parseViewBox(card);
+      // Default is level 1 (800)
+      expect(card._zoomLevel).toBe(1);
       clickButton(card, "zoom-in");
-      const after = parseViewBox(card);
-      expect(after.width).toBeCloseTo(before.width * 0.8, 1);
-      expect(after.height).toBeCloseTo(before.height * 0.8, 1);
+      expect(card._zoomLevel).toBe(2);
+      const { width } = parseViewBox(card);
+      expect(width).toBe(640);
       card.remove();
     });
 
-    it("zoom out increases viewBox dimensions by factor 1.25", () => {
+    it("zoom out steps to previous level", () => {
       const card = createAndMount();
-      // First zoom in so we can zoom out
+      // Default is level 1, zoom in first then zoom out
       clickButton(card, "zoom-in");
-      const before = parseViewBox(card);
+      expect(card._zoomLevel).toBe(2);
       clickButton(card, "zoom-out");
-      const after = parseViewBox(card);
-      expect(after.width).toBeCloseTo(before.width * 1.25, 1);
+      expect(card._zoomLevel).toBe(1);
+      const { width } = parseViewBox(card);
+      expect(width).toBe(800);
       card.remove();
     });
 
-    it("zoom in is clamped at minimum view size 100", () => {
+    it("zoom in is clamped at level 4 (viewBox 320)", () => {
       const card = createAndMount();
-      for (let i = 0; i < 50; i++) clickButton(card, "zoom-in");
+      for (let i = 0; i < 20; i++) clickButton(card, "zoom-in");
+      expect(card._zoomLevel).toBe(4);
       const { width, height } = parseViewBox(card);
-      expect(width).toBeGreaterThanOrEqual(100);
-      expect(height).toBeGreaterThanOrEqual(100);
+      expect(width).toBe(320);
+      expect(height).toBe(320);
       card.remove();
     });
 
-    it("zoom out is clamped at auto-fit size", () => {
+    it("zoom out is clamped at level 1 (viewBox 800)", () => {
       const card = createAndMount();
-      const initial = parseViewBox(card);
-      // Zoom out many times — should not exceed auto-fit
       for (let i = 0; i < 20; i++) clickButton(card, "zoom-out");
-      const after = parseViewBox(card);
-      expect(after.width).toBeCloseTo(initial.width, 1);
+      expect(card._zoomLevel).toBe(1);
+      const { width } = parseViewBox(card);
+      expect(width).toBe(800);
       card.remove();
     });
 
-    it("zoom in then zoom out returns to same size", () => {
+    it("zoom in then zoom out returns to same level", () => {
       const card = createAndMount();
       const before = parseViewBox(card);
       clickButton(card, "zoom-in");
       clickButton(card, "zoom-out");
       const after = parseViewBox(card);
-      expect(after.width).toBeCloseTo(before.width, 1);
+      expect(after.width).toBe(before.width);
+      card.remove();
+    });
+
+    it("zoom level display shows current level between buttons", () => {
+      const card = createAndMount();
+      const levelSpan = card.shadowRoot.querySelector(".zoom-level");
+      expect(levelSpan).toBeTruthy();
+      expect(levelSpan.textContent).toBe("1");
+      clickButton(card, "zoom-in");
+      expect(levelSpan.textContent).toBe("2");
       card.remove();
     });
 
@@ -169,7 +181,7 @@ describe("SolarViewCard", () => {
       card.remove();
     });
 
-    it("zoom buttons are grouped in a .btn-group container", () => {
+    it("zoom buttons and level are grouped in a .btn-group container", () => {
       const card = createAndMount();
       const btnGroup = card.shadowRoot.querySelector(".btn-group");
       expect(btnGroup).toBeTruthy();
@@ -177,6 +189,8 @@ describe("SolarViewCard", () => {
       expect(groupButtons.length).toBe(2);
       expect(groupButtons[0].dataset.action).toBe("zoom-out");
       expect(groupButtons[1].dataset.action).toBe("zoom-in");
+      const levelSpan = btnGroup.querySelector(".zoom-level");
+      expect(levelSpan).toBeTruthy();
       card.remove();
     });
 
@@ -208,8 +222,8 @@ describe("SolarViewCard", () => {
       const zoomed = parseViewBox(card);
       clickButton(card, "day-forward");
       const after = parseViewBox(card);
-      expect(after.width).toBeCloseTo(zoomed.width, 1);
-      expect(after.height).toBeCloseTo(zoomed.height, 1);
+      expect(after.width).toBe(zoomed.width);
+      expect(after.height).toBe(zoomed.height);
       card.remove();
     });
 
@@ -219,19 +233,55 @@ describe("SolarViewCard", () => {
       const zoomed = parseViewBox(card);
       clickButton(card, "month-forward");
       const after = parseViewBox(card);
-      expect(after.width).toBeCloseTo(zoomed.width, 1);
+      expect(after.width).toBe(zoomed.width);
       card.remove();
     });
 
-    it("Today button resets zoom and pan to auto-fit", () => {
+    it("Today button resets zoom to default level", () => {
       const card = createAndMount();
       const initial = parseViewBox(card);
       clickButton(card, "zoom-in");
       clickButton(card, "zoom-in");
       clickButton(card, "today");
       const after = parseViewBox(card);
-      // Should be back to auto-fit size (may differ slightly due to different date)
-      expect(after.width).toBeCloseTo(initial.width, -1);
+      expect(after.width).toBe(initial.width);
+      expect(card._zoomLevel).toBe(1);
+      card.remove();
+    });
+  });
+
+  describe("default_zoom configuration", () => {
+    it("setConfig with default_zoom sets the default zoom level", () => {
+      const card = document.createElement("ha-solar-view-card-test");
+      card.setConfig({ default_zoom: 4 });
+      document.body.appendChild(card);
+      expect(card._zoomLevel).toBe(4);
+      const { width } = parseViewBox(card);
+      expect(width).toBe(320);
+      card.remove();
+    });
+
+    it("setConfig without default_zoom defaults to level 1", () => {
+      const card = document.createElement("ha-solar-view-card-test");
+      card.setConfig({});
+      document.body.appendChild(card);
+      expect(card._zoomLevel).toBe(1);
+      const { width } = parseViewBox(card);
+      expect(width).toBe(800);
+      card.remove();
+    });
+
+    it("Today button resets to configured default zoom level", () => {
+      const card = document.createElement("ha-solar-view-card-test");
+      card.setConfig({ default_zoom: 2 });
+      document.body.appendChild(card);
+      clickButton(card, "zoom-in");
+      clickButton(card, "zoom-in");
+      expect(card._zoomLevel).toBe(4);
+      clickButton(card, "today");
+      expect(card._zoomLevel).toBe(2);
+      const { width } = parseViewBox(card);
+      expect(width).toBe(640);
       card.remove();
     });
   });
@@ -278,8 +328,8 @@ describe("SolarViewCard", () => {
         clientY: 100,
         pointerId: 1,
       });
-      svg.setPointerCapture = () => {};
-      svg.releasePointerCapture = () => {};
+      svg.setPointerCapture = () => { };
+      svg.releasePointerCapture = () => { };
       svg.dispatchEvent(downEvent);
       expect(card._isDragging).toBe(true);
 
@@ -297,8 +347,8 @@ describe("SolarViewCard", () => {
     it("dragging updates viewBox center position", () => {
       const card = createAndMount();
       const svg = card.shadowRoot.querySelector("#solar-view svg");
-      svg.setPointerCapture = () => {};
-      svg.releasePointerCapture = () => {};
+      svg.setPointerCapture = () => { };
+      svg.releasePointerCapture = () => { };
       // Mock getBoundingClientRect
       svg.getBoundingClientRect = () => ({ width: 400, height: 400, x: 0, y: 0, top: 0, left: 0 });
 

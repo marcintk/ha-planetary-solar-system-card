@@ -28,6 +28,7 @@ This can be installed in Home Assistant as:
 
     ```yaml
     - type: custom:ha-solar-view-card
+      default_zoom: 2
     ```
 
 ### Example:
@@ -38,15 +39,12 @@ This can be installed in Home Assistant as:
 
 ### Features
 - orbit around Moon
-- display zoom level number
 - add some other object like comets i.e. Halley
-- add customization via configuration
 - revisit buttons: <<<,<<,<,today, >,>>,>>>, CurrentTime, +, -.
 - add Earth centric view (every update should move all objects except Earth)
 - add moon phases
 - add information if this Northern or Southern hemisphere
 
 ### Fixes
-- better zoom on start
 - sometimes Moon is on Venus position
 - card background is too dark

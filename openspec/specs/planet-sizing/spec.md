@@ -29,23 +29,35 @@ Planets SHALL maintain the following size hierarchy: Earth > Jupiter > Saturn bo
 - **THEN** they SHALL all have the same size of 10px
 
 ### Requirement: Saturn top-down ring rendering
-Saturn SHALL be rendered with a circular ring (viewed from above) instead of an angled ellipse. The ring SHALL be a circle centered on Saturn with a stroke, and the total visual footprint (body + ring) SHALL NOT exceed Saturn's original body-only diameter.
+Saturn SHALL be rendered with dual concentric circular rings (viewed from above) separated by a visible gap, instead of a single ring circle. Both rings SHALL be `<circle>` elements centered on Saturn with stroke and no fill. The total visual footprint (body + outer ring) SHALL NOT exceed Saturn's original body-only diameter from planet data. Saturn's name label SHALL render above (on top of) both rings in the SVG draw order.
 
-#### Scenario: Saturn ring is a circle
+#### Scenario: Saturn has two concentric ring circles
 - **WHEN** Saturn's rings are rendered
-- **THEN** the ring SHALL be an SVG circle element (equal rx and ry, or a `<circle>`) centered at Saturn's position, NOT an ellipse with different rx/ry
+- **THEN** exactly two SVG `<circle>` elements SHALL be rendered for the rings: an outer ring and an inner ring, both centered at Saturn's position with `fill="none"`
 
-#### Scenario: Ring stroke styling
-- **WHEN** Saturn's ring circle is rendered
-- **THEN** the ring SHALL have a stroke derived from Saturn's body color with reduced opacity, a stroke-width of approximately 4px, and no fill
+#### Scenario: Outer ring dimensions
+- **WHEN** the outer ring is rendered
+- **THEN** the outer ring SHALL have a radius of 17px and a stroke-width of 2px, placing its outer edge at 18px from Saturn's center
+
+#### Scenario: Inner ring dimensions
+- **WHEN** the inner ring is rendered
+- **THEN** the inner ring SHALL have a radius of 13px and a stroke-width of 2px, placing its outer edge at 14px from Saturn's center
+
+#### Scenario: Visible gap between rings
+- **WHEN** both rings are rendered
+- **THEN** there SHALL be a 2px gap between the inner edge of the outer ring (16px) and the outer edge of the inner ring (14px), visually representing the Cassini Division
 
 #### Scenario: Total footprint within budget
-- **WHEN** Saturn's body and ring are rendered together
-- **THEN** the outermost edge of the ring (ring radius + half stroke-width) SHALL NOT exceed the original Saturn body radius from planet data
+- **WHEN** Saturn's body and rings are rendered together
+- **THEN** the outermost edge of the outer ring (17px + 1px = 18px) SHALL NOT exceed the original Saturn body radius from planet data (20px)
 
 #### Scenario: Ring color matches Saturn
-- **WHEN** Saturn's ring is rendered
-- **THEN** the ring stroke color SHALL be derived from Saturn's hex color with approximately 0.6 opacity
+- **WHEN** Saturn's rings are rendered
+- **THEN** both ring stroke colors SHALL be derived from Saturn's hex color with approximately 0.6 opacity
+
+#### Scenario: Saturn label renders above both rings
+- **WHEN** Saturn's body, rings, and label are rendered
+- **THEN** the name label SVG text element SHALL be appended to the SVG after both ring circle elements, ensuring the label paints on top of both rings and is never obscured by ring strokes
 
 ### Requirement: Moon visual size
 The Moon SHALL have a visual radius of 8px, equal to Mercury as the smallest rendered bodies.

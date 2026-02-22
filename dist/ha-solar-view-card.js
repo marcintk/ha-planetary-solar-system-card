@@ -177,7 +177,7 @@ function renderOrbit(svg, radius, auLabel) {
       y: CENTER - radius - offset,
       ...labelAttrs,
     })
-  ).textContent = `${auLabel} AU`;
+  ).textContent = `${Number(auLabel).toFixed(1)} AU`;
 
   // Bottom label
   svg.appendChild(
@@ -186,7 +186,7 @@ function renderOrbit(svg, radius, auLabel) {
       y: CENTER + radius + offset,
       ...labelAttrs,
     })
-  ).textContent = `${auLabel} AU`;
+  ).textContent = `${Number(auLabel).toFixed(1)} AU`;
 }
 
 function renderBody(svg, x, y, body, showLabel = true) {
@@ -218,16 +218,30 @@ function renderSaturnRings(svg, x, y, body, renderSize) {
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
   const b = parseInt(hex.slice(5, 7), 16);
-  const strokeWidth = 4;
-  // Ring radius: fits within original body size budget
-  const ringRadius = body.size - strokeWidth / 2;
+  const ringColor = `rgba(${r}, ${g}, ${b}, 0.6)`;
+  const strokeWidth = 2;
+
+  // Outer ring (r=17, stroke-width=2): outer edge 18px, inner edge 16px
   svg.appendChild(
     createSvgElement("circle", {
       cx: x,
       cy: y,
-      r: ringRadius,
+      r: 17,
       fill: "none",
-      stroke: `rgba(${r}, ${g}, ${b}, 0.6)`,
+      stroke: ringColor,
+      "stroke-width": strokeWidth,
+    })
+  );
+
+  // Inner ring (r=13, stroke-width=2): outer edge 14px, inner edge 12px
+  // 2px gap between outer inner edge (16px) and inner outer edge (14px)
+  svg.appendChild(
+    createSvgElement("circle", {
+      cx: x,
+      cy: y,
+      r: 13,
+      fill: "none",
+      stroke: ringColor,
       "stroke-width": strokeWidth,
     })
   );
@@ -256,11 +270,10 @@ function renderDayNightSplit(svg, earthRadius, date, earthBodySize) {
   const earthAngle = calculatePlanetPosition(earth, date);
   const observerAngle = calculateObserverAngle(earthAngle, date);
 
-  // Build a polygon half-plane covering the observer's visible sky hemisphere
-  // Boundary passes through Earth's orbital position, perpendicular to observer direction
+  // Build a 140° wedge covering the observer's visible sky
   const D = VIEW_SIZE;
-  const perpX = Math.cos(observerAngle + Math.PI / 2);
-  const perpY = Math.sin(observerAngle + Math.PI / 2);
+  const HALF_ANGLE = (70 * Math.PI) / 180; // 70° half-angle = 140° total
+
   const earthDirX = Math.cos(earthAngle);
   const earthDirY = Math.sin(earthAngle);
   const obsDirX = Math.cos(observerAngle);
@@ -272,18 +285,21 @@ function renderDayNightSplit(svg, earthRadius, date, earthBodySize) {
   const anchorX = earthOrbitalX + earthBodySize * obsDirX;
   const anchorY = earthOrbitalY - earthBodySize * obsDirY;
 
-  // Four vertices: two on the perpendicular line through Earth, two far out in observer direction
-  const points = [
-    `${anchorX + D * perpX},${anchorY - D * perpY}`,
-    `${anchorX - D * perpX},${anchorY + D * perpY}`,
-    `${anchorX - D * perpX + D * obsDirX},${anchorY + D * perpY - D * obsDirY}`,
-    `${anchorX + D * perpX + D * obsDirX},${anchorY - D * perpY - D * obsDirY}`,
-  ].join(" ");
+  // Left and right edges of the wedge at ±70° from observer direction
+  const leftAngle = observerAngle + HALF_ANGLE;
+  const rightAngle = observerAngle - HALF_ANGLE;
+  const leftX = anchorX + D * Math.cos(leftAngle);
+  const leftY = anchorY - D * Math.sin(leftAngle);
+  const rightX = anchorX + D * Math.cos(rightAngle);
+  const rightY = anchorY - D * Math.sin(rightAngle);
+
+  // SVG path: MoveTo apex, LineTo left edge, Arc to right edge, ClosePath
+  const pathD = `M ${anchorX} ${anchorY} L ${leftX} ${leftY} A ${D} ${D} 0 0 1 ${rightX} ${rightY} Z`;
 
   const defs = svg.querySelector("defs") || svg.insertBefore(createSvgElement("defs", {}), svg.firstChild);
 
   const clipPath = createSvgElement("clipPath", { id: clipId });
-  clipPath.appendChild(createSvgElement("polygon", { points }));
+  clipPath.appendChild(createSvgElement("path", { d: pathD }));
   defs.appendChild(clipPath);
 
   svg.appendChild(
@@ -388,7 +404,7 @@ function renderSeasonOverlay(svg, hemisphere) {
     const isTopHalf = season.startAngle >= 0 && season.endAngle <= 180 && season.startAngle < 180;
     // Use a smaller radius for top-half labels so they appear visually
     // at the same distance from Neptune's orbit as bottom-half labels
-    const arcRadius = isTopHalf ? labelRadius - 36 : labelRadius;
+    const arcRadius = isTopHalf ? labelRadius + 36 : labelRadius;
 
     const x1 = CENTER + arcRadius * Math.cos(startRad);
     const y1 = CENTER - arcRadius * Math.sin(startRad);

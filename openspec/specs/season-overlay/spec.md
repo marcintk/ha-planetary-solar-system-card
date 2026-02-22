@@ -18,7 +18,7 @@ The renderer SHALL draw two dotted lines through the Sun (center of the SVG), on
 - **THEN** the season dividing lines SHALL be rendered after the day/night background but before orbit circles, so orbits and planets appear on top
 
 ### Requirement: Season name labels curved along Neptune orbit
-The renderer SHALL display four season name labels (Spring, Summer, Autumn, Winter), each positioned as curved text following an arc segment of Neptune's orbit within its respective quadrant. All labels SHALL read left-to-right regardless of their position in the view.
+The renderer SHALL display four season name labels (Spring, Summer, Autumn, Winter), each positioned as curved text following an arc segment outside Neptune's orbit within its respective quadrant. All labels SHALL read left-to-right regardless of their position in the view.
 
 #### Scenario: Four season labels displayed
 - **WHEN** the solar system is rendered
@@ -26,7 +26,7 @@ The renderer SHALL display four season name labels (Spring, Summer, Autumn, Wint
 
 #### Scenario: Labels follow Neptune orbit curvature
 - **WHEN** a season label is rendered
-- **THEN** the label text SHALL follow a curved path along Neptune's orbit (MAX_RADIUS from center) using SVG textPath elements
+- **THEN** the label text SHALL follow a curved path along an arc outside Neptune's orbit (beyond MAX_RADIUS from center) using SVG textPath elements
 
 #### Scenario: Labels are readable
 - **WHEN** season labels are rendered
@@ -43,6 +43,10 @@ The renderer SHALL display four season name labels (Spring, Summer, Autumn, Wint
 #### Scenario: Bottom-half labels read left-to-right
 - **WHEN** season labels in the bottom half of the view (Spring in bottom-left, Summer in bottom-right for northern hemisphere) are rendered
 - **THEN** the labels SHALL continue to read left-to-right as they currently do
+
+#### Scenario: Top-half labels sit outside Neptune orbit
+- **WHEN** top-half season labels are rendered
+- **THEN** the arc path radius for top-half labels SHALL be increased (approximately 36px more than the bottom-half label radius) so that the rendered text appears outside Neptune's orbit, at visually the same distance from Neptune's orbit as bottom-half labels, compensating for SVG textPath rendering text on the inner side of reversed arcs
 
 ### Requirement: Hemisphere detection via browser geolocation
 The card SHALL attempt to detect the user's hemisphere using the browser Geolocation API and adjust season label positions accordingly.
@@ -64,24 +68,28 @@ The card SHALL attempt to detect the user's hemisphere using the browser Geoloca
 - **THEN** the card SHALL re-render with the correct hemisphere season mapping
 
 ### Requirement: AU distance labels on vertical axis
-The orbit AU distance labels SHALL be positioned along the vertical axis (Y-axis) in two mirrored sets: one set above center and one set below center, aligned with the vertical season dividing line.
+The orbit AU distance labels SHALL be positioned along the vertical axis (Y-axis) in two mirrored sets: one set above center and one set below center. Labels SHALL be offset horizontally to the right of the vertical season dividing line to avoid overlap. All AU values SHALL be formatted to exactly 1 decimal place.
 
 #### Scenario: AU labels positioned on vertical axis above center
 - **WHEN** an orbit is rendered with its AU distance label
-- **THEN** a label SHALL be placed at x=CENTER, y=(CENTER - orbitRadius - offset), directly above the orbit intersection with the vertical season line
+- **THEN** a label SHALL be placed at y=(CENTER - orbitRadius - offset), directly above the orbit intersection with the vertical axis
 
 #### Scenario: AU labels positioned on vertical axis below center
 - **WHEN** an orbit is rendered with its AU distance label
-- **THEN** a second label SHALL be placed at x=CENTER, y=(CENTER + orbitRadius + offset), directly below the orbit intersection with the vertical season line
+- **THEN** a second label SHALL be placed at y=(CENTER + orbitRadius + offset), directly below the orbit intersection with the vertical axis
 
-#### Scenario: AU labels are horizontally centered
+#### Scenario: AU labels offset right of season dividing line
 - **WHEN** AU labels are rendered on the vertical axis
-- **THEN** each label SHALL use text-anchor "middle" and have no rotation applied
+- **THEN** each label SHALL have its x-coordinate set to CENTER + a small horizontal offset (approximately 4-6px) and use text-anchor "start", so the label text begins just to the right of the vertical season dividing line
 
 #### Scenario: AU label styling unchanged
 - **WHEN** AU labels are rendered
 - **THEN** labels SHALL use a font-size of 9px with rgba(255, 255, 255, 0.5) fill color, matching the existing style
 
+#### Scenario: AU labels formatted to 1 decimal place
+- **WHEN** AU distance labels are rendered
+- **THEN** each AU value SHALL be displayed with exactly 1 decimal place (e.g., `0.4 AU`, `1.0 AU`, `5.2 AU`, `9.6 AU`, `19.2 AU`, `30.1 AU`), using fixed-point formatting on the raw AU data
+
 #### Scenario: AU labels do not collide with season lines
 - **WHEN** AU labels and season dividing lines are both rendered
-- **THEN** AU labels SHALL be offset from the orbit circle so they do not overlap the vertical season dividing line
+- **THEN** AU labels SHALL be positioned to the right of the vertical season dividing line so they do not overlap it

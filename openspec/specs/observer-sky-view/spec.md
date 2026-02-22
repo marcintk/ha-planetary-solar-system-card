@@ -1,28 +1,32 @@
 ### Requirement: Time-based visible sky overlay
-The system SHALL render a half-plane overlay indicating the visible sky hemisphere based on the observer's local time and Earth's orbital position. The overlay MUST rotate continuously through 360° over 24 hours as Earth rotates. At local midnight (00:00), the visible hemisphere SHALL face directly away from the Sun. At local noon (12:00), the visible hemisphere SHALL face toward the Sun.
+The system SHALL render a 140-degree wedge overlay indicating the visible sky based on the observer's local time and Earth's orbital position. The overlay MUST rotate continuously through 360 degrees over 24 hours as Earth rotates. At local midnight (00:00), the visible wedge SHALL face directly away from the Sun. At local noon (12:00), the visible wedge SHALL face toward the Sun.
 
 The observer angle SHALL be computed as:
 ```
 observerAngle = earthOrbitalAngle + (localHours + localMinutes/60) / 24 * 2PI
 ```
 
-Where `earthOrbitalAngle` is Earth's current orbital position around the Sun, and `localHours`/`localMinutes` are derived from the browser's local timezone via `Date.getHours()` and `Date.getMinutes()`. The previous formula included an extra `+ PI` term that inverted the direction; this has been removed.
+Where `earthOrbitalAngle` is Earth's current orbital position around the Sun, and `localHours`/`localMinutes` are derived from the browser's local timezone via `Date.getHours()` and `Date.getMinutes()`.
 
 #### Scenario: Midnight sky view
 - **WHEN** the date is set to any date at local time 00:00
-- **THEN** the visible sky overlay covers the hemisphere directly opposite the Sun from Earth's position (observer faces away from the Sun), and the observer angle SHALL equal `earthOrbitalAngle`
+- **THEN** the visible sky overlay covers a 140-degree wedge centered on the direction directly opposite the Sun from Earth's position (observer faces away from the Sun), and the observer angle SHALL equal `earthOrbitalAngle`
 
 #### Scenario: Noon sky view
 - **WHEN** the date is set to any date at local time 12:00
-- **THEN** the visible sky overlay covers the hemisphere on the Sun's side from Earth's position (observer faces toward the Sun), and the observer angle SHALL equal `earthOrbitalAngle + PI`
+- **THEN** the visible sky overlay covers a 140-degree wedge on the Sun's side from Earth's position (observer faces toward the Sun), and the observer angle SHALL equal `earthOrbitalAngle + PI`
 
 #### Scenario: 6AM sky view rotation
 - **WHEN** the date is set to any date at local time 06:00
-- **THEN** the visible sky overlay is rotated 90° clockwise from the midnight position (one quarter of a full rotation)
+- **THEN** the visible sky overlay is rotated 90 degrees clockwise from the midnight position (one quarter of a full rotation)
+
+#### Scenario: Overlay uses wedge clip-path geometry
+- **WHEN** the visible sky overlay is rendered
+- **THEN** the overlay SHALL use a `<path>` element within a `<clipPath>` defining a 140-degree sector, with the apex at the anchor point on Earth's surface, two straight edges extending at plus and minus 70 degrees from the observer direction, and an arc connecting the far ends
 
 #### Scenario: Overlay uses existing visual style
 - **WHEN** the visible sky overlay is rendered
-- **THEN** the overlay SHALL use the same `rgba(255, 255, 255, 0.04)` fill and clip-path technique as the current day/night split
+- **THEN** the overlay SHALL use the same `rgba(255, 255, 255, 0.04)` fill applied to a circle clipped by the wedge path
 
 ### Requirement: Observer needle indicator
 The system SHALL render a needle indicator on the Earth dot showing the observer's zenith direction — pointing toward the visible sky hemisphere. The needle SHALL extend from Earth's center to Earth's surface (Earth's body radius in pixels), with the tip at the surface. This represents the direction the observer is looking: away from the Sun at night, toward the Sun during the day.
@@ -52,11 +56,11 @@ The system SHALL render a needle indicator on the Earth dot showing the observer
 - **THEN** the needle SHALL point mostly away from the Sun (rotated 315° from noon, or equivalently 135° past midnight), reflecting that the observer is looking at the night sky
 
 ### Requirement: Visibility cone originates from Earth's surface
-The day/night overlay boundary SHALL be anchored at Earth's surface (offset from Earth's orbital center by Earth's body radius along the observer direction), not at Earth's orbital center. This simulates the visible sky as seen by an observer standing on Earth's surface.
+The day/night overlay boundary SHALL be anchored at Earth's surface (offset from Earth's orbital center by Earth's body radius along the observer direction), not at Earth's orbital center. The wedge apex represents the observer standing on Earth's surface looking outward.
 
 #### Scenario: Cone boundary starts at Earth's surface
 - **WHEN** the day/night split overlay is rendered
-- **THEN** the half-plane boundary SHALL pass through a point offset from Earth's orbital position by Earth's body radius in the observer's zenith direction
+- **THEN** the wedge apex SHALL be at a point offset from Earth's orbital position by Earth's body radius in the observer's zenith direction
 
 #### Scenario: Cone anchor accounts for Earth's body size
 - **WHEN** the day/night split anchor point is computed
@@ -64,7 +68,7 @@ The day/night overlay boundary SHALL be anchored at Earth's surface (offset from
 
 #### Scenario: Inner planets remain on day side
 - **WHEN** the day/night split is rendered
-- **THEN** Mercury and Venus (orbits inside Earth's) SHALL always be fully on the day side, as the boundary offset to Earth's surface does not change the half-plane orientation
+- **THEN** Mercury and Venus (orbits inside Earth's) SHALL always be fully on the day side, as the wedge opens outward from Earth toward the night sky
 
 ### Requirement: Browser timezone usage
 The system SHALL derive the observer's local time from the browser's timezone using standard `Date` local time methods (`getHours()`, `getMinutes()`). No additional timezone configuration SHALL be required.

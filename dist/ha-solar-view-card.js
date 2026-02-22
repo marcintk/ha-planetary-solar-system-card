@@ -533,27 +533,31 @@ function renderSolarSystem(date, hemisphere = "north") {
   return { svg, bounds };
 }
 
-const ZOOM_IN_FACTOR = 0.8;
-const ZOOM_OUT_FACTOR = 1.25;
-const MIN_VIEW_SIZE = 100;
 const FULL_SYSTEM_SIZE = 800;
+const ZOOM_LEVELS = {
+  1: 800,
+  2: 640,
+  3: 480,
+  4: 320
+};
+const DEFAULT_ZOOM_LEVEL = 1;
+const MIN_ZOOM = 1;
+const MAX_ZOOM = 4;
 
 class SolarViewCard extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: "open" });
-    this._currentDate = new Date();
-    // View state (initialized on first render)
+    this._currentDate = new Date(); // View state (initialized on first render)
     this._viewCenterX = null;
     this._viewCenterY = null;
     this._viewWidth = null;
     this._viewHeight = null;
-    // Hemisphere for season labels (default: north)
-    this._hemisphere = "north";
-    // Auto-update timer
-    this._autoUpdateTimer = null;
-    // Drag state
-    this._isDragging = false;
+    this._zoomLevel = null;
+    this._defaultZoomLevel = DEFAULT_ZOOM_LEVEL;
+    this._hemisphere = "north"; // Hemisphere for season labels (default: north)
+    this._autoUpdateTimer = null; // Auto-update timer
+    this._isDragging = false; // Drag state
     this._dragStartX = 0;
     this._dragStartY = 0;
     this._dragStartCenterX = 0;
@@ -566,6 +570,7 @@ class SolarViewCard extends HTMLElement {
 
   setConfig(config) {
     this._config = config;
+    this._defaultZoomLevel = (config.default_zoom == null || config.default_zoom < MIN_ZOOM || config.default_zoom > MAX_ZOOM) ? DEFAULT_ZOOM_LEVEL : config.default_zoom;
   }
 
   connectedCallback() {
@@ -603,11 +608,13 @@ class SolarViewCard extends HTMLElement {
 
   _goToday() {
     this._currentDate = new Date();
-    // Reset view to fixed full-system extent
+
+    // Reset view to default zoom level
+    this._zoomLevel = this._defaultZoomLevel;
     this._viewCenterX = FULL_SYSTEM_SIZE / 2;
     this._viewCenterY = FULL_SYSTEM_SIZE / 2;
-    this._viewWidth = FULL_SYSTEM_SIZE;
-    this._viewHeight = FULL_SYSTEM_SIZE;
+    this._viewWidth = ZOOM_LEVELS[this._zoomLevel];
+    this._viewHeight = ZOOM_LEVELS[this._zoomLevel];
     this._render();
   }
 
@@ -621,25 +628,29 @@ class SolarViewCard extends HTMLElement {
             this._render();
           }
         },
-        () => {} // Geolocation denied or unavailable — keep default
+        () => { } // Geolocation denied or unavailable — keep default
       );
     }
   }
 
   _zoomIn() {
-    const newWidth = this._viewWidth * ZOOM_IN_FACTOR;
-    const newHeight = this._viewHeight * ZOOM_IN_FACTOR;
-    this._viewWidth = Math.max(newWidth, MIN_VIEW_SIZE);
-    this._viewHeight = Math.max(newHeight, MIN_VIEW_SIZE);
-    this._updateViewBox();
+    if (this._zoomLevel >= MAX_ZOOM) return;
+    this._zoomLevel++;
+    this._applyZoom();
   }
 
   _zoomOut() {
-    const newWidth = this._viewWidth * ZOOM_OUT_FACTOR;
-    const newHeight = this._viewHeight * ZOOM_OUT_FACTOR;
-    this._viewWidth = Math.min(newWidth, FULL_SYSTEM_SIZE);
-    this._viewHeight = Math.min(newHeight, FULL_SYSTEM_SIZE);
+    if (this._zoomLevel <= MIN_ZOOM) return;
+    this._zoomLevel--;
+    this._applyZoom();
+  }
+
+  _applyZoom() {
+    this._viewWidth = ZOOM_LEVELS[this._zoomLevel];
+    this._viewHeight = ZOOM_LEVELS[this._zoomLevel];
     this._updateViewBox();
+    const levelDisplay = this.shadowRoot.querySelector(".zoom-level");
+    if (levelDisplay) levelDisplay.textContent = this._zoomLevel;
   }
 
   _updateViewBox() {
@@ -688,6 +699,15 @@ class SolarViewCard extends HTMLElement {
   }
 
   _render() {
+    // Initialize view state before rendering template
+    if (this._viewCenterX === null) {
+      this._viewCenterX = FULL_SYSTEM_SIZE / 2;
+      this._viewCenterY = FULL_SYSTEM_SIZE / 2;
+      this._zoomLevel = this._defaultZoomLevel;
+      this._viewWidth = ZOOM_LEVELS[this._zoomLevel];
+      this._viewHeight = ZOOM_LEVELS[this._zoomLevel];
+    }
+
     this.shadowRoot.innerHTML = `
       <style>
         :host {
@@ -756,6 +776,17 @@ class SolarViewCard extends HTMLElement {
         .btn-group button:last-child {
           border-radius: 0 6px 6px 0;
         }
+        .zoom-level {
+          background: #2a2a2a;
+          color: rgba(255, 255, 255, 0.8);
+          border-top: 1px solid rgba(255, 255, 255, 0.1);
+          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+          padding: 2px 4px;
+          font-size: 10px;
+          font-family: sans-serif;
+          display: flex;
+          align-items: center;
+        }
       </style>
       <div class="card">
         <div class="solar-view-wrapper">
@@ -770,6 +801,7 @@ class SolarViewCard extends HTMLElement {
           <button data-action="month-forward">&gt;&gt;</button>
           <span class="btn-group">
             <button data-action="zoom-out">&minus;</button>
+            <span class="zoom-level">${this._zoomLevel}</span>
             <button data-action="zoom-in">+</button>
           </span>
         </div>
@@ -779,14 +811,6 @@ class SolarViewCard extends HTMLElement {
     const container = this.shadowRoot.getElementById("solar-view");
     const { svg } = renderSolarSystem(this._currentDate, this._hemisphere);
     container.appendChild(svg);
-
-    // Initialize view state to fixed full-system extent
-    if (this._viewCenterX === null) {
-      this._viewCenterX = FULL_SYSTEM_SIZE / 2;
-      this._viewCenterY = FULL_SYSTEM_SIZE / 2;
-      this._viewWidth = FULL_SYSTEM_SIZE;
-      this._viewHeight = FULL_SYSTEM_SIZE;
-    }
 
     this._updateViewBox();
 
@@ -839,7 +863,7 @@ class SolarViewCard extends HTMLElement {
   }
 
   static getStubConfig() {
-    return {};
+    return { default_zoom: 2 };
   }
 }
 

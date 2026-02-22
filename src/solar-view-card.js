@@ -189,7 +189,7 @@ export class SolarViewCard extends HTMLElement {
           justify-content: center;
           align-items: center;
           gap: 4px;
-          margin-top: 12px;
+          margin-top: 2px;
         }
         .nav button {
           background: #2a2a2a;

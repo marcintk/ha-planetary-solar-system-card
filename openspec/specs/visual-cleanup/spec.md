@@ -21,7 +21,7 @@ The date display SHALL format the year as 2 digits (last two digits of the full 
 - **THEN** the date SHALL be displayed as `30-01-01 00:00`
 
 ### Requirement: Card padding minimized
-The `.card` element SHALL use 2px padding on all sides to maximize the visualization area within the card.
+The `.card` element SHALL use 2px padding on all sides to maximize the visualization area within the card. The navigation button row SHALL have minimal vertical separation from the SVG visualization.
 
 #### Scenario: Card padding value
 - **WHEN** the card is rendered
@@ -31,17 +31,7 @@ The `.card` element SHALL use 2px padding on all sides to maximize the visualiza
 - **WHEN** the solar system SVG is displayed inside the card
 - **THEN** the SVG SHALL occupy nearly the full card width and height, with only 2px of space on each edge
 
-### Requirement: Saturn rings are narrow and bold
-Saturn's rings SHALL be rendered as a narrow, bold ellipse to ensure visibility at small rendering sizes.
+#### Scenario: Minimal gap between visualization and buttons
+- **WHEN** the navigation button row is rendered below the SVG visualization
+- **THEN** the `.nav` container SHALL have a `margin-top` of no more than 2px, minimizing the vertical space between the visualization and the navigation controls
 
-#### Scenario: Ring width
-- **WHEN** Saturn is rendered with a body size of S pixels
-- **THEN** the ring ellipse `rx` SHALL be `S * 1.4` (narrower than previous `S * 2.0`)
-
-#### Scenario: Ring stroke weight
-- **WHEN** Saturn's rings are rendered
-- **THEN** the ring stroke-width SHALL be `6` (bolder than previous `4`)
-
-#### Scenario: Ring vertical proportion unchanged
-- **WHEN** Saturn's rings are rendered with a body size of S pixels
-- **THEN** the ring ellipse `ry` SHALL remain `S * 0.5` to maintain the tilted-ellipse appearance

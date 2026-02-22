@@ -23,8 +23,8 @@ describe("renderSolarSystem", () => {
     renderInto(container, new Date("2026-02-14"));
 
     const svg = container.querySelector("svg");
-    // Orbits are circles with stroke and no fill
-    const orbitCircles = svg.querySelectorAll('circle[fill="none"]');
+    // Orbits are dashed circles with stroke and no fill
+    const orbitCircles = svg.querySelectorAll('circle[fill="none"][stroke-dasharray="5, 5"]');
     expect(orbitCircles.length).toBe(8);
   });
 
@@ -54,16 +54,32 @@ describe("renderSolarSystem", () => {
     expect(texts).toContain("Moon");
   });
 
-  it("renders AU distance labels", () => {
+  it("renders AU distance labels on vertical axis in mirrored pairs", () => {
     const container = document.createElement("div");
     renderInto(container, new Date("2026-02-14"));
 
     const svg = container.querySelector("svg");
-    const texts = Array.from(svg.querySelectorAll("text")).map(
-      (t) => t.textContent
+    const auLabels = Array.from(svg.querySelectorAll("text")).filter((t) =>
+      t.textContent.endsWith(" AU")
     );
-    expect(texts).toContain("1 AU");
-    expect(texts).toContain("5.2 AU");
+
+    // 8 planets × 2 labels (top + bottom) = 16 AU labels
+    expect(auLabels.length).toBe(16);
+
+    // All labels should be offset right of x=400 (vertical season line)
+    for (const label of auLabels) {
+      expect(Number(label.getAttribute("x"))).toBeGreaterThan(400);
+      expect(label.getAttribute("text-anchor")).toBe("start");
+      // No rotation transform should be applied
+      expect(label.getAttribute("transform")).toBeNull();
+    }
+
+    // For each AU value, there should be one label above and one below center
+    const earthLabels = auLabels.filter((t) => t.textContent === "1.0 AU");
+    expect(earthLabels.length).toBe(2);
+    const ys = earthLabels.map((t) => Number(t.getAttribute("y")));
+    expect(ys.some((y) => y < 400)).toBe(true); // top
+    expect(ys.some((y) => y > 400)).toBe(true); // bottom
   });
 
   it("returns svg element without appending to container", () => {
@@ -72,34 +88,41 @@ describe("renderSolarSystem", () => {
     expect(svg.tagName).toBe("svg");
   });
 
-  it("renders day/night split with polygon clip path", () => {
+  it("renders dual visibility cones (180° outer + 150° inner)", () => {
     const container = document.createElement("div");
     renderInto(container, new Date("2026-02-14"));
 
     const svg = container.querySelector("svg");
-    const clipPath = svg.querySelector("clipPath#day-clip");
-    expect(clipPath).not.toBeNull();
-    const polygon = clipPath.querySelector("polygon");
-    expect(polygon).not.toBeNull();
-    expect(clipPath.querySelector("rect")).toBeNull();
+    const outerClip = svg.querySelector("clipPath#sky-clip-outer");
+    const innerClip = svg.querySelector("clipPath#sky-clip-inner");
+    expect(outerClip).not.toBeNull();
+    expect(innerClip).not.toBeNull();
+
+    // Both should have path-based wedges
+    const outerPath = outerClip.querySelector("path");
+    const innerPath = innerClip.querySelector("path");
+    expect(outerPath).not.toBeNull();
+    expect(innerPath).not.toBeNull();
+    expect(outerPath.getAttribute("d")).toMatch(/^M .+ L .+ A .+ Z$/);
+    expect(innerPath.getAttribute("d")).toMatch(/^M .+ L .+ A .+ Z$/);
+
+    // 180° cone uses large-arc-flag=1, 150° cone uses large-arc-flag=0
+    expect(outerPath.getAttribute("d")).toMatch(/A \d+ \d+ 0 1 1/);
+    expect(innerPath.getAttribute("d")).toMatch(/A \d+ \d+ 0 0 1/);
   });
 
-  it("day overlay covers Sun-facing hemisphere", () => {
+  it("day overlay covers observer's visible sky wedge", () => {
     const container = document.createElement("div");
     const date = new Date("2026-02-14");
     renderInto(container, date);
 
     const svg = container.querySelector("svg");
-    const polygon = svg.querySelector("clipPath#day-clip polygon");
-    const points = polygon.getAttribute("points");
-    expect(points).toBeTruthy();
+    const path = svg.querySelector("clipPath#sky-clip-inner path");
+    const d = path.getAttribute("d");
+    expect(d).toBeTruthy();
 
-    // Parse polygon points and verify they form a valid polygon
-    const coords = points.split(" ").map((p) => {
-      const [x, y] = p.split(",").map(Number);
-      return { x, y };
-    });
-    expect(coords.length).toBe(4);
+    // Path should define a wedge: M (apex) L (left edge) A (arc to right edge) Z
+    expect(d).toMatch(/^M .+ L .+ A .+ Z$/);
   });
 
   it("day overlay position changes with different dates", () => {
@@ -108,10 +131,10 @@ describe("renderSolarSystem", () => {
     renderInto(c1, new Date("2024-01-01"));
     renderInto(c2, new Date("2024-07-01"));
 
-    const polygon1 = c1.querySelector("clipPath#day-clip polygon");
-    const polygon2 = c2.querySelector("clipPath#day-clip polygon");
-    expect(polygon1.getAttribute("points")).not.toBe(
-      polygon2.getAttribute("points")
+    const path1 = c1.querySelector("clipPath#sky-clip-outer path");
+    const path2 = c2.querySelector("clipPath#sky-clip-outer path");
+    expect(path1.getAttribute("d")).not.toBe(
+      path2.getAttribute("d")
     );
   });
 
@@ -125,43 +148,90 @@ describe("renderSolarSystem", () => {
 
     const earthAngle = calculatePlanetPosition(earth, date);
     const observerAngle = calculateObserverAngle(earthAngle, date);
-    const polygon = container.querySelector("clipPath#day-clip polygon");
-    const points = polygon.getAttribute("points");
-    const coords = points.split(" ").map((p) => {
-      const [x, y] = p.split(",").map(Number);
-      return { x, y };
-    });
+    const path = container.querySelector("clipPath#sky-clip-inner path");
+    const d = path.getAttribute("d");
 
-    // Centroid of the polygon should be in the observer's viewing direction
-    const centroidX = coords.reduce((s, c) => s + c.x, 0) / coords.length;
-    const centroidY = coords.reduce((s, c) => s + c.y, 0) / coords.length;
+    // Parse the wedge path: M anchorX anchorY L leftX leftY A D D 0 large-arc sweep rightX rightY Z
+    const nums = d.match(/[-\d.]+/g).map(Number);
+    const anchorX = nums[0];
+    const anchorY = nums[1];
+    const leftX = nums[2];
+    const leftY = nums[3];
+    // Arc params: rx(4) ry(5) x-rot(6) large-arc(7) sweep-flag(8) rightX(9) rightY(10)
+    const rightX = nums[9];
+    const rightY = nums[10];
 
-    // Observer direction from Earth's position
+    // Midpoint of left and right edges should be in the observer's direction from anchor
+    const midX = (leftX + rightX) / 2;
+    const midY = (leftY + rightY) / 2;
+
+    // Observer direction
     const obsDirX = Math.cos(observerAngle);
     const obsDirY = -Math.sin(observerAngle);
 
-    // Centroid offset from center should be in the observer's direction
-    const offsetX = centroidX - 400;
-    const offsetY = centroidY - 400;
+    // Vector from anchor to midpoint should align with observer direction
+    const offsetX = midX - anchorX;
+    const offsetY = midY - anchorY;
     const dot = offsetX * obsDirX + offsetY * obsDirY;
     expect(dot).toBeGreaterThan(0);
   });
 
-  it("renders Saturn with ring ellipse", () => {
+  it("renders Saturn with dual concentric rings", () => {
     const container = document.createElement("div");
     renderInto(container, new Date("2026-02-14"));
 
     const svg = container.querySelector("svg");
-    // Saturn's ring is a stroke-only ellipse near Saturn's body
-    const ellipses = svg.querySelectorAll("ellipse");
-    expect(ellipses.length).toBe(1);
+    // Saturn's rings are two stroke-only circles (top-down view)
+    const ringCircles = svg.querySelectorAll('circle[fill="none"]:not([stroke-dasharray])');
+    expect(ringCircles.length).toBe(2);
 
-    const ring = ellipses[0];
-    expect(ring.getAttribute("fill")).toBe("none");
-    expect(ring.getAttribute("stroke")).toBe("rgba(224, 192, 128, 0.6)"); // Saturn #e0c080 with alpha
-    expect(ring.getAttribute("stroke-width")).toBe("6");
-    expect(ring.getAttribute("rx")).toBe("28"); // 20 * 1.4
-    expect(ring.getAttribute("ry")).toBe("10"); // 20 * 0.5
+    const outerRing = ringCircles[0];
+    expect(outerRing.getAttribute("stroke")).toBe("rgba(224, 192, 128, 0.6)");
+    expect(outerRing.getAttribute("stroke-width")).toBe("2");
+    expect(outerRing.getAttribute("r")).toBe("24");
+
+    const innerRing = ringCircles[1];
+    expect(innerRing.getAttribute("stroke")).toBe("rgba(224, 192, 128, 0.6)");
+    expect(innerRing.getAttribute("stroke-width")).toBe("3");
+    expect(innerRing.getAttribute("r")).toBe("19");
+
+    // 3px gap between outer inner edge (23px) and inner outer edge (20px)
+    const outerInnerEdge = 24 - 2 / 2; // 23px
+    const innerOuterEdge = 19 + 3 / 2; // 21px
+    expect(outerInnerEdge - innerOuterEdge).toBe(2.5);
+
+    // No ellipses should exist
+    expect(svg.querySelectorAll("ellipse").length).toBe(0);
+
+    // Saturn's body should be rendered at half its data size (13px)
+    const saturnBody = svg.querySelector('circle[fill="#e0c080"]');
+    expect(saturnBody).not.toBeNull();
+    expect(saturnBody.getAttribute("r")).toBe("13");
+  });
+
+  it("Saturn label renders above (after) both rings in SVG DOM order", () => {
+    const container = document.createElement("div");
+    renderInto(container, new Date("2026-02-14"));
+
+    const svg = container.querySelector("svg");
+    const allElements = Array.from(svg.children);
+
+    // Find Saturn's ring circles (non-orbit, non-dash stroke circles)
+    const rings = svg.querySelectorAll('circle[fill="none"]:not([stroke-dasharray])');
+    expect(rings.length).toBe(2);
+
+    // Find Saturn's label text
+    const saturnLabel = allElements.find(
+      (el) => el.tagName === "text" && el.textContent === "Saturn"
+    );
+    expect(saturnLabel).not.toBeNull();
+
+    // Label must come after both rings in DOM order
+    const outerRingIdx = allElements.indexOf(rings[0]);
+    const innerRingIdx = allElements.indexOf(rings[1]);
+    const labelIdx = allElements.indexOf(saturnLabel);
+    expect(labelIdx).toBeGreaterThan(outerRingIdx);
+    expect(labelIdx).toBeGreaterThan(innerRingIdx);
   });
 
   it("Saturn ring is centered on Saturn body", () => {
@@ -180,9 +250,9 @@ describe("renderSolarSystem", () => {
     renderInto(container, new Date("2026-02-14"));
 
     const svg = container.querySelector("svg");
-    // Only one ellipse should exist (Saturn's ring)
-    const ellipses = svg.querySelectorAll("ellipse");
-    expect(ellipses.length).toBe(1);
+    // No ellipses (ring is now a circle), and only two non-orbit, non-body stroke circles (Saturn's dual rings)
+    const ringCircles = svg.querySelectorAll('circle[fill="none"]:not([stroke-dasharray])');
+    expect(ringCircles.length).toBe(2); // Only Saturn's dual rings
   });
 
   it("renders different planet positions for different dates", () => {
@@ -207,7 +277,7 @@ describe("renderSolarSystem", () => {
     expect(needle.getAttribute("stroke-width")).toBe("2");
   });
 
-  it("observer needle points in observer angle direction", () => {
+  it("observer needle points in observer angle direction with length equal to Earth body radius", () => {
     const earth = PLANETS.find((p) => p.name === "Earth");
     const date = new Date("2026-02-14T06:00:00");
     const container = document.createElement("div");
@@ -220,18 +290,19 @@ describe("renderSolarSystem", () => {
     const x2 = Number(needle.getAttribute("x2"));
     const y2 = Number(needle.getAttribute("y2"));
 
+    // Needle length should equal Earth's body radius (size = 10)
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const needleLength = Math.sqrt(dx * dx + dy * dy);
+    expect(needleLength).toBeCloseTo(earth.size, 1);
+
     // The needle direction should match the observer angle (toward visible sky)
     const earthAngle = calculatePlanetPosition(earth, date);
     const observerAngle = calculateObserverAngle(earthAngle, date);
-    const expectedAngle = observerAngle;
 
-    const dx = x2 - x1;
-    const dy = -(y2 - y1); // SVG y is flipped
-    const actualAngle = Math.atan2(dy, dx);
-
-    // Normalize both angles to [0, 2pi)
+    const actualAngle = Math.atan2(-dy, dx); // SVG y is flipped
     const norm = (a) => ((a % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
-    const diff = Math.abs(norm(actualAngle) - norm(expectedAngle));
+    const diff = Math.abs(norm(actualAngle) - norm(observerAngle));
     const angleDiff = Math.min(diff, 2 * Math.PI - diff);
     expect(angleDiff).toBeLessThan(0.01);
   });
@@ -301,6 +372,58 @@ describe("season overlay", () => {
     expect(labels).toEqual(["Summer", "Spring", "Winter", "Autumn"]);
   });
 
+  it("top-half season labels use reversed arc sweep for left-to-right reading", () => {
+    const container = document.createElement("div");
+    renderInto(container, new Date("2026-02-14"));
+
+    const svg = container.querySelector("svg");
+    const defs = svg.querySelector("defs");
+    // Season arcs: 0=Winter(top-left, 90-180°), 1=Autumn(top-right, 0-90°),
+    //              2=Summer(bottom-right, 270-360°), 3=Spring(bottom-left, 180-270°)
+    const topArcs = [
+      defs.querySelector("#season-arc-0"),
+      defs.querySelector("#season-arc-1"),
+    ];
+    const bottomArcs = [
+      defs.querySelector("#season-arc-2"),
+      defs.querySelector("#season-arc-3"),
+    ];
+
+    // Top-half arcs should use sweep-flag=1 (reversed for readability)
+    for (const arc of topArcs) {
+      expect(arc.getAttribute("d")).toMatch(/A \d+ \d+ 0 0 1/);
+    }
+    // Bottom-half arcs should use sweep-flag=0 (original direction)
+    for (const arc of bottomArcs) {
+      expect(arc.getAttribute("d")).toMatch(/A \d+ \d+ 0 0 0/);
+    }
+  });
+
+  it("top-half season label arcs use a larger radius than bottom-half arcs (outside Neptune)", () => {
+    const container = document.createElement("div");
+    renderInto(container, new Date("2026-02-14"));
+
+    const svg = container.querySelector("svg");
+    const defs = svg.querySelector("defs");
+
+    // Top-half arcs: 0=Winter(90-180°), 1=Autumn(0-90°)
+    // Bottom-half arcs: 2=Summer(270-360°), 3=Spring(180-270°)
+    const topArc = defs.querySelector("#season-arc-0");
+    const bottomArc = defs.querySelector("#season-arc-2");
+
+    // Extract radius from arc path "A <rx> <ry> ..."
+    const extractRadius = (path) => {
+      const match = path.getAttribute("d").match(/A ([\d.]+) ([\d.]+)/);
+      return Number(match[1]);
+    };
+
+    const topRadius = extractRadius(topArc);
+    const bottomRadius = extractRadius(bottomArc);
+    expect(topRadius).toBe(368);
+    expect(bottomRadius).toBe(380);
+    expect(topRadius).toBeLessThan(bottomRadius);
+  });
+
   it("season dividing lines are rendered before orbits (behind them)", () => {
     const container = document.createElement("div");
     renderInto(container, new Date("2026-02-14"));
@@ -366,35 +489,35 @@ describe("calculateObserverAngle", () => {
     renderInto(c1, new Date("2026-02-14T00:00:00"));
     renderInto(c2, new Date("2026-02-14T12:00:00"));
 
-    const poly1 = c1.querySelector("clipPath#day-clip polygon");
-    const poly2 = c2.querySelector("clipPath#day-clip polygon");
-    const pts1 = poly1.getAttribute("points");
-    const pts2 = poly2.getAttribute("points");
+    const path1 = c1.querySelector("clipPath#sky-clip-outer path");
+    const path2 = c2.querySelector("clipPath#sky-clip-outer path");
+    const d1 = path1.getAttribute("d");
+    const d2 = path2.getAttribute("d");
 
     // Overlays at midnight vs noon should be different (rotated ~180°)
-    expect(pts1).not.toBe(pts2);
+    expect(d1).not.toBe(d2);
 
-    // Compute centroids and verify they're on opposite sides
-    const parsePts = (pts) =>
-      pts.split(" ").map((p) => {
-        const [x, y] = p.split(",").map(Number);
-        return { x, y };
-      });
-    const centroid = (coords) => ({
-      x: coords.reduce((s, c) => s + c.x, 0) / coords.length,
-      y: coords.reduce((s, c) => s + c.y, 0) / coords.length,
-    });
+    // Parse anchor and edge points from each wedge path
+    const parseWedge = (d) => {
+      const nums = d.match(/[-\d.]+/g).map(Number);
+      return {
+        anchorX: nums[0], anchorY: nums[1],
+        leftX: nums[2], leftY: nums[3],
+        rightX: nums[9], rightY: nums[10],
+      };
+    };
 
-    const c1c = centroid(parsePts(pts1));
-    const c2c = centroid(parsePts(pts2));
+    const w1 = parseWedge(d1);
+    const w2 = parseWedge(d2);
 
-    // Vectors from center (400,400) to each centroid should point in roughly opposite directions
-    const v1x = c1c.x - 400;
-    const v1y = c1c.y - 400;
-    const v2x = c2c.x - 400;
-    const v2y = c2c.y - 400;
-    const dot = v1x * v2x + v1y * v2y;
-    // Dot product of opposite vectors should be negative
+    // Midpoints of left/right edges as proxy for wedge direction
+    const mid1X = (w1.leftX + w1.rightX) / 2 - w1.anchorX;
+    const mid1Y = (w1.leftY + w1.rightY) / 2 - w1.anchorY;
+    const mid2X = (w2.leftX + w2.rightX) / 2 - w2.anchorX;
+    const mid2Y = (w2.leftY + w2.rightY) / 2 - w2.anchorY;
+
+    // Dot product of opposite direction vectors should be negative
+    const dot = mid1X * mid2X + mid1Y * mid2Y;
     expect(dot).toBeLessThan(0);
   });
 });

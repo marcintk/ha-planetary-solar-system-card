@@ -180,6 +180,15 @@ describe("SolarViewCard", () => {
       card.remove();
     });
 
+    it("nav has minimal margin-top (2px or less)", () => {
+      const card = createAndMount();
+      const styleEl = card.shadowRoot.querySelector("style");
+      const match = styleEl.textContent.match(/\.nav\s*\{[^}]*margin-top:\s*(\d+)px/);
+      expect(match).not.toBeNull();
+      expect(Number(match[1])).toBeLessThanOrEqual(2);
+      card.remove();
+    });
+
     it("overflow wrapper exists and style declares overflow hidden", () => {
       const card = createAndMount();
       const wrapper = card.shadowRoot.querySelector(".solar-view-wrapper");

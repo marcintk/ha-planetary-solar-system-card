@@ -55,7 +55,7 @@ export const PLANETS = [
     au: 9.58,
     periodDays: 10759.2,
     color: "#e0c080",
-    size: 20,
+    size: 26,
     meanLongitudeJ2000: 49.94,
   },
   {

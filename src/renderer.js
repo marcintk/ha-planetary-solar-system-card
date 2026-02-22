@@ -11,7 +11,8 @@ const VIEW_SIZE = 800;
 const CENTER = VIEW_SIZE / 2;
 const ORBIT_COLOR = "rgba(255, 255, 255, 0.12)";
 const LABEL_COLOR = "rgba(255, 255, 255, 0.5)";
-const DAY_OVERLAY = "rgba(255, 255, 255, 0.04)";
+const DAY_OVERLAY_OUTER = "rgba(255, 255, 255, 0.03)";  // 180° max sky
+const DAY_OVERLAY_INNER = "rgba(200, 220, 255, 0.04)";  // 150° practical
 const NEEDLE_COLOR = "rgba(255, 255, 255, 0.7)";
 
 // Log-scale orbit radii so inner planets aren't squished
@@ -51,8 +52,8 @@ function renderOrbit(svg, radius, auLabel) {
 
   // AU labels on the vertical axis — mirrored above and below center
   // Offset right of the season dividing line to avoid overlap
-  const offset = 8;
-  const horizontalOffset = 5;
+  const offset = 6;
+  const horizontalOffset = 6;
   const labelAttrs = {
     fill: LABEL_COLOR,
     "font-size": "9",
@@ -109,30 +110,28 @@ function renderSaturnRings(svg, x, y, body, renderSize) {
   const g = parseInt(hex.slice(3, 5), 16);
   const b = parseInt(hex.slice(5, 7), 16);
   const ringColor = `rgba(${r}, ${g}, ${b}, 0.6)`;
-  const strokeWidth = 2;
 
-  // Outer ring (r=17, stroke-width=2): outer edge 18px, inner edge 16px
+  // Outer ring (r=24, stroke-width=2): outer edge 25px, inner edge 23px
   svg.appendChild(
     createSvgElement("circle", {
       cx: x,
       cy: y,
-      r: 17,
+      r: 24,
       fill: "none",
       stroke: ringColor,
-      "stroke-width": strokeWidth,
+      "stroke-width": 2,
     })
   );
 
-  // Inner ring (r=13, stroke-width=2): outer edge 14px, inner edge 12px
-  // 2px gap between outer inner edge (16px) and inner outer edge (14px)
+  // Inner ring (r=19, stroke-width=3): outer edge 21px, inner edge 17px
   svg.appendChild(
     createSvgElement("circle", {
       cx: x,
       cy: y,
-      r: 13,
+      r: 19,
       fill: "none",
       stroke: ringColor,
-      "stroke-width": strokeWidth,
+      "stroke-width": 3,
     })
   );
 }
@@ -153,29 +152,11 @@ export function calculateObserverAngle(earthOrbitalAngle, date) {
   return earthOrbitalAngle + localTimeAngle;
 }
 
-function renderDayNightSplit(svg, earthRadius, date, earthBodySize) {
-  const clipId = "day-clip";
-
-  const earth = PLANETS.find((p) => p.name === "Earth");
-  const earthAngle = calculatePlanetPosition(earth, date);
-  const observerAngle = calculateObserverAngle(earthAngle, date);
-
-  // Build a 140° wedge covering the observer's visible sky
+function renderVisibilityCone(svg, anchorX, anchorY, observerAngle, halfAngleDeg, clipId, fillColor) {
   const D = VIEW_SIZE;
-  const HALF_ANGLE = (70 * Math.PI) / 180; // 70° half-angle = 140° total
+  const HALF_ANGLE = (halfAngleDeg * Math.PI) / 180;
+  const largeArcFlag = halfAngleDeg >= 90 ? 1 : 0;
 
-  const earthDirX = Math.cos(earthAngle);
-  const earthDirY = Math.sin(earthAngle);
-  const obsDirX = Math.cos(observerAngle);
-  const obsDirY = Math.sin(observerAngle);
-
-  // Anchor point at Earth's surface (offset from orbital center by body radius along observer direction)
-  const earthOrbitalX = CENTER + earthRadius * earthDirX;
-  const earthOrbitalY = CENTER - earthRadius * earthDirY;
-  const anchorX = earthOrbitalX + earthBodySize * obsDirX;
-  const anchorY = earthOrbitalY - earthBodySize * obsDirY;
-
-  // Left and right edges of the wedge at ±70° from observer direction
   const leftAngle = observerAngle + HALF_ANGLE;
   const rightAngle = observerAngle - HALF_ANGLE;
   const leftX = anchorX + D * Math.cos(leftAngle);
@@ -184,7 +165,7 @@ function renderDayNightSplit(svg, earthRadius, date, earthBodySize) {
   const rightY = anchorY - D * Math.sin(rightAngle);
 
   // SVG path: MoveTo apex, LineTo left edge, Arc to right edge, ClosePath
-  const pathD = `M ${anchorX} ${anchorY} L ${leftX} ${leftY} A ${D} ${D} 0 0 1 ${rightX} ${rightY} Z`;
+  const pathD = `M ${anchorX} ${anchorY} L ${leftX} ${leftY} A ${D} ${D} 0 ${largeArcFlag} 1 ${rightX} ${rightY} Z`;
 
   const defs = svg.querySelector("defs") || svg.insertBefore(createSvgElement("defs", {}), svg.firstChild);
 
@@ -197,10 +178,32 @@ function renderDayNightSplit(svg, earthRadius, date, earthBodySize) {
       cx: CENTER,
       cy: CENTER,
       r: MAX_RADIUS + 30,
-      fill: DAY_OVERLAY,
+      fill: fillColor,
       "clip-path": `url(#${clipId})`,
     })
   );
+}
+
+function renderDayNightSplit(svg, earthRadius, date, earthBodySize) {
+  const earth = PLANETS.find((p) => p.name === "Earth");
+  const earthAngle = calculatePlanetPosition(earth, date);
+  const observerAngle = calculateObserverAngle(earthAngle, date);
+
+  const earthDirX = Math.cos(earthAngle);
+  const earthDirY = Math.sin(earthAngle);
+  const obsDirX = Math.cos(observerAngle);
+  const obsDirY = Math.sin(observerAngle);
+
+  // Anchor point at Earth's surface
+  const earthOrbitalX = CENTER + earthRadius * earthDirX;
+  const earthOrbitalY = CENTER - earthRadius * earthDirY;
+  const anchorX = earthOrbitalX + earthBodySize * obsDirX;
+  const anchorY = earthOrbitalY - earthBodySize * obsDirY;
+
+  // 180° hemisphere (maximum sky)
+  renderVisibilityCone(svg, anchorX, anchorY, observerAngle, 90, "sky-clip-outer", DAY_OVERLAY_OUTER);
+  // 150° practical observation range
+  renderVisibilityCone(svg, anchorX, anchorY, observerAngle, 75, "sky-clip-inner", DAY_OVERLAY_INNER);
 }
 
 function renderObserverNeedle(svg, earthX, earthY, observerAngle, earthSize) {
@@ -294,7 +297,7 @@ function renderSeasonOverlay(svg, hemisphere) {
     const isTopHalf = season.startAngle >= 0 && season.endAngle <= 180 && season.startAngle < 180;
     // Use a smaller radius for top-half labels so they appear visually
     // at the same distance from Neptune's orbit as bottom-half labels
-    const arcRadius = isTopHalf ? labelRadius + 36 : labelRadius;
+    const arcRadius = isTopHalf ? labelRadius - 12 : labelRadius;
 
     const x1 = CENTER + arcRadius * Math.cos(startRad);
     const y1 = CENTER - arcRadius * Math.sin(startRad);
@@ -378,13 +381,13 @@ export function renderSolarSystem(date, hemisphere = "north") {
       const saturnRenderSize = Math.round(planet.size / 2);
       const saturnOverride = { ...planet, size: saturnRenderSize };
       renderBody(svg, x, y, saturnOverride, false);
-      expandBounds(bounds, x, y, saturnOverride.size + 17);
+      expandBounds(bounds, x, y, saturnOverride.size + 24);
       renderSaturnRings(svg, x, y, planet, saturnRenderSize);
       // Draw label after rings so it paints on top
       svg.appendChild(
         createSvgElement("text", {
           x: x,
-          y: y - saturnRenderSize - 6,
+          y: y - saturnRenderSize - 16,
           fill: "#ffffff",
           "font-size": "11",
           "font-family": "sans-serif",

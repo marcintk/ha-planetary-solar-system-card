@@ -46,7 +46,7 @@ The renderer SHALL display four season name labels (Spring, Summer, Autumn, Wint
 
 #### Scenario: Top-half labels sit outside Neptune orbit
 - **WHEN** top-half season labels are rendered
-- **THEN** the arc path radius for top-half labels SHALL be increased (approximately 36px more than the bottom-half label radius) so that the rendered text appears outside Neptune's orbit, at visually the same distance from Neptune's orbit as bottom-half labels, compensating for SVG textPath rendering text on the inner side of reversed arcs
+- **THEN** the arc path radius for top-half labels SHALL be increased (approximately 2px more than the bottom-half label radius) so that the rendered text appears outside Neptune's orbit, at visually the same distance from Neptune's orbit as bottom-half labels, compensating for SVG textPath rendering text on the inner side of reversed arcs
 
 ### Requirement: Hemisphere detection via browser geolocation
 The card SHALL attempt to detect the user's hemisphere using the browser Geolocation API and adjust season label positions accordingly.
@@ -75,12 +75,12 @@ The orbit AU distance labels SHALL be positioned along the vertical axis (Y-axis
 - **THEN** a label SHALL be placed at y=(CENTER - orbitRadius - offset), directly above the orbit intersection with the vertical axis
 
 #### Scenario: AU labels positioned on vertical axis below center
-- **WHEN** an orbit is rendered with its AU distance label
+/- **WHEN** an orbit is rendered with its AU distance label
 - **THEN** a second label SHALL be placed at y=(CENTER + orbitRadius + offset), directly below the orbit intersection with the vertical axis
 
 #### Scenario: AU labels offset right of season dividing line
 - **WHEN** AU labels are rendered on the vertical axis
-- **THEN** each label SHALL have its x-coordinate set to CENTER + a small horizontal offset (approximately 4-6px) and use text-anchor "start", so the label text begins just to the right of the vertical season dividing line
+- **THEN** each label SHALL have its x-coordinate set to CENTER + a small horizontal offset (approximately 2px) and use text-anchor "start", so the label text begins just to the right of the vertical season dividing line
 
 #### Scenario: AU label styling unchanged
 - **WHEN** AU labels are rendered

@@ -88,20 +88,27 @@ describe("renderSolarSystem", () => {
     expect(svg.tagName).toBe("svg");
   });
 
-  it("renders day/night split with path clip (140° wedge)", () => {
+  it("renders dual visibility cones (180° outer + 150° inner)", () => {
     const container = document.createElement("div");
     renderInto(container, new Date("2026-02-14"));
 
     const svg = container.querySelector("svg");
-    const clipPath = svg.querySelector("clipPath#day-clip");
-    expect(clipPath).not.toBeNull();
-    const path = clipPath.querySelector("path");
-    expect(path).not.toBeNull();
-    // Path should contain MoveTo, LineTo, Arc, and ClosePath commands
-    const d = path.getAttribute("d");
-    expect(d).toMatch(/^M .+ L .+ A .+ Z$/);
-    expect(clipPath.querySelector("polygon")).toBeNull();
-    expect(clipPath.querySelector("rect")).toBeNull();
+    const outerClip = svg.querySelector("clipPath#sky-clip-outer");
+    const innerClip = svg.querySelector("clipPath#sky-clip-inner");
+    expect(outerClip).not.toBeNull();
+    expect(innerClip).not.toBeNull();
+
+    // Both should have path-based wedges
+    const outerPath = outerClip.querySelector("path");
+    const innerPath = innerClip.querySelector("path");
+    expect(outerPath).not.toBeNull();
+    expect(innerPath).not.toBeNull();
+    expect(outerPath.getAttribute("d")).toMatch(/^M .+ L .+ A .+ Z$/);
+    expect(innerPath.getAttribute("d")).toMatch(/^M .+ L .+ A .+ Z$/);
+
+    // 180° cone uses large-arc-flag=1, 150° cone uses large-arc-flag=0
+    expect(outerPath.getAttribute("d")).toMatch(/A \d+ \d+ 0 1 1/);
+    expect(innerPath.getAttribute("d")).toMatch(/A \d+ \d+ 0 0 1/);
   });
 
   it("day overlay covers observer's visible sky wedge", () => {
@@ -110,7 +117,7 @@ describe("renderSolarSystem", () => {
     renderInto(container, date);
 
     const svg = container.querySelector("svg");
-    const path = svg.querySelector("clipPath#day-clip path");
+    const path = svg.querySelector("clipPath#sky-clip-inner path");
     const d = path.getAttribute("d");
     expect(d).toBeTruthy();
 
@@ -124,8 +131,8 @@ describe("renderSolarSystem", () => {
     renderInto(c1, new Date("2024-01-01"));
     renderInto(c2, new Date("2024-07-01"));
 
-    const path1 = c1.querySelector("clipPath#day-clip path");
-    const path2 = c2.querySelector("clipPath#day-clip path");
+    const path1 = c1.querySelector("clipPath#sky-clip-outer path");
+    const path2 = c2.querySelector("clipPath#sky-clip-outer path");
     expect(path1.getAttribute("d")).not.toBe(
       path2.getAttribute("d")
     );
@@ -141,10 +148,10 @@ describe("renderSolarSystem", () => {
 
     const earthAngle = calculatePlanetPosition(earth, date);
     const observerAngle = calculateObserverAngle(earthAngle, date);
-    const path = container.querySelector("clipPath#day-clip path");
+    const path = container.querySelector("clipPath#sky-clip-inner path");
     const d = path.getAttribute("d");
 
-    // Parse the wedge path: M anchorX anchorY L leftX leftY A D D 0 0 1 rightX rightY Z
+    // Parse the wedge path: M anchorX anchorY L leftX leftY A D D 0 large-arc sweep rightX rightY Z
     const nums = d.match(/[-\d.]+/g).map(Number);
     const anchorX = nums[0];
     const anchorY = nums[1];
@@ -181,25 +188,25 @@ describe("renderSolarSystem", () => {
     const outerRing = ringCircles[0];
     expect(outerRing.getAttribute("stroke")).toBe("rgba(224, 192, 128, 0.6)");
     expect(outerRing.getAttribute("stroke-width")).toBe("2");
-    expect(outerRing.getAttribute("r")).toBe("17");
+    expect(outerRing.getAttribute("r")).toBe("24");
 
     const innerRing = ringCircles[1];
     expect(innerRing.getAttribute("stroke")).toBe("rgba(224, 192, 128, 0.6)");
-    expect(innerRing.getAttribute("stroke-width")).toBe("2");
-    expect(innerRing.getAttribute("r")).toBe("13");
+    expect(innerRing.getAttribute("stroke-width")).toBe("3");
+    expect(innerRing.getAttribute("r")).toBe("19");
 
-    // 2px gap between outer inner edge (16px) and inner outer edge (14px)
-    const outerInnerEdge = 17 - 2 / 2; // 16px
-    const innerOuterEdge = 13 + 2 / 2; // 14px
-    expect(outerInnerEdge - innerOuterEdge).toBe(2);
+    // 3px gap between outer inner edge (23px) and inner outer edge (20px)
+    const outerInnerEdge = 24 - 2 / 2; // 23px
+    const innerOuterEdge = 19 + 3 / 2; // 21px
+    expect(outerInnerEdge - innerOuterEdge).toBe(2.5);
 
     // No ellipses should exist
     expect(svg.querySelectorAll("ellipse").length).toBe(0);
 
-    // Saturn's body should be rendered at half its data size (10px)
+    // Saturn's body should be rendered at half its data size (13px)
     const saturnBody = svg.querySelector('circle[fill="#e0c080"]');
     expect(saturnBody).not.toBeNull();
-    expect(saturnBody.getAttribute("r")).toBe("10");
+    expect(saturnBody.getAttribute("r")).toBe("13");
   });
 
   it("Saturn label renders above (after) both rings in SVG DOM order", () => {
@@ -412,9 +419,9 @@ describe("season overlay", () => {
 
     const topRadius = extractRadius(topArc);
     const bottomRadius = extractRadius(bottomArc);
-    expect(topRadius).toBe(416);
+    expect(topRadius).toBe(368);
     expect(bottomRadius).toBe(380);
-    expect(topRadius).toBeGreaterThan(bottomRadius);
+    expect(topRadius).toBeLessThan(bottomRadius);
   });
 
   it("season dividing lines are rendered before orbits (behind them)", () => {
@@ -482,8 +489,8 @@ describe("calculateObserverAngle", () => {
     renderInto(c1, new Date("2026-02-14T00:00:00"));
     renderInto(c2, new Date("2026-02-14T12:00:00"));
 
-    const path1 = c1.querySelector("clipPath#day-clip path");
-    const path2 = c2.querySelector("clipPath#day-clip path");
+    const path1 = c1.querySelector("clipPath#sky-clip-outer path");
+    const path2 = c2.querySelector("clipPath#sky-clip-outer path");
     const d1 = path1.getAttribute("d");
     const d2 = path2.getAttribute("d");
 
@@ -496,7 +503,7 @@ describe("calculateObserverAngle", () => {
       return {
         anchorX: nums[0], anchorY: nums[1],
         leftX: nums[2], leftY: nums[3],
-        rightX: nums[8], rightY: nums[9],
+        rightX: nums[9], rightY: nums[10],
       };
     };
 

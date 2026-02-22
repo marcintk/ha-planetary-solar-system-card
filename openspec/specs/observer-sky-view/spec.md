@@ -22,7 +22,7 @@ Where `earthOrbitalAngle` is Earth's current orbital position around the Sun, an
 
 #### Scenario: Overlay uses wedge clip-path geometry
 - **WHEN** the visible sky overlay is rendered
-- **THEN** the overlay SHALL use a `<path>` element within a `<clipPath>` defining a 140-degree sector, with the apex at the anchor point on Earth's surface, two straight edges extending at plus and minus 70 degrees from the observer direction, and an arc connecting the far ends
+- **THEN** the overlay SHALL use a `<path>` element within a `<clipPath>` defining a 190-degree sector, with the apex at the anchor point on Earth's surface, two straight edges extending at plus and minus 95 degrees from the observer direction, and an arc connecting the far ends
 
 #### Scenario: Overlay uses existing visual style
 - **WHEN** the visible sky overlay is rendered

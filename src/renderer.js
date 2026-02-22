@@ -50,18 +50,20 @@ function renderOrbit(svg, radius, auLabel) {
   );
 
   // AU labels on the vertical axis — mirrored above and below center
+  // Offset right of the season dividing line to avoid overlap
   const offset = 8;
+  const horizontalOffset = 5;
   const labelAttrs = {
     fill: LABEL_COLOR,
     "font-size": "9",
     "font-family": "sans-serif",
-    "text-anchor": "middle",
+    "text-anchor": "start",
   };
 
   // Top label
   svg.appendChild(
     createSvgElement("text", {
-      x: CENTER,
+      x: CENTER + horizontalOffset,
       y: CENTER - radius - offset,
       ...labelAttrs,
     })
@@ -70,7 +72,7 @@ function renderOrbit(svg, radius, auLabel) {
   // Bottom label
   svg.appendChild(
     createSvgElement("text", {
-      x: CENTER,
+      x: CENTER + horizontalOffset,
       y: CENTER + radius + offset,
       ...labelAttrs,
     })
@@ -270,20 +272,24 @@ function renderSeasonOverlay(svg, hemisphere) {
     const startRad = (season.startAngle * Math.PI) / 180;
     const endRad = (season.endAngle * Math.PI) / 180;
 
-    const x1 = CENTER + labelRadius * Math.cos(startRad);
-    const y1 = CENTER - labelRadius * Math.sin(startRad);
-    const x2 = CENTER + labelRadius * Math.cos(endRad);
-    const y2 = CENTER - labelRadius * Math.sin(endRad);
-
     // Top-half arcs (0–90° and 90–180°) render text upside-down because the
     // default arc sweeps right-to-left in SVG space. Reverse them so textPath
     // flows left-to-right for readable labels.
     const isTopHalf = season.startAngle >= 0 && season.endAngle <= 180 && season.startAngle < 180;
+    // Use a smaller radius for top-half labels so they appear visually
+    // at the same distance from Neptune's orbit as bottom-half labels
+    const arcRadius = isTopHalf ? labelRadius - 36 : labelRadius;
+
+    const x1 = CENTER + arcRadius * Math.cos(startRad);
+    const y1 = CENTER - arcRadius * Math.sin(startRad);
+    const x2 = CENTER + arcRadius * Math.cos(endRad);
+    const y2 = CENTER - arcRadius * Math.sin(endRad);
+
     const arcPath = createSvgElement("path", {
       id: pathId,
       d: isTopHalf
-        ? `M ${x2} ${y2} A ${labelRadius} ${labelRadius} 0 0 1 ${x1} ${y1}`
-        : `M ${x1} ${y1} A ${labelRadius} ${labelRadius} 0 0 0 ${x2} ${y2}`,
+        ? `M ${x2} ${y2} A ${arcRadius} ${arcRadius} 0 0 1 ${x1} ${y1}`
+        : `M ${x1} ${y1} A ${arcRadius} ${arcRadius} 0 0 0 ${x2} ${y2}`,
       fill: "none",
     });
     defs.appendChild(arcPath);
@@ -355,9 +361,20 @@ export function renderSolarSystem(date, hemisphere = "north") {
       // Shrink Saturn's body to make room for top-down circular ring
       const saturnRenderSize = Math.round(planet.size / 2);
       const saturnOverride = { ...planet, size: saturnRenderSize };
-      renderBody(svg, x, y, saturnOverride);
+      renderBody(svg, x, y, saturnOverride, false);
       expandBounds(bounds, x, y, saturnOverride.size + 17);
       renderSaturnRings(svg, x, y, planet, saturnRenderSize);
+      // Draw label after rings so it paints on top
+      svg.appendChild(
+        createSvgElement("text", {
+          x: x,
+          y: y - saturnRenderSize - 6,
+          fill: "#ffffff",
+          "font-size": "11",
+          "font-family": "sans-serif",
+          "text-anchor": "middle",
+        })
+      ).textContent = planet.name;
       // Total footprint: ring outer edge = ringRadius + strokeWidth/2 = (planet.size - 2) + 2 = planet.size
       expandBounds(bounds, x, y, planet.size);
     } else {

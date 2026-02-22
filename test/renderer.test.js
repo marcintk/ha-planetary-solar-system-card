@@ -66,10 +66,10 @@ describe("renderSolarSystem", () => {
     // 8 planets × 2 labels (top + bottom) = 16 AU labels
     expect(auLabels.length).toBe(16);
 
-    // All labels should be centered on x=400 (vertical axis)
+    // All labels should be offset right of x=400 (vertical season line)
     for (const label of auLabels) {
-      expect(label.getAttribute("x")).toBe("400");
-      expect(label.getAttribute("text-anchor")).toBe("middle");
+      expect(Number(label.getAttribute("x"))).toBeGreaterThan(400);
+      expect(label.getAttribute("text-anchor")).toBe("start");
       // No rotation transform should be applied
       expect(label.getAttribute("transform")).toBeNull();
     }
@@ -186,6 +186,29 @@ describe("renderSolarSystem", () => {
     const saturnBody = svg.querySelector('circle[fill="#e0c080"]');
     expect(saturnBody).not.toBeNull();
     expect(saturnBody.getAttribute("r")).toBe("10");
+  });
+
+  it("Saturn label renders above (after) rings in SVG DOM order", () => {
+    const container = document.createElement("div");
+    renderInto(container, new Date("2026-02-14"));
+
+    const svg = container.querySelector("svg");
+    const allElements = Array.from(svg.children);
+
+    // Find Saturn's ring circle (non-orbit, non-dash stroke circle)
+    const ring = svg.querySelector('circle[fill="none"]:not([stroke-dasharray])');
+    expect(ring).not.toBeNull();
+
+    // Find Saturn's label text
+    const saturnLabel = allElements.find(
+      (el) => el.tagName === "text" && el.textContent === "Saturn"
+    );
+    expect(saturnLabel).not.toBeNull();
+
+    // Label must come after ring in DOM order
+    const ringIdx = allElements.indexOf(ring);
+    const labelIdx = allElements.indexOf(saturnLabel);
+    expect(labelIdx).toBeGreaterThan(ringIdx);
   });
 
   it("Saturn ring is centered on Saturn body", () => {
@@ -351,6 +374,29 @@ describe("season overlay", () => {
     for (const arc of bottomArcs) {
       expect(arc.getAttribute("d")).toMatch(/A \d+ \d+ 0 0 0/);
     }
+  });
+
+  it("top-half season label arcs use a smaller radius than bottom-half arcs", () => {
+    const container = document.createElement("div");
+    renderInto(container, new Date("2026-02-14"));
+
+    const svg = container.querySelector("svg");
+    const defs = svg.querySelector("defs");
+
+    // Top-half arcs: 0=Winter(90-180°), 1=Autumn(0-90°)
+    // Bottom-half arcs: 2=Summer(270-360°), 3=Spring(180-270°)
+    const topArc = defs.querySelector("#season-arc-0");
+    const bottomArc = defs.querySelector("#season-arc-2");
+
+    // Extract radius from arc path "A <rx> <ry> ..."
+    const extractRadius = (path) => {
+      const match = path.getAttribute("d").match(/A ([\d.]+) ([\d.]+)/);
+      return Number(match[1]);
+    };
+
+    const topRadius = extractRadius(topArc);
+    const bottomRadius = extractRadius(bottomArc);
+    expect(topRadius).toBeLessThan(bottomRadius);
   });
 
   it("season dividing lines are rendered before orbits (behind them)", () => {

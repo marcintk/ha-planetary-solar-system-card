@@ -32,13 +32,13 @@ Home Assistant custom Lovelace card (`ha-solar-view-card`) that displays a plane
 
 - Internal logic split into small classes/files for testability
 - Build system works independently of Home Assistant (standalone testing)
-- Multi-agent workflow: Architect (spec), Developer (implementation), Tester (verification)
+
 
 ## Key Visual Requirements
 
 - Planets enlarged for visibility; Sun smaller to avoid interference with orbits
 - Earth and Moon larger than other objects to show relative positioning
 - Each orbit displays AU distance from Sun
-- Day/night split at Earth's orbit level (lighter background for night sky viewing)
+- Visibility cone at Earth's orbit level
 - Dark slate theme matching Home Assistant dark mode colors
 - Buttons to move back or forward (by 1 day and 1 month) and extra button to back to today

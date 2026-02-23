@@ -183,15 +183,23 @@ describe("SolarViewCard", () => {
       card.remove();
     });
 
-    it("zoom buttons and level are grouped in a .btn-group container", () => {
+    it("nav buttons are grouped in a .btn-group container", () => {
       const card = createAndMount();
-      const btnGroup = card.shadowRoot.querySelector(".btn-group");
-      expect(btnGroup).toBeTruthy();
-      const groupButtons = btnGroup.querySelectorAll("button");
-      expect(groupButtons.length).toBe(2);
-      expect(groupButtons[0].dataset.action).toBe("zoom-out");
-      expect(groupButtons[1].dataset.action).toBe("zoom-in");
-      const levelSpan = btnGroup.querySelector(".zoom-level");
+      const btnGroups = card.shadowRoot.querySelectorAll(".btn-group");
+      expect(btnGroups.length).toBe(2);
+      // First group: nav buttons
+      const navGroup = btnGroups[0];
+      const navButtons = navGroup.querySelectorAll("button");
+      expect(navButtons.length).toBe(7);
+      expect(navButtons[0].dataset.action).toBe("month-back");
+      expect(navButtons[6].dataset.action).toBe("month-forward");
+      // Second group: zoom buttons
+      const zoomGroup = btnGroups[1];
+      const zoomButtons = zoomGroup.querySelectorAll("button");
+      expect(zoomButtons.length).toBe(2);
+      expect(zoomButtons[0].dataset.action).toBe("zoom-out");
+      expect(zoomButtons[1].dataset.action).toBe("zoom-in");
+      const levelSpan = zoomGroup.querySelector(".zoom-level");
       expect(levelSpan).toBeTruthy();
       card.remove();
     });

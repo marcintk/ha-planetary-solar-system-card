@@ -186,9 +186,9 @@ export class SolarViewCard extends HTMLElement {
           font-family: sans-serif;
         }
         .date {
-          font-size: 10px;
+          font-size: 11px;
           color: rgba(255, 255, 255, 0.6);
-          margin: 0 4px;
+          margin: 2px 2px;
         }
         .solar-view-wrapper {
           overflow: hidden;
@@ -262,11 +262,11 @@ export class SolarViewCard extends HTMLElement {
           <div id="solar-view"></div>
         </div>
         <div class="nav">
-          <span class="nav-buttons">
+          <span class="btn-group">
             <button data-action="month-back">\u22D8</button>
             <button data-action="day-back">\u00AB</button>
             <button data-action="hour-back">\u2039</button>
-            <button data-action="today">Today</button>
+            <button data-action="today">Now</button>
             <button data-action="hour-forward">\u203A</button>
             <button data-action="day-forward">\u00BB</button>
             <button data-action="month-forward">\u22D9</button>

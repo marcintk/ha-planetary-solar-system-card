@@ -162,8 +162,8 @@ function renderOrbit(svg, radius, auLabel) {
 
   // AU labels on the vertical axis — mirrored above and below center
   // Offset right of the season dividing line to avoid overlap
-  const offset = 6;
-  const horizontalOffset = 6;
+  const offset = 3;
+  const horizontalOffset = 3;
   const labelAttrs = {
     fill: LABEL_COLOR,
     "font-size": "9",
@@ -184,7 +184,7 @@ function renderOrbit(svg, radius, auLabel) {
   svg.appendChild(
     createSvgElement("text", {
       x: CENTER + horizontalOffset,
-      y: CENTER + radius + offset,
+      y: CENTER + radius + offset + 6,
       ...labelAttrs,
     })
   ).textContent = `${Number(auLabel).toFixed(1)} AU`;
@@ -719,9 +719,9 @@ class SolarViewCard extends HTMLElement {
           font-family: sans-serif;
         }
         .date {
-          font-size: 10px;
+          font-size: 11px;
           color: rgba(255, 255, 255, 0.6);
-          margin: 0 4px;
+          margin: 2px 2px;
         }
         .solar-view-wrapper {
           overflow: hidden;

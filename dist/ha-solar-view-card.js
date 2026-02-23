@@ -162,8 +162,8 @@ function renderOrbit(svg, radius, auLabel) {
 
   // AU labels on the vertical axis — mirrored above and below center
   // Offset right of the season dividing line to avoid overlap
-  const offset = 6;
-  const horizontalOffset = 6;
+  const offset = 3;
+  const horizontalOffset = 3;
   const labelAttrs = {
     fill: LABEL_COLOR,
     "font-size": "9",
@@ -184,7 +184,7 @@ function renderOrbit(svg, radius, auLabel) {
   svg.appendChild(
     createSvgElement("text", {
       x: CENTER + horizontalOffset,
-      y: CENTER + radius + offset,
+      y: CENTER + radius + offset + 6,
       ...labelAttrs,
     })
   ).textContent = `${Number(auLabel).toFixed(1)} AU`;
@@ -599,10 +599,8 @@ class SolarViewCard extends HTMLElement {
     return `${y}-${m}-${d} ${hh}:${mm}`;
   }
 
-  _navigate(deltaDays) {
-    this._currentDate = new Date(
-      this._currentDate.getTime() + deltaDays * 86400000
-    );
+  _navigate(deltaMs) {
+    this._currentDate = new Date(this._currentDate.getTime() + deltaMs);
     this._render();
   }
 
@@ -723,7 +721,7 @@ class SolarViewCard extends HTMLElement {
         .date {
           font-size: 11px;
           color: rgba(255, 255, 255, 0.6);
-          margin: 0 8px;
+          margin: 2px 2px;
         }
         .solar-view-wrapper {
           overflow: hidden;
@@ -749,18 +747,16 @@ class SolarViewCard extends HTMLElement {
           color: rgba(255, 255, 255, 0.8);
           border: 1px solid rgba(255, 255, 255, 0.1);
           border-radius: 6px;
-          padding: 2px 5px;
+          height: 18px;
+          line-height: 18px;
+          padding: 0 5px;
+          min-width: 20px;
           font-size: 10px;
           cursor: pointer;
           font-family: sans-serif;
+          box-sizing: border-box;
         }
         .nav button:hover {
-          background: #3a3a3a;
-        }
-        .nav button.today {
-          background: #2a2a2a;
-        }
-        .nav button.today:hover {
           background: #3a3a3a;
         }
         .btn-group {
@@ -776,16 +772,22 @@ class SolarViewCard extends HTMLElement {
         .btn-group button:last-child {
           border-radius: 0 6px 6px 0;
         }
+        .nav-spacer {
+          width: 8px;
+        }
         .zoom-level {
           background: #2a2a2a;
           color: rgba(255, 255, 255, 0.8);
           border-top: 1px solid rgba(255, 255, 255, 0.1);
           border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-          padding: 2px 4px;
-          font-size: 10px;
+          height: 18px;
+          line-height: 18px;
+          padding: 0 4px;
+          font-size: 9px;
           font-family: sans-serif;
           display: flex;
           align-items: center;
+          box-sizing: border-box;
         }
       </style>
       <div class="card">
@@ -793,12 +795,18 @@ class SolarViewCard extends HTMLElement {
           <div id="solar-view"></div>
         </div>
         <div class="nav">
-          <button data-action="month-back">&lt;&lt;</button>
-          <button data-action="day-back">&lt;</button>
-          <button data-action="today" class="today">Today</button>
+          <span class="btn-group">
+            <button data-action="month-back">\u22D8</button>
+            <button data-action="day-back">\u00AB</button>
+            <button data-action="hour-back">\u2039</button>
+            <button data-action="today">Now</button>
+            <button data-action="hour-forward">\u203A</button>
+            <button data-action="day-forward">\u00BB</button>
+            <button data-action="month-forward">\u22D9</button>
+          </span>
+          <span class="nav-spacer"></span>
           <span class="date">${this._formatDate(this._currentDate)}</span>
-          <button data-action="day-forward">&gt;</button>
-          <button data-action="month-forward">&gt;&gt;</button>
+          <span class="nav-spacer"></span>
           <span class="btn-group">
             <button data-action="zoom-out">&minus;</button>
             <span class="zoom-level">${this._zoomLevel}</span>
@@ -835,13 +843,19 @@ class SolarViewCard extends HTMLElement {
             break;
           }
           case "day-back":
-            this._navigate(-1);
+            this._navigate(-864e5);
+            break;
+          case "hour-back":
+            this._navigate(-36e5);
             break;
           case "today":
             this._goToday();
             break;
+          case "hour-forward":
+            this._navigate(3600000);
+            break;
           case "day-forward":
-            this._navigate(1);
+            this._navigate(86400000);
             break;
           case "month-forward": {
             const d = new Date(this._currentDate);

@@ -172,7 +172,9 @@ describe("SolarViewCard", () => {
       expect(actions).toEqual([
         "month-back",
         "day-back",
+        "hour-back",
         "today",
+        "hour-forward",
         "day-forward",
         "month-forward",
         "zoom-out",
@@ -181,15 +183,23 @@ describe("SolarViewCard", () => {
       card.remove();
     });
 
-    it("zoom buttons and level are grouped in a .btn-group container", () => {
+    it("nav buttons are grouped in a .btn-group container", () => {
       const card = createAndMount();
-      const btnGroup = card.shadowRoot.querySelector(".btn-group");
-      expect(btnGroup).toBeTruthy();
-      const groupButtons = btnGroup.querySelectorAll("button");
-      expect(groupButtons.length).toBe(2);
-      expect(groupButtons[0].dataset.action).toBe("zoom-out");
-      expect(groupButtons[1].dataset.action).toBe("zoom-in");
-      const levelSpan = btnGroup.querySelector(".zoom-level");
+      const btnGroups = card.shadowRoot.querySelectorAll(".btn-group");
+      expect(btnGroups.length).toBe(2);
+      // First group: nav buttons
+      const navGroup = btnGroups[0];
+      const navButtons = navGroup.querySelectorAll("button");
+      expect(navButtons.length).toBe(7);
+      expect(navButtons[0].dataset.action).toBe("month-back");
+      expect(navButtons[6].dataset.action).toBe("month-forward");
+      // Second group: zoom buttons
+      const zoomGroup = btnGroups[1];
+      const zoomButtons = zoomGroup.querySelectorAll("button");
+      expect(zoomButtons.length).toBe(2);
+      expect(zoomButtons[0].dataset.action).toBe("zoom-out");
+      expect(zoomButtons[1].dataset.action).toBe("zoom-in");
+      const levelSpan = zoomGroup.querySelector(".zoom-level");
       expect(levelSpan).toBeTruthy();
       card.remove();
     });
@@ -210,6 +220,79 @@ describe("SolarViewCard", () => {
       const styleEl = card.shadowRoot.querySelector("style");
       expect(styleEl.textContent).toContain(".solar-view-wrapper");
       expect(styleEl.textContent).toContain("overflow: hidden");
+      card.remove();
+    });
+  });
+
+  describe("hour navigation", () => {
+    it("hour-forward advances by 1 hour", () => {
+      const card = createAndMount();
+      card._currentDate = new Date("2026-03-15T14:00:00");
+      card._render();
+      clickButton(card, "hour-forward");
+      expect(card._currentDate.getHours()).toBe(15);
+      expect(card._currentDate.getDate()).toBe(15);
+      card.remove();
+    });
+
+    it("hour-back rewinds by 1 hour", () => {
+      const card = createAndMount();
+      card._currentDate = new Date("2026-03-15T14:00:00");
+      card._render();
+      clickButton(card, "hour-back");
+      expect(card._currentDate.getHours()).toBe(13);
+      expect(card._currentDate.getDate()).toBe(15);
+      card.remove();
+    });
+
+    it("hour-forward crosses day boundary", () => {
+      const card = createAndMount();
+      card._currentDate = new Date("2026-03-15T23:00:00");
+      card._render();
+      clickButton(card, "hour-forward");
+      expect(card._currentDate.getHours()).toBe(0);
+      expect(card._currentDate.getDate()).toBe(16);
+      card.remove();
+    });
+
+    it("hour-back crosses day boundary backward", () => {
+      const card = createAndMount();
+      card._currentDate = new Date("2026-03-15T00:00:00");
+      card._render();
+      clickButton(card, "hour-back");
+      expect(card._currentDate.getHours()).toBe(23);
+      expect(card._currentDate.getDate()).toBe(14);
+      card.remove();
+    });
+  });
+
+  describe("today button", () => {
+    it("Today button resets zoom to default level", () => {
+      const card = createAndMount();
+      clickButton(card, "zoom-in");
+      clickButton(card, "zoom-in");
+      expect(card._zoomLevel).toBe(3);
+      clickButton(card, "today");
+      expect(card._zoomLevel).toBe(1);
+      card.remove();
+    });
+  });
+
+  describe("button labels", () => {
+    it("time navigation buttons use Unicode single-character symbols", () => {
+      const card = createAndMount();
+      const labels = {
+        "month-back": "\u22D8",
+        "day-back": "\u00AB",
+        "hour-back": "\u2039",
+        "hour-forward": "\u203A",
+        "day-forward": "\u00BB",
+        "month-forward": "\u22D9",
+      };
+      for (const [action, expected] of Object.entries(labels)) {
+        const btn = card.shadowRoot.querySelector(`button[data-action="${action}"]`);
+        expect(btn.textContent).toBe(expected);
+      }
       card.remove();
     });
   });

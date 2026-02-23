@@ -1,1 +1,11 @@
 schema: spec-driven
+
+context: |
+  Tech stack: JavaScript
+  Testing: Vitest for unit tests
+
+rules:
+  specs:
+    - Use Given/When/Then format for scenarios
+  design:
+    - Include sequence diagrams for complex flows

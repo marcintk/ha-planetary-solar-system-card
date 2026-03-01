@@ -46,3 +46,24 @@ All buttons and controls in the navigation bar SHALL have the same height. The h
 - **GIVEN** the navigation bar is rendered
 - **WHEN** the button sizes are observed
 - **THEN** buttons SHALL use small font size and minimal padding to remain compact
+
+### Requirement: Now button preserves zoom and pan
+Pressing the "Now" button SHALL update the displayed date to the current date and time only. It SHALL NOT reset the zoom level, zoom display, or view centre position. The user's current zoom level and pan position SHALL be preserved after pressing "Now".
+
+#### Scenario: Zoom level unchanged after pressing Now
+- **GIVEN** the user has set the zoom level to any value other than the default
+- **WHEN** the user presses the "Now" button
+- **THEN** the displayed date SHALL update to the current date and time
+- **AND** the zoom level SHALL remain unchanged
+- **AND** the zoom level indicator SHALL still display the same zoom value
+
+#### Scenario: View centre unchanged after pressing Now
+- **GIVEN** the user has panned the view to a non-default position
+- **WHEN** the user presses the "Now" button
+- **THEN** the view centre SHALL remain at the same position
+- **AND** the solar system SHALL re-render at the current date without repositioning the viewport
+
+#### Scenario: Now button still navigates to today
+- **GIVEN** the card is displaying a past or future date
+- **WHEN** the user presses the "Now" button
+- **THEN** the displayed date SHALL change to the current real-world date and time

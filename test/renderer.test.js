@@ -240,8 +240,8 @@ describe("renderSolarSystem", () => {
   it("day overlay position changes with different dates", () => {
     const c1 = document.createElement("div");
     const c2 = document.createElement("div");
-    renderInto(c1, new Date("2024-01-01"));
-    renderInto(c2, new Date("2024-07-01"));
+    renderInto(c1, new Date("2024-01-01T12:00:00"));
+    renderInto(c2, new Date("2024-07-01T12:00:00"));
 
     const path1 = c1.querySelector("clipPath#sky-clip path");
     const path2 = c2.querySelector("clipPath#sky-clip path");

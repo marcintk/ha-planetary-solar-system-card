@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { renderSolarSystem, calculateObserverAngle, calculateSolarElevationDeg } from "../src/renderer.js";
+import { renderSolarSystem, calculateObserverAngle, calculateSolarElevationDeg, CONE_DAY, CONE_TWILIGHT } from "../src/renderer.js";
 import { PLANETS, calculatePlanetPosition } from "../src/planet-data.js";
 
 function renderInto(container, date) {
@@ -88,48 +88,148 @@ describe("renderSolarSystem", () => {
     expect(svg.tagName).toBe("svg");
   });
 
-  it("renders dual visibility cones (180° outer + dynamic inner) during daytime", () => {
+  it("renders single visibility cone (180°) at Earth's position", () => {
     const container = document.createElement("div");
-    // Use noon so the observer faces the Sun — Sun is above horizon, both arcs render
     renderInto(container, new Date("2026-02-14T12:00:00"));
 
     const svg = container.querySelector("svg");
-    const outerClip = svg.querySelector("clipPath#sky-clip-outer");
-    const innerClip = svg.querySelector("clipPath#sky-clip-inner");
-    expect(outerClip).not.toBeNull();
-    expect(innerClip).not.toBeNull();
+    const clip = svg.querySelector("clipPath#sky-clip");
+    expect(clip).not.toBeNull();
+    expect(svg.querySelector("clipPath#sky-clip-outer")).toBeNull();
+    expect(svg.querySelector("clipPath#sky-clip-inner")).toBeNull();
 
-    // Both should have path-based wedges
-    const outerPath = outerClip.querySelector("path");
-    const innerPath = innerClip.querySelector("path");
-    expect(outerPath).not.toBeNull();
-    expect(innerPath).not.toBeNull();
-    expect(outerPath.getAttribute("d")).toMatch(/^M .+ L .+ A .+ Z$/);
-    expect(innerPath.getAttribute("d")).toMatch(/^M .+ L .+ A .+ Z$/);
+    // Clip path contains a wedge
+    const path = clip.querySelector("path");
+    expect(path).not.toBeNull();
+    expect(path.getAttribute("d")).toMatch(/^M .+ L .+ A .+ Z$/);
 
-    // Both cones use large-arc-flag=1 (90° half-angle each at noon)
-    expect(outerPath.getAttribute("d")).toMatch(/A \d+ \d+ 0 1 1/);
-    expect(innerPath.getAttribute("d")).toMatch(/A \d+ \d+ 0 1 1/);
+    // 90° half-angle → large-arc-flag=1
+    expect(path.getAttribute("d")).toMatch(/A \d+ \d+ 0 1 1/);
   });
 
-  it("inner arc is absent during full night (Sun > 18° below horizon)", () => {
+  it("cone uses day colour when Sun is above horizon", () => {
+    const container = document.createElement("div");
+    // Noon: observer faces Sun, elevation ≈ +90°
+    renderInto(container, new Date("2026-02-14T12:00:00"));
+
+    const svg = container.querySelector("svg");
+    const cone = svg.querySelector('circle[clip-path="url(#sky-clip)"]');
+    expect(cone).not.toBeNull();
+    expect(cone.getAttribute("fill")).toBe(CONE_DAY);
+  });
+
+  it("cone uses twilight colour when Sun is just below horizon", () => {
+    const container = document.createElement("div");
+    // 5 AM: observer angle ≈ earthAngle + 75°, elevation ≈ -15° (twilight zone)
+    renderInto(container, new Date("2026-02-14T05:00:00"));
+
+    const svg = container.querySelector("svg");
+    const cone = svg.querySelector('circle[clip-path="url(#sky-clip)"]');
+    expect(cone).not.toBeNull();
+    expect(cone.getAttribute("fill")).toBe(CONE_TWILIGHT);
+  });
+
+  it("no cone is rendered during full night", () => {
     const container = document.createElement("div");
     // Midnight: observer faces away from Sun, elevation ≈ -90°
     renderInto(container, new Date("2026-02-14T00:00:00"));
 
     const svg = container.querySelector("svg");
-    expect(svg.querySelector("clipPath#sky-clip-outer")).not.toBeNull();
-    expect(svg.querySelector("clipPath#sky-clip-inner")).toBeNull();
+    const cone = svg.querySelector('circle[clip-path="url(#sky-clip)"]');
+    expect(cone).toBeNull();
+  });
+
+  it("twilight cone half-angle expands beyond 90° as Sun descends below horizon", () => {
+    const container = document.createElement("div");
+    // 5AM: elevation ≈ -14.8° → half-angle ≈ 104.8°, cone spans ~210°
+    renderInto(container, new Date("2026-02-14T05:00:00"));
+
+    const svg = container.querySelector("svg");
+    const path = svg.querySelector("clipPath#sky-clip path");
+    expect(path).not.toBeNull();
+
+    const nums = path.getAttribute("d").match(/[-\d.]+/g).map(Number);
+    const anchorX = nums[0], anchorY = nums[1];
+    const leftX = nums[2], leftY = nums[3];
+    const rightX = nums[9], rightY = nums[10];
+
+    // Normalised dot product of the two edge vectors = cos(2 * halfAngle)
+    // For halfAngle=90°  → cos(180°) = -1
+    // For halfAngle=104.8° → cos(209.6°) ≈ -0.87, which is > -1
+    const leftDX = leftX - anchorX, leftDY = leftY - anchorY;
+    const rightDX = rightX - anchorX, rightDY = rightY - anchorY;
+    const leftLen = Math.sqrt(leftDX * leftDX + leftDY * leftDY);
+    const rightLen = Math.sqrt(rightDX * rightDX + rightDY * rightDY);
+    const dot = (leftDX * rightDX + leftDY * rightDY) / (leftLen * rightLen);
+    expect(dot).toBeGreaterThan(-0.9); // clearly wider than 180°
+  });
+
+  it("day cone half-angle is exactly 90° (180° span)", () => {
+    const container = document.createElement("div");
+    // Noon: elevation ≈ +90° → half-angle exactly 90°
+    renderInto(container, new Date("2026-02-14T12:00:00"));
+
+    const svg = container.querySelector("svg");
+    const path = svg.querySelector("clipPath#sky-clip path");
+    const nums = path.getAttribute("d").match(/[-\d.]+/g).map(Number);
+    const anchorX = nums[0], anchorY = nums[1];
+    const leftX = nums[2], leftY = nums[3];
+    const rightX = nums[9], rightY = nums[10];
+
+    const leftDX = leftX - anchorX, leftDY = leftY - anchorY;
+    const rightDX = rightX - anchorX, rightDY = rightY - anchorY;
+    const leftLen = Math.sqrt(leftDX * leftDX + leftDY * leftDY);
+    const rightLen = Math.sqrt(rightDX * rightDX + rightDY * rightDY);
+    const dot = (leftDX * rightDX + leftDY * rightDY) / (leftLen * rightLen);
+    expect(dot).toBeCloseTo(-1, 3); // exactly 180° span
+  });
+
+  it("cone uses day colour at exactly 0° elevation (horizon crossing)", () => {
+    const container = document.createElement("div");
+    // 6AM: observer perpendicular to Sun direction → elevation exactly 0°
+    renderInto(container, new Date("2026-02-14T06:00:00"));
+
+    const svg = container.querySelector("svg");
+    const cone = svg.querySelector('circle[clip-path="url(#sky-clip)"]');
+    expect(cone).not.toBeNull();
+    expect(cone.getAttribute("fill")).toBe(CONE_DAY);
+  });
+
+  it("cone uses twilight colour near the -18° twilight/night boundary", () => {
+    const container = document.createElement("div");
+    // 4:49 AM: elevation ≈ -17.75° — just inside the twilight zone (> -18°)
+    renderInto(container, new Date("2026-02-14T04:49:00"));
+
+    const svg = container.querySelector("svg");
+    const cone = svg.querySelector('circle[clip-path="url(#sky-clip)"]');
+    expect(cone).not.toBeNull();
+    expect(cone.getAttribute("fill")).toBe(CONE_TWILIGHT);
+  });
+
+  it("renders horizon boundary line for all light conditions", () => {
+    const dates = [
+      new Date("2026-02-14T12:00:00"), // noon (day)
+      new Date("2026-02-14T05:00:00"), // 5 AM (twilight)
+      new Date("2026-02-14T00:00:00"), // midnight (night)
+    ];
+
+    for (const date of dates) {
+      const container = document.createElement("div");
+      renderInto(container, date);
+      const svg = container.querySelector("svg");
+      const horizonLine = svg.querySelector('line[stroke="rgba(255, 255, 255, 0.3)"]');
+      expect(horizonLine).not.toBeNull();
+      expect(horizonLine.getAttribute("stroke-dasharray")).toBe("4, 4");
+    }
   });
 
   it("day overlay covers observer's visible sky wedge", () => {
     const container = document.createElement("div");
-    // Use noon so solar elevation ≈ +90° and the inner arc is rendered
     const date = new Date("2026-02-14T12:00:00");
     renderInto(container, date);
 
     const svg = container.querySelector("svg");
-    const path = svg.querySelector("clipPath#sky-clip-inner path");
+    const path = svg.querySelector("clipPath#sky-clip path");
     const d = path.getAttribute("d");
     expect(d).toBeTruthy();
 
@@ -143,8 +243,8 @@ describe("renderSolarSystem", () => {
     renderInto(c1, new Date("2024-01-01"));
     renderInto(c2, new Date("2024-07-01"));
 
-    const path1 = c1.querySelector("clipPath#sky-clip-outer path");
-    const path2 = c2.querySelector("clipPath#sky-clip-outer path");
+    const path1 = c1.querySelector("clipPath#sky-clip path");
+    const path2 = c2.querySelector("clipPath#sky-clip path");
     expect(path1.getAttribute("d")).not.toBe(
       path2.getAttribute("d")
     );
@@ -160,7 +260,7 @@ describe("renderSolarSystem", () => {
 
     const earthAngle = calculatePlanetPosition(earth, date);
     const observerAngle = calculateObserverAngle(earthAngle, date);
-    const path = container.querySelector("clipPath#sky-clip-inner path");
+    const path = container.querySelector("clipPath#sky-clip path");
     const d = path.getAttribute("d");
 
     // Parse the wedge path: M anchorX anchorY L leftX leftY A D D 0 large-arc sweep rightX rightY Z
@@ -551,42 +651,20 @@ describe("calculateObserverAngle", () => {
     expect(angleDiff).toBeLessThan(0.001);
   });
 
-  it("midnight and noon overlays are ~180 degrees apart", () => {
-    const c1 = document.createElement("div");
-    const c2 = document.createElement("div");
-    renderInto(c1, new Date("2026-02-14T00:00:00"));
-    renderInto(c2, new Date("2026-02-14T12:00:00"));
+  it("observer angles 12 hours apart are ~180° apart", () => {
+    // Tests calculateObserverAngle directly — avoids SVG geometry which depends on cone half-angle
+    const earth = PLANETS.find((p) => p.name === "Earth");
+    const date7am = new Date("2026-02-14T07:00:00");
+    const date7pm = new Date("2026-02-14T19:00:00");
 
-    const path1 = c1.querySelector("clipPath#sky-clip-outer path");
-    const path2 = c2.querySelector("clipPath#sky-clip-outer path");
-    const d1 = path1.getAttribute("d");
-    const d2 = path2.getAttribute("d");
+    const earthAngle = calculatePlanetPosition(earth, date7am); // same orbital position
+    const obs7am = calculateObserverAngle(earthAngle, date7am);
+    const obs7pm = calculateObserverAngle(earthAngle, date7pm);
 
-    // Overlays at midnight vs noon should be different (rotated ~180°)
-    expect(d1).not.toBe(d2);
-
-    // Parse anchor and edge points from each wedge path
-    const parseWedge = (d) => {
-      const nums = d.match(/[-\d.]+/g).map(Number);
-      return {
-        anchorX: nums[0], anchorY: nums[1],
-        leftX: nums[2], leftY: nums[3],
-        rightX: nums[9], rightY: nums[10],
-      };
-    };
-
-    const w1 = parseWedge(d1);
-    const w2 = parseWedge(d2);
-
-    // Midpoints of left/right edges as proxy for wedge direction
-    const mid1X = (w1.leftX + w1.rightX) / 2 - w1.anchorX;
-    const mid1Y = (w1.leftY + w1.rightY) / 2 - w1.anchorY;
-    const mid2X = (w2.leftX + w2.rightX) / 2 - w2.anchorX;
-    const mid2Y = (w2.leftY + w2.rightY) / 2 - w2.anchorY;
-
-    // Dot product of opposite direction vectors should be negative
-    const dot = mid1X * mid2X + mid1Y * mid2Y;
-    expect(dot).toBeLessThan(0);
+    const norm = (a) => ((a % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+    const diff = Math.abs(norm(obs7am) - norm(obs7pm));
+    const angleDiff = Math.min(diff, 2 * Math.PI - diff);
+    expect(angleDiff).toBeCloseTo(Math.PI, 3);
   });
 });
 

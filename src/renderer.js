@@ -11,8 +11,8 @@ const VIEW_SIZE = 800;
 const CENTER = VIEW_SIZE / 2;
 const ORBIT_COLOR = "rgba(255, 255, 255, 0.12)";
 const LABEL_COLOR = "rgba(255, 255, 255, 0.5)";
-const DAY_OVERLAY_OUTER = "rgba(255, 255, 255, 0.03)";  // 180° max sky
-const DAY_OVERLAY_INNER = "rgba(200, 220, 255, 0.04)";  // 150° practical
+export const CONE_DAY      = "rgba(255, 255, 200, 0.18)";  // Sun above horizon
+export const CONE_TWILIGHT = "rgba(160, 140, 255, 0.10)";  // Sun -18° to 0°
 const NEEDLE_COLOR = "rgba(255, 255, 255, 0.7)";
 
 // Log-scale orbit radii so inner planets aren't squished
@@ -218,15 +218,32 @@ function renderDayNightSplit(svg, earthRadius, date, earthBodySize) {
   const anchorX = earthOrbitalX + earthBodySize * obsDirX;
   const anchorY = earthOrbitalY - earthBodySize * obsDirY;
 
-  // 180° hemisphere (maximum sky) — fixed horizon boundary
-  renderVisibilityCone(svg, anchorX, anchorY, observerAngle, 90, "sky-clip-outer", DAY_OVERLAY_OUTER);
-
-  // Twilight arc — dynamic: shrinks as Sun dips below horizon, absent in full night
+  // Filled cone — only rendered when sunlight reaches the observer (day or twilight).
+  // Day: exactly 180° (half-angle 90°).
+  // Twilight: cone expands below the horizon — half-angle = 90° - elevationDeg,
+  //   e.g. Sun at -14° → half-angle 104°, cone spans 208° (14° below each horizon edge).
   const elevationDeg = calculateSolarElevationDeg(observerAngle, earthAngle);
-  if (elevationDeg > -18) {
-    const innerHalfAngle = Math.min(90, Math.max(0, 90 + elevationDeg));
-    renderVisibilityCone(svg, anchorX, anchorY, observerAngle, innerHalfAngle, "sky-clip-inner", DAY_OVERLAY_INNER);
+  if (elevationDeg >= -18) {
+    const coneColor = elevationDeg >= 0 ? CONE_DAY : CONE_TWILIGHT;
+    const halfAngle = elevationDeg >= 0 ? 90 : 90 - elevationDeg;
+    renderVisibilityCone(svg, anchorX, anchorY, observerAngle, halfAngle, "sky-clip", coneColor);
   }
+
+  // Horizon line — always drawn to show the 180° visible-sky boundary
+  const D = VIEW_SIZE;
+  const leftX  = anchorX + D * Math.cos(observerAngle + Math.PI / 2);
+  const leftY  = anchorY - D * Math.sin(observerAngle + Math.PI / 2);
+  const rightX = anchorX + D * Math.cos(observerAngle - Math.PI / 2);
+  const rightY = anchorY - D * Math.sin(observerAngle - Math.PI / 2);
+  svg.appendChild(
+    createSvgElement("line", {
+      x1: leftX, y1: leftY,
+      x2: rightX, y2: rightY,
+      stroke: "rgba(255, 255, 255, 0.3)",
+      "stroke-width": 1,
+      "stroke-dasharray": "4, 4",
+    })
+  );
 }
 
 function renderObserverNeedle(svg, earthX, earthY, observerAngle, earthSize) {

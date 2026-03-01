@@ -73,13 +73,6 @@ export class SolarViewCard extends HTMLElement {
 
   _goToday() {
     this._currentDate = new Date();
-
-    // Reset view to default zoom level
-    this._zoomLevel = this._defaultZoomLevel;
-    this._viewCenterX = FULL_SYSTEM_SIZE / 2;
-    this._viewCenterY = FULL_SYSTEM_SIZE / 2;
-    this._viewWidth = ZOOM_LEVELS[this._zoomLevel];
-    this._viewHeight = ZOOM_LEVELS[this._zoomLevel];
     this._render();
   }
 

@@ -267,13 +267,13 @@ describe("SolarViewCard", () => {
   });
 
   describe("today button", () => {
-    it("Today button resets zoom to default level", () => {
+    it("Today button preserves zoom level", () => {
       const card = createAndMount();
       clickButton(card, "zoom-in");
       clickButton(card, "zoom-in");
       expect(card._zoomLevel).toBe(3);
       clickButton(card, "today");
-      expect(card._zoomLevel).toBe(1);
+      expect(card._zoomLevel).toBe(3);
       card.remove();
     });
   });
@@ -320,15 +320,15 @@ describe("SolarViewCard", () => {
       card.remove();
     });
 
-    it("Today button resets zoom to default level", () => {
+    it("Today button preserves zoom and view width", () => {
       const card = createAndMount();
-      const initial = parseViewBox(card);
       clickButton(card, "zoom-in");
       clickButton(card, "zoom-in");
+      const zoomed = parseViewBox(card);
       clickButton(card, "today");
       const after = parseViewBox(card);
-      expect(after.width).toBe(initial.width);
-      expect(card._zoomLevel).toBe(1);
+      expect(after.width).toBe(zoomed.width);
+      expect(card._zoomLevel).toBe(3);
       card.remove();
     });
   });
@@ -354,7 +354,7 @@ describe("SolarViewCard", () => {
       card.remove();
     });
 
-    it("Today button resets to configured default zoom level", () => {
+    it("Today button preserves zoom level even with configured default", () => {
       const card = document.createElement("ha-solar-view-card-test");
       card.setConfig({ default_zoom: 2 });
       document.body.appendChild(card);
@@ -362,9 +362,9 @@ describe("SolarViewCard", () => {
       clickButton(card, "zoom-in");
       expect(card._zoomLevel).toBe(4);
       clickButton(card, "today");
-      expect(card._zoomLevel).toBe(2);
+      expect(card._zoomLevel).toBe(4);
       const { width } = parseViewBox(card);
-      expect(width).toBe(640);
+      expect(width).toBe(320);
       card.remove();
     });
   });

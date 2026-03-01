@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { renderSolarSystem, calculateObserverAngle } from "../src/renderer.js";
+import { renderSolarSystem, calculateObserverAngle, calculateSolarElevationDeg } from "../src/renderer.js";
 import { PLANETS, calculatePlanetPosition } from "../src/planet-data.js";
 
 function renderInto(container, date) {
@@ -88,9 +88,10 @@ describe("renderSolarSystem", () => {
     expect(svg.tagName).toBe("svg");
   });
 
-  it("renders dual visibility cones (180° outer + 150° inner)", () => {
+  it("renders dual visibility cones (180° outer + dynamic inner) during daytime", () => {
     const container = document.createElement("div");
-    renderInto(container, new Date("2026-02-14"));
+    // Use noon so the observer faces the Sun — Sun is above horizon, both arcs render
+    renderInto(container, new Date("2026-02-14T12:00:00"));
 
     const svg = container.querySelector("svg");
     const outerClip = svg.querySelector("clipPath#sky-clip-outer");
@@ -106,9 +107,19 @@ describe("renderSolarSystem", () => {
     expect(outerPath.getAttribute("d")).toMatch(/^M .+ L .+ A .+ Z$/);
     expect(innerPath.getAttribute("d")).toMatch(/^M .+ L .+ A .+ Z$/);
 
-    // 180° cone uses large-arc-flag=1, 150° cone uses large-arc-flag=0
+    // Both cones use large-arc-flag=1 (90° half-angle each at noon)
     expect(outerPath.getAttribute("d")).toMatch(/A \d+ \d+ 0 1 1/);
-    expect(innerPath.getAttribute("d")).toMatch(/A \d+ \d+ 0 0 1/);
+    expect(innerPath.getAttribute("d")).toMatch(/A \d+ \d+ 0 1 1/);
+  });
+
+  it("inner arc is absent during full night (Sun > 18° below horizon)", () => {
+    const container = document.createElement("div");
+    // Midnight: observer faces away from Sun, elevation ≈ -90°
+    renderInto(container, new Date("2026-02-14T00:00:00"));
+
+    const svg = container.querySelector("svg");
+    expect(svg.querySelector("clipPath#sky-clip-outer")).not.toBeNull();
+    expect(svg.querySelector("clipPath#sky-clip-inner")).toBeNull();
   });
 
   it("day overlay covers observer's visible sky wedge", () => {
@@ -575,5 +586,46 @@ describe("calculateObserverAngle", () => {
     // Dot product of opposite direction vectors should be negative
     const dot = mid1X * mid2X + mid1Y * mid2Y;
     expect(dot).toBeLessThan(0);
+  });
+});
+
+describe("calculateSolarElevationDeg", () => {
+  const earthAngle = 1.0; // arbitrary orbital angle
+
+  it("returns ~90° when observer faces directly toward the Sun (local noon)", () => {
+    // At noon observerAngle = earthAngle + π (pointing toward Sun)
+    const observerAngle = earthAngle + Math.PI;
+    const elevation = calculateSolarElevationDeg(observerAngle, earthAngle);
+    expect(elevation).toBeCloseTo(90, 1);
+  });
+
+  it("returns ~-90° when observer faces directly away from the Sun (local midnight)", () => {
+    // At midnight observerAngle = earthAngle (pointing away from Sun)
+    const observerAngle = earthAngle;
+    const elevation = calculateSolarElevationDeg(observerAngle, earthAngle);
+    expect(elevation).toBeCloseTo(-90, 1);
+  });
+
+  it("returns ~0° when observer is perpendicular to Sun direction (horizon crossing)", () => {
+    // Observer 90° from Sun direction = Sun on horizon
+    const observerAngle = earthAngle + Math.PI / 2;
+    const elevation = calculateSolarElevationDeg(observerAngle, earthAngle);
+    expect(elevation).toBeCloseTo(0, 1);
+  });
+
+  it("handles 2π wrap-around correctly", () => {
+    // Same geometry, but angles cross the 0/2π boundary
+    const wrappedEarth = 0.1;
+    const wrappedObserver = wrappedEarth + Math.PI + 2 * Math.PI; // excess wrapping
+    const elevation = calculateSolarElevationDeg(wrappedObserver, wrappedEarth);
+    expect(elevation).toBeCloseTo(90, 1);
+  });
+
+  it("returns negative value when Sun is below horizon", () => {
+    // Sun 30° below horizon: observer must be 120° from Sun direction (|diff| = 120°)
+    // observerAngle = earthAngle + π - 2π/3 = earthAngle + π/3
+    const observerAngle = earthAngle + Math.PI / 3;
+    const elevation = calculateSolarElevationDeg(observerAngle, earthAngle);
+    expect(elevation).toBeCloseTo(-30, 1);
   });
 });

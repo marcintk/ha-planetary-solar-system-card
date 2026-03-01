@@ -38,7 +38,6 @@ This can be installed in Home Assistant as:
 ## TODO:
 
 ### Features
-- orbit around Moon
 - add some other object like comets i.e. Halley
 - add Earth centric view (every update should move all objects except Earth)
 - add moon phases

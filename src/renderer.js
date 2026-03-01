@@ -138,6 +138,23 @@ function renderSaturnRings(svg, x, y, body, renderSize) {
 }
 
 /**
+ * Compute the Sun's elevation angle in degrees from the observer's horizon.
+ * Positive = Sun above horizon (day), negative = Sun below horizon (night).
+ * Uses atan2 to correctly handle 2π wrap-around.
+ * @param {number} observerAngle - observer zenith direction (radians)
+ * @param {number} earthAngle - Earth's orbital angle from Sun (radians)
+ * @returns {number} solar elevation in degrees, range [-90, 90]
+ */
+export function calculateSolarElevationDeg(observerAngle, earthAngle) {
+  const dirToSun = earthAngle + Math.PI;
+  const diff = Math.atan2(
+    Math.sin(observerAngle - dirToSun),
+    Math.cos(observerAngle - dirToSun)
+  );
+  return (Math.PI / 2 - Math.abs(diff)) * (180 / Math.PI);
+}
+
+/**
  * Compute the observer's zenith direction in the ecliptic plane.
  * Combines Earth's orbital angle with Earth's rotation based on local time.
  * At midnight the observer faces away from the Sun; at noon they face toward the Sun.
@@ -201,10 +218,15 @@ function renderDayNightSplit(svg, earthRadius, date, earthBodySize) {
   const anchorX = earthOrbitalX + earthBodySize * obsDirX;
   const anchorY = earthOrbitalY - earthBodySize * obsDirY;
 
-  // 180° hemisphere (maximum sky)
+  // 180° hemisphere (maximum sky) — fixed horizon boundary
   renderVisibilityCone(svg, anchorX, anchorY, observerAngle, 90, "sky-clip-outer", DAY_OVERLAY_OUTER);
-  // 150° practical observation range
-  renderVisibilityCone(svg, anchorX, anchorY, observerAngle, 75, "sky-clip-inner", DAY_OVERLAY_INNER);
+
+  // Twilight arc — dynamic: shrinks as Sun dips below horizon, absent in full night
+  const elevationDeg = calculateSolarElevationDeg(observerAngle, earthAngle);
+  if (elevationDeg > -18) {
+    const innerHalfAngle = Math.min(90, Math.max(0, 90 + elevationDeg));
+    renderVisibilityCone(svg, anchorX, anchorY, observerAngle, innerHalfAngle, "sky-clip-inner", DAY_OVERLAY_INNER);
+  }
 }
 
 function renderObserverNeedle(svg, earthX, earthY, observerAngle, earthSize) {

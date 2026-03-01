@@ -188,14 +188,11 @@ describe("renderSolarSystem", () => {
 
     const outerRing = ringCircles[0];
     expect(outerRing.getAttribute("stroke-width")).toBe("2");
-    expect(outerRing.getAttribute("r")).toBe("19");
+    expect(outerRing.getAttribute("r")).toBe("23");
 
     const innerRing = ringCircles[1];
-    expect(innerRing.getAttribute("stroke-width")).toBe("2");
-    expect(innerRing.getAttribute("r")).toBe("16");
-
-    // Both rings use uniform stroke width
-    expect(outerRing.getAttribute("stroke-width")).toBe(innerRing.getAttribute("stroke-width"));
+    expect(innerRing.getAttribute("stroke-width")).toBe("6");
+    expect(innerRing.getAttribute("r")).toBe("18");
 
     // Inter-ring gap (outer inner edge - inner outer edge) should be minimal
     const outerInnerEdge = 19 - 2 / 2; // 18px

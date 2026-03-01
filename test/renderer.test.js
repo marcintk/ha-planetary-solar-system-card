@@ -124,7 +124,8 @@ describe("renderSolarSystem", () => {
 
   it("day overlay covers observer's visible sky wedge", () => {
     const container = document.createElement("div");
-    const date = new Date("2026-02-14");
+    // Use noon so solar elevation ≈ +90° and the inner arc is rendered
+    const date = new Date("2026-02-14T12:00:00");
     renderInto(container, date);
 
     const svg = container.querySelector("svg");

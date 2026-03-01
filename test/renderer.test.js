@@ -181,24 +181,30 @@ describe("renderSolarSystem", () => {
     renderInto(container, new Date("2026-02-14"));
 
     const svg = container.querySelector("svg");
-    // Saturn's rings are two stroke-only circles (top-down view)
-    const ringCircles = svg.querySelectorAll('circle[fill="none"]:not([stroke-dasharray])');
+    // Saturn's rings are two stroke-only circles with Saturn's ring color (no dasharray)
+    const ringColor = "rgba(224, 192, 128, 0.6)";
+    const ringCircles = svg.querySelectorAll(`circle[stroke="${ringColor}"]`);
     expect(ringCircles.length).toBe(2);
 
     const outerRing = ringCircles[0];
-    expect(outerRing.getAttribute("stroke")).toBe("rgba(224, 192, 128, 0.6)");
     expect(outerRing.getAttribute("stroke-width")).toBe("2");
-    expect(outerRing.getAttribute("r")).toBe("24");
+    expect(outerRing.getAttribute("r")).toBe("23");
 
     const innerRing = ringCircles[1];
-    expect(innerRing.getAttribute("stroke")).toBe("rgba(224, 192, 128, 0.6)");
-    expect(innerRing.getAttribute("stroke-width")).toBe("3");
-    expect(innerRing.getAttribute("r")).toBe("19");
+    expect(innerRing.getAttribute("stroke-width")).toBe("6");
+    expect(innerRing.getAttribute("r")).toBe("18");
 
-    // 3px gap between outer inner edge (23px) and inner outer edge (20px)
-    const outerInnerEdge = 24 - 2 / 2; // 23px
-    const innerOuterEdge = 19 + 3 / 2; // 21px
-    expect(outerInnerEdge - innerOuterEdge).toBe(2.5);
+    // Inter-ring gap (outer inner edge - inner outer edge) should be minimal
+    const outerInnerEdge = 19 - 2 / 2; // 18px
+    const innerOuterEdge = 16 + 2 / 2; // 17px
+    const interRingGap = outerInnerEdge - innerOuterEdge;
+    expect(interRingGap).toBe(1);
+
+    // Planet-to-ring gap should be ≥ 2× inter-ring gap
+    const bodyRadius = 13; // Saturn rendered at half size (26/2)
+    const innerInnerEdge = 16 - 2 / 2; // 15px
+    const planetToRingGap = innerInnerEdge - bodyRadius;
+    expect(planetToRingGap).toBeGreaterThanOrEqual(interRingGap * 2);
 
     // No ellipses should exist
     expect(svg.querySelectorAll("ellipse").length).toBe(0);
@@ -216,8 +222,9 @@ describe("renderSolarSystem", () => {
     const svg = container.querySelector("svg");
     const allElements = Array.from(svg.children);
 
-    // Find Saturn's ring circles (non-orbit, non-dash stroke circles)
-    const rings = svg.querySelectorAll('circle[fill="none"]:not([stroke-dasharray])');
+    // Find Saturn's ring circles by ring color
+    const ringColor = "rgba(224, 192, 128, 0.6)";
+    const rings = svg.querySelectorAll(`circle[stroke="${ringColor}"]`);
     expect(rings.length).toBe(2);
 
     // Find Saturn's label text
@@ -250,9 +257,58 @@ describe("renderSolarSystem", () => {
     renderInto(container, new Date("2026-02-14"));
 
     const svg = container.querySelector("svg");
-    // No ellipses (ring is now a circle), and only two non-orbit, non-body stroke circles (Saturn's dual rings)
-    const ringCircles = svg.querySelectorAll('circle[fill="none"]:not([stroke-dasharray])');
+    // Only Saturn should have ring-colored circles
+    const ringColor = "rgba(224, 192, 128, 0.6)";
+    const ringCircles = svg.querySelectorAll(`circle[stroke="${ringColor}"]`);
     expect(ringCircles.length).toBe(2); // Only Saturn's dual rings
+    // No ellipses
+    expect(svg.querySelectorAll("ellipse").length).toBe(0);
+  });
+
+  it("renders Moon orbit as a dotted circle centered on Earth", () => {
+    const container = document.createElement("div");
+    const date = new Date("2026-02-14");
+    renderInto(container, date);
+
+    const svg = container.querySelector("svg");
+    // Moon orbit: dashed circle with finer dash pattern than planet orbits
+    const moonOrbit = svg.querySelector('circle[stroke-dasharray="2, 3"]');
+    expect(moonOrbit).not.toBeNull();
+    expect(moonOrbit.getAttribute("r")).toBe("22");
+    expect(moonOrbit.getAttribute("stroke-width")).toBe("0.5");
+    expect(moonOrbit.getAttribute("stroke")).toBe("rgba(255, 255, 255, 0.12)");
+    expect(moonOrbit.getAttribute("fill")).toBe("none");
+
+    // Should be centered at Earth's position
+    const earth = PLANETS.find((p) => p.name === "Earth");
+    const earthAngle = calculatePlanetPosition(earth, date);
+    const earthCx = Number(moonOrbit.getAttribute("cx"));
+    const earthCy = Number(moonOrbit.getAttribute("cy"));
+
+    // Earth body circle should be at the same position
+    const earthBody = svg.querySelector('circle[fill="#4a90d9"]');
+    expect(earthCx).toBeCloseTo(Number(earthBody.getAttribute("cx")), 0);
+    expect(earthCy).toBeCloseTo(Number(earthBody.getAttribute("cy")), 0);
+  });
+
+  it("Moon orbit circle appears before Moon body in SVG order", () => {
+    const container = document.createElement("div");
+    renderInto(container, new Date("2026-02-14"));
+
+    const svg = container.querySelector("svg");
+    const allElements = Array.from(svg.children);
+
+    // Moon orbit: the dashed circle with "2, 3" pattern
+    const moonOrbit = svg.querySelector('circle[stroke-dasharray="2, 3"]');
+    expect(moonOrbit).not.toBeNull();
+
+    // Moon body: grey circle (#cccccc)
+    const moonBody = svg.querySelector('circle[fill="#cccccc"]');
+    expect(moonBody).not.toBeNull();
+
+    const orbitIdx = allElements.indexOf(moonOrbit);
+    const bodyIdx = allElements.indexOf(moonBody);
+    expect(orbitIdx).toBeLessThan(bodyIdx);
   });
 
   it("renders different planet positions for different dates", () => {

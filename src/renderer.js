@@ -111,27 +111,28 @@ function renderSaturnRings(svg, x, y, body, renderSize) {
   const b = parseInt(hex.slice(5, 7), 16);
   const ringColor = `rgba(${r}, ${g}, ${b}, 0.6)`;
 
-  // Outer ring (r=24, stroke-width=2): outer edge 25px, inner edge 23px
+  // Outer ring (r=23, stroke-width=2): outer edge 24px, inner edge 22px
   svg.appendChild(
     createSvgElement("circle", {
       cx: x,
       cy: y,
-      r: 24,
+      r: 23,
       fill: "none",
       stroke: ringColor,
       "stroke-width": 2,
     })
   );
 
-  // Inner ring (r=19, stroke-width=3): outer edge 21px, inner edge 17px
+  // Inner ring (r=18, stroke-width=6): outer edge 21px, inner edge 15px
+  // 3× thicker than outer ring; gap body(~6.5px) to inner ring(15px) = ~8.5px; inter-ring gap(22-21) = 1px
   svg.appendChild(
     createSvgElement("circle", {
       cx: x,
       cy: y,
-      r: 19,
+      r: 18,
       fill: "none",
       stroke: ringColor,
-      "stroke-width": 3,
+      "stroke-width": 6,
     })
   );
 }
@@ -381,7 +382,7 @@ export function renderSolarSystem(date, hemisphere = "north") {
       const saturnRenderSize = Math.round(planet.size / 2);
       const saturnOverride = { ...planet, size: saturnRenderSize };
       renderBody(svg, x, y, saturnOverride, false);
-      expandBounds(bounds, x, y, saturnOverride.size + 24);
+      expandBounds(bounds, x, y, saturnOverride.size + 20);
       renderSaturnRings(svg, x, y, planet, saturnRenderSize);
       // Draw label after rings so it paints on top
       svg.appendChild(
@@ -413,6 +414,20 @@ export function renderSolarSystem(date, hemisphere = "north") {
   const moonPixelOffset = 22; // pixels from Earth
   const moonX = earthX + moonPixelOffset * Math.cos(moonAngle);
   const moonY = earthY - moonPixelOffset * Math.sin(moonAngle);
+
+  // Moon orbit (dotted circle centered on Earth)
+  svg.appendChild(
+    createSvgElement("circle", {
+      cx: earthX,
+      cy: earthY,
+      r: moonPixelOffset,
+      fill: "none",
+      stroke: ORBIT_COLOR,
+      "stroke-width": 0.5,
+      "stroke-dasharray": "2, 3",
+    })
+  );
+
   renderBody(svg, moonX, moonY, MOON);
   expandBounds(bounds, moonX, moonY, MOON.size + 17);
 

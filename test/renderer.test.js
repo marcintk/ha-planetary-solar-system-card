@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { renderSolarSystem, calculateObserverAngle, calculateSolarElevationDeg, CONE_DAY, CONE_TWILIGHT } from "../src/renderer.js";
+import { renderSolarSystem, calculateObserverAngle, calculateSolarElevationDeg, CONE_DAY, CONE_TWILIGHT, CONE_NIGHT } from "../src/renderer.js";
 import { PLANETS, calculatePlanetPosition } from "../src/planet-data.js";
 
 function renderInto(container, date) {
@@ -129,14 +129,14 @@ describe("renderSolarSystem", () => {
     expect(cone.getAttribute("fill")).toBe(CONE_TWILIGHT);
   });
 
-  it("no cone is rendered during full night", () => {
+  it("cone rendered during full night", () => {
     const container = document.createElement("div");
     // Midnight: observer faces away from Sun, elevation ≈ -90°
     renderInto(container, new Date("2026-02-14T00:00:00"));
 
     const svg = container.querySelector("svg");
     const cone = svg.querySelector('circle[clip-path="url(#sky-clip)"]');
-    expect(cone).toBeNull();
+    expect(cone.getAttribute("fill")).toBe(CONE_NIGHT);
   });
 
   it("twilight cone half-angle expands beyond 90° as Sun descends below horizon", () => {

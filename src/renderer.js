@@ -11,9 +11,11 @@ const VIEW_SIZE = 800;
 const CENTER = VIEW_SIZE / 2;
 const ORBIT_COLOR = "rgba(255, 255, 255, 0.12)";
 const LABEL_COLOR = "rgba(255, 255, 255, 0.5)";
-export const CONE_DAY      = "rgba(255, 255, 200, 0.18)";  // Sun above horizon
-export const CONE_TWILIGHT = "rgba(160, 140, 255, 0.10)";  // Sun -18° to 0°
 const NEEDLE_COLOR = "rgba(255, 255, 255, 0.7)";
+
+export const CONE_DAY = "rgba(255, 255, 255, 0.1)";  // Sun above horizon
+export const CONE_TWILIGHT = "rgba(255, 255, 255, 0.05)";  // Sun -18° to 0°
+export const CONE_NIGHT = "rgba(255, 255, 255, 0.01)";  // Sun below -18°
 
 // Log-scale orbit radii so inner planets aren't squished
 // Maps AU → pixel radius from center, leaving margin for labels
@@ -223,16 +225,14 @@ function renderDayNightSplit(svg, earthRadius, date, earthBodySize) {
   // Twilight: cone expands below the horizon — half-angle = 90° - elevationDeg,
   //   e.g. Sun at -14° → half-angle 104°, cone spans 208° (14° below each horizon edge).
   const elevationDeg = calculateSolarElevationDeg(observerAngle, earthAngle);
-  if (elevationDeg >= -18) {
-    const coneColor = elevationDeg >= 0 ? CONE_DAY : CONE_TWILIGHT;
-    const halfAngle = elevationDeg >= 0 ? 90 : 90 - elevationDeg;
-    renderVisibilityCone(svg, anchorX, anchorY, observerAngle, halfAngle, "sky-clip", coneColor);
-  }
+  const coneColor = elevationDeg >= 0 ? CONE_DAY : (elevationDeg >= -18 ? CONE_TWILIGHT : CONE_NIGHT);
+  const halfAngle = (elevationDeg >= 0 || elevationDeg < -18) ? 90 : (90 - elevationDeg);
+  renderVisibilityCone(svg, anchorX, anchorY, observerAngle, halfAngle, "sky-clip", coneColor);
 
   // Horizon line — always drawn to show the 180° visible-sky boundary
   const D = VIEW_SIZE;
-  const leftX  = anchorX + D * Math.cos(observerAngle + Math.PI / 2);
-  const leftY  = anchorY - D * Math.sin(observerAngle + Math.PI / 2);
+  const leftX = anchorX + D * Math.cos(observerAngle + Math.PI / 2);
+  const leftY = anchorY - D * Math.sin(observerAngle + Math.PI / 2);
   const rightX = anchorX + D * Math.cos(observerAngle - Math.PI / 2);
   const rightY = anchorY - D * Math.sin(observerAngle - Math.PI / 2);
   svg.appendChild(

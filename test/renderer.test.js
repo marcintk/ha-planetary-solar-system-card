@@ -1,11 +1,27 @@
 import { describe, it, expect } from "vitest";
-import { renderSolarSystem, calculateObserverAngle, calculateSolarElevationDeg, CONE_DAY, CONE_TWILIGHT, CONE_NIGHT } from "../src/renderer.js";
+import { renderSolarSystem, calculateObserverAngle, calculateSolarElevationDeg, CONE_DAY, CONE_CIVIL, CONE_NAUTICAL, CONE_ASTRONOMICAL, CONE_NIGHT } from "../src/renderer.js";
 import { PLANETS, calculatePlanetPosition } from "../src/planet-data.js";
 
 function renderInto(container, date) {
   const { svg, bounds } = renderSolarSystem(date);
   container.appendChild(svg);
   return { svg, bounds };
+}
+
+// Returns the normalised dot product of the two edge vectors of a cone clip path.
+// dot = cos(2 * halfAngle): value of -1 means 180° span; > -1 means wider.
+function coneEdgeDot(svg, clipId) {
+  const path = svg.querySelector(`clipPath#${clipId} path`);
+  if (!path) return null;
+  const nums = path.getAttribute("d").match(/[-\d.]+/g).map(Number);
+  const anchorX = nums[0], anchorY = nums[1];
+  const leftX = nums[2], leftY = nums[3];
+  const rightX = nums[9], rightY = nums[10];
+  const lDX = leftX - anchorX, lDY = leftY - anchorY;
+  const rDX = rightX - anchorX, rDY = rightY - anchorY;
+  const lLen = Math.sqrt(lDX * lDX + lDY * lDY);
+  const rLen = Math.sqrt(rDX * rDX + rDY * rDY);
+  return (lDX * rDX + lDY * rDY) / (lLen * rLen);
 }
 
 describe("renderSolarSystem", () => {
@@ -118,15 +134,15 @@ describe("renderSolarSystem", () => {
     expect(cone.getAttribute("fill")).toBe(CONE_DAY);
   });
 
-  it("cone uses twilight colour when Sun is just below horizon", () => {
+  it("cone uses astronomical colour when Sun is deep in twilight (5 AM, ≈ −15°)", () => {
     const container = document.createElement("div");
-    // 5 AM: observer angle ≈ earthAngle + 75°, elevation ≈ -15° (twilight zone)
+    // 5 AM: elevation ≈ -15° — in the astronomical twilight phase
     renderInto(container, new Date("2026-02-14T05:00:00"));
 
     const svg = container.querySelector("svg");
     const cone = svg.querySelector('circle[clip-path="url(#sky-clip)"]');
     expect(cone).not.toBeNull();
-    expect(cone.getAttribute("fill")).toBe(CONE_TWILIGHT);
+    expect(cone.getAttribute("fill")).toBe(CONE_ASTRONOMICAL);
   });
 
   it("cone rendered during full night", () => {
@@ -141,26 +157,12 @@ describe("renderSolarSystem", () => {
 
   it("twilight cone half-angle expands beyond 90° as Sun descends below horizon", () => {
     const container = document.createElement("div");
-    // 5AM: elevation ≈ -14.8° → half-angle ≈ 104.8°, cone spans ~210°
+    // 5AM: elevation ≈ -15° → half-angle ≈ 105°, cone spans ~210°
     renderInto(container, new Date("2026-02-14T05:00:00"));
 
     const svg = container.querySelector("svg");
-    const path = svg.querySelector("clipPath#sky-clip path");
-    expect(path).not.toBeNull();
-
-    const nums = path.getAttribute("d").match(/[-\d.]+/g).map(Number);
-    const anchorX = nums[0], anchorY = nums[1];
-    const leftX = nums[2], leftY = nums[3];
-    const rightX = nums[9], rightY = nums[10];
-
-    // Normalised dot product of the two edge vectors = cos(2 * halfAngle)
-    // For halfAngle=90°  → cos(180°) = -1
-    // For halfAngle=104.8° → cos(209.6°) ≈ -0.87, which is > -1
-    const leftDX = leftX - anchorX, leftDY = leftY - anchorY;
-    const rightDX = rightX - anchorX, rightDY = rightY - anchorY;
-    const leftLen = Math.sqrt(leftDX * leftDX + leftDY * leftDY);
-    const rightLen = Math.sqrt(rightDX * rightDX + rightDY * rightDY);
-    const dot = (leftDX * rightDX + leftDY * rightDY) / (leftLen * rightLen);
+    const dot = coneEdgeDot(svg, "sky-clip");
+    expect(dot).not.toBeNull();
     expect(dot).toBeGreaterThan(-0.9); // clearly wider than 180°
   });
 
@@ -195,15 +197,98 @@ describe("renderSolarSystem", () => {
     expect(cone.getAttribute("fill")).toBe(CONE_DAY);
   });
 
-  it("cone uses twilight colour near the -18° twilight/night boundary", () => {
+  it("cone uses astronomical colour near the -18° twilight/night boundary", () => {
     const container = document.createElement("div");
-    // 4:49 AM: elevation ≈ -17.75° — just inside the twilight zone (> -18°)
+    // 4:49 AM: elevation ≈ -17.75° — just inside the twilight zone (> -18°), astronomical phase
     renderInto(container, new Date("2026-02-14T04:49:00"));
 
     const svg = container.querySelector("svg");
     const cone = svg.querySelector('circle[clip-path="url(#sky-clip)"]');
     expect(cone).not.toBeNull();
-    expect(cone.getAttribute("fill")).toBe(CONE_TWILIGHT);
+    expect(cone.getAttribute("fill")).toBe(CONE_ASTRONOMICAL);
+  });
+
+  it("civil cone fill — warm colour during civil twilight (0° to -6°)", () => {
+    const container = document.createElement("div");
+    // 5:45 AM: elevation ≈ -3.75° — civil twilight phase
+    renderInto(container, new Date("2026-02-14T05:45:00"));
+
+    const svg = container.querySelector("svg");
+    const cone = svg.querySelector('circle[clip-path="url(#sky-clip)"]');
+    expect(cone).not.toBeNull();
+    expect(cone.getAttribute("fill")).toBe(CONE_CIVIL);
+    // Cone wider than 180° (half-angle > 90°) but less than 96°
+    const dot = coneEdgeDot(svg, "sky-clip");
+    expect(dot).toBeGreaterThan(-1);
+    expect(dot).toBeLessThan(Math.cos((192 * Math.PI) / 180));
+  });
+
+  it("nautical cone fill — cool colour during nautical twilight (-6° to -12°)", () => {
+    const container = document.createElement("div");
+    // 5:24 AM: elevation ≈ -9° — nautical twilight phase
+    renderInto(container, new Date("2026-02-14T05:24:00"));
+
+    const svg = container.querySelector("svg");
+    const cone = svg.querySelector('circle[clip-path="url(#sky-clip)"]');
+    expect(cone).not.toBeNull();
+    expect(cone.getAttribute("fill")).toBe(CONE_NAUTICAL);
+    // Half-angle ≈ 99° → dot ≈ cos(198°) ≈ -0.951
+    const dot = coneEdgeDot(svg, "sky-clip");
+    expect(dot).toBeCloseTo(Math.cos((198 * Math.PI) / 180), 1);
+  });
+
+  it("astronomical cone fill — deep indigo during astronomical twilight (-12° to -18°)", () => {
+    const container = document.createElement("div");
+    // 5:00 AM: elevation ≈ -15° — astronomical twilight phase
+    renderInto(container, new Date("2026-02-14T05:00:00"));
+
+    const svg = container.querySelector("svg");
+    const cone = svg.querySelector('circle[clip-path="url(#sky-clip)"]');
+    expect(cone).not.toBeNull();
+    expect(cone.getAttribute("fill")).toBe(CONE_ASTRONOMICAL);
+    // Half-angle ≈ 105° → dot ≈ cos(210°) ≈ -0.866
+    const dot = coneEdgeDot(svg, "sky-clip");
+    expect(dot).toBeCloseTo(Math.cos((210 * Math.PI) / 180), 1);
+  });
+
+  it("only one twilight cone present in SVG per render", () => {
+    const container = document.createElement("div");
+    // 5:00 AM: elevation ≈ -15° (astronomical phase)
+    renderInto(container, new Date("2026-02-14T05:00:00"));
+
+    const svg = container.querySelector("svg");
+    const fills = Array.from(svg.querySelectorAll("circle[clip-path]"))
+      .map(c => c.getAttribute("fill"));
+    expect(fills).toContain(CONE_ASTRONOMICAL);
+    expect(fills).not.toContain(CONE_CIVIL);
+    expect(fills).not.toContain(CONE_NAUTICAL);
+    expect(fills).not.toContain(CONE_DAY);
+  });
+
+  it("no twilight cones present during full daytime", () => {
+    const container = document.createElement("div");
+    // Noon: elevation ≈ +90°
+    renderInto(container, new Date("2026-02-14T12:00:00"));
+
+    const svg = container.querySelector("svg");
+    const fills = Array.from(svg.querySelectorAll("circle[clip-path]"))
+      .map(c => c.getAttribute("fill"));
+    expect(fills).not.toContain(CONE_CIVIL);
+    expect(fills).not.toContain(CONE_NAUTICAL);
+    expect(fills).not.toContain(CONE_ASTRONOMICAL);
+  });
+
+  it("no twilight cones present during full night", () => {
+    const container = document.createElement("div");
+    // Midnight: elevation ≈ -90°
+    renderInto(container, new Date("2026-02-14T00:00:00"));
+
+    const svg = container.querySelector("svg");
+    const fills = Array.from(svg.querySelectorAll("circle[clip-path]"))
+      .map(c => c.getAttribute("fill"));
+    expect(fills).not.toContain(CONE_CIVIL);
+    expect(fills).not.toContain(CONE_NAUTICAL);
+    expect(fills).not.toContain(CONE_ASTRONOMICAL);
   });
 
   it("renders horizon boundary line for all light conditions", () => {

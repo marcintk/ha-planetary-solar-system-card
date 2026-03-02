@@ -13,9 +13,11 @@ const ORBIT_COLOR = "rgba(255, 255, 255, 0.12)";
 const LABEL_COLOR = "rgba(255, 255, 255, 0.5)";
 const NEEDLE_COLOR = "rgba(255, 255, 255, 0.7)";
 
-export const CONE_DAY = "rgba(255, 255, 255, 0.1)";  // Sun above horizon
-export const CONE_TWILIGHT = "rgba(255, 255, 255, 0.05)";  // Sun -18° to 0°
-export const CONE_NIGHT = "rgba(255, 255, 255, 0.01)";  // Sun below -18°
+export const CONE_DAY = "rgba(255, 255, 255, 0.1)";          // Sun above horizon
+export const CONE_CIVIL = "rgba(255, 220, 160, 0.08)";       // Civil twilight:       0° to -6°
+export const CONE_NAUTICAL = "rgba(160, 190, 255, 0.06)";    // Nautical twilight:  -6° to -12°
+export const CONE_ASTRONOMICAL = "rgba(80, 100, 200, 0.04)"; // Astronomical twilight: -12° to -18°
+export const CONE_NIGHT = "rgba(255, 255, 255, 0.01)";       // Sun below -18°
 
 // Log-scale orbit radii so inner planets aren't squished
 // Maps AU → pixel radius from center, leaving margin for labels
@@ -220,12 +222,15 @@ function renderDayNightSplit(svg, earthRadius, date, earthBodySize) {
   const anchorX = earthOrbitalX + earthBodySize * obsDirX;
   const anchorY = earthOrbitalY - earthBodySize * obsDirY;
 
-  // Filled cone — only rendered when sunlight reaches the observer (day or twilight).
-  // Day: exactly 180° (half-angle 90°).
-  // Twilight: cone expands below the horizon — half-angle = 90° - elevationDeg,
-  //   e.g. Sun at -14° → half-angle 104°, cone spans 208° (14° below each horizon edge).
+  // Filled cone — colour determined by which twilight phase the solar elevation falls in.
+  // Half-angle = 90° − elevationDeg expands the cone below the horizon during twilight.
   const elevationDeg = calculateSolarElevationDeg(observerAngle, earthAngle);
-  const coneColor = elevationDeg >= 0 ? CONE_DAY : (elevationDeg >= -18 ? CONE_TWILIGHT : CONE_NIGHT);
+  let coneColor;
+  if (elevationDeg >= 0)        coneColor = CONE_DAY;
+  else if (elevationDeg >= -6)  coneColor = CONE_CIVIL;
+  else if (elevationDeg >= -12) coneColor = CONE_NAUTICAL;
+  else if (elevationDeg >= -18) coneColor = CONE_ASTRONOMICAL;
+  else                          coneColor = CONE_NIGHT;
   const halfAngle = (elevationDeg >= 0 || elevationDeg < -18) ? 90 : (90 - elevationDeg);
   renderVisibilityCone(svg, anchorX, anchorY, observerAngle, halfAngle, "sky-clip", coneColor);
 

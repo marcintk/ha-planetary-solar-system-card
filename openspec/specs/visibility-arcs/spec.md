@@ -1,6 +1,6 @@
 ## Purpose
 
-Defines the visibility cone and horizon line displayed at Earth's orbital position. These elements communicate the current daylight, twilight, and night conditions to the observer, using the Sun's elevation angle derived from existing orbital data.
+Defines the visibility cone and horizon line displayed at Earth's orbital position. These elements communicate the current daylight, twilight, and night conditions to the observer, using the Sun's elevation angle computed from the observer's real geographic location via the `observer-location` capability.
 
 ## Requirements
 
@@ -86,17 +86,35 @@ visible, communicating that no sunlight reaches the observer.
 - **THEN** the filled cone SHALL disappear
 - **AND** only the dashed horizon line SHALL remain
 
-### Requirement: Solar elevation computed from orbital data
-The solar elevation angle used for the visibility cone SHALL be derived from the existing Earth orbital angle and observer angle already available at render time. No external geolocation or astronomical API SHALL be required.
+### Requirement: Solar elevation computed from observer location
+The solar elevation angle used for the visibility cone SHALL be computed by the
+`computeSolarElevationDeg` function from the `observer-location` capability, using
+the observer's real latitude, longitude, and local time in the HA timezone.
 
-The computation SHALL use a proper angular difference function (e.g. `atan2(sin(a−b), cos(a−b))`) to avoid 2π wrap-around errors.
+The orbital angle SHALL continue to be used solely to determine the orientation
+(direction) of the cone and horizon line in the SVG diagram. The orbital angle
+SHALL NOT be used as the source of elevation magnitude.
 
 #### Scenario: Correct solar elevation at local noon
-- **GIVEN** the observer angle aligns with the Earth-to-Sun direction
+- **GIVEN** the observer's latitude and longitude are known
+- **AND** the current local time (in the HA timezone) is solar noon at that longitude
 - **WHEN** solar elevation is computed
-- **THEN** the elevation SHALL be approximately 90° (Sun overhead)
+- **THEN** the elevation SHALL be positive and close to `90° − |lat − declination|`
 
 #### Scenario: Correct solar elevation at local midnight
-- **GIVEN** the observer angle points directly away from the Sun
+- **GIVEN** the observer's latitude and longitude are known
+- **AND** the current local time (in the HA timezone) is local midnight
 - **WHEN** solar elevation is computed
-- **THEN** the elevation SHALL be approximately −90° (Sun directly below)
+- **THEN** the elevation SHALL be negative (Sun below horizon)
+
+#### Scenario: Cone color reflects real sky condition
+- **GIVEN** a user in Dallas, TX (lat ≈ 32.8°N, lon ≈ −96.8°W) at 14:00 CST
+- **WHEN** the visibility cone is rendered
+- **THEN** the cone SHALL use the Day color (elevation > 0°)
+
+#### Scenario: Cone orientation driven by orbital angle independent of elevation
+- **GIVEN** any date and observer location
+- **WHEN** the visibility cone is rendered
+- **THEN** the direction the cone points (observer zenith in the SVG) SHALL be derived
+  from the Earth orbital angle and local time angle as before
+- **AND** this direction SHALL be independent of the elevation value

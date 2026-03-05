@@ -96,6 +96,7 @@ This can be installed in Home Assistant as:
 ### Features
 - add some other object like comets i.e. Halley
 - add Earth centric view (every update should move all objects except Earth)
+- add zodiac constellations
 - add moon phases
 - add information if this Northern or Southern hemisphere
 - add auto zoom level to fit all planets in view

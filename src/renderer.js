@@ -5,6 +5,7 @@ import {
   calculatePlanetPosition,
   calculateMoonPosition,
 } from "./planet-data.js";
+import { getLocalTimeInZone, computeSolarElevationDeg } from "./solar-position.js";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 const VIEW_SIZE = 800;
@@ -165,11 +166,17 @@ export function calculateSolarElevationDeg(observerAngle, earthAngle) {
  * The returned angle points toward the visible sky (observer's zenith).
  * @param {number} earthOrbitalAngle - Earth's orbital position (radians)
  * @param {Date} date - date/time used to extract local hours/minutes
+ * @param {string} [timezone] - optional IANA timezone (e.g. "America/Chicago"); falls back to date.getHours()
  * @returns {number} observer angle in radians
  */
-export function calculateObserverAngle(earthOrbitalAngle, date) {
-  const hours = date.getHours();
-  const minutes = date.getMinutes();
+export function calculateObserverAngle(earthOrbitalAngle, date, timezone) {
+  let hours, minutes;
+  if (timezone) {
+    ({ hours, minutes } = getLocalTimeInZone(date, timezone));
+  } else {
+    hours = date.getHours();
+    minutes = date.getMinutes();
+  }
   const localTimeAngle = ((hours + minutes / 60) / 24) * 2 * Math.PI;
   return earthOrbitalAngle + localTimeAngle;
 }
@@ -206,10 +213,10 @@ function renderVisibilityCone(svg, anchorX, anchorY, observerAngle, halfAngleDeg
   );
 }
 
-function renderDayNightSplit(svg, earthRadius, date, earthBodySize) {
+function renderDayNightSplit(svg, earthRadius, date, earthBodySize, locationData) {
   const earth = PLANETS.find((p) => p.name === "Earth");
   const earthAngle = calculatePlanetPosition(earth, date);
-  const observerAngle = calculateObserverAngle(earthAngle, date);
+  const observerAngle = calculateObserverAngle(earthAngle, date, locationData && locationData.timezone);
 
   const earthDirX = Math.cos(earthAngle);
   const earthDirY = Math.sin(earthAngle);
@@ -224,7 +231,11 @@ function renderDayNightSplit(svg, earthRadius, date, earthBodySize) {
 
   // Filled cone — colour determined by which twilight phase the solar elevation falls in.
   // Half-angle = 90° − elevationDeg expands the cone below the horizon during twilight.
-  const elevationDeg = calculateSolarElevationDeg(observerAngle, earthAngle);
+  // When real location data is available, use spherical astronomy; otherwise fall back to
+  // the orbital approximation so the card works without a hass object (tests, previews).
+  const elevationDeg = (locationData && locationData.lat != null)
+    ? computeSolarElevationDeg(locationData.lat, locationData.lon, date)
+    : calculateSolarElevationDeg(observerAngle, earthAngle);
   let coneColor;
   if (elevationDeg >= 0)        coneColor = CONE_DAY;
   else if (elevationDeg >= -6)  coneColor = CONE_CIVIL;
@@ -385,9 +396,10 @@ function expandBounds(bounds, x, y, margin) {
  * Renders the solar system SVG and returns it with bounding box metadata.
  * @param {Date} date - date to calculate positions for
  * @param {string} [hemisphere="north"] - "north" or "south" for season labels
+ * @param {{ lat: number, lon: number, timezone: string } | null} [locationData] - observer location from HA config
  * @returns {{ svg: SVGElement, bounds: { minX: number, minY: number, maxX: number, maxY: number } }}
  */
-export function renderSolarSystem(date, hemisphere = "north") {
+export function renderSolarSystem(date, hemisphere = "north", locationData = null) {
   const svg = createSvgElement("svg", {
     viewBox: `0 0 ${VIEW_SIZE} ${VIEW_SIZE}`,
     width: "100%",
@@ -400,7 +412,7 @@ export function renderSolarSystem(date, hemisphere = "north") {
   // Day/night split (rendered first, behind everything)
   const earth = PLANETS.find((p) => p.name === "Earth");
   const earthRadius = auToRadius(1.0);
-  renderDayNightSplit(svg, earthRadius, date, earth.size);
+  renderDayNightSplit(svg, earthRadius, date, earth.size, locationData);
 
   // Season quadrant overlay (after day/night, before orbits)
   renderSeasonOverlay(svg, hemisphere);
@@ -476,7 +488,7 @@ export function renderSolarSystem(date, hemisphere = "north") {
   expandBounds(bounds, moonX, moonY, MOON.size + 17);
 
   // Observer needle on Earth (tip at surface)
-  const observerAngle = calculateObserverAngle(earthAngle, date);
+  const observerAngle = calculateObserverAngle(earthAngle, date, locationData && locationData.timezone);
   renderObserverNeedle(svg, earthX, earthY, observerAngle, earth.size);
 
   return { svg, bounds };

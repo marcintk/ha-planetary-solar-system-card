@@ -1,4 +1,5 @@
 import { renderSolarSystem } from "./renderer.js";
+import { computeSolarElevationDeg, computeNextTransitionTime, getSkyMode } from "./solar-position.js";
 
 const FULL_SYSTEM_SIZE = 800;
 const ZOOM_LEVELS = {
@@ -23,6 +24,10 @@ export class SolarViewCard extends HTMLElement {
     this._zoomLevel = null;
     this._defaultZoomLevel = DEFAULT_ZOOM_LEVEL;
     this._hemisphere = "north"; // Hemisphere for season labels (default: north)
+    this._lat = null;
+    this._lon = null;
+    this._timezone = null;
+    this._locationName = null;
     this._autoUpdateTimer = null; // Auto-update timer
     this._isDragging = false; // Drag state
     this._dragStartX = 0;
@@ -33,6 +38,17 @@ export class SolarViewCard extends HTMLElement {
 
   set hass(hass) {
     this._hass = hass;
+    const lat = hass.config && hass.config.latitude;
+    const lon = hass.config && hass.config.longitude;
+    const timezone = hass.config && hass.config.time_zone;
+    const locationName = hass.config && hass.config.location_name;
+    if (lat !== this._lat || lon !== this._lon || timezone !== this._timezone || locationName !== this._locationName) {
+      this._lat = lat != null ? lat : null;
+      this._lon = lon != null ? lon : null;
+      this._timezone = timezone || null;
+      this._locationName = locationName || null;
+      this._render();
+    }
   }
 
   setConfig(config) {
@@ -41,7 +57,6 @@ export class SolarViewCard extends HTMLElement {
   }
 
   connectedCallback() {
-    this._detectHemisphere();
     this._render();
     clearInterval(this._autoUpdateTimer);
     this._autoUpdateTimer = setInterval(() => {
@@ -74,21 +89,6 @@ export class SolarViewCard extends HTMLElement {
   _goToday() {
     this._currentDate = new Date();
     this._render();
-  }
-
-  _detectHemisphere() {
-    if (typeof navigator !== "undefined" && navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const newHemisphere = pos.coords.latitude < 0 ? "south" : "north";
-          if (newHemisphere !== this._hemisphere) {
-            this._hemisphere = newHemisphere;
-            this._render();
-          }
-        },
-        () => { } // Geolocation denied or unavailable — keep default
-      );
-    }
   }
 
   _zoomIn() {
@@ -166,6 +166,37 @@ export class SolarViewCard extends HTMLElement {
       this._viewHeight = ZOOM_LEVELS[this._zoomLevel];
     }
 
+    // Derive hemisphere from HA location when available
+    if (this._lat != null) {
+      this._hemisphere = this._lat < 0 ? "south" : "north";
+    }
+
+    // Build location data for renderer
+    const locationData = (this._lat != null)
+      ? { lat: this._lat, lon: this._lon, timezone: this._timezone }
+      : null;
+
+    // Build status bar text when location is available
+    let statusBarHtml = "";
+    if (locationData) {
+      const elevDeg = computeSolarElevationDeg(this._lat, this._lon, this._currentDate);
+      const mode = getSkyMode(elevDeg);
+      const elevRounded = Math.round(elevDeg);
+      const next = computeNextTransitionTime(this._lat, this._lon, this._currentDate);
+      let nextStr = "";
+      if (next) {
+        const formatter = new Intl.DateTimeFormat("en-US", {
+          timeZone: this._timezone || "UTC",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+        });
+        nextStr = ` | Next: ${formatter.format(next.time)}`;
+      }
+      const name = this._locationName || "";
+      statusBarHtml = `<div class="status-bar">${name} | ${mode} (${elevRounded}°)${nextStr}</div>`;
+    }
+
     this.shadowRoot.innerHTML = `
       <style>
         :host {
@@ -185,6 +216,22 @@ export class SolarViewCard extends HTMLElement {
         }
         .solar-view-wrapper {
           overflow: hidden;
+          position: relative;
+        }
+        .status-bar {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          background: rgba(42, 42, 42, 0.3);
+          font-size: 9px;
+          color: rgba(255, 255, 255, 0.85);
+          text-align: center;
+          padding: 3px 0;
+          pointer-events: none;
+          text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+          font-family: sans-serif;
+          z-index: 1;
         }
         #solar-view {
           width: 100%;
@@ -203,7 +250,7 @@ export class SolarViewCard extends HTMLElement {
           margin-top: 2px;
         }
         .nav button {
-          background: #2a2a2a;
+          background: rgba(42, 42, 42, 0.3);
           color: rgba(255, 255, 255, 0.8);
           border: 1px solid rgba(255, 255, 255, 0.1);
           border-radius: 6px;
@@ -252,6 +299,7 @@ export class SolarViewCard extends HTMLElement {
       </style>
       <div class="card">
         <div class="solar-view-wrapper">
+          ${statusBarHtml}
           <div id="solar-view"></div>
         </div>
         <div class="nav">
@@ -277,7 +325,7 @@ export class SolarViewCard extends HTMLElement {
     `;
 
     const container = this.shadowRoot.getElementById("solar-view");
-    const { svg } = renderSolarSystem(this._currentDate, this._hemisphere);
+    const { svg } = renderSolarSystem(this._currentDate, this._hemisphere, locationData);
     container.appendChild(svg);
 
     this._updateViewBox();

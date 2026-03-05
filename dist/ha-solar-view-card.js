@@ -116,6 +116,134 @@ function calculateMoonPosition(date) {
   return ((angle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
 }
 
+/**
+ * Extract local hours and minutes for a Date in a given IANA timezone string.
+ * Falls back to UTC if the timezone is invalid or unrecognised.
+ * @param {Date} date
+ * @param {string} timezone - IANA timezone string (e.g. "America/Chicago")
+ * @returns {{ hours: number, minutes: number }}
+ */
+function getLocalTimeInZone(date, timezone) {
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).formatToParts(date);
+    const hourPart = parts.find((p) => p.type === "hour");
+    const minutePart = parts.find((p) => p.type === "minute");
+    let hours = Number(hourPart.value);
+    if (hours === 24) hours = 0; // some engines return 24 for midnight
+    return { hours, minutes: Number(minutePart.value) };
+  } catch {
+    return { hours: date.getUTCHours(), minutes: date.getUTCMinutes() };
+  }
+}
+
+/**
+ * Compute the Sun's true altitude above the observer's horizon using spherical
+ * astronomy. Returns degrees in [-90, 90].
+ *
+ * Formula:
+ *   δ  = -23.45° × cos( 2π/365 × (dayOfYear + 10) )   ← solar declination
+ *   H  = 15° × (localSolarHour - 12)                    ← hour angle
+ *   sin(alt) = sin(lat)×sin(δ) + cos(lat)×cos(δ)×cos(H)
+ *
+ * localSolarHour uses UTC + longitude offset (1 hour per 15° longitude),
+ * which is independent of civil timezone and gives true solar time.
+ *
+ * @param {number} lat - observer latitude in degrees
+ * @param {number} lon - observer longitude in degrees (positive east)
+ * @param {Date} date
+ * @returns {number} solar altitude in degrees
+ */
+function computeSolarElevationDeg(lat, lon, date) {
+  // Day of year (1 = Jan 1)
+  const startOfYear = Date.UTC(date.getUTCFullYear(), 0, 0);
+  const dayOfYear = Math.floor((date.getTime() - startOfYear) / 86400000);
+
+  // Solar declination in radians
+  const declRad = (-23.45 * Math.cos((2 * Math.PI / 365) * (dayOfYear + 10)) * Math.PI) / 180;
+
+  // Local solar hour: UTC fractional hours + longitude offset (15°/hr)
+  const utcHour = date.getUTCHours() + date.getUTCMinutes() / 60 + date.getUTCSeconds() / 3600;
+  const localSolarHour = ((utcHour + lon / 15) % 24 + 24) % 24;
+
+  // Hour angle in radians (positive in afternoon)
+  const hourAngleRad = ((localSolarHour - 12) * 15 * Math.PI) / 180;
+
+  const latRad = (lat * Math.PI) / 180;
+  const sinAlt =
+    Math.sin(latRad) * Math.sin(declRad) +
+    Math.cos(latRad) * Math.cos(declRad) * Math.cos(hourAngleRad);
+
+  return (Math.asin(Math.max(-1, Math.min(1, sinAlt))) * 180) / Math.PI;
+}
+
+/**
+ * Classify a solar elevation angle into a sky mode string.
+ * @param {number} elevDeg
+ * @returns {string}
+ */
+function getSkyMode(elevDeg) {
+  if (elevDeg >= 0) return "Day";
+  if (elevDeg >= -6) return "Civil Twilight";
+  if (elevDeg >= -12) return "Nautical Twilight";
+  if (elevDeg >= -18) return "Astronomical Twilight";
+  return "Night";
+}
+
+/**
+ * Find the next sky-mode boundary crossing after `date`.
+ * Uses a minute-by-minute forward scan (up to 24 hours) followed by
+ * binary-search refinement within the detected bracket.
+ *
+ * @param {number} lat - observer latitude in degrees
+ * @param {number} lon - observer longitude in degrees
+ * @param {Date} date - start time
+ * @returns {{ time: Date, toMode: string } | null}
+ */
+function computeNextTransitionTime(lat, lon, date) {
+  const MS_PER_MIN = 60000;
+  const MAX_MINS = 24 * 60;
+
+  const startElev = computeSolarElevationDeg(lat, lon, date);
+  let currentMode = getSkyMode(startElev);
+
+  let bracketLoMs = null;
+  let bracketHiMs = null;
+  let toMode = null;
+
+  // Minute-by-minute scan
+  for (let m = 1; m <= MAX_MINS; m++) {
+    const t = date.getTime() + m * MS_PER_MIN;
+    const elev = computeSolarElevationDeg(lat, lon, new Date(t));
+    const mode = getSkyMode(elev);
+    if (mode !== currentMode) {
+      bracketLoMs = t - MS_PER_MIN;
+      bracketHiMs = t;
+      toMode = mode;
+      break;
+    }
+  }
+
+  if (bracketLoMs === null) return null;
+
+  // Binary-search refinement within the bracket
+  for (let i = 0; i < 10; i++) {
+    const midMs = Math.floor((bracketLoMs + bracketHiMs) / 2);
+    const midMode = getSkyMode(computeSolarElevationDeg(lat, lon, new Date(midMs)));
+    if (midMode === currentMode) {
+      bracketLoMs = midMs;
+    } else {
+      bracketHiMs = midMs;
+    }
+  }
+
+  return { time: new Date(bracketHiMs), toMode };
+}
+
 const SVG_NS = "http://www.w3.org/2000/svg";
 const VIEW_SIZE = 800;
 const CENTER = VIEW_SIZE / 2;
@@ -275,11 +403,17 @@ function calculateSolarElevationDeg(observerAngle, earthAngle) {
  * The returned angle points toward the visible sky (observer's zenith).
  * @param {number} earthOrbitalAngle - Earth's orbital position (radians)
  * @param {Date} date - date/time used to extract local hours/minutes
+ * @param {string} [timezone] - optional IANA timezone (e.g. "America/Chicago"); falls back to date.getHours()
  * @returns {number} observer angle in radians
  */
-function calculateObserverAngle(earthOrbitalAngle, date) {
-  const hours = date.getHours();
-  const minutes = date.getMinutes();
+function calculateObserverAngle(earthOrbitalAngle, date, timezone) {
+  let hours, minutes;
+  if (timezone) {
+    ({ hours, minutes } = getLocalTimeInZone(date, timezone));
+  } else {
+    hours = date.getHours();
+    minutes = date.getMinutes();
+  }
   const localTimeAngle = ((hours + minutes / 60) / 24) * 2 * Math.PI;
   return earthOrbitalAngle + localTimeAngle;
 }
@@ -316,10 +450,10 @@ function renderVisibilityCone(svg, anchorX, anchorY, observerAngle, halfAngleDeg
   );
 }
 
-function renderDayNightSplit(svg, earthRadius, date, earthBodySize) {
+function renderDayNightSplit(svg, earthRadius, date, earthBodySize, locationData) {
   const earth = PLANETS.find((p) => p.name === "Earth");
   const earthAngle = calculatePlanetPosition(earth, date);
-  const observerAngle = calculateObserverAngle(earthAngle, date);
+  const observerAngle = calculateObserverAngle(earthAngle, date, locationData && locationData.timezone);
 
   const earthDirX = Math.cos(earthAngle);
   const earthDirY = Math.sin(earthAngle);
@@ -334,7 +468,11 @@ function renderDayNightSplit(svg, earthRadius, date, earthBodySize) {
 
   // Filled cone — colour determined by which twilight phase the solar elevation falls in.
   // Half-angle = 90° − elevationDeg expands the cone below the horizon during twilight.
-  const elevationDeg = calculateSolarElevationDeg(observerAngle, earthAngle);
+  // When real location data is available, use spherical astronomy; otherwise fall back to
+  // the orbital approximation so the card works without a hass object (tests, previews).
+  const elevationDeg = (locationData && locationData.lat != null)
+    ? computeSolarElevationDeg(locationData.lat, locationData.lon, date)
+    : calculateSolarElevationDeg(observerAngle, earthAngle);
   let coneColor;
   if (elevationDeg >= 0)        coneColor = CONE_DAY;
   else if (elevationDeg >= -6)  coneColor = CONE_CIVIL;
@@ -495,9 +633,10 @@ function expandBounds(bounds, x, y, margin) {
  * Renders the solar system SVG and returns it with bounding box metadata.
  * @param {Date} date - date to calculate positions for
  * @param {string} [hemisphere="north"] - "north" or "south" for season labels
+ * @param {{ lat: number, lon: number, timezone: string } | null} [locationData] - observer location from HA config
  * @returns {{ svg: SVGElement, bounds: { minX: number, minY: number, maxX: number, maxY: number } }}
  */
-function renderSolarSystem(date, hemisphere = "north") {
+function renderSolarSystem(date, hemisphere = "north", locationData = null) {
   const svg = createSvgElement("svg", {
     viewBox: `0 0 ${VIEW_SIZE} ${VIEW_SIZE}`,
     width: "100%",
@@ -510,7 +649,7 @@ function renderSolarSystem(date, hemisphere = "north") {
   // Day/night split (rendered first, behind everything)
   const earth = PLANETS.find((p) => p.name === "Earth");
   const earthRadius = auToRadius(1.0);
-  renderDayNightSplit(svg, earthRadius, date, earth.size);
+  renderDayNightSplit(svg, earthRadius, date, earth.size, locationData);
 
   // Season quadrant overlay (after day/night, before orbits)
   renderSeasonOverlay(svg, hemisphere);
@@ -586,7 +725,7 @@ function renderSolarSystem(date, hemisphere = "north") {
   expandBounds(bounds, moonX, moonY, MOON.size + 17);
 
   // Observer needle on Earth (tip at surface)
-  const observerAngle = calculateObserverAngle(earthAngle, date);
+  const observerAngle = calculateObserverAngle(earthAngle, date, locationData && locationData.timezone);
   renderObserverNeedle(svg, earthX, earthY, observerAngle, earth.size);
 
   return { svg, bounds };
@@ -615,6 +754,10 @@ class SolarViewCard extends HTMLElement {
     this._zoomLevel = null;
     this._defaultZoomLevel = DEFAULT_ZOOM_LEVEL;
     this._hemisphere = "north"; // Hemisphere for season labels (default: north)
+    this._lat = null;
+    this._lon = null;
+    this._timezone = null;
+    this._locationName = null;
     this._autoUpdateTimer = null; // Auto-update timer
     this._isDragging = false; // Drag state
     this._dragStartX = 0;
@@ -625,6 +768,17 @@ class SolarViewCard extends HTMLElement {
 
   set hass(hass) {
     this._hass = hass;
+    const lat = hass.config && hass.config.latitude;
+    const lon = hass.config && hass.config.longitude;
+    const timezone = hass.config && hass.config.time_zone;
+    const locationName = hass.config && hass.config.location_name;
+    if (lat !== this._lat || lon !== this._lon || timezone !== this._timezone || locationName !== this._locationName) {
+      this._lat = lat != null ? lat : null;
+      this._lon = lon != null ? lon : null;
+      this._timezone = timezone || null;
+      this._locationName = locationName || null;
+      this._render();
+    }
   }
 
   setConfig(config) {
@@ -633,7 +787,6 @@ class SolarViewCard extends HTMLElement {
   }
 
   connectedCallback() {
-    this._detectHemisphere();
     this._render();
     clearInterval(this._autoUpdateTimer);
     this._autoUpdateTimer = setInterval(() => {
@@ -666,21 +819,6 @@ class SolarViewCard extends HTMLElement {
   _goToday() {
     this._currentDate = new Date();
     this._render();
-  }
-
-  _detectHemisphere() {
-    if (typeof navigator !== "undefined" && navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const newHemisphere = pos.coords.latitude < 0 ? "south" : "north";
-          if (newHemisphere !== this._hemisphere) {
-            this._hemisphere = newHemisphere;
-            this._render();
-          }
-        },
-        () => { } // Geolocation denied or unavailable — keep default
-      );
-    }
   }
 
   _zoomIn() {
@@ -758,6 +896,37 @@ class SolarViewCard extends HTMLElement {
       this._viewHeight = ZOOM_LEVELS[this._zoomLevel];
     }
 
+    // Derive hemisphere from HA location when available
+    if (this._lat != null) {
+      this._hemisphere = this._lat < 0 ? "south" : "north";
+    }
+
+    // Build location data for renderer
+    const locationData = (this._lat != null)
+      ? { lat: this._lat, lon: this._lon, timezone: this._timezone }
+      : null;
+
+    // Build status bar text when location is available
+    let statusBarHtml = "";
+    if (locationData) {
+      const elevDeg = computeSolarElevationDeg(this._lat, this._lon, this._currentDate);
+      const mode = getSkyMode(elevDeg);
+      const elevRounded = Math.round(elevDeg);
+      const next = computeNextTransitionTime(this._lat, this._lon, this._currentDate);
+      let nextStr = "";
+      if (next) {
+        const formatter = new Intl.DateTimeFormat("en-US", {
+          timeZone: this._timezone || "UTC",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+        });
+        nextStr = ` | Next: ${formatter.format(next.time)}`;
+      }
+      const name = this._locationName || "";
+      statusBarHtml = `<div class="status-bar">${name} | ${mode} (${elevRounded}°)${nextStr}</div>`;
+    }
+
     this.shadowRoot.innerHTML = `
       <style>
         :host {
@@ -777,6 +946,22 @@ class SolarViewCard extends HTMLElement {
         }
         .solar-view-wrapper {
           overflow: hidden;
+          position: relative;
+        }
+        .status-bar {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          background: rgba(42, 42, 42, 0.3);
+          font-size: 9px;
+          color: rgba(255, 255, 255, 0.85);
+          text-align: center;
+          padding: 3px 0;
+          pointer-events: none;
+          text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+          font-family: sans-serif;
+          z-index: 1;
         }
         #solar-view {
           width: 100%;
@@ -795,7 +980,7 @@ class SolarViewCard extends HTMLElement {
           margin-top: 2px;
         }
         .nav button {
-          background: #2a2a2a;
+          background: rgba(42, 42, 42, 0.3);
           color: rgba(255, 255, 255, 0.8);
           border: 1px solid rgba(255, 255, 255, 0.1);
           border-radius: 6px;
@@ -844,6 +1029,7 @@ class SolarViewCard extends HTMLElement {
       </style>
       <div class="card">
         <div class="solar-view-wrapper">
+          ${statusBarHtml}
           <div id="solar-view"></div>
         </div>
         <div class="nav">
@@ -869,7 +1055,7 @@ class SolarViewCard extends HTMLElement {
     `;
 
     const container = this.shadowRoot.getElementById("solar-view");
-    const { svg } = renderSolarSystem(this._currentDate, this._hemisphere);
+    const { svg } = renderSolarSystem(this._currentDate, this._hemisphere, locationData);
     container.appendChild(svg);
 
     this._updateViewBox();

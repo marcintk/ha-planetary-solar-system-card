@@ -1,4 +1,5 @@
 import { renderSolarSystem } from "./renderer.js";
+import { buildStatusBarHtml, buildCardHtml } from "./card-template.js";
 
 const FULL_SYSTEM_SIZE = 800;
 const ZOOM_LEVELS = {
@@ -23,6 +24,10 @@ export class SolarViewCard extends HTMLElement {
     this._zoomLevel = null;
     this._defaultZoomLevel = DEFAULT_ZOOM_LEVEL;
     this._hemisphere = "north"; // Hemisphere for season labels (default: north)
+    this._lat = null;
+    this._lon = null;
+    this._timezone = null;
+    this._locationName = null;
     this._autoUpdateTimer = null; // Auto-update timer
     this._isDragging = false; // Drag state
     this._dragStartX = 0;
@@ -33,6 +38,17 @@ export class SolarViewCard extends HTMLElement {
 
   set hass(hass) {
     this._hass = hass;
+    const lat = hass.config && hass.config.latitude;
+    const lon = hass.config && hass.config.longitude;
+    const timezone = hass.config && hass.config.time_zone;
+    const locationName = hass.config && hass.config.location_name;
+    if (lat !== this._lat || lon !== this._lon || timezone !== this._timezone || locationName !== this._locationName) {
+      this._lat = lat != null ? lat : null;
+      this._lon = lon != null ? lon : null;
+      this._timezone = timezone || null;
+      this._locationName = locationName || null;
+      this._render();
+    }
   }
 
   setConfig(config) {
@@ -41,7 +57,6 @@ export class SolarViewCard extends HTMLElement {
   }
 
   connectedCallback() {
-    this._detectHemisphere();
     this._render();
     clearInterval(this._autoUpdateTimer);
     this._autoUpdateTimer = setInterval(() => {
@@ -74,21 +89,6 @@ export class SolarViewCard extends HTMLElement {
   _goToday() {
     this._currentDate = new Date();
     this._render();
-  }
-
-  _detectHemisphere() {
-    if (typeof navigator !== "undefined" && navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const newHemisphere = pos.coords.latitude < 0 ? "south" : "north";
-          if (newHemisphere !== this._hemisphere) {
-            this._hemisphere = newHemisphere;
-            this._render();
-          }
-        },
-        () => { } // Geolocation denied or unavailable — keep default
-      );
-    }
   }
 
   _zoomIn() {
@@ -157,7 +157,7 @@ export class SolarViewCard extends HTMLElement {
   }
 
   _render() {
-    // Initialize view state before rendering template
+    // Initialize view state on first render
     if (this._viewCenterX === null) {
       this._viewCenterX = FULL_SYSTEM_SIZE / 2;
       this._viewCenterY = FULL_SYSTEM_SIZE / 2;
@@ -166,118 +166,20 @@ export class SolarViewCard extends HTMLElement {
       this._viewHeight = ZOOM_LEVELS[this._zoomLevel];
     }
 
-    this.shadowRoot.innerHTML = `
-      <style>
-        :host {
-          display: block;
-        }
-        .card {
-          background: #1e1e1e;
-          border-radius: 12px;
-          padding: 2px;
-          color: #ffffff;
-          font-family: sans-serif;
-        }
-        .date {
-          font-size: 11px;
-          color: rgba(255, 255, 255, 0.6);
-          margin: 2px 2px;
-        }
-        .solar-view-wrapper {
-          overflow: hidden;
-        }
-        #solar-view {
-          width: 100%;
-          aspect-ratio: 1;
-        }
-        #solar-view svg {
-          cursor: grab;
-          user-select: none;
-          touch-action: none;
-        }
-        .nav {
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          gap: 4px;
-          margin-top: 2px;
-        }
-        .nav button {
-          background: #2a2a2a;
-          color: rgba(255, 255, 255, 0.8);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          border-radius: 6px;
-          height: 18px;
-          line-height: 18px;
-          padding: 0 5px;
-          min-width: 20px;
-          font-size: 10px;
-          cursor: pointer;
-          font-family: sans-serif;
-          box-sizing: border-box;
-        }
-        .nav button:hover {
-          background: #3a3a3a;
-        }
-        .btn-group {
-          display: flex;
-          gap: 0;
-        }
-        .btn-group button {
-          border-radius: 0;
-        }
-        .btn-group button:first-child {
-          border-radius: 6px 0 0 6px;
-        }
-        .btn-group button:last-child {
-          border-radius: 0 6px 6px 0;
-        }
-        .nav-spacer {
-          width: 8px;
-        }
-        .zoom-level {
-          background: #2a2a2a;
-          color: rgba(255, 255, 255, 0.8);
-          border-top: 1px solid rgba(255, 255, 255, 0.1);
-          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-          height: 18px;
-          line-height: 18px;
-          padding: 0 4px;
-          font-size: 9px;
-          font-family: sans-serif;
-          display: flex;
-          align-items: center;
-          box-sizing: border-box;
-        }
-      </style>
-      <div class="card">
-        <div class="solar-view-wrapper">
-          <div id="solar-view"></div>
-        </div>
-        <div class="nav">
-          <span class="btn-group">
-            <button data-action="month-back">\u22D8</button>
-            <button data-action="day-back">\u00AB</button>
-            <button data-action="hour-back">\u2039</button>
-            <button data-action="today">Now</button>
-            <button data-action="hour-forward">\u203A</button>
-            <button data-action="day-forward">\u00BB</button>
-            <button data-action="month-forward">\u22D9</button>
-          </span>
-          <span class="nav-spacer"></span>
-          <span class="date">${this._formatDate(this._currentDate)}</span>
-          <span class="nav-spacer"></span>
-          <span class="btn-group">
-            <button data-action="zoom-out">&minus;</button>
-            <span class="zoom-level">${this._zoomLevel}</span>
-            <button data-action="zoom-in">+</button>
-          </span>
-        </div>
-      </div>
-    `;
+    // Derive hemisphere from HA location when available
+    if (this._lat != null) {
+      this._hemisphere = this._lat < 0 ? "south" : "north";
+    }
+
+    const locationData = (this._lat != null)
+      ? { lat: this._lat, lon: this._lon, timezone: this._timezone }
+      : null;
+
+    const statusBarHtml = buildStatusBarHtml(locationData, this._locationName, this._currentDate);
+    this.shadowRoot.innerHTML = buildCardHtml(statusBarHtml, this._formatDate(this._currentDate), this._zoomLevel);
 
     const container = this.shadowRoot.getElementById("solar-view");
-    const { svg } = renderSolarSystem(this._currentDate, this._hemisphere);
+    const { svg } = renderSolarSystem(this._currentDate, this._hemisphere, locationData);
     container.appendChild(svg);
 
     this._updateViewBox();

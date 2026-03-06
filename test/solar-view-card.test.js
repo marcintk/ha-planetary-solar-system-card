@@ -506,4 +506,51 @@ describe("SolarViewCard", () => {
       card.remove();
     });
   });
+
+  describe("status bar layout", () => {
+    // London at midday: sun is up, next transition (sunset) exists within 24h
+    function createCardWithLocation(lat = 51.5, lon = -0.1, date = new Date("2026-03-05T12:00:00Z")) {
+      const card = document.createElement("ha-solar-view-card-test");
+      card._lat = lat;
+      card._lon = lon;
+      card._timezone = "Europe/London";
+      card._locationName = "London";
+      card._currentDate = date;
+      document.body.appendChild(card);
+      return card;
+    }
+
+    it("renders two child spans when location and next transition are available", () => {
+      const card = createCardWithLocation();
+      const bar = card.shadowRoot.querySelector(".status-bar");
+      const spans = bar.querySelectorAll("span");
+      expect(spans).toHaveLength(2);
+      card.remove();
+    });
+
+    it("left span contains location name, mode, and elevation", () => {
+      const card = createCardWithLocation();
+      const bar = card.shadowRoot.querySelector(".status-bar");
+      const leftSpan = bar.querySelector("span:first-child");
+      expect(leftSpan.textContent).toMatch(/London \| .+ \(-?\d+°\)/);
+      card.remove();
+    });
+
+    it("right span contains Next: <mode-name> (<HH:MM>)", () => {
+      const card = createCardWithLocation();
+      const bar = card.shadowRoot.querySelector(".status-bar");
+      const spans = bar.querySelectorAll("span");
+      expect(spans[1].textContent).toMatch(/^Next: .+ \(\d{2}:\d{2}\)$/);
+      card.remove();
+    });
+
+    it("only one span rendered when no transition found within 24h (polar night)", () => {
+      // 89°N in deep winter: sun stays at ~-22° all day, no threshold crossing
+      const card = createCardWithLocation(89, 0, new Date("2026-12-21T12:00:00Z"));
+      const bar = card.shadowRoot.querySelector(".status-bar");
+      const spans = bar.querySelectorAll("span");
+      expect(spans).toHaveLength(1);
+      card.remove();
+    });
+  });
 });

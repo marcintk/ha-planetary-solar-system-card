@@ -731,6 +731,184 @@ function renderSolarSystem(date, hemisphere = "north", locationData = null) {
   return { svg, bounds };
 }
 
+const CARD_STYLES = `
+  :host {
+    display: block;
+  }
+  .card {
+    background: #1e1e1e;
+    border-radius: 12px;
+    padding: 2px;
+    color: #ffffff;
+    font-family: sans-serif;
+  }
+  .date {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.6);
+    margin: 2px 2px;
+  }
+  .solar-view-wrapper {
+    overflow: hidden;
+    position: relative;
+  }
+  .status-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: rgba(42, 42, 42, 0.3);
+    font-size: 9px;
+    color: rgba(255, 255, 255, 0.85);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 3px 8px;
+    pointer-events: none;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+    font-family: sans-serif;
+    z-index: 1;
+  }
+  .status-bar span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .status-bar span:first-child {
+    min-width: 0;
+  }
+  #solar-view {
+    width: 100%;
+    aspect-ratio: 1;
+  }
+  #solar-view svg {
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
+  }
+  .nav {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 4px;
+    margin-top: 2px;
+  }
+  .nav button {
+    background: rgba(42, 42, 42, 0.3);
+    color: rgba(255, 255, 255, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    height: 18px;
+    line-height: 18px;
+    padding: 0 5px;
+    min-width: 20px;
+    font-size: 10px;
+    cursor: pointer;
+    font-family: sans-serif;
+    box-sizing: border-box;
+  }
+  .nav button:hover {
+    background: #3a3a3a;
+  }
+  .btn-group {
+    display: flex;
+    gap: 0;
+  }
+  .btn-group button {
+    border-radius: 0;
+  }
+  .btn-group button:first-child {
+    border-radius: 6px 0 0 6px;
+  }
+  .btn-group button:last-child {
+    border-radius: 0 6px 6px 0;
+  }
+  .nav-spacer {
+    width: 8px;
+  }
+  .zoom-level {
+    background: #2a2a2a;
+    color: rgba(255, 255, 255, 0.8);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    height: 18px;
+    line-height: 18px;
+    padding: 0 4px;
+    font-size: 9px;
+    font-family: sans-serif;
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+  }
+`;
+
+/**
+ * Build the status bar HTML fragment.
+ *
+ * @param {{ lat: number, lon: number, timezone: string } | null} locationData
+ * @param {string | null} locationName
+ * @param {Date} currentDate
+ * @returns {string} HTML fragment, or empty string when locationData is null
+ */
+function buildStatusBarHtml(locationData, locationName, currentDate) {
+  if (!locationData) return "";
+
+  const elevDeg = computeSolarElevationDeg(locationData.lat, locationData.lon, currentDate);
+  const mode = getSkyMode(elevDeg);
+  const elevRounded = Math.round(elevDeg);
+  const next = computeNextTransitionTime(locationData.lat, locationData.lon, currentDate);
+  let rightSpan = "";
+  if (next) {
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: locationData.timezone || "UTC",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+    rightSpan = `<span>Next: ${next.toMode} (${formatter.format(next.time)})</span>`;
+  }
+  const name = locationName || "";
+  return `<div class="status-bar"><span>${name} | ${mode} (${elevRounded}°)</span>${rightSpan}</div>`;
+}
+
+/**
+ * Build the complete shadowRoot.innerHTML string.
+ *
+ * @param {string} statusBarHtml - result of buildStatusBarHtml()
+ * @param {string} formattedDate - pre-formatted date string
+ * @param {number} zoomLevel - current zoom level integer
+ * @returns {string} complete innerHTML including <style> and card HTML
+ */
+function buildCardHtml(statusBarHtml, formattedDate, zoomLevel) {
+  return `
+    <style>${CARD_STYLES}</style>
+    <div class="card">
+      <div class="solar-view-wrapper">
+        ${statusBarHtml}
+        <div id="solar-view"></div>
+      </div>
+      <div class="nav">
+        <span class="btn-group">
+          <button data-action="month-back">\u22D8</button>
+          <button data-action="day-back">\u00AB</button>
+          <button data-action="hour-back">\u2039</button>
+          <button data-action="today">Now</button>
+          <button data-action="hour-forward">\u203A</button>
+          <button data-action="day-forward">\u00BB</button>
+          <button data-action="month-forward">\u22D9</button>
+        </span>
+        <span class="nav-spacer"></span>
+        <span class="date">${formattedDate}</span>
+        <span class="nav-spacer"></span>
+        <span class="btn-group">
+          <button data-action="zoom-out">&minus;</button>
+          <span class="zoom-level">${zoomLevel}</span>
+          <button data-action="zoom-in">+</button>
+        </span>
+      </div>
+    </div>
+  `;
+}
+
 const FULL_SYSTEM_SIZE = 800;
 const ZOOM_LEVELS = {
   1: 800,
@@ -887,7 +1065,7 @@ class SolarViewCard extends HTMLElement {
   }
 
   _render() {
-    // Initialize view state before rendering template
+    // Initialize view state on first render
     if (this._viewCenterX === null) {
       this._viewCenterX = FULL_SYSTEM_SIZE / 2;
       this._viewCenterY = FULL_SYSTEM_SIZE / 2;
@@ -901,168 +1079,12 @@ class SolarViewCard extends HTMLElement {
       this._hemisphere = this._lat < 0 ? "south" : "north";
     }
 
-    // Build location data for renderer
     const locationData = (this._lat != null)
       ? { lat: this._lat, lon: this._lon, timezone: this._timezone }
       : null;
 
-    // Build status bar text when location is available
-    let statusBarHtml = "";
-    if (locationData) {
-      const elevDeg = computeSolarElevationDeg(this._lat, this._lon, this._currentDate);
-      const mode = getSkyMode(elevDeg);
-      const elevRounded = Math.round(elevDeg);
-      const next = computeNextTransitionTime(this._lat, this._lon, this._currentDate);
-      let rightSpan = "";
-      if (next) {
-        const formatter = new Intl.DateTimeFormat("en-US", {
-          timeZone: this._timezone || "UTC",
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: false,
-        });
-        rightSpan = `<span>Next: ${next.toMode} (${formatter.format(next.time)})</span>`;
-      }
-      const name = this._locationName || "";
-      statusBarHtml = `<div class="status-bar"><span>${name} | ${mode} (${elevRounded}°)</span>${rightSpan}</div>`;
-    }
-
-    this.shadowRoot.innerHTML = `
-      <style>
-        :host {
-          display: block;
-        }
-        .card {
-          background: #1e1e1e;
-          border-radius: 12px;
-          padding: 2px;
-          color: #ffffff;
-          font-family: sans-serif;
-        }
-        .date {
-          font-size: 11px;
-          color: rgba(255, 255, 255, 0.6);
-          margin: 2px 2px;
-        }
-        .solar-view-wrapper {
-          overflow: hidden;
-          position: relative;
-        }
-        .status-bar {
-          position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          background: rgba(42, 42, 42, 0.3);
-          font-size: 9px;
-          color: rgba(255, 255, 255, 0.85);
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 3px 8px;
-          pointer-events: none;
-          text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
-          font-family: sans-serif;
-          z-index: 1;
-        }
-        .status-bar span {
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-        .status-bar span:first-child {
-          min-width: 0;
-        }
-        #solar-view {
-          width: 100%;
-          aspect-ratio: 1;
-        }
-        #solar-view svg {
-          cursor: grab;
-          user-select: none;
-          touch-action: none;
-        }
-        .nav {
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          gap: 4px;
-          margin-top: 2px;
-        }
-        .nav button {
-          background: rgba(42, 42, 42, 0.3);
-          color: rgba(255, 255, 255, 0.8);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          border-radius: 6px;
-          height: 18px;
-          line-height: 18px;
-          padding: 0 5px;
-          min-width: 20px;
-          font-size: 10px;
-          cursor: pointer;
-          font-family: sans-serif;
-          box-sizing: border-box;
-        }
-        .nav button:hover {
-          background: #3a3a3a;
-        }
-        .btn-group {
-          display: flex;
-          gap: 0;
-        }
-        .btn-group button {
-          border-radius: 0;
-        }
-        .btn-group button:first-child {
-          border-radius: 6px 0 0 6px;
-        }
-        .btn-group button:last-child {
-          border-radius: 0 6px 6px 0;
-        }
-        .nav-spacer {
-          width: 8px;
-        }
-        .zoom-level {
-          background: #2a2a2a;
-          color: rgba(255, 255, 255, 0.8);
-          border-top: 1px solid rgba(255, 255, 255, 0.1);
-          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-          height: 18px;
-          line-height: 18px;
-          padding: 0 4px;
-          font-size: 9px;
-          font-family: sans-serif;
-          display: flex;
-          align-items: center;
-          box-sizing: border-box;
-        }
-      </style>
-      <div class="card">
-        <div class="solar-view-wrapper">
-          ${statusBarHtml}
-          <div id="solar-view"></div>
-        </div>
-        <div class="nav">
-          <span class="btn-group">
-            <button data-action="month-back">\u22D8</button>
-            <button data-action="day-back">\u00AB</button>
-            <button data-action="hour-back">\u2039</button>
-            <button data-action="today">Now</button>
-            <button data-action="hour-forward">\u203A</button>
-            <button data-action="day-forward">\u00BB</button>
-            <button data-action="month-forward">\u22D9</button>
-          </span>
-          <span class="nav-spacer"></span>
-          <span class="date">${this._formatDate(this._currentDate)}</span>
-          <span class="nav-spacer"></span>
-          <span class="btn-group">
-            <button data-action="zoom-out">&minus;</button>
-            <span class="zoom-level">${this._zoomLevel}</span>
-            <button data-action="zoom-in">+</button>
-          </span>
-        </div>
-      </div>
-    `;
+    const statusBarHtml = buildStatusBarHtml(locationData, this._locationName, this._currentDate);
+    this.shadowRoot.innerHTML = buildCardHtml(statusBarHtml, this._formatDate(this._currentDate), this._zoomLevel);
 
     const container = this.shadowRoot.getElementById("solar-view");
     const { svg } = renderSolarSystem(this._currentDate, this._hemisphere, locationData);

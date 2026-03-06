@@ -183,7 +183,7 @@ export class SolarViewCard extends HTMLElement {
       const mode = getSkyMode(elevDeg);
       const elevRounded = Math.round(elevDeg);
       const next = computeNextTransitionTime(this._lat, this._lon, this._currentDate);
-      let nextStr = "";
+      let rightSpan = "";
       if (next) {
         const formatter = new Intl.DateTimeFormat("en-US", {
           timeZone: this._timezone || "UTC",
@@ -191,10 +191,10 @@ export class SolarViewCard extends HTMLElement {
           minute: "2-digit",
           hour12: false,
         });
-        nextStr = ` | Next: ${formatter.format(next.time)}`;
+        rightSpan = `<span>Next: ${next.toMode} (${formatter.format(next.time)})</span>`;
       }
       const name = this._locationName || "";
-      statusBarHtml = `<div class="status-bar">${name} | ${mode} (${elevRounded}°)${nextStr}</div>`;
+      statusBarHtml = `<div class="status-bar"><span>${name} | ${mode} (${elevRounded}°)</span>${rightSpan}</div>`;
     }
 
     this.shadowRoot.innerHTML = `
@@ -226,12 +226,22 @@ export class SolarViewCard extends HTMLElement {
           background: rgba(42, 42, 42, 0.3);
           font-size: 9px;
           color: rgba(255, 255, 255, 0.85);
-          text-align: center;
-          padding: 3px 0;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 3px 8px;
           pointer-events: none;
           text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
           font-family: sans-serif;
           z-index: 1;
+        }
+        .status-bar span {
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .status-bar span:first-child {
+          min-width: 0;
         }
         #solar-view {
           width: 100%;

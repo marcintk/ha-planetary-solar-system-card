@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Solar View Card — Live Demo</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #111827;
+      color: #e5e7eb;
+      font-family: sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 32px 16px;
+      gap: 20px;
+    }
+
+    h1 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #f9fafb;
+      letter-spacing: 0.01em;
+    }
+
+    .subtitle {
+      font-size: 0.85rem;
+      color: rgba(255, 255, 255, 0.5);
+      text-align: center;
+      max-width: 420px;
+      line-height: 1.5;
+    }
+
+    .card-wrapper {
+      width: 420px;
+      max-width: 100%;
+    }
+
+    ha-solar-view-card {
+      display: block;
+      width: 100%;
+    }
+
+    footer {
+      font-size: 0.75rem;
+      color: rgba(255, 255, 255, 0.3);
+      text-align: center;
+    }
+
+    footer a {
+      color: rgba(255, 255, 255, 0.45);
+      text-decoration: none;
+    }
+
+    footer a:hover {
+      color: rgba(255, 255, 255, 0.7);
+    }
+  </style>
+</head>
+<body>
+  <h1>Solar View Card</h1>
+  <p class="subtitle">
+    Interactive demo — location set to Chicago.<br>
+    Use the buttons to navigate time, zoom, and drag to pan.
+  </p>
+
+  <div class="card-wrapper">
+    <ha-solar-view-card id="demo-card"></ha-solar-view-card>
+  </div>
+
+  <footer>
+    <a href="https://github.com/marcintk/ha-planetary-solar-system-card" target="_blank" rel="noopener">
+      View on GitHub
+    </a>
+    &nbsp;·&nbsp;
+    Home Assistant custom Lovelace card
+  </footer>
+
+  <script type="module">
+    import "./ha-solar-view-card.js";
+
+    const card = document.getElementById("demo-card");
+    card.setConfig({ default_zoom: 2 });
+    card.hass = {
+      config: {
+        latitude: 41.8781,
+        longitude: -87.6298,
+        time_zone: "America/Chicago",
+        location_name: "Chicago",
+      },
+    };
+  </script>
+</body>
+</html>

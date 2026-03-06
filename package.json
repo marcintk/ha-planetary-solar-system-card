@@ -4,7 +4,7 @@
   "description": "Home Assistant custom Lovelace card displaying a planetary solar system visualization",
   "type": "module",
   "scripts": {
-    "build": "rollup -c",
+    "build": "rollup -c && cp dist/ha-solar-view-card.js docs/",
     "build:prod": "NODE_ENV=production rollup -c",
     "test": "vitest run",
     "test:watch": "vitest"

@@ -74,3 +74,15 @@ rules:
     - Task descriptions name the specific file and symbol to change.
     - Each task is independently testable: one logical change, one test run.
     - Mark tasks that require a new test file explicitly.
+
+  tools:
+    - CLAUDE.md is the single source of truth for project overview, commands, TODO, and tool rules.
+      Read it first at the start of any session. Do NOT duplicate its content in OpenSpec config or Serena memory.
+    - For all code navigation and edits, use Serena MCP tools (get_symbols_overview, find_symbol,
+      replace_symbol_body, insert_after_symbol, insert_before_symbol). Never use raw file writes for code.
+    - For library or browser API documentation, use Context7 MCP (resolve-library-id then query-docs)
+      before implementing. Do not use web search when Context7 covers the library.
+    - For spec/design/task work, use OpenSpec skills in order: opsx:explore → opsx:new → opsx:continue
+      → opsx:apply. Do not skip to implementation without a spec.
+    - After implementing, use opsx:verify then opsx:archive to close the change.
+    - Store Serena-specific operational notes in Serena memory; all other project info stays in CLAUDE.md.

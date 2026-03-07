@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { PLANETS, MOON, SUN } from "../src/planet-data.js";
+import { describe, expect, it } from "vitest";
+import { MOON, PLANETS, SUN } from "../src/planet-data.js";
 
 describe("planet-data constants", () => {
   it("exports 8 planets", () => {

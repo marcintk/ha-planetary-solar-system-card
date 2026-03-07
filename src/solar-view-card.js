@@ -1,41 +1,54 @@
+import { buildCardHtml, buildStatusBarHtml } from "./card-template.js";
 import { renderSolarSystem } from "./renderer.js";
-import { buildStatusBarHtml, buildCardHtml } from "./card-template.js";
-import { ViewState, DEFAULT_ZOOM_LEVEL, MIN_ZOOM, MAX_ZOOM } from "./view-state.js";
+import { DEFAULT_ZOOM_LEVEL, MAX_ZOOM, MIN_ZOOM, ViewState } from "./view-state.js";
 
 export class SolarViewCard extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: "open" });
-    this._currentDate      = new Date();
-    this._viewState        = null; // initialized on first render
+    this._currentDate = new Date();
+    this._viewState = null; // initialized on first render
     this._defaultZoomLevel = DEFAULT_ZOOM_LEVEL;
-    this._hemisphere       = "north"; // Hemisphere for season labels (default: north)
-    this._lat              = null;
-    this._lon              = null;
-    this._timezone         = null;
-    this._locationName     = null;
-    this._autoUpdateTimer  = null; // Auto-update timer
+    this._hemisphere = "north"; // Hemisphere for season labels (default: north)
+    this._lat = null;
+    this._lon = null;
+    this._timezone = null;
+    this._locationName = null;
+    this._autoUpdateTimer = null; // Auto-update timer
   }
 
   // ---------------------------------------------------------------------------
   // Proxy getters — expose ViewState fields at the card level so that tests
   // and external code can read them without knowing about ViewState internals.
   // ---------------------------------------------------------------------------
-  get _isDragging()  { return this._viewState?.isDragging ?? false; }
-  get _viewCenterX() { return this._viewState?.centerX    ?? null;  }
-  get _viewCenterY() { return this._viewState?.centerY    ?? null;  }
-  get _zoomLevel()   { return this._viewState?.zoomLevel  ?? null;  }
+  get _isDragging() {
+    return this._viewState?.isDragging ?? false;
+  }
+  get _viewCenterX() {
+    return this._viewState?.centerX ?? null;
+  }
+  get _viewCenterY() {
+    return this._viewState?.centerY ?? null;
+  }
+  get _zoomLevel() {
+    return this._viewState?.zoomLevel ?? null;
+  }
 
   set hass(hass) {
     this._hass = hass;
-    const lat          = hass.config && hass.config.latitude;
-    const lon          = hass.config && hass.config.longitude;
-    const timezone     = hass.config && hass.config.time_zone;
-    const locationName = hass.config && hass.config.location_name;
-    if (lat !== this._lat || lon !== this._lon || timezone !== this._timezone || locationName !== this._locationName) {
-      this._lat          = lat          != null ? lat          : null;
-      this._lon          = lon          != null ? lon          : null;
-      this._timezone     = timezone     || null;
+    const lat = hass.config?.latitude;
+    const lon = hass.config?.longitude;
+    const timezone = hass.config?.time_zone;
+    const locationName = hass.config?.location_name;
+    if (
+      lat !== this._lat ||
+      lon !== this._lon ||
+      timezone !== this._timezone ||
+      locationName !== this._locationName
+    ) {
+      this._lat = lat != null ? lat : null;
+      this._lon = lon != null ? lon : null;
+      this._timezone = timezone || null;
       this._locationName = locationName || null;
       this._render();
     }
@@ -43,16 +56,22 @@ export class SolarViewCard extends HTMLElement {
 
   setConfig(config) {
     this._config = config;
-    this._defaultZoomLevel = (config.default_zoom == null || config.default_zoom < MIN_ZOOM || config.default_zoom > MAX_ZOOM)
-      ? DEFAULT_ZOOM_LEVEL
-      : config.default_zoom;
+    this._defaultZoomLevel =
+      config.default_zoom == null ||
+      config.default_zoom < MIN_ZOOM ||
+      config.default_zoom > MAX_ZOOM
+        ? DEFAULT_ZOOM_LEVEL
+        : config.default_zoom;
   }
 
   connectedCallback() {
     this._render();
     clearInterval(this._autoUpdateTimer);
     this._autoUpdateTimer = setInterval(() => {
-      if (this._formatDate(this._currentDate).slice(0, 10) === this._formatDate(new Date()).slice(0, 10)) {
+      if (
+        this._formatDate(this._currentDate).slice(0, 10) ===
+        this._formatDate(new Date()).slice(0, 10)
+      ) {
         this._currentDate = new Date();
         this._render();
       }
@@ -65,9 +84,9 @@ export class SolarViewCard extends HTMLElement {
   }
 
   _formatDate(date) {
-    const y  = String(date.getFullYear()).slice(-2);
-    const m  = String(date.getMonth() + 1).padStart(2, "0");
-    const d  = String(date.getDate()).padStart(2, "0");
+    const y = String(date.getFullYear()).slice(-2);
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
     const hh = String(date.getHours()).padStart(2, "0");
     const mm = String(date.getMinutes()).padStart(2, "0");
     return `${y}-${m}-${d} ${hh}:${mm}`;
@@ -111,7 +130,7 @@ export class SolarViewCard extends HTMLElement {
 
   _onPointerMove(e) {
     if (!this._viewState.isDragging) return;
-    const svg  = e.currentTarget;
+    const svg = e.currentTarget;
     const rect = svg.getBoundingClientRect();
     this._viewState.updateDrag(e.clientX, e.clientY, rect);
     this._updateViewBox();
@@ -136,15 +155,18 @@ export class SolarViewCard extends HTMLElement {
       this._hemisphere = this._lat < 0 ? "south" : "north";
     }
 
-    const locationData = (this._lat != null)
-      ? { lat: this._lat, lon: this._lon, timezone: this._timezone }
-      : null;
+    const locationData =
+      this._lat != null ? { lat: this._lat, lon: this._lon, timezone: this._timezone } : null;
 
     const statusBarHtml = buildStatusBarHtml(locationData, this._locationName, this._currentDate);
-    this.shadowRoot.innerHTML = buildCardHtml(statusBarHtml, this._formatDate(this._currentDate), this._viewState.zoomLevel);
+    this.shadowRoot.innerHTML = buildCardHtml(
+      statusBarHtml,
+      this._formatDate(this._currentDate),
+      this._viewState.zoomLevel
+    );
 
     const container = this.shadowRoot.getElementById("solar-view");
-    const { svg }   = renderSolarSystem(this._currentDate, this._hemisphere, locationData);
+    const { svg } = renderSolarSystem(this._currentDate, this._hemisphere, locationData);
     container.appendChild(svg);
 
     this._updateViewBox();
@@ -155,7 +177,7 @@ export class SolarViewCard extends HTMLElement {
   _bindEvents(svg) {
     svg.addEventListener("pointerdown", (e) => this._onPointerDown(e));
     svg.addEventListener("pointermove", (e) => this._onPointerMove(e));
-    svg.addEventListener("pointerup",   (e) => this._onPointerUp(e));
+    svg.addEventListener("pointerup", (e) => this._onPointerUp(e));
 
     this.shadowRoot.querySelectorAll(".nav button").forEach((btn) => {
       btn.addEventListener("click", (e) => this._handleNavAction(e.currentTarget.dataset.action));

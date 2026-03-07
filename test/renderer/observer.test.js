@@ -1,17 +1,17 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
+import { calculatePlanetPosition } from "../../src/orbital-mechanics.js";
+import { PLANETS } from "../../src/planet-data.js";
 import {
+  CONE_ASTRONOMICAL,
+  CONE_CIVIL,
+  CONE_DAY,
+  CONE_NAUTICAL,
+  CONE_NIGHT,
   calculateObserverAngle,
   calculateSolarElevationDeg,
   renderObserverNeedle,
-  CONE_DAY,
-  CONE_CIVIL,
-  CONE_NAUTICAL,
-  CONE_ASTRONOMICAL,
-  CONE_NIGHT,
 } from "../../src/renderer/observer.js";
 import { SVG_NS } from "../../src/renderer/svg-utils.js";
-import { PLANETS } from "../../src/planet-data.js";
-import { calculatePlanetPosition } from "../../src/orbital-mechanics.js";
 
 function createSvg() {
   return document.createElementNS(SVG_NS, "svg");
@@ -161,7 +161,7 @@ describe("renderObserverNeedle", () => {
     const svg = createSvg();
     renderObserverNeedle(svg, 400, 400, 0, 10); // angle=0 → tip at (410, 400)
     const line = svg.querySelector("line");
-    const dot  = svg.querySelector("circle");
+    const dot = svg.querySelector("circle");
     expect(dot.getAttribute("cx")).toBe(line.getAttribute("x2"));
     expect(dot.getAttribute("cy")).toBe(line.getAttribute("y2"));
   });

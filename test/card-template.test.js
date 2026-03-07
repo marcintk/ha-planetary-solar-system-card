@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { buildStatusBarHtml, buildCardHtml } from "../src/card-template.js";
+import { describe, expect, it } from "vitest";
+import { buildCardHtml, buildStatusBarHtml } from "../src/card-template.js";
 
 // Helper: parse an HTML string into a DOM node
 function parse(html) {
@@ -107,9 +107,7 @@ describe("buildCardHtml", () => {
 
   it("includes all seven navigation buttons in correct order", () => {
     const root = parse(buildCardHtml("", "26-03-07 12:00", 1));
-    const actions = Array.from(root.querySelectorAll(".nav button")).map(
-      (b) => b.dataset.action
-    );
+    const actions = Array.from(root.querySelectorAll(".nav button")).map((b) => b.dataset.action);
     expect(actions).toContain("month-back");
     expect(actions).toContain("day-back");
     expect(actions).toContain("hour-back");

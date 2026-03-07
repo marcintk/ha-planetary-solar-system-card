@@ -1,21 +1,20 @@
-import { describe, it, expect } from "vitest";
-import {
-  createSvgElement,
-  auToRadius,
-  expandBounds,
-  CENTER,
-  VIEW_SIZE,
-  MIN_RADIUS,
-  MAX_RADIUS,
-  SVG_NS,
-} from "../../src/renderer/svg-utils.js";
+import { describe, expect, it } from "vitest";
 import { PLANETS } from "../../src/planet-data.js";
+import {
+  auToRadius,
+  CENTER,
+  createSvgElement,
+  expandBounds,
+  MAX_RADIUS,
+  MIN_RADIUS,
+  SVG_NS,
+  VIEW_SIZE,
+} from "../../src/renderer/svg-utils.js";
 
 describe("constants", () => {
   it("VIEW_SIZE is 800", () => expect(VIEW_SIZE).toBe(800));
   it("CENTER is 400 (VIEW_SIZE / 2)", () => expect(CENTER).toBe(VIEW_SIZE / 2));
-  it("SVG_NS is the SVG namespace URI", () =>
-    expect(SVG_NS).toBe("http://www.w3.org/2000/svg"));
+  it("SVG_NS is the SVG namespace URI", () => expect(SVG_NS).toBe("http://www.w3.org/2000/svg"));
 });
 
 describe("createSvgElement", () => {
@@ -71,7 +70,6 @@ describe("auToRadius", () => {
     // Linear scale would put Jupiter at ~(5.2-0.39)/(30-0.39) ≈ 16% from inner
     // Log scale puts it at ~(ln5.2-ln0.39)/(ln30-ln0.39) ≈ 56% from inner
     const jupiterRadius = auToRadius(5.2);
-    const earthRadius = auToRadius(1.0);
     // Jupiter should be noticeably past the midpoint (> 50% of MAX_RADIUS)
     expect(jupiterRadius).toBeGreaterThan(MIN_RADIUS + (MAX_RADIUS - MIN_RADIUS) * 0.4);
   });
@@ -109,9 +107,9 @@ describe("expandBounds", () => {
 
   it("accumulates correctly across multiple planets", () => {
     const b = freshBounds();
-    expandBounds(b, 400, 0, 5);   // top
+    expandBounds(b, 400, 0, 5); // top
     expandBounds(b, 400, 800, 5); // bottom
-    expandBounds(b, 0, 400, 5);   // left
+    expandBounds(b, 0, 400, 5); // left
     expandBounds(b, 800, 400, 5); // right
     expect(b.minX).toBe(-5);
     expect(b.maxX).toBe(805);

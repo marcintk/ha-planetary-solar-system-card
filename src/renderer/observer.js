@@ -1,15 +1,15 @@
-import { createSvgElement, VIEW_SIZE, CENTER, MAX_RADIUS } from "./svg-utils.js";
-import { PLANETS } from "../planet-data.js";
 import { calculatePlanetPosition } from "../orbital-mechanics.js";
-import { getLocalTimeInZone, computeSolarElevationDeg } from "../solar-position.js";
+import { PLANETS } from "../planet-data.js";
+import { computeSolarElevationDeg, getLocalTimeInZone } from "../solar-position.js";
+import { CENTER, createSvgElement, MAX_RADIUS, VIEW_SIZE } from "./svg-utils.js";
 
 const NEEDLE_COLOR = "rgba(255, 255, 255, 0.7)";
 
-export const CONE_DAY          = "rgba(255, 255, 255, 0.1)";          // Sun above horizon
-export const CONE_CIVIL        = "rgba(255, 220, 160, 0.08)";         // Civil twilight:        0° to -6°
-export const CONE_NAUTICAL     = "rgba(160, 190, 255, 0.06)";         // Nautical twilight:   -6° to -12°
-export const CONE_ASTRONOMICAL = "rgba(80, 100, 200, 0.04)";          // Astronomical twilight: -12° to -18°
-export const CONE_NIGHT        = "rgba(255, 255, 255, 0.01)";         // Sun below -18°
+export const CONE_DAY = "rgba(255, 255, 255, 0.1)"; // Sun above horizon
+export const CONE_CIVIL = "rgba(255, 220, 160, 0.08)"; // Civil twilight:        0° to -6°
+export const CONE_NAUTICAL = "rgba(160, 190, 255, 0.06)"; // Nautical twilight:   -6° to -12°
+export const CONE_ASTRONOMICAL = "rgba(80, 100, 200, 0.04)"; // Astronomical twilight: -12° to -18°
+export const CONE_NIGHT = "rgba(255, 255, 255, 0.01)"; // Sun below -18°
 
 /**
  * Compute the Sun's elevation angle in degrees from the observer's horizon.
@@ -21,10 +21,7 @@ export const CONE_NIGHT        = "rgba(255, 255, 255, 0.01)";         // Sun bel
  */
 export function calculateSolarElevationDeg(observerAngle, earthAngle) {
   const dirToSun = earthAngle + Math.PI;
-  const diff = Math.atan2(
-    Math.sin(observerAngle - dirToSun),
-    Math.cos(observerAngle - dirToSun)
-  );
+  const diff = Math.atan2(Math.sin(observerAngle - dirToSun), Math.cos(observerAngle - dirToSun));
   return (Math.PI / 2 - Math.abs(diff)) * (180 / Math.PI);
 }
 
@@ -50,7 +47,15 @@ export function calculateObserverAngle(earthOrbitalAngle, date, timezone) {
   return earthOrbitalAngle + localTimeAngle;
 }
 
-function renderVisibilityCone(svg, anchorX, anchorY, observerAngle, halfAngleDeg, clipId, fillColor) {
+function renderVisibilityCone(
+  svg,
+  anchorX,
+  anchorY,
+  observerAngle,
+  halfAngleDeg,
+  clipId,
+  fillColor
+) {
   const D = VIEW_SIZE;
   const HALF_ANGLE = (halfAngleDeg * Math.PI) / 180;
   const largeArcFlag = halfAngleDeg >= 90 ? 1 : 0;
@@ -65,7 +70,8 @@ function renderVisibilityCone(svg, anchorX, anchorY, observerAngle, halfAngleDeg
   // SVG path: MoveTo apex, LineTo left edge, Arc to right edge, ClosePath
   const pathD = `M ${anchorX} ${anchorY} L ${leftX} ${leftY} A ${D} ${D} 0 ${largeArcFlag} 1 ${rightX} ${rightY} Z`;
 
-  const defs = svg.querySelector("defs") || svg.insertBefore(createSvgElement("defs", {}), svg.firstChild);
+  const defs =
+    svg.querySelector("defs") || svg.insertBefore(createSvgElement("defs", {}), svg.firstChild);
 
   const clipPath = createSvgElement("clipPath", { id: clipId });
   clipPath.appendChild(createSvgElement("path", { d: pathD }));
@@ -85,7 +91,7 @@ function renderVisibilityCone(svg, anchorX, anchorY, observerAngle, halfAngleDeg
 export function renderDayNightSplit(svg, earthRadius, date, earthBodySize, locationData) {
   const earth = PLANETS.find((p) => p.name === "Earth");
   const earthAngle = calculatePlanetPosition(earth, date);
-  const observerAngle = calculateObserverAngle(earthAngle, date, locationData && locationData.timezone);
+  const observerAngle = calculateObserverAngle(earthAngle, date, locationData?.timezone);
 
   const earthDirX = Math.cos(earthAngle);
   const earthDirY = Math.sin(earthAngle);
@@ -102,16 +108,17 @@ export function renderDayNightSplit(svg, earthRadius, date, earthBodySize, locat
   // Half-angle = 90° − elevationDeg expands the cone below the horizon during twilight.
   // When real location data is available, use spherical astronomy; otherwise fall back to
   // the orbital approximation so the card works without a hass object (tests, previews).
-  const elevationDeg = (locationData && locationData.lat != null)
-    ? computeSolarElevationDeg(locationData.lat, locationData.lon, date)
-    : calculateSolarElevationDeg(observerAngle, earthAngle);
+  const elevationDeg =
+    locationData && locationData.lat != null
+      ? computeSolarElevationDeg(locationData.lat, locationData.lon, date)
+      : calculateSolarElevationDeg(observerAngle, earthAngle);
   let coneColor;
-  if (elevationDeg >= 0)        coneColor = CONE_DAY;
-  else if (elevationDeg >= -6)  coneColor = CONE_CIVIL;
+  if (elevationDeg >= 0) coneColor = CONE_DAY;
+  else if (elevationDeg >= -6) coneColor = CONE_CIVIL;
   else if (elevationDeg >= -12) coneColor = CONE_NAUTICAL;
   else if (elevationDeg >= -18) coneColor = CONE_ASTRONOMICAL;
-  else                          coneColor = CONE_NIGHT;
-  const halfAngle = (elevationDeg >= 0 || elevationDeg < -18) ? 90 : (90 - elevationDeg);
+  else coneColor = CONE_NIGHT;
+  const halfAngle = elevationDeg >= 0 || elevationDeg < -18 ? 90 : 90 - elevationDeg;
   renderVisibilityCone(svg, anchorX, anchorY, observerAngle, halfAngle, "sky-clip", coneColor);
 
   // Horizon line — always drawn to show the 180° visible-sky boundary
@@ -122,8 +129,10 @@ export function renderDayNightSplit(svg, earthRadius, date, earthBodySize, locat
   const rightY = anchorY - D * Math.sin(observerAngle - Math.PI / 2);
   svg.appendChild(
     createSvgElement("line", {
-      x1: leftX, y1: leftY,
-      x2: rightX, y2: rightY,
+      x1: leftX,
+      y1: leftY,
+      x2: rightX,
+      y2: rightY,
       stroke: "rgba(255, 255, 255, 0.3)",
       "stroke-width": 1,
       "stroke-dasharray": "4, 4",

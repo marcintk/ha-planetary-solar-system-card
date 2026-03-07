@@ -1,9 +1,19 @@
-import { createSvgElement, auToRadius, expandBounds, VIEW_SIZE, CENTER } from "./renderer/svg-utils.js";
-import { ORBIT_COLOR, renderOrbit, renderBody, renderSaturnRings } from "./renderer/bodies.js";
-import { calculateObserverAngle, renderDayNightSplit, renderObserverNeedle } from "./renderer/observer.js";
+import { calculateMoonPosition, calculatePlanetPosition } from "./orbital-mechanics.js";
+import { MOON, PLANETS, SUN } from "./planet-data.js";
+import { ORBIT_COLOR, renderBody, renderOrbit, renderSaturnRings } from "./renderer/bodies.js";
+import {
+  calculateObserverAngle,
+  renderDayNightSplit,
+  renderObserverNeedle,
+} from "./renderer/observer.js";
 import { renderSeasonOverlay } from "./renderer/seasons.js";
-import { SUN, PLANETS, MOON } from "./planet-data.js";
-import { calculatePlanetPosition, calculateMoonPosition } from "./orbital-mechanics.js";
+import {
+  auToRadius,
+  CENTER,
+  createSvgElement,
+  expandBounds,
+  VIEW_SIZE,
+} from "./renderer/svg-utils.js";
 
 /**
  * Renders the solar system SVG and returns it with bounding box metadata.
@@ -101,7 +111,7 @@ export function renderSolarSystem(date, hemisphere = "north", locationData = nul
   expandBounds(bounds, moonX, moonY, MOON.size + 17);
 
   // Observer needle on Earth (tip at surface)
-  const observerAngle = calculateObserverAngle(earthAngle, date, locationData && locationData.timezone);
+  const observerAngle = calculateObserverAngle(earthAngle, date, locationData?.timezone);
   renderObserverNeedle(svg, earthX, earthY, observerAngle, earth.size);
 
   return { svg, bounds };

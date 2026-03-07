@@ -18,8 +18,7 @@ function degreesToRadians(deg) {
 export function calculatePlanetPosition(planet, date) {
   const days = daysSinceJ2000(date);
   const meanMotion = (2 * Math.PI) / planet.periodDays;
-  const angle =
-    degreesToRadians(planet.meanLongitudeJ2000) + meanMotion * days;
+  const angle = degreesToRadians(planet.meanLongitudeJ2000) + meanMotion * days;
   // Normalize to [0, 2π)
   return ((angle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
 }

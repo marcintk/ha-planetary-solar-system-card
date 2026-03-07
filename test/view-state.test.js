@@ -1,10 +1,10 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
-  ViewState,
   DEFAULT_ZOOM_LEVEL,
-  MIN_ZOOM,
-  MAX_ZOOM,
   FULL_SYSTEM_SIZE,
+  MAX_ZOOM,
+  MIN_ZOOM,
+  ViewState,
 } from "../src/view-state.js";
 
 describe("ViewState constructor", () => {

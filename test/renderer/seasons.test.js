@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { renderSeasonOverlay } from "../../src/renderer/seasons.js";
 import { SVG_NS } from "../../src/renderer/svg-utils.js";
 
@@ -20,8 +20,12 @@ describe("renderSeasonOverlay", () => {
     renderSeasonOverlay(svg, "north");
 
     const lines = Array.from(svg.querySelectorAll('line[stroke="rgba(255, 255, 255, 0.25)"]'));
-    const horizontal = lines.find((l) => l.getAttribute("y1") === "400" && l.getAttribute("y2") === "400");
-    const vertical   = lines.find((l) => l.getAttribute("x1") === "400" && l.getAttribute("x2") === "400");
+    const horizontal = lines.find(
+      (l) => l.getAttribute("y1") === "400" && l.getAttribute("y2") === "400"
+    );
+    const vertical = lines.find(
+      (l) => l.getAttribute("x1") === "400" && l.getAttribute("x2") === "400"
+    );
     expect(horizontal).not.toBeNull();
     expect(vertical).not.toBeNull();
   });
@@ -109,7 +113,7 @@ describe("renderSeasonOverlay", () => {
       const match = path.getAttribute("d").match(/A ([\d.]+) ([\d.]+)/);
       return Number(match[1]);
     };
-    const topRadius    = extractRadius(defs.querySelector("#season-arc-0"));
+    const topRadius = extractRadius(defs.querySelector("#season-arc-0"));
     const bottomRadius = extractRadius(defs.querySelector("#season-arc-2"));
     expect(topRadius).toBeLessThan(bottomRadius);
   });

@@ -1,8 +1,8 @@
-import { createSvgElement, VIEW_SIZE, CENTER, MAX_RADIUS } from "./svg-utils.js";
+import { CENTER, createSvgElement, MAX_RADIUS, VIEW_SIZE } from "./svg-utils.js";
 
-const SEASON_LINE_COLOR  = "rgba(255, 255, 255, 0.25)";
+const SEASON_LINE_COLOR = "rgba(255, 255, 255, 0.25)";
 const SEASON_LABEL_COLOR = "rgba(255, 255, 255, 0.5)";
-const SEASON_FONT_SIZE   = 20;
+const SEASON_FONT_SIZE = 20;
 
 export function renderSeasonOverlay(svg, hemisphere) {
   // Dotted dividing lines through the Sun
@@ -34,15 +34,15 @@ export function renderSeasonOverlay(svg, hemisphere) {
   //   bottom-left = Spring, bottom-right = Summer,
   //   top-right = Autumn, top-left = Winter
   const northSeasons = [
-    { name: "Winter", startAngle: 90,  endAngle: 180 },   // top-left
-    { name: "Autumn", startAngle: 0,   endAngle: 90  },   // top-right
-    { name: "Summer", startAngle: 270, endAngle: 360 },   // bottom-right
-    { name: "Spring", startAngle: 180, endAngle: 270 },   // bottom-left
+    { name: "Winter", startAngle: 90, endAngle: 180 }, // top-left
+    { name: "Autumn", startAngle: 0, endAngle: 90 }, // top-right
+    { name: "Summer", startAngle: 270, endAngle: 360 }, // bottom-right
+    { name: "Spring", startAngle: 180, endAngle: 270 }, // bottom-left
   ];
 
   const southSeasons = [
-    { name: "Summer", startAngle: 90,  endAngle: 180 },
-    { name: "Spring", startAngle: 0,   endAngle: 90  },
+    { name: "Summer", startAngle: 90, endAngle: 180 },
+    { name: "Spring", startAngle: 0, endAngle: 90 },
     { name: "Winter", startAngle: 270, endAngle: 360 },
     { name: "Autumn", startAngle: 180, endAngle: 270 },
   ];
@@ -50,13 +50,14 @@ export function renderSeasonOverlay(svg, hemisphere) {
   const seasons = hemisphere === "south" ? southSeasons : northSeasons;
   const labelRadius = MAX_RADIUS + 20;
 
-  const defs = svg.querySelector("defs") || svg.insertBefore(createSvgElement("defs", {}), svg.firstChild);
+  const defs =
+    svg.querySelector("defs") || svg.insertBefore(createSvgElement("defs", {}), svg.firstChild);
 
   seasons.forEach((season, i) => {
     const pathId = `season-arc-${i}`;
 
     const startRad = (season.startAngle * Math.PI) / 180;
-    const endRad   = (season.endAngle   * Math.PI) / 180;
+    const endRad = (season.endAngle * Math.PI) / 180;
 
     // Top-half arcs (0–90° and 90–180°) render text upside-down because the
     // default arc sweeps right-to-left in SVG space. Reverse them so textPath

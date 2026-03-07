@@ -1,7 +1,12 @@
-import { describe, it, expect } from "vitest";
-import { renderOrbit, renderBody, renderSaturnRings, ORBIT_COLOR } from "../../src/renderer/bodies.js";
-import { SVG_NS, CENTER } from "../../src/renderer/svg-utils.js";
+import { describe, expect, it } from "vitest";
 import { PLANETS } from "../../src/planet-data.js";
+import {
+  ORBIT_COLOR,
+  renderBody,
+  renderOrbit,
+  renderSaturnRings,
+} from "../../src/renderer/bodies.js";
+import { CENTER, SVG_NS } from "../../src/renderer/svg-utils.js";
 
 function createSvg() {
   return document.createElementNS(SVG_NS, "svg");

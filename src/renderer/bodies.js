@@ -1,4 +1,4 @@
-import { createSvgElement, CENTER } from "./svg-utils.js";
+import { CENTER, createSvgElement } from "./svg-utils.js";
 
 export const ORBIT_COLOR = "rgba(255, 255, 255, 0.12)";
 const LABEL_COLOR = "rgba(255, 255, 255, 0.5)";
@@ -70,7 +70,7 @@ export function renderBody(svg, x, y, body, showLabel = true) {
   }
 }
 
-export function renderSaturnRings(svg, x, y, body, renderSize) {
+export function renderSaturnRings(svg, x, y, body, _renderSize) {
   const hex = body.color;
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);

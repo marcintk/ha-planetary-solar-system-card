@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
-import { PLANETS, MOON } from "../src/planet-data.js";
-import { calculatePlanetPosition, calculateMoonPosition } from "../src/orbital-mechanics.js";
+import { describe, expect, it } from "vitest";
+import { calculateMoonPosition, calculatePlanetPosition } from "../src/orbital-mechanics.js";
+import { MOON, PLANETS } from "../src/planet-data.js";
 
 describe("calculatePlanetPosition", () => {
   const earth = PLANETS.find((p) => p.name === "Earth");

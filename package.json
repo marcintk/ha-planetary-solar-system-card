@@ -7,7 +7,13 @@
     "build": "rollup -c && cp dist/ha-solar-view-card.js docs/",
     "build:prod": "NODE_ENV=production rollup -c",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "format": "biome format --write src/ test/",
+    "format:check": "biome format src/ test/",
+    "lint": "biome lint src/ test/",
+    "lint:fix": "biome lint --write src/ test/",
+    "check": "biome check src/ test/",
+    "check:fix": "biome check --write src/ test/"
   },
   "keywords": [
     "home-assistant",
@@ -16,6 +22,7 @@
   ],
   "license": "ISC",
   "devDependencies": {
+    "@biomejs/biome": "^2.4.6",
     "@rollup/plugin-node-resolve": "^16.0.3",
     "@rollup/plugin-terser": "^0.4.4",
     "jsdom": "^28.0.0",

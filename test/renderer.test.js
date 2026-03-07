@@ -1,6 +1,15 @@
 import { describe, it, expect } from "vitest";
-import { renderSolarSystem, calculateObserverAngle, calculateSolarElevationDeg, CONE_DAY, CONE_CIVIL, CONE_NAUTICAL, CONE_ASTRONOMICAL, CONE_NIGHT } from "../src/renderer.js";
-import { PLANETS, calculatePlanetPosition } from "../src/planet-data.js";
+import { renderSolarSystem } from "../src/renderer.js";
+import {
+  calculateObserverAngle,
+  CONE_DAY,
+  CONE_CIVIL,
+  CONE_NAUTICAL,
+  CONE_ASTRONOMICAL,
+  CONE_NIGHT,
+} from "../src/renderer/observer.js";
+import { PLANETS } from "../src/planet-data.js";
+import { calculatePlanetPosition } from "../src/orbital-mechanics.js";
 
 function renderInto(container, date) {
   const { svg, bounds } = renderSolarSystem(date);
@@ -695,101 +704,3 @@ describe("season overlay", () => {
   });
 });
 
-describe("calculateObserverAngle", () => {
-  it("at midnight observer faces away from Sun", () => {
-    const earthAngle = 1.5; // arbitrary orbital angle
-    const date = new Date("2026-02-14T00:00:00");
-    const angle = calculateObserverAngle(earthAngle, date);
-
-    // At midnight: observerAngle = earthAngle (away from Sun)
-    const expected = earthAngle;
-    const norm = (a) => ((a % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
-    const diff = Math.abs(norm(angle) - norm(expected));
-    const angleDiff = Math.min(diff, 2 * Math.PI - diff);
-    expect(angleDiff).toBeLessThan(0.001);
-  });
-
-  it("at noon observer faces toward Sun", () => {
-    const earthAngle = 1.5;
-    const date = new Date("2026-02-14T12:00:00");
-    const angle = calculateObserverAngle(earthAngle, date);
-
-    // At noon: observerAngle = earthAngle + PI (toward Sun)
-    const expected = earthAngle + Math.PI;
-    const norm = (a) => ((a % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
-    const diff = Math.abs(norm(angle) - norm(expected));
-    const angleDiff = Math.min(diff, 2 * Math.PI - diff);
-    expect(angleDiff).toBeLessThan(0.001);
-  });
-
-  it("at 6AM observer is 90 degrees from midnight", () => {
-    const earthAngle = 1.5;
-    const date = new Date("2026-02-14T06:00:00");
-    const angle = calculateObserverAngle(earthAngle, date);
-
-    // At 6AM: 6/24 * 2PI = PI/2 offset from midnight
-    const midnightAngle = earthAngle;
-    const expected = midnightAngle + Math.PI / 2;
-    const norm = (a) => ((a % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
-    const diff = Math.abs(norm(angle) - norm(expected));
-    const angleDiff = Math.min(diff, 2 * Math.PI - diff);
-    expect(angleDiff).toBeLessThan(0.001);
-  });
-
-  it("observer angles 12 hours apart are ~180° apart", () => {
-    // Tests calculateObserverAngle directly — avoids SVG geometry which depends on cone half-angle
-    const earth = PLANETS.find((p) => p.name === "Earth");
-    const date7am = new Date("2026-02-14T07:00:00");
-    const date7pm = new Date("2026-02-14T19:00:00");
-
-    const earthAngle = calculatePlanetPosition(earth, date7am); // same orbital position
-    const obs7am = calculateObserverAngle(earthAngle, date7am);
-    const obs7pm = calculateObserverAngle(earthAngle, date7pm);
-
-    const norm = (a) => ((a % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
-    const diff = Math.abs(norm(obs7am) - norm(obs7pm));
-    const angleDiff = Math.min(diff, 2 * Math.PI - diff);
-    expect(angleDiff).toBeCloseTo(Math.PI, 3);
-  });
-});
-
-describe("calculateSolarElevationDeg", () => {
-  const earthAngle = 1.0; // arbitrary orbital angle
-
-  it("returns ~90° when observer faces directly toward the Sun (local noon)", () => {
-    // At noon observerAngle = earthAngle + π (pointing toward Sun)
-    const observerAngle = earthAngle + Math.PI;
-    const elevation = calculateSolarElevationDeg(observerAngle, earthAngle);
-    expect(elevation).toBeCloseTo(90, 1);
-  });
-
-  it("returns ~-90° when observer faces directly away from the Sun (local midnight)", () => {
-    // At midnight observerAngle = earthAngle (pointing away from Sun)
-    const observerAngle = earthAngle;
-    const elevation = calculateSolarElevationDeg(observerAngle, earthAngle);
-    expect(elevation).toBeCloseTo(-90, 1);
-  });
-
-  it("returns ~0° when observer is perpendicular to Sun direction (horizon crossing)", () => {
-    // Observer 90° from Sun direction = Sun on horizon
-    const observerAngle = earthAngle + Math.PI / 2;
-    const elevation = calculateSolarElevationDeg(observerAngle, earthAngle);
-    expect(elevation).toBeCloseTo(0, 1);
-  });
-
-  it("handles 2π wrap-around correctly", () => {
-    // Same geometry, but angles cross the 0/2π boundary
-    const wrappedEarth = 0.1;
-    const wrappedObserver = wrappedEarth + Math.PI + 2 * Math.PI; // excess wrapping
-    const elevation = calculateSolarElevationDeg(wrappedObserver, wrappedEarth);
-    expect(elevation).toBeCloseTo(90, 1);
-  });
-
-  it("returns negative value when Sun is below horizon", () => {
-    // Sun 30° below horizon: observer must be 120° from Sun direction (|diff| = 120°)
-    // observerAngle = earthAngle + π - 2π/3 = earthAngle + π/3
-    const observerAngle = earthAngle + Math.PI / 3;
-    const elevation = calculateSolarElevationDeg(observerAngle, earthAngle);
-    expect(elevation).toBeCloseTo(-30, 1);
-  });
-});

@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeAll, vi, afterEach } from "vitest";
-import { SolarViewCard } from "../src/solar-view-card.js";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { renderSolarSystem } from "../src/renderer.js";
+import { SolarViewCard } from "../src/solar-view-card.js";
 
 beforeAll(() => {
   if (!customElements.get("ha-solar-view-card-test")) {
@@ -411,8 +411,8 @@ describe("SolarViewCard", () => {
         clientY: 100,
         pointerId: 1,
       });
-      svg.setPointerCapture = () => { };
-      svg.releasePointerCapture = () => { };
+      svg.setPointerCapture = () => {};
+      svg.releasePointerCapture = () => {};
       svg.dispatchEvent(downEvent);
       expect(card._isDragging).toBe(true);
 
@@ -430,20 +430,26 @@ describe("SolarViewCard", () => {
     it("dragging updates viewBox center position", () => {
       const card = createAndMount();
       const svg = card.shadowRoot.querySelector("#solar-view svg");
-      svg.setPointerCapture = () => { };
-      svg.releasePointerCapture = () => { };
+      svg.setPointerCapture = () => {};
+      svg.releasePointerCapture = () => {};
       // Mock getBoundingClientRect
       svg.getBoundingClientRect = () => ({ width: 400, height: 400, x: 0, y: 0, top: 0, left: 0 });
 
       const centerBefore = { x: card._viewCenterX, y: card._viewCenterY };
 
-      svg.dispatchEvent(new PointerEvent("pointerdown", { clientX: 200, clientY: 200, pointerId: 1 }));
-      svg.dispatchEvent(new PointerEvent("pointermove", { clientX: 250, clientY: 200, pointerId: 1 }));
+      svg.dispatchEvent(
+        new PointerEvent("pointerdown", { clientX: 200, clientY: 200, pointerId: 1 })
+      );
+      svg.dispatchEvent(
+        new PointerEvent("pointermove", { clientX: 250, clientY: 200, pointerId: 1 })
+      );
 
       // Dragging right should decrease centerX (content moves right)
       expect(card._viewCenterX).toBeLessThan(centerBefore.x);
 
-      svg.dispatchEvent(new PointerEvent("pointerup", { clientX: 250, clientY: 200, pointerId: 1 }));
+      svg.dispatchEvent(
+        new PointerEvent("pointerup", { clientX: 250, clientY: 200, pointerId: 1 })
+      );
       card.remove();
     });
   });
@@ -486,7 +492,6 @@ describe("SolarViewCard", () => {
       const card = document.createElement("ha-solar-view-card-test");
       card._currentDate = new Date("2026-02-15T10:00:00");
       document.body.appendChild(card);
-      const dateBefore = card._currentDate.getTime();
       vi.advanceTimersByTime(60000);
       // Date should have been updated to "now" (still Feb 15)
       expect(card._formatDate(card._currentDate)).toContain("26-02-15");
@@ -509,7 +514,11 @@ describe("SolarViewCard", () => {
 
   describe("status bar layout", () => {
     // London at midday: sun is up, next transition (sunset) exists within 24h
-    function createCardWithLocation(lat = 51.5, lon = -0.1, date = new Date("2026-03-05T12:00:00Z")) {
+    function createCardWithLocation(
+      lat = 51.5,
+      lon = -0.1,
+      date = new Date("2026-03-05T12:00:00Z")
+    ) {
       const card = document.createElement("ha-solar-view-card-test");
       card._lat = lat;
       card._lon = lon;

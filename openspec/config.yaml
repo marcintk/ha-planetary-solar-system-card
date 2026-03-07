@@ -1,11 +1,88 @@
 schema: spec-driven
 
 context: |
-  Tech stack: JavaScript
-  Testing: Vitest for unit tests
+  Home Assistant custom Lovelace card (ha-solar-view-card) — SVG solar system
+  visualization showing all 8 planets and Moon around the Sun for a given date,
+  with interactive zoom, pan, and time navigation.
+
+  Tech stack: JavaScript ES modules, no TypeScript. Rollup bundles to
+  dist/ha-solar-view-card.js. Tests use Vitest + jsdom.
+
+  Source layout:
+    src/index.js               — entry; registers custom element
+    src/solar-view-card.js     — SolarViewCard extends HTMLElement (shadow DOM)
+    src/planet-data.js         — PLANETS[], MOON, SUN static data
+    src/orbital-mechanics.js   — calculatePlanetPosition, calculateMoonPosition
+    src/view-state.js          — ViewState class (zoom levels 1–4, pan/drag)
+    src/solar-position.js      — real astronomical calc: computeSolarElevationDeg,
+                                 getSkyMode, computeNextTransitionTime, getLocalTimeInZone
+    src/card-styles.js         — CARD_STYLES CSS string
+    src/card-template.js       — buildStatusBarHtml, buildCardHtml
+    src/renderer.js            — renderSolarSystem (main compositor)
+    src/renderer/svg-utils.js  — createSvgElement, auToRadius, expandBounds
+    src/renderer/bodies.js     — renderBody, renderOrbit, renderSaturnRings
+    src/renderer/observer.js   — visibility cone, day/night split, observer needle,
+                                 calculateObserverAngle, calculateSolarElevationDeg
+    src/renderer/seasons.js    — renderSeasonOverlay
+
+  Test layout mirrors src/ exactly:
+    test/planet-data.test.js, test/orbital-mechanics.test.js,
+    test/view-state.test.js, test/solar-position.test.js,
+    test/card-template.test.js, test/solar-view-card.test.js,
+    test/renderer.test.js (renderSolarSystem integration tests),
+    test/renderer/svg-utils.test.js, test/renderer/bodies.test.js,
+    test/renderer/observer.test.js, test/renderer/seasons.test.js
+
+  Key conventions:
+    - camelCase functions/variables, PascalCase classes, UPPER_SNAKE constants
+    - SVG elements created via createSvgElement(tag, attrs) from svg-utils.js
+    - Angles in radians, AU distances mapped to pixels via auToRadius (log scale)
+    - Hemisphere: "north" | "south" — derived from hass.config.latitude
+    - Observer location from hass.config: latitude, longitude, time_zone, location_name
+    - Zoom levels 1–4 map to viewBox sizes 800/640/480/320
+
+  Build commands and project overview are in CLAUDE.md.
 
 rules:
+  code_edits:
+    - ALL code edits MUST use the Serena MCP tools, not raw file writes.
+    - Use get_symbols_overview to understand a file before editing it.
+    - Use find_symbol with include_body=true to read the exact symbol body before replacing it.
+    - Use replace_symbol_body for modifying existing functions or classes.
+    - Use insert_after_symbol / insert_before_symbol to add new top-level code.
+    - Use search_for_pattern when a symbol name is unknown.
+    - Verify changes compile by running `npm test` after each edit batch.
+
   specs:
-    - Use Given/When/Then format for scenarios
+    - Use Given/When/Then format for all scenarios.
+    - Each spec file has a ## Purpose section and one or more ## Requirements sections.
+    - Each requirement has a plain-English statement followed by scenario(s).
+    - Reference source module names (e.g. src/renderer/observer.js) in requirements
+      so the impact is unambiguous.
+
   design:
-    - Include sequence diagrams for complex flows
+    - Include sequence diagrams only for multi-module flows.
+    - Prefer naming the exact function/constant that satisfies each requirement.
+    - Note which existing tests cover a requirement (or that new tests are needed).
+
+  documentation:
+    - Use Context7 MCP (mcp__context7__resolve-library-id then mcp__context7__query-docs) to look up
+      library documentation before implementing features that depend on external or browser APIs.
+    - Prefer Context7 over web search for well-known libraries (e.g. SVG spec, Web Components, Vitest).
+
+  tasks:
+    - Task descriptions name the specific file and symbol to change.
+    - Each task is independently testable: one logical change, one test run.
+    - Mark tasks that require a new test file explicitly.
+
+  tools:
+    - CLAUDE.md is the single source of truth for project overview, commands, TODO, and tool rules.
+      Read it first at the start of any session. Do NOT duplicate its content in OpenSpec config or Serena memory.
+    - For all code navigation and edits, use Serena MCP tools (get_symbols_overview, find_symbol,
+      replace_symbol_body, insert_after_symbol, insert_before_symbol). Never use raw file writes for code.
+    - For library or browser API documentation, use Context7 MCP (resolve-library-id then query-docs)
+      before implementing. Do not use web search when Context7 covers the library.
+    - For spec/design/task work, use OpenSpec skills in order: opsx:explore → opsx:new → opsx:continue
+      → opsx:apply. Do not skip to implementation without a spec.
+    - After implementing, use opsx:verify then opsx:archive to close the change.
+    - Store Serena-specific operational notes in Serena memory; all other project info stays in CLAUDE.md.

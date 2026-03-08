@@ -5,7 +5,7 @@ import {
   MAX_ZOOM,
   MIN_ZOOM,
   ViewState,
-} from "../src/view-state.js";
+} from "../../src/card/view-state.js";
 
 describe("ViewState constructor", () => {
   it("initializes to center of the full system", () => {

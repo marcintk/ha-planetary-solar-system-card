@@ -81,6 +81,40 @@ const MOON = {
   meanLongitudeJ2000: 218.32,
 };
 
+// J2000 epoch: January 1, 2000 12:00 TT
+const J2000 = Date.UTC(2000, 0, 1, 12, 0, 0);
+
+function daysSinceJ2000(date) {
+  return (date.getTime() - J2000) / 86400000;
+}
+
+function degreesToRadians(deg) {
+  return (deg * Math.PI) / 180;
+}
+
+/**
+ * Calculate a planet's angular position (radians) for a given date.
+ * Uses simplified circular orbit model.
+ */
+function calculatePlanetPosition(planet, date) {
+  const days = daysSinceJ2000(date);
+  const meanMotion = (2 * Math.PI) / planet.periodDays;
+  const angle = degreesToRadians(planet.meanLongitudeJ2000) + meanMotion * days;
+  // Normalize to [0, 2π)
+  return ((angle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+}
+
+/**
+ * Calculate the Moon's angular position relative to Earth for a given date.
+ * Returns absolute angle (not relative to Earth).
+ */
+function calculateMoonPosition(date) {
+  const days = daysSinceJ2000(date);
+  const meanMotion = (2 * Math.PI) / MOON.periodDays;
+  const angle = degreesToRadians(MOON.meanLongitudeJ2000) + meanMotion * days;
+  return ((angle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+}
+
 const SVG_NS = "http://www.w3.org/2000/svg";
 const VIEW_SIZE = 800;
 const CENTER = VIEW_SIZE / 2;
@@ -183,7 +217,7 @@ function renderBody(svg, x, y, body, showLabel = true) {
   }
 }
 
-function renderSaturnRings(svg, x, y, body, renderSize) {
+function renderSaturnRings(svg, x, y, body, _renderSize) {
   const hex = body.color;
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
@@ -214,41 +248,6 @@ function renderSaturnRings(svg, x, y, body, renderSize) {
       "stroke-width": 6,
     })
   );
-}
-
-// J2000 epoch: January 1, 2000 12:00 TT
-const J2000 = Date.UTC(2000, 0, 1, 12, 0, 0);
-
-function daysSinceJ2000(date) {
-  return (date.getTime() - J2000) / 86400000;
-}
-
-function degreesToRadians(deg) {
-  return (deg * Math.PI) / 180;
-}
-
-/**
- * Calculate a planet's angular position (radians) for a given date.
- * Uses simplified circular orbit model.
- */
-function calculatePlanetPosition(planet, date) {
-  const days = daysSinceJ2000(date);
-  const meanMotion = (2 * Math.PI) / planet.periodDays;
-  const angle =
-    degreesToRadians(planet.meanLongitudeJ2000) + meanMotion * days;
-  // Normalize to [0, 2π)
-  return ((angle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
-}
-
-/**
- * Calculate the Moon's angular position relative to Earth for a given date.
- * Returns absolute angle (not relative to Earth).
- */
-function calculateMoonPosition(date) {
-  const days = daysSinceJ2000(date);
-  const meanMotion = (2 * Math.PI) / MOON.periodDays;
-  const angle = degreesToRadians(MOON.meanLongitudeJ2000) + meanMotion * days;
-  return ((angle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
 }
 
 /**
@@ -299,11 +298,11 @@ function computeSolarElevationDeg(lat, lon, date) {
   const dayOfYear = Math.floor((date.getTime() - startOfYear) / 86400000);
 
   // Solar declination in radians
-  const declRad = (-23.45 * Math.cos((2 * Math.PI / 365) * (dayOfYear + 10)) * Math.PI) / 180;
+  const declRad = (-23.45 * Math.cos(((2 * Math.PI) / 365) * (dayOfYear + 10)) * Math.PI) / 180;
 
   // Local solar hour: UTC fractional hours + longitude offset (15°/hr)
   const utcHour = date.getUTCHours() + date.getUTCMinutes() / 60 + date.getUTCSeconds() / 3600;
-  const localSolarHour = ((utcHour + lon / 15) % 24 + 24) % 24;
+  const localSolarHour = (((utcHour + lon / 15) % 24) + 24) % 24;
 
   // Hour angle in radians (positive in afternoon)
   const hourAngleRad = ((localSolarHour - 12) * 15 * Math.PI) / 180;
@@ -344,7 +343,7 @@ function computeNextTransitionTime(lat, lon, date) {
   const MAX_MINS = 24 * 60;
 
   const startElev = computeSolarElevationDeg(lat, lon, date);
-  let currentMode = getSkyMode(startElev);
+  const currentMode = getSkyMode(startElev);
 
   let bracketLoMs = null;
   let bracketHiMs = null;
@@ -381,11 +380,11 @@ function computeNextTransitionTime(lat, lon, date) {
 
 const NEEDLE_COLOR = "rgba(255, 255, 255, 0.7)";
 
-const CONE_DAY          = "rgba(255, 255, 255, 0.1)";          // Sun above horizon
-const CONE_CIVIL        = "rgba(255, 220, 160, 0.08)";         // Civil twilight:        0° to -6°
-const CONE_NAUTICAL     = "rgba(160, 190, 255, 0.06)";         // Nautical twilight:   -6° to -12°
-const CONE_ASTRONOMICAL = "rgba(80, 100, 200, 0.04)";          // Astronomical twilight: -12° to -18°
-const CONE_NIGHT        = "rgba(255, 255, 255, 0.01)";         // Sun below -18°
+const CONE_DAY = "rgba(255, 255, 255, 0.1)"; // Sun above horizon
+const CONE_CIVIL = "rgba(255, 220, 160, 0.08)"; // Civil twilight:        0° to -6°
+const CONE_NAUTICAL = "rgba(160, 190, 255, 0.06)"; // Nautical twilight:   -6° to -12°
+const CONE_ASTRONOMICAL = "rgba(80, 100, 200, 0.04)"; // Astronomical twilight: -12° to -18°
+const CONE_NIGHT = "rgba(255, 255, 255, 0.01)"; // Sun below -18°
 
 /**
  * Compute the Sun's elevation angle in degrees from the observer's horizon.
@@ -397,10 +396,7 @@ const CONE_NIGHT        = "rgba(255, 255, 255, 0.01)";         // Sun below -18�
  */
 function calculateSolarElevationDeg(observerAngle, earthAngle) {
   const dirToSun = earthAngle + Math.PI;
-  const diff = Math.atan2(
-    Math.sin(observerAngle - dirToSun),
-    Math.cos(observerAngle - dirToSun)
-  );
+  const diff = Math.atan2(Math.sin(observerAngle - dirToSun), Math.cos(observerAngle - dirToSun));
   return (Math.PI / 2 - Math.abs(diff)) * (180 / Math.PI);
 }
 
@@ -426,7 +422,15 @@ function calculateObserverAngle(earthOrbitalAngle, date, timezone) {
   return earthOrbitalAngle + localTimeAngle;
 }
 
-function renderVisibilityCone(svg, anchorX, anchorY, observerAngle, halfAngleDeg, clipId, fillColor) {
+function renderVisibilityCone(
+  svg,
+  anchorX,
+  anchorY,
+  observerAngle,
+  halfAngleDeg,
+  clipId,
+  fillColor
+) {
   const D = VIEW_SIZE;
   const HALF_ANGLE = (halfAngleDeg * Math.PI) / 180;
   const largeArcFlag = halfAngleDeg >= 90 ? 1 : 0;
@@ -441,7 +445,8 @@ function renderVisibilityCone(svg, anchorX, anchorY, observerAngle, halfAngleDeg
   // SVG path: MoveTo apex, LineTo left edge, Arc to right edge, ClosePath
   const pathD = `M ${anchorX} ${anchorY} L ${leftX} ${leftY} A ${D} ${D} 0 ${largeArcFlag} 1 ${rightX} ${rightY} Z`;
 
-  const defs = svg.querySelector("defs") || svg.insertBefore(createSvgElement("defs", {}), svg.firstChild);
+  const defs =
+    svg.querySelector("defs") || svg.insertBefore(createSvgElement("defs", {}), svg.firstChild);
 
   const clipPath = createSvgElement("clipPath", { id: clipId });
   clipPath.appendChild(createSvgElement("path", { d: pathD }));
@@ -461,7 +466,7 @@ function renderVisibilityCone(svg, anchorX, anchorY, observerAngle, halfAngleDeg
 function renderDayNightSplit(svg, earthRadius, date, earthBodySize, locationData) {
   const earth = PLANETS.find((p) => p.name === "Earth");
   const earthAngle = calculatePlanetPosition(earth, date);
-  const observerAngle = calculateObserverAngle(earthAngle, date, locationData && locationData.timezone);
+  const observerAngle = calculateObserverAngle(earthAngle, date, locationData?.timezone);
 
   const earthDirX = Math.cos(earthAngle);
   const earthDirY = Math.sin(earthAngle);
@@ -478,16 +483,17 @@ function renderDayNightSplit(svg, earthRadius, date, earthBodySize, locationData
   // Half-angle = 90° − elevationDeg expands the cone below the horizon during twilight.
   // When real location data is available, use spherical astronomy; otherwise fall back to
   // the orbital approximation so the card works without a hass object (tests, previews).
-  const elevationDeg = (locationData && locationData.lat != null)
-    ? computeSolarElevationDeg(locationData.lat, locationData.lon, date)
-    : calculateSolarElevationDeg(observerAngle, earthAngle);
+  const elevationDeg =
+    locationData && locationData.lat != null
+      ? computeSolarElevationDeg(locationData.lat, locationData.lon, date)
+      : calculateSolarElevationDeg(observerAngle, earthAngle);
   let coneColor;
-  if (elevationDeg >= 0)        coneColor = CONE_DAY;
-  else if (elevationDeg >= -6)  coneColor = CONE_CIVIL;
+  if (elevationDeg >= 0) coneColor = CONE_DAY;
+  else if (elevationDeg >= -6) coneColor = CONE_CIVIL;
   else if (elevationDeg >= -12) coneColor = CONE_NAUTICAL;
   else if (elevationDeg >= -18) coneColor = CONE_ASTRONOMICAL;
-  else                          coneColor = CONE_NIGHT;
-  const halfAngle = (elevationDeg >= 0 || elevationDeg < -18) ? 90 : (90 - elevationDeg);
+  else coneColor = CONE_NIGHT;
+  const halfAngle = elevationDeg >= 0 || elevationDeg < -18 ? 90 : 90 - elevationDeg;
   renderVisibilityCone(svg, anchorX, anchorY, observerAngle, halfAngle, "sky-clip", coneColor);
 
   // Horizon line — always drawn to show the 180° visible-sky boundary
@@ -498,8 +504,10 @@ function renderDayNightSplit(svg, earthRadius, date, earthBodySize, locationData
   const rightY = anchorY - D * Math.sin(observerAngle - Math.PI / 2);
   svg.appendChild(
     createSvgElement("line", {
-      x1: leftX, y1: leftY,
-      x2: rightX, y2: rightY,
+      x1: leftX,
+      y1: leftY,
+      x2: rightX,
+      y2: rightY,
       stroke: "rgba(255, 255, 255, 0.3)",
       "stroke-width": 1,
       "stroke-dasharray": "4, 4",
@@ -534,9 +542,9 @@ function renderObserverNeedle(svg, earthX, earthY, observerAngle, earthSize) {
   );
 }
 
-const SEASON_LINE_COLOR  = "rgba(255, 255, 255, 0.25)";
+const SEASON_LINE_COLOR = "rgba(255, 255, 255, 0.25)";
 const SEASON_LABEL_COLOR = "rgba(255, 255, 255, 0.5)";
-const SEASON_FONT_SIZE   = 20;
+const SEASON_FONT_SIZE = 20;
 
 function renderSeasonOverlay(svg, hemisphere) {
   // Dotted dividing lines through the Sun
@@ -568,15 +576,15 @@ function renderSeasonOverlay(svg, hemisphere) {
   //   bottom-left = Spring, bottom-right = Summer,
   //   top-right = Autumn, top-left = Winter
   const northSeasons = [
-    { name: "Winter", startAngle: 90,  endAngle: 180 },   // top-left
-    { name: "Autumn", startAngle: 0,   endAngle: 90  },   // top-right
-    { name: "Summer", startAngle: 270, endAngle: 360 },   // bottom-right
-    { name: "Spring", startAngle: 180, endAngle: 270 },   // bottom-left
+    { name: "Winter", startAngle: 90, endAngle: 180 }, // top-left
+    { name: "Autumn", startAngle: 0, endAngle: 90 }, // top-right
+    { name: "Summer", startAngle: 270, endAngle: 360 }, // bottom-right
+    { name: "Spring", startAngle: 180, endAngle: 270 }, // bottom-left
   ];
 
   const southSeasons = [
-    { name: "Summer", startAngle: 90,  endAngle: 180 },
-    { name: "Spring", startAngle: 0,   endAngle: 90  },
+    { name: "Summer", startAngle: 90, endAngle: 180 },
+    { name: "Spring", startAngle: 0, endAngle: 90 },
     { name: "Winter", startAngle: 270, endAngle: 360 },
     { name: "Autumn", startAngle: 180, endAngle: 270 },
   ];
@@ -584,13 +592,14 @@ function renderSeasonOverlay(svg, hemisphere) {
   const seasons = hemisphere === "south" ? southSeasons : northSeasons;
   const labelRadius = MAX_RADIUS + 20;
 
-  const defs = svg.querySelector("defs") || svg.insertBefore(createSvgElement("defs", {}), svg.firstChild);
+  const defs =
+    svg.querySelector("defs") || svg.insertBefore(createSvgElement("defs", {}), svg.firstChild);
 
   seasons.forEach((season, i) => {
     const pathId = `season-arc-${i}`;
 
     const startRad = (season.startAngle * Math.PI) / 180;
-    const endRad   = (season.endAngle   * Math.PI) / 180;
+    const endRad = (season.endAngle * Math.PI) / 180;
 
     // Top-half arcs (0–90° and 90–180°) render text upside-down because the
     // default arc sweeps right-to-left in SVG space. Reverse them so textPath
@@ -726,7 +735,7 @@ function renderSolarSystem(date, hemisphere = "north", locationData = null) {
   expandBounds(bounds, moonX, moonY, MOON.size + 17);
 
   // Observer needle on Earth (tip at surface)
-  const observerAngle = calculateObserverAngle(earthAngle, date, locationData && locationData.timezone);
+  const observerAngle = calculateObserverAngle(earthAngle, date, locationData?.timezone);
   renderObserverNeedle(svg, earthX, earthY, observerAngle, earth.size);
 
   return { svg, bounds };
@@ -923,24 +932,28 @@ const ZOOM_LEVELS = { 1: 800, 2: 640, 3: 480, 4: 320 };
  */
 class ViewState {
   constructor(defaultZoomLevel = DEFAULT_ZOOM_LEVEL) {
-    this.centerX   = FULL_SYSTEM_SIZE / 2;
-    this.centerY   = FULL_SYSTEM_SIZE / 2;
+    this.centerX = FULL_SYSTEM_SIZE / 2;
+    this.centerY = FULL_SYSTEM_SIZE / 2;
     this.zoomLevel = defaultZoomLevel;
-    this._width    = ZOOM_LEVELS[defaultZoomLevel];
-    this._height   = ZOOM_LEVELS[defaultZoomLevel];
-    this.isDragging      = false;
-    this._dragStartX     = 0;
-    this._dragStartY     = 0;
+    this._width = ZOOM_LEVELS[defaultZoomLevel];
+    this._height = ZOOM_LEVELS[defaultZoomLevel];
+    this.isDragging = false;
+    this._dragStartX = 0;
+    this._dragStartY = 0;
     this._dragStartCenterX = 0;
     this._dragStartCenterY = 0;
   }
 
-  get width()  { return this._width;  }
-  get height() { return this._height; }
+  get width() {
+    return this._width;
+  }
+  get height() {
+    return this._height;
+  }
 
   /** Returns the SVG viewBox string for the current pan/zoom state. */
   get viewBox() {
-    const minX = this.centerX - this._width  / 2;
+    const minX = this.centerX - this._width / 2;
     const minY = this.centerY - this._height / 2;
     return `${minX} ${minY} ${this._width} ${this._height}`;
   }
@@ -949,7 +962,7 @@ class ViewState {
   zoomIn() {
     if (this.zoomLevel >= MAX_ZOOM) return false;
     this.zoomLevel++;
-    this._width  = ZOOM_LEVELS[this.zoomLevel];
+    this._width = ZOOM_LEVELS[this.zoomLevel];
     this._height = ZOOM_LEVELS[this.zoomLevel];
     return true;
   }
@@ -958,15 +971,15 @@ class ViewState {
   zoomOut() {
     if (this.zoomLevel <= MIN_ZOOM) return false;
     this.zoomLevel--;
-    this._width  = ZOOM_LEVELS[this.zoomLevel];
+    this._width = ZOOM_LEVELS[this.zoomLevel];
     this._height = ZOOM_LEVELS[this.zoomLevel];
     return true;
   }
 
   startDrag(clientX, clientY) {
-    this.isDragging        = true;
-    this._dragStartX       = clientX;
-    this._dragStartY       = clientY;
+    this.isDragging = true;
+    this._dragStartX = clientX;
+    this._dragStartY = clientY;
     this._dragStartCenterX = this.centerX;
     this._dragStartCenterY = this.centerY;
   }
@@ -974,9 +987,9 @@ class ViewState {
   /** Update pan position during a drag. svgRect is the result of getBoundingClientRect(). */
   updateDrag(clientX, clientY, svgRect) {
     if (!this.isDragging) return;
-    const dx     = clientX - this._dragStartX;
-    const dy     = clientY - this._dragStartY;
-    const scaleX = this._width  / svgRect.width;
+    const dx = clientX - this._dragStartX;
+    const dy = clientY - this._dragStartY;
+    const scaleX = this._width / svgRect.width;
     const scaleY = this._height / svgRect.height;
     this.centerX = this._dragStartCenterX - dx * scaleX;
     this.centerY = this._dragStartCenterY - dy * scaleY;
@@ -991,36 +1004,49 @@ class SolarViewCard extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: "open" });
-    this._currentDate      = new Date();
-    this._viewState        = null; // initialized on first render
+    this._currentDate = new Date();
+    this._viewState = null; // initialized on first render
     this._defaultZoomLevel = DEFAULT_ZOOM_LEVEL;
-    this._hemisphere       = "north"; // Hemisphere for season labels (default: north)
-    this._lat              = null;
-    this._lon              = null;
-    this._timezone         = null;
-    this._locationName     = null;
-    this._autoUpdateTimer  = null; // Auto-update timer
+    this._hemisphere = "north"; // Hemisphere for season labels (default: north)
+    this._lat = null;
+    this._lon = null;
+    this._timezone = null;
+    this._locationName = null;
+    this._autoUpdateTimer = null; // Auto-update timer
   }
 
   // ---------------------------------------------------------------------------
   // Proxy getters — expose ViewState fields at the card level so that tests
   // and external code can read them without knowing about ViewState internals.
   // ---------------------------------------------------------------------------
-  get _isDragging()  { return this._viewState?.isDragging ?? false; }
-  get _viewCenterX() { return this._viewState?.centerX    ?? null;  }
-  get _viewCenterY() { return this._viewState?.centerY    ?? null;  }
-  get _zoomLevel()   { return this._viewState?.zoomLevel  ?? null;  }
+  get _isDragging() {
+    return this._viewState?.isDragging ?? false;
+  }
+  get _viewCenterX() {
+    return this._viewState?.centerX ?? null;
+  }
+  get _viewCenterY() {
+    return this._viewState?.centerY ?? null;
+  }
+  get _zoomLevel() {
+    return this._viewState?.zoomLevel ?? null;
+  }
 
   set hass(hass) {
     this._hass = hass;
-    const lat          = hass.config && hass.config.latitude;
-    const lon          = hass.config && hass.config.longitude;
-    const timezone     = hass.config && hass.config.time_zone;
-    const locationName = hass.config && hass.config.location_name;
-    if (lat !== this._lat || lon !== this._lon || timezone !== this._timezone || locationName !== this._locationName) {
-      this._lat          = lat          != null ? lat          : null;
-      this._lon          = lon          != null ? lon          : null;
-      this._timezone     = timezone     || null;
+    const lat = hass.config?.latitude;
+    const lon = hass.config?.longitude;
+    const timezone = hass.config?.time_zone;
+    const locationName = hass.config?.location_name;
+    if (
+      lat !== this._lat ||
+      lon !== this._lon ||
+      timezone !== this._timezone ||
+      locationName !== this._locationName
+    ) {
+      this._lat = lat != null ? lat : null;
+      this._lon = lon != null ? lon : null;
+      this._timezone = timezone || null;
       this._locationName = locationName || null;
       this._render();
     }
@@ -1028,16 +1054,22 @@ class SolarViewCard extends HTMLElement {
 
   setConfig(config) {
     this._config = config;
-    this._defaultZoomLevel = (config.default_zoom == null || config.default_zoom < MIN_ZOOM || config.default_zoom > MAX_ZOOM)
-      ? DEFAULT_ZOOM_LEVEL
-      : config.default_zoom;
+    this._defaultZoomLevel =
+      config.default_zoom == null ||
+      config.default_zoom < MIN_ZOOM ||
+      config.default_zoom > MAX_ZOOM
+        ? DEFAULT_ZOOM_LEVEL
+        : config.default_zoom;
   }
 
   connectedCallback() {
     this._render();
     clearInterval(this._autoUpdateTimer);
     this._autoUpdateTimer = setInterval(() => {
-      if (this._formatDate(this._currentDate).slice(0, 10) === this._formatDate(new Date()).slice(0, 10)) {
+      if (
+        this._formatDate(this._currentDate).slice(0, 10) ===
+        this._formatDate(new Date()).slice(0, 10)
+      ) {
         this._currentDate = new Date();
         this._render();
       }
@@ -1050,9 +1082,9 @@ class SolarViewCard extends HTMLElement {
   }
 
   _formatDate(date) {
-    const y  = String(date.getFullYear()).slice(-2);
-    const m  = String(date.getMonth() + 1).padStart(2, "0");
-    const d  = String(date.getDate()).padStart(2, "0");
+    const y = String(date.getFullYear()).slice(-2);
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
     const hh = String(date.getHours()).padStart(2, "0");
     const mm = String(date.getMinutes()).padStart(2, "0");
     return `${y}-${m}-${d} ${hh}:${mm}`;
@@ -1096,7 +1128,7 @@ class SolarViewCard extends HTMLElement {
 
   _onPointerMove(e) {
     if (!this._viewState.isDragging) return;
-    const svg  = e.currentTarget;
+    const svg = e.currentTarget;
     const rect = svg.getBoundingClientRect();
     this._viewState.updateDrag(e.clientX, e.clientY, rect);
     this._updateViewBox();
@@ -1121,15 +1153,18 @@ class SolarViewCard extends HTMLElement {
       this._hemisphere = this._lat < 0 ? "south" : "north";
     }
 
-    const locationData = (this._lat != null)
-      ? { lat: this._lat, lon: this._lon, timezone: this._timezone }
-      : null;
+    const locationData =
+      this._lat != null ? { lat: this._lat, lon: this._lon, timezone: this._timezone } : null;
 
     const statusBarHtml = buildStatusBarHtml(locationData, this._locationName, this._currentDate);
-    this.shadowRoot.innerHTML = buildCardHtml(statusBarHtml, this._formatDate(this._currentDate), this._viewState.zoomLevel);
+    this.shadowRoot.innerHTML = buildCardHtml(
+      statusBarHtml,
+      this._formatDate(this._currentDate),
+      this._viewState.zoomLevel
+    );
 
     const container = this.shadowRoot.getElementById("solar-view");
-    const { svg }   = renderSolarSystem(this._currentDate, this._hemisphere, locationData);
+    const { svg } = renderSolarSystem(this._currentDate, this._hemisphere, locationData);
     container.appendChild(svg);
 
     this._updateViewBox();
@@ -1140,7 +1175,7 @@ class SolarViewCard extends HTMLElement {
   _bindEvents(svg) {
     svg.addEventListener("pointerdown", (e) => this._onPointerDown(e));
     svg.addEventListener("pointermove", (e) => this._onPointerMove(e));
-    svg.addEventListener("pointerup",   (e) => this._onPointerUp(e));
+    svg.addEventListener("pointerup", (e) => this._onPointerUp(e));
 
     this.shadowRoot.querySelectorAll(".nav button").forEach((btn) => {
       btn.addEventListener("click", (e) => this._handleNavAction(e.currentTarget.dataset.action));

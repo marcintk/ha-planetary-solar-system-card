@@ -9,27 +9,28 @@ context: |
   dist/ha-solar-view-card.js. Tests use Vitest + jsdom.
 
   Source layout:
-    src/index.js               — entry; registers custom element
-    src/solar-view-card.js     — SolarViewCard extends HTMLElement (shadow DOM)
-    src/planet-data.js         — PLANETS[], MOON, SUN static data
-    src/orbital-mechanics.js   — calculatePlanetPosition, calculateMoonPosition
-    src/view-state.js          — ViewState class (zoom levels 1–4, pan/drag)
-    src/solar-position.js      — real astronomical calc: computeSolarElevationDeg,
-                                 getSkyMode, computeNextTransitionTime, getLocalTimeInZone
-    src/card-styles.js         — CARD_STYLES CSS string
-    src/card-template.js       — buildStatusBarHtml, buildCardHtml
-    src/renderer.js            — renderSolarSystem (main compositor)
-    src/renderer/svg-utils.js  — createSvgElement, auToRadius, expandBounds
-    src/renderer/bodies.js     — renderBody, renderOrbit, renderSaturnRings
-    src/renderer/observer.js   — visibility cone, day/night split, observer needle,
-                                 calculateObserverAngle, calculateSolarElevationDeg
-    src/renderer/seasons.js    — renderSeasonOverlay
+    src/index.js                       — entry; registers custom element
+    src/card/solar-view-card.js        — SolarViewCard extends HTMLElement (shadow DOM)
+    src/card/card-template.js          — buildStatusBarHtml, buildCardHtml
+    src/card/card-styles.js            — CARD_STYLES CSS string
+    src/card/view-state.js             — ViewState class (zoom levels 1–4, pan/drag)
+    src/astronomy/planet-data.js       — PLANETS[], MOON, SUN static data
+    src/astronomy/orbital-mechanics.js — calculatePlanetPosition, calculateMoonPosition
+    src/astronomy/solar-position.js    — real astronomical calc: computeSolarElevationDeg,
+                                         getSkyMode, computeNextTransitionTime, getLocalTimeInZone
+    src/renderer/index.js              — renderSolarSystem (main compositor)
+    src/renderer/svg-utils.js          — createSvgElement, auToRadius, expandBounds
+    src/renderer/bodies.js             — renderBody, renderOrbit, renderSaturnRings
+    src/renderer/observer.js           — visibility cone, day/night split, observer needle,
+                                         calculateObserverAngle, calculateSolarElevationDeg
+    src/renderer/seasons.js            — renderSeasonOverlay
 
   Test layout mirrors src/ exactly:
-    test/planet-data.test.js, test/orbital-mechanics.test.js,
-    test/view-state.test.js, test/solar-position.test.js,
-    test/card-template.test.js, test/solar-view-card.test.js,
-    test/renderer.test.js (renderSolarSystem integration tests),
+    test/card/view-state.test.js, test/card/card-template.test.js,
+    test/card/solar-view-card.test.js,
+    test/astronomy/planet-data.test.js, test/astronomy/orbital-mechanics.test.js,
+    test/astronomy/solar-position.test.js,
+    test/renderer/index.test.js (renderSolarSystem integration tests),
     test/renderer/svg-utils.test.js, test/renderer/bodies.test.js,
     test/renderer/observer.test.js, test/renderer/seasons.test.js
 

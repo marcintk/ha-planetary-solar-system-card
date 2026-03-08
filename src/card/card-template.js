@@ -1,9 +1,9 @@
-import { CARD_STYLES } from "./card-styles.js";
 import {
   computeNextTransitionTime,
   computeSolarElevationDeg,
   getSkyMode,
-} from "./solar-position.js";
+} from "../astronomy/solar-position.js";
+import { CARD_STYLES } from "./card-styles.js";
 
 /**
  * Build the status bar HTML fragment.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildCardHtml, buildStatusBarHtml } from "../src/card-template.js";
+import { buildCardHtml, buildStatusBarHtml } from "../../src/card/card-template.js";
 
 // Helper: parse an HTML string into a DOM node
 function parse(html) {

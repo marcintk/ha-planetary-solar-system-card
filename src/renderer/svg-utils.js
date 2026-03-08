@@ -1,4 +1,4 @@
-import { PLANETS } from "../planet-data.js";
+import { PLANETS } from "../astronomy/planet-data.js";
 
 export const SVG_NS = "http://www.w3.org/2000/svg";
 export const VIEW_SIZE = 800;

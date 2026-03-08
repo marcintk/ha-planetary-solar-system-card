@@ -1,19 +1,9 @@
-import { calculateMoonPosition, calculatePlanetPosition } from "./orbital-mechanics.js";
-import { MOON, PLANETS, SUN } from "./planet-data.js";
-import { ORBIT_COLOR, renderBody, renderOrbit, renderSaturnRings } from "./renderer/bodies.js";
-import {
-  calculateObserverAngle,
-  renderDayNightSplit,
-  renderObserverNeedle,
-} from "./renderer/observer.js";
-import { renderSeasonOverlay } from "./renderer/seasons.js";
-import {
-  auToRadius,
-  CENTER,
-  createSvgElement,
-  expandBounds,
-  VIEW_SIZE,
-} from "./renderer/svg-utils.js";
+import { calculateMoonPosition, calculatePlanetPosition } from "../astronomy/orbital-mechanics.js";
+import { MOON, PLANETS, SUN } from "../astronomy/planet-data.js";
+import { ORBIT_COLOR, renderBody, renderOrbit, renderSaturnRings } from "./bodies.js";
+import { calculateObserverAngle, renderDayNightSplit, renderObserverNeedle } from "./observer.js";
+import { renderSeasonOverlay } from "./seasons.js";
+import { auToRadius, CENTER, createSvgElement, expandBounds, VIEW_SIZE } from "./svg-utils.js";
 
 /**
  * Renders the solar system SVG and returns it with bounding box metadata.

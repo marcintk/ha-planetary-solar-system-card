@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PLANETS } from "../../src/planet-data.js";
+import { PLANETS } from "../../src/astronomy/planet-data.js";
 import {
   auToRadius,
   CENTER,

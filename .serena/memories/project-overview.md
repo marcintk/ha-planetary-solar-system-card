@@ -12,6 +12,18 @@ Do not duplicate that content here. This memory contains only Serena-specific op
 - **OpenSpec skills** (`/opsx:*`) — spec/design/task workflow before coding
 - **Claude Code** — orchestrates everything; CLAUDE.md is the single source of truth
 
+## Source Layout (as of Mar 2026 refactor)
+
+```
+src/index.js                        ← entry (stays at top)
+src/card/{solar-view-card, card-template, card-styles, view-state}.js
+src/astronomy/{planet-data, orbital-mechanics, solar-position}.js
+src/renderer/{index, bodies, observer, seasons, svg-utils}.js
+test/card/, test/astronomy/, test/renderer/   ← mirrors src/
+```
+- `src/renderer/index.js` is the main compositor (was `renderer.js`)
+- `test/renderer/index.test.js` is the integration test (was `renderer.test.js`)
+
 ## Code Style (needed for symbol editing)
 
 - camelCase functions/variables, PascalCase classes, UPPER_SNAKE constants

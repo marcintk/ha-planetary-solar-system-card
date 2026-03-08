@@ -1,6 +1,6 @@
-import { calculatePlanetPosition } from "../orbital-mechanics.js";
-import { PLANETS } from "../planet-data.js";
-import { computeSolarElevationDeg, getLocalTimeInZone } from "../solar-position.js";
+import { calculatePlanetPosition } from "../astronomy/orbital-mechanics.js";
+import { PLANETS } from "../astronomy/planet-data.js";
+import { computeSolarElevationDeg, getLocalTimeInZone } from "../astronomy/solar-position.js";
 import { CENTER, createSvgElement, MAX_RADIUS, VIEW_SIZE } from "./svg-utils.js";
 
 const NEEDLE_COLOR = "rgba(255, 255, 255, 0.7)";

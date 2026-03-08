@@ -4,7 +4,7 @@ import {
   computeSolarElevationDeg,
   getLocalTimeInZone,
   getSkyMode,
-} from "../src/solar-position.js";
+} from "../../src/astronomy/solar-position.js";
 
 describe("getLocalTimeInZone", () => {
   it("returns correct local time for a UTC date in America/Chicago (CST = UTC-6)", () => {

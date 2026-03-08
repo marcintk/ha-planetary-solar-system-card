@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { calculatePlanetPosition } from "../../src/orbital-mechanics.js";
-import { PLANETS } from "../../src/planet-data.js";
+import { calculatePlanetPosition } from "../../src/astronomy/orbital-mechanics.js";
+import { PLANETS } from "../../src/astronomy/planet-data.js";
 import {
   CONE_ASTRONOMICAL,
   CONE_CIVIL,

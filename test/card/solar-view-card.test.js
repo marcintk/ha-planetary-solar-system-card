@@ -1,6 +1,6 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { renderSolarSystem } from "../src/renderer.js";
-import { SolarViewCard } from "../src/solar-view-card.js";
+import { SolarViewCard } from "../../src/card/solar-view-card.js";
+import { renderSolarSystem } from "../../src/renderer/index.js";
 
 beforeAll(() => {
   if (!customElements.get("ha-solar-view-card-test")) {

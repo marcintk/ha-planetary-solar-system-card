@@ -13,7 +13,9 @@
     "lint": "biome lint src/ test/",
     "lint:fix": "biome lint --write src/ test/",
     "check": "biome check src/ test/",
-    "check:fix": "biome check --write src/ test/"
+    "check:fix": "biome check --write src/ test/",
+    "format:md": "prettier --write \"**/*.md\"",
+    "format:md:check": "prettier --check \"**/*.md\""
   },
   "keywords": [
     "home-assistant",
@@ -26,6 +28,7 @@
     "@rollup/plugin-node-resolve": "^16.0.3",
     "@rollup/plugin-terser": "^0.4.4",
     "jsdom": "^28.0.0",
+    "prettier": "^3.8.1",
     "rollup": "^4.57.1",
     "vitest": "^4.0.18"
   }

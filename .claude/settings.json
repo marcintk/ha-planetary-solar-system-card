@@ -11,6 +11,17 @@
             "statusMessage": "Biome: checking format and lint..."
           }
         ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -c \"import sys,json,subprocess; d=json.loads(sys.stdin.read()); f=d.get('tool_input',{}).get('file_path',''); f.endswith('.md') and subprocess.run(['npx','prettier','--write',f])\" 2>/dev/null || true",
+            "timeout": 15,
+            "statusMessage": "Prettier: formatting markdown..."
+          }
+        ]
       }
     ]
   }

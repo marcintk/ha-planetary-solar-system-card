@@ -1,6 +1,7 @@
 # ha-solar-view-card
 
-Home Assistant custom Lovelace card showing all 8 planets and Moon aligned around the Sun. Navigate time, zoom, and pan interactively.
+Home Assistant custom Lovelace card showing all 8 planets and Moon aligned around the Sun. Navigate
+time, zoom, and pan interactively.
 
 ## Demo
 
@@ -28,4 +29,5 @@ Home Assistant custom Lovelace card showing all 8 planets and Moon aligned aroun
 
 ## Development
 
-AI-generated using [OpenSpec](https://github.com/Fission-AI/OpenSpec). See [CLAUDE.md](CLAUDE.md) for details.
+AI-generated using [OpenSpec](https://github.com/Fission-AI/OpenSpec). See [CLAUDE.md](CLAUDE.md)
+for details.

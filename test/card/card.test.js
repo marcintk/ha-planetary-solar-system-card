@@ -1,5 +1,5 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { SolarViewCard } from "../../src/card/solar-view-card.js";
+import { SolarViewCard } from "../../src/card/card.js";
 import { renderSolarSystem } from "../../src/renderer/index.js";
 
 beforeAll(() => {

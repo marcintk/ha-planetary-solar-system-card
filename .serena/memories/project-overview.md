@@ -16,7 +16,7 @@ Do not duplicate that content here. This memory contains only Serena-specific op
 
 ```
 src/index.js                        ← entry (stays at top)
-src/card/{solar-view-card, card-template, card-styles, view-state}.js
+src/card/{card, card-template, card-styles, card-view-state}.js
 src/astronomy/{planet-data, orbital-mechanics, solar-position}.js
 src/renderer/{index, bodies, observer, seasons, svg-utils}.js
 test/card/, test/astronomy/, test/renderer/   ← mirrors src/

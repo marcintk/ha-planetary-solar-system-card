@@ -10,10 +10,10 @@ context: |
 
   Source layout:
     src/index.js                       — entry; registers custom element
-    src/card/solar-view-card.js        — SolarViewCard extends HTMLElement (shadow DOM)
+    src/card/card.js                   — SolarViewCard extends HTMLElement (shadow DOM)
     src/card/card-template.js          — buildStatusBarHtml, buildCardHtml
     src/card/card-styles.js            — CARD_STYLES CSS string
-    src/card/view-state.js             — ViewState class (zoom levels 1–4, pan/drag)
+    src/card/card-view-state.js        — ViewState class (zoom levels 1–4, pan/drag)
     src/astronomy/planet-data.js       — PLANETS[], MOON, SUN static data
     src/astronomy/orbital-mechanics.js — calculatePlanetPosition, calculateMoonPosition
     src/astronomy/solar-position.js    — real astronomical calc: computeSolarElevationDeg,
@@ -26,8 +26,8 @@ context: |
     src/renderer/seasons.js            — renderSeasonOverlay
 
   Test layout mirrors src/ exactly:
-    test/card/view-state.test.js, test/card/card-template.test.js,
-    test/card/solar-view-card.test.js,
+    test/card/card.test.js, test/card/card-view-state.test.js,
+    test/card/card-template.test.js,
     test/astronomy/planet-data.test.js, test/astronomy/orbital-mechanics.test.js,
     test/astronomy/solar-position.test.js,
     test/renderer/index.test.js (renderSolarSystem integration tests),

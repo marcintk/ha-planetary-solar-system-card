@@ -1,4 +1,4 @@
-import { SolarViewCard } from "./card/solar-view-card.js";
+import { SolarViewCard } from "./card/card.js";
 
 customElements.define("ha-solar-view-card", SolarViewCard);
 

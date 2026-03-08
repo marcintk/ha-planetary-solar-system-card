@@ -1,6 +1,6 @@
 import { renderSolarSystem } from "../renderer/index.js";
 import { buildCardHtml, buildStatusBarHtml } from "./card-template.js";
-import { DEFAULT_ZOOM_LEVEL, MAX_ZOOM, MIN_ZOOM, ViewState } from "./view-state.js";
+import { DEFAULT_ZOOM_LEVEL, MAX_ZOOM, MIN_ZOOM, ViewState } from "./card-view-state.js";
 
 export class SolarViewCard extends HTMLElement {
   constructor() {

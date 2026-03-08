@@ -18,8 +18,9 @@ Home Assistant custom Lovelace card showing all 8 planets and Moon aligned aroun
      - url: /local/ha-solar-view-card/ha-solar-view-card.js
        type: JavaScript Module
    ```
+3. Restart Home Assistant
 
-3. Add the card:
+4. Add the card:
    ```yaml
    type: custom:ha-solar-view-card
    default_zoom: 2

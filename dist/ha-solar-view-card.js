@@ -1,6 +1,3 @@
-// J2000 epoch: January 1, 2000 12:00 TT
-const J2000 = Date.UTC(2000, 0, 1, 12, 0, 0);
-
 const SUN = {
   name: "Sun",
   color: "#ffd700",
@@ -47,7 +44,7 @@ const PLANETS = [
     au: 5.2,
     periodDays: 4332.6,
     color: "#c88b3a",
-    size: 25,
+    size: 21,
     meanLongitudeJ2000: 34.4,
   },
   {
@@ -55,7 +52,7 @@ const PLANETS = [
     au: 9.58,
     periodDays: 10759.2,
     color: "#e0c080",
-    size: 26,
+    size: 25,
     meanLongitudeJ2000: 49.94,
   },
   {
@@ -84,6 +81,9 @@ const MOON = {
   meanLongitudeJ2000: 218.32,
 };
 
+// J2000 epoch: January 1, 2000 12:00 TT
+const J2000 = Date.UTC(2000, 0, 1, 12, 0, 0);
+
 function daysSinceJ2000(date) {
   return (date.getTime() - J2000) / 86400000;
 }
@@ -99,8 +99,7 @@ function degreesToRadians(deg) {
 function calculatePlanetPosition(planet, date) {
   const days = daysSinceJ2000(date);
   const meanMotion = (2 * Math.PI) / planet.periodDays;
-  const angle =
-    degreesToRadians(planet.meanLongitudeJ2000) + meanMotion * days;
+  const angle = degreesToRadians(planet.meanLongitudeJ2000) + meanMotion * days;
   // Normalize to [0, 2π)
   return ((angle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
 }
@@ -116,152 +115,14 @@ function calculateMoonPosition(date) {
   return ((angle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
 }
 
-/**
- * Extract local hours and minutes for a Date in a given IANA timezone string.
- * Falls back to UTC if the timezone is invalid or unrecognised.
- * @param {Date} date
- * @param {string} timezone - IANA timezone string (e.g. "America/Chicago")
- * @returns {{ hours: number, minutes: number }}
- */
-function getLocalTimeInZone(date, timezone) {
-  try {
-    const parts = new Intl.DateTimeFormat("en-US", {
-      timeZone: timezone,
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    }).formatToParts(date);
-    const hourPart = parts.find((p) => p.type === "hour");
-    const minutePart = parts.find((p) => p.type === "minute");
-    let hours = Number(hourPart.value);
-    if (hours === 24) hours = 0; // some engines return 24 for midnight
-    return { hours, minutes: Number(minutePart.value) };
-  } catch {
-    return { hours: date.getUTCHours(), minutes: date.getUTCMinutes() };
-  }
-}
-
-/**
- * Compute the Sun's true altitude above the observer's horizon using spherical
- * astronomy. Returns degrees in [-90, 90].
- *
- * Formula:
- *   δ  = -23.45° × cos( 2π/365 × (dayOfYear + 10) )   ← solar declination
- *   H  = 15° × (localSolarHour - 12)                    ← hour angle
- *   sin(alt) = sin(lat)×sin(δ) + cos(lat)×cos(δ)×cos(H)
- *
- * localSolarHour uses UTC + longitude offset (1 hour per 15° longitude),
- * which is independent of civil timezone and gives true solar time.
- *
- * @param {number} lat - observer latitude in degrees
- * @param {number} lon - observer longitude in degrees (positive east)
- * @param {Date} date
- * @returns {number} solar altitude in degrees
- */
-function computeSolarElevationDeg(lat, lon, date) {
-  // Day of year (1 = Jan 1)
-  const startOfYear = Date.UTC(date.getUTCFullYear(), 0, 0);
-  const dayOfYear = Math.floor((date.getTime() - startOfYear) / 86400000);
-
-  // Solar declination in radians
-  const declRad = (-23.45 * Math.cos((2 * Math.PI / 365) * (dayOfYear + 10)) * Math.PI) / 180;
-
-  // Local solar hour: UTC fractional hours + longitude offset (15°/hr)
-  const utcHour = date.getUTCHours() + date.getUTCMinutes() / 60 + date.getUTCSeconds() / 3600;
-  const localSolarHour = ((utcHour + lon / 15) % 24 + 24) % 24;
-
-  // Hour angle in radians (positive in afternoon)
-  const hourAngleRad = ((localSolarHour - 12) * 15 * Math.PI) / 180;
-
-  const latRad = (lat * Math.PI) / 180;
-  const sinAlt =
-    Math.sin(latRad) * Math.sin(declRad) +
-    Math.cos(latRad) * Math.cos(declRad) * Math.cos(hourAngleRad);
-
-  return (Math.asin(Math.max(-1, Math.min(1, sinAlt))) * 180) / Math.PI;
-}
-
-/**
- * Classify a solar elevation angle into a sky mode string.
- * @param {number} elevDeg
- * @returns {string}
- */
-function getSkyMode(elevDeg) {
-  if (elevDeg >= 0) return "Day";
-  if (elevDeg >= -6) return "Civil Twilight";
-  if (elevDeg >= -12) return "Nautical Twilight";
-  if (elevDeg >= -18) return "Astronomical Twilight";
-  return "Night";
-}
-
-/**
- * Find the next sky-mode boundary crossing after `date`.
- * Uses a minute-by-minute forward scan (up to 24 hours) followed by
- * binary-search refinement within the detected bracket.
- *
- * @param {number} lat - observer latitude in degrees
- * @param {number} lon - observer longitude in degrees
- * @param {Date} date - start time
- * @returns {{ time: Date, toMode: string } | null}
- */
-function computeNextTransitionTime(lat, lon, date) {
-  const MS_PER_MIN = 60000;
-  const MAX_MINS = 24 * 60;
-
-  const startElev = computeSolarElevationDeg(lat, lon, date);
-  let currentMode = getSkyMode(startElev);
-
-  let bracketLoMs = null;
-  let bracketHiMs = null;
-  let toMode = null;
-
-  // Minute-by-minute scan
-  for (let m = 1; m <= MAX_MINS; m++) {
-    const t = date.getTime() + m * MS_PER_MIN;
-    const elev = computeSolarElevationDeg(lat, lon, new Date(t));
-    const mode = getSkyMode(elev);
-    if (mode !== currentMode) {
-      bracketLoMs = t - MS_PER_MIN;
-      bracketHiMs = t;
-      toMode = mode;
-      break;
-    }
-  }
-
-  if (bracketLoMs === null) return null;
-
-  // Binary-search refinement within the bracket
-  for (let i = 0; i < 10; i++) {
-    const midMs = Math.floor((bracketLoMs + bracketHiMs) / 2);
-    const midMode = getSkyMode(computeSolarElevationDeg(lat, lon, new Date(midMs)));
-    if (midMode === currentMode) {
-      bracketLoMs = midMs;
-    } else {
-      bracketHiMs = midMs;
-    }
-  }
-
-  return { time: new Date(bracketHiMs), toMode };
-}
-
 const SVG_NS = "http://www.w3.org/2000/svg";
 const VIEW_SIZE = 800;
 const CENTER = VIEW_SIZE / 2;
-const ORBIT_COLOR = "rgba(255, 255, 255, 0.12)";
-const LABEL_COLOR = "rgba(255, 255, 255, 0.5)";
-const NEEDLE_COLOR = "rgba(255, 255, 255, 0.7)";
-
-const CONE_DAY = "rgba(255, 255, 255, 0.1)";          // Sun above horizon
-const CONE_CIVIL = "rgba(255, 220, 160, 0.08)";       // Civil twilight:       0° to -6°
-const CONE_NAUTICAL = "rgba(160, 190, 255, 0.06)";    // Nautical twilight:  -6° to -12°
-const CONE_ASTRONOMICAL = "rgba(80, 100, 200, 0.04)"; // Astronomical twilight: -12° to -18°
-const CONE_NIGHT = "rgba(255, 255, 255, 0.01)";       // Sun below -18°
-
-// Log-scale orbit radii so inner planets aren't squished
-// Maps AU → pixel radius from center, leaving margin for labels
 const MIN_RADIUS = 40;
 const MAX_RADIUS = 360;
 
+// Log-scale orbit radii so inner planets aren't squished.
+// Maps AU → pixel radius from center, leaving margin for labels.
 function auToRadius(au) {
   const minAU = PLANETS[0].au;
   const maxAU = PLANETS[PLANETS.length - 1].au;
@@ -278,6 +139,16 @@ function createSvgElement(tag, attrs) {
   }
   return el;
 }
+
+function expandBounds(bounds, x, y, margin) {
+  bounds.minX = Math.min(bounds.minX, x - margin);
+  bounds.minY = Math.min(bounds.minY, y - margin);
+  bounds.maxX = Math.max(bounds.maxX, x + margin);
+  bounds.maxY = Math.max(bounds.maxY, y + margin);
+}
+
+const ORBIT_COLOR = "rgba(255, 255, 255, 0.12)";
+const LABEL_COLOR = "rgba(255, 255, 255, 0.5)";
 
 function renderOrbit(svg, radius, auLabel) {
   svg.appendChild(
@@ -346,7 +217,7 @@ function renderBody(svg, x, y, body, showLabel = true) {
   }
 }
 
-function renderSaturnRings(svg, x, y, body, renderSize) {
+function renderSaturnRings(svg, x, y, body, _renderSize) {
   const hex = body.color;
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
@@ -380,6 +251,142 @@ function renderSaturnRings(svg, x, y, body, renderSize) {
 }
 
 /**
+ * Extract local hours and minutes for a Date in a given IANA timezone string.
+ * Falls back to UTC if the timezone is invalid or unrecognised.
+ * @param {Date} date
+ * @param {string} timezone - IANA timezone string (e.g. "America/Chicago")
+ * @returns {{ hours: number, minutes: number }}
+ */
+function getLocalTimeInZone(date, timezone) {
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).formatToParts(date);
+    const hourPart = parts.find((p) => p.type === "hour");
+    const minutePart = parts.find((p) => p.type === "minute");
+    let hours = Number(hourPart.value);
+    if (hours === 24) hours = 0; // some engines return 24 for midnight
+    return { hours, minutes: Number(minutePart.value) };
+  } catch {
+    return { hours: date.getUTCHours(), minutes: date.getUTCMinutes() };
+  }
+}
+
+/**
+ * Compute the Sun's true altitude above the observer's horizon using spherical
+ * astronomy. Returns degrees in [-90, 90].
+ *
+ * Formula:
+ *   δ  = -23.45° × cos( 2π/365 × (dayOfYear + 10) )   ← solar declination
+ *   H  = 15° × (localSolarHour - 12)                    ← hour angle
+ *   sin(alt) = sin(lat)×sin(δ) + cos(lat)×cos(δ)×cos(H)
+ *
+ * localSolarHour uses UTC + longitude offset (1 hour per 15° longitude),
+ * which is independent of civil timezone and gives true solar time.
+ *
+ * @param {number} lat - observer latitude in degrees
+ * @param {number} lon - observer longitude in degrees (positive east)
+ * @param {Date} date
+ * @returns {number} solar altitude in degrees
+ */
+function computeSolarElevationDeg(lat, lon, date) {
+  // Day of year (1 = Jan 1)
+  const startOfYear = Date.UTC(date.getUTCFullYear(), 0, 0);
+  const dayOfYear = Math.floor((date.getTime() - startOfYear) / 86400000);
+
+  // Solar declination in radians
+  const declRad = (-23.45 * Math.cos(((2 * Math.PI) / 365) * (dayOfYear + 10)) * Math.PI) / 180;
+
+  // Local solar hour: UTC fractional hours + longitude offset (15°/hr)
+  const utcHour = date.getUTCHours() + date.getUTCMinutes() / 60 + date.getUTCSeconds() / 3600;
+  const localSolarHour = (((utcHour + lon / 15) % 24) + 24) % 24;
+
+  // Hour angle in radians (positive in afternoon)
+  const hourAngleRad = ((localSolarHour - 12) * 15 * Math.PI) / 180;
+
+  const latRad = (lat * Math.PI) / 180;
+  const sinAlt =
+    Math.sin(latRad) * Math.sin(declRad) +
+    Math.cos(latRad) * Math.cos(declRad) * Math.cos(hourAngleRad);
+
+  return (Math.asin(Math.max(-1, Math.min(1, sinAlt))) * 180) / Math.PI;
+}
+
+/**
+ * Classify a solar elevation angle into a sky mode string.
+ * @param {number} elevDeg
+ * @returns {string}
+ */
+function getSkyMode(elevDeg) {
+  if (elevDeg >= 0) return "Day";
+  if (elevDeg >= -6) return "Civil Twilight";
+  if (elevDeg >= -12) return "Nautical Twilight";
+  if (elevDeg >= -18) return "Astronomical Twilight";
+  return "Night";
+}
+
+/**
+ * Find the next sky-mode boundary crossing after `date`.
+ * Uses a minute-by-minute forward scan (up to 24 hours) followed by
+ * binary-search refinement within the detected bracket.
+ *
+ * @param {number} lat - observer latitude in degrees
+ * @param {number} lon - observer longitude in degrees
+ * @param {Date} date - start time
+ * @returns {{ time: Date, toMode: string } | null}
+ */
+function computeNextTransitionTime(lat, lon, date) {
+  const MS_PER_MIN = 60000;
+  const MAX_MINS = 24 * 60;
+
+  const startElev = computeSolarElevationDeg(lat, lon, date);
+  const currentMode = getSkyMode(startElev);
+
+  let bracketLoMs = null;
+  let bracketHiMs = null;
+  let toMode = null;
+
+  // Minute-by-minute scan
+  for (let m = 1; m <= MAX_MINS; m++) {
+    const t = date.getTime() + m * MS_PER_MIN;
+    const elev = computeSolarElevationDeg(lat, lon, new Date(t));
+    const mode = getSkyMode(elev);
+    if (mode !== currentMode) {
+      bracketLoMs = t - MS_PER_MIN;
+      bracketHiMs = t;
+      toMode = mode;
+      break;
+    }
+  }
+
+  if (bracketLoMs === null) return null;
+
+  // Binary-search refinement within the bracket
+  for (let i = 0; i < 10; i++) {
+    const midMs = Math.floor((bracketLoMs + bracketHiMs) / 2);
+    const midMode = getSkyMode(computeSolarElevationDeg(lat, lon, new Date(midMs)));
+    if (midMode === currentMode) {
+      bracketLoMs = midMs;
+    } else {
+      bracketHiMs = midMs;
+    }
+  }
+
+  return { time: new Date(bracketHiMs), toMode };
+}
+
+const NEEDLE_COLOR = "rgba(255, 255, 255, 0.7)";
+
+const CONE_DAY = "rgba(255, 255, 255, 0.1)"; // Sun above horizon
+const CONE_CIVIL = "rgba(255, 220, 160, 0.08)"; // Civil twilight:        0° to -6°
+const CONE_NAUTICAL = "rgba(160, 190, 255, 0.06)"; // Nautical twilight:   -6° to -12°
+const CONE_ASTRONOMICAL = "rgba(80, 100, 200, 0.04)"; // Astronomical twilight: -12° to -18°
+const CONE_NIGHT = "rgba(255, 255, 255, 0.01)"; // Sun below -18°
+
+/**
  * Compute the Sun's elevation angle in degrees from the observer's horizon.
  * Positive = Sun above horizon (day), negative = Sun below horizon (night).
  * Uses atan2 to correctly handle 2π wrap-around.
@@ -389,10 +396,7 @@ function renderSaturnRings(svg, x, y, body, renderSize) {
  */
 function calculateSolarElevationDeg(observerAngle, earthAngle) {
   const dirToSun = earthAngle + Math.PI;
-  const diff = Math.atan2(
-    Math.sin(observerAngle - dirToSun),
-    Math.cos(observerAngle - dirToSun)
-  );
+  const diff = Math.atan2(Math.sin(observerAngle - dirToSun), Math.cos(observerAngle - dirToSun));
   return (Math.PI / 2 - Math.abs(diff)) * (180 / Math.PI);
 }
 
@@ -418,7 +422,15 @@ function calculateObserverAngle(earthOrbitalAngle, date, timezone) {
   return earthOrbitalAngle + localTimeAngle;
 }
 
-function renderVisibilityCone(svg, anchorX, anchorY, observerAngle, halfAngleDeg, clipId, fillColor) {
+function renderVisibilityCone(
+  svg,
+  anchorX,
+  anchorY,
+  observerAngle,
+  halfAngleDeg,
+  clipId,
+  fillColor
+) {
   const D = VIEW_SIZE;
   const HALF_ANGLE = (halfAngleDeg * Math.PI) / 180;
   const largeArcFlag = halfAngleDeg >= 90 ? 1 : 0;
@@ -433,7 +445,8 @@ function renderVisibilityCone(svg, anchorX, anchorY, observerAngle, halfAngleDeg
   // SVG path: MoveTo apex, LineTo left edge, Arc to right edge, ClosePath
   const pathD = `M ${anchorX} ${anchorY} L ${leftX} ${leftY} A ${D} ${D} 0 ${largeArcFlag} 1 ${rightX} ${rightY} Z`;
 
-  const defs = svg.querySelector("defs") || svg.insertBefore(createSvgElement("defs", {}), svg.firstChild);
+  const defs =
+    svg.querySelector("defs") || svg.insertBefore(createSvgElement("defs", {}), svg.firstChild);
 
   const clipPath = createSvgElement("clipPath", { id: clipId });
   clipPath.appendChild(createSvgElement("path", { d: pathD }));
@@ -453,7 +466,7 @@ function renderVisibilityCone(svg, anchorX, anchorY, observerAngle, halfAngleDeg
 function renderDayNightSplit(svg, earthRadius, date, earthBodySize, locationData) {
   const earth = PLANETS.find((p) => p.name === "Earth");
   const earthAngle = calculatePlanetPosition(earth, date);
-  const observerAngle = calculateObserverAngle(earthAngle, date, locationData && locationData.timezone);
+  const observerAngle = calculateObserverAngle(earthAngle, date, locationData?.timezone);
 
   const earthDirX = Math.cos(earthAngle);
   const earthDirY = Math.sin(earthAngle);
@@ -470,16 +483,17 @@ function renderDayNightSplit(svg, earthRadius, date, earthBodySize, locationData
   // Half-angle = 90° − elevationDeg expands the cone below the horizon during twilight.
   // When real location data is available, use spherical astronomy; otherwise fall back to
   // the orbital approximation so the card works without a hass object (tests, previews).
-  const elevationDeg = (locationData && locationData.lat != null)
-    ? computeSolarElevationDeg(locationData.lat, locationData.lon, date)
-    : calculateSolarElevationDeg(observerAngle, earthAngle);
+  const elevationDeg =
+    locationData && locationData.lat != null
+      ? computeSolarElevationDeg(locationData.lat, locationData.lon, date)
+      : calculateSolarElevationDeg(observerAngle, earthAngle);
   let coneColor;
-  if (elevationDeg >= 0)        coneColor = CONE_DAY;
-  else if (elevationDeg >= -6)  coneColor = CONE_CIVIL;
+  if (elevationDeg >= 0) coneColor = CONE_DAY;
+  else if (elevationDeg >= -6) coneColor = CONE_CIVIL;
   else if (elevationDeg >= -12) coneColor = CONE_NAUTICAL;
   else if (elevationDeg >= -18) coneColor = CONE_ASTRONOMICAL;
-  else                          coneColor = CONE_NIGHT;
-  const halfAngle = (elevationDeg >= 0 || elevationDeg < -18) ? 90 : (90 - elevationDeg);
+  else coneColor = CONE_NIGHT;
+  const halfAngle = elevationDeg >= 0 || elevationDeg < -18 ? 90 : 90 - elevationDeg;
   renderVisibilityCone(svg, anchorX, anchorY, observerAngle, halfAngle, "sky-clip", coneColor);
 
   // Horizon line — always drawn to show the 180° visible-sky boundary
@@ -490,8 +504,10 @@ function renderDayNightSplit(svg, earthRadius, date, earthBodySize, locationData
   const rightY = anchorY - D * Math.sin(observerAngle - Math.PI / 2);
   svg.appendChild(
     createSvgElement("line", {
-      x1: leftX, y1: leftY,
-      x2: rightX, y2: rightY,
+      x1: leftX,
+      y1: leftY,
+      x2: rightX,
+      y2: rightY,
       stroke: "rgba(255, 255, 255, 0.3)",
       "stroke-width": 1,
       "stroke-dasharray": "4, 4",
@@ -560,10 +576,10 @@ function renderSeasonOverlay(svg, hemisphere) {
   //   bottom-left = Spring, bottom-right = Summer,
   //   top-right = Autumn, top-left = Winter
   const northSeasons = [
-    { name: "Winter", startAngle: 90, endAngle: 180 },    // top-left
-    { name: "Autumn", startAngle: 0, endAngle: 90 },      // top-right
-    { name: "Summer", startAngle: 270, endAngle: 360 },   // bottom-right
-    { name: "Spring", startAngle: 180, endAngle: 270 },   // bottom-left
+    { name: "Winter", startAngle: 90, endAngle: 180 }, // top-left
+    { name: "Autumn", startAngle: 0, endAngle: 90 }, // top-right
+    { name: "Summer", startAngle: 270, endAngle: 360 }, // bottom-right
+    { name: "Spring", startAngle: 180, endAngle: 270 }, // bottom-left
   ];
 
   const southSeasons = [
@@ -576,7 +592,8 @@ function renderSeasonOverlay(svg, hemisphere) {
   const seasons = hemisphere === "south" ? southSeasons : northSeasons;
   const labelRadius = MAX_RADIUS + 20;
 
-  const defs = svg.querySelector("defs") || svg.insertBefore(createSvgElement("defs", {}), svg.firstChild);
+  const defs =
+    svg.querySelector("defs") || svg.insertBefore(createSvgElement("defs", {}), svg.firstChild);
 
   seasons.forEach((season, i) => {
     const pathId = `season-arc-${i}`;
@@ -620,13 +637,6 @@ function renderSeasonOverlay(svg, hemisphere) {
     text.appendChild(textPath);
     svg.appendChild(text);
   });
-}
-
-function expandBounds(bounds, x, y, margin) {
-  bounds.minX = Math.min(bounds.minX, x - margin);
-  bounds.minY = Math.min(bounds.minY, y - margin);
-  bounds.maxX = Math.max(bounds.maxX, x + margin);
-  bounds.maxY = Math.max(bounds.maxY, y + margin);
 }
 
 /**
@@ -725,7 +735,7 @@ function renderSolarSystem(date, hemisphere = "north", locationData = null) {
   expandBounds(bounds, moonX, moonY, MOON.size + 17);
 
   // Observer needle on Earth (tip at surface)
-  const observerAngle = calculateObserverAngle(earthAngle, date, locationData && locationData.timezone);
+  const observerAngle = calculateObserverAngle(earthAngle, date, locationData?.timezone);
   renderObserverNeedle(svg, earthX, earthY, observerAngle, earth.size);
 
   return { svg, bounds };
@@ -910,26 +920,92 @@ function buildCardHtml(statusBarHtml, formattedDate, zoomLevel) {
 }
 
 const FULL_SYSTEM_SIZE = 800;
-const ZOOM_LEVELS = {
-  1: 800,
-  2: 640,
-  3: 480,
-  4: 320
-};
 const DEFAULT_ZOOM_LEVEL = 1;
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 4;
+
+const ZOOM_LEVELS = { 1: 800, 2: 640, 3: 480, 4: 320 };
+
+/**
+ * Encapsulates all pan and zoom state for the solar system view.
+ * Keeps the SolarViewCard focused on rendering and event wiring.
+ */
+class ViewState {
+  constructor(defaultZoomLevel = DEFAULT_ZOOM_LEVEL) {
+    this.centerX = FULL_SYSTEM_SIZE / 2;
+    this.centerY = FULL_SYSTEM_SIZE / 2;
+    this.zoomLevel = defaultZoomLevel;
+    this._width = ZOOM_LEVELS[defaultZoomLevel];
+    this._height = ZOOM_LEVELS[defaultZoomLevel];
+    this.isDragging = false;
+    this._dragStartX = 0;
+    this._dragStartY = 0;
+    this._dragStartCenterX = 0;
+    this._dragStartCenterY = 0;
+  }
+
+  get width() {
+    return this._width;
+  }
+  get height() {
+    return this._height;
+  }
+
+  /** Returns the SVG viewBox string for the current pan/zoom state. */
+  get viewBox() {
+    const minX = this.centerX - this._width / 2;
+    const minY = this.centerY - this._height / 2;
+    return `${minX} ${minY} ${this._width} ${this._height}`;
+  }
+
+  /** Zoom in one discrete level. Returns true if zoom changed. */
+  zoomIn() {
+    if (this.zoomLevel >= MAX_ZOOM) return false;
+    this.zoomLevel++;
+    this._width = ZOOM_LEVELS[this.zoomLevel];
+    this._height = ZOOM_LEVELS[this.zoomLevel];
+    return true;
+  }
+
+  /** Zoom out one discrete level. Returns true if zoom changed. */
+  zoomOut() {
+    if (this.zoomLevel <= MIN_ZOOM) return false;
+    this.zoomLevel--;
+    this._width = ZOOM_LEVELS[this.zoomLevel];
+    this._height = ZOOM_LEVELS[this.zoomLevel];
+    return true;
+  }
+
+  startDrag(clientX, clientY) {
+    this.isDragging = true;
+    this._dragStartX = clientX;
+    this._dragStartY = clientY;
+    this._dragStartCenterX = this.centerX;
+    this._dragStartCenterY = this.centerY;
+  }
+
+  /** Update pan position during a drag. svgRect is the result of getBoundingClientRect(). */
+  updateDrag(clientX, clientY, svgRect) {
+    if (!this.isDragging) return;
+    const dx = clientX - this._dragStartX;
+    const dy = clientY - this._dragStartY;
+    const scaleX = this._width / svgRect.width;
+    const scaleY = this._height / svgRect.height;
+    this.centerX = this._dragStartCenterX - dx * scaleX;
+    this.centerY = this._dragStartCenterY - dy * scaleY;
+  }
+
+  endDrag() {
+    this.isDragging = false;
+  }
+}
 
 class SolarViewCard extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: "open" });
-    this._currentDate = new Date(); // View state (initialized on first render)
-    this._viewCenterX = null;
-    this._viewCenterY = null;
-    this._viewWidth = null;
-    this._viewHeight = null;
-    this._zoomLevel = null;
+    this._currentDate = new Date();
+    this._viewState = null; // initialized on first render
     this._defaultZoomLevel = DEFAULT_ZOOM_LEVEL;
     this._hemisphere = "north"; // Hemisphere for season labels (default: north)
     this._lat = null;
@@ -937,20 +1013,37 @@ class SolarViewCard extends HTMLElement {
     this._timezone = null;
     this._locationName = null;
     this._autoUpdateTimer = null; // Auto-update timer
-    this._isDragging = false; // Drag state
-    this._dragStartX = 0;
-    this._dragStartY = 0;
-    this._dragStartCenterX = 0;
-    this._dragStartCenterY = 0;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Proxy getters — expose ViewState fields at the card level so that tests
+  // and external code can read them without knowing about ViewState internals.
+  // ---------------------------------------------------------------------------
+  get _isDragging() {
+    return this._viewState?.isDragging ?? false;
+  }
+  get _viewCenterX() {
+    return this._viewState?.centerX ?? null;
+  }
+  get _viewCenterY() {
+    return this._viewState?.centerY ?? null;
+  }
+  get _zoomLevel() {
+    return this._viewState?.zoomLevel ?? null;
   }
 
   set hass(hass) {
     this._hass = hass;
-    const lat = hass.config && hass.config.latitude;
-    const lon = hass.config && hass.config.longitude;
-    const timezone = hass.config && hass.config.time_zone;
-    const locationName = hass.config && hass.config.location_name;
-    if (lat !== this._lat || lon !== this._lon || timezone !== this._timezone || locationName !== this._locationName) {
+    const lat = hass.config?.latitude;
+    const lon = hass.config?.longitude;
+    const timezone = hass.config?.time_zone;
+    const locationName = hass.config?.location_name;
+    if (
+      lat !== this._lat ||
+      lon !== this._lon ||
+      timezone !== this._timezone ||
+      locationName !== this._locationName
+    ) {
       this._lat = lat != null ? lat : null;
       this._lon = lon != null ? lon : null;
       this._timezone = timezone || null;
@@ -961,14 +1054,22 @@ class SolarViewCard extends HTMLElement {
 
   setConfig(config) {
     this._config = config;
-    this._defaultZoomLevel = (config.default_zoom == null || config.default_zoom < MIN_ZOOM || config.default_zoom > MAX_ZOOM) ? DEFAULT_ZOOM_LEVEL : config.default_zoom;
+    this._defaultZoomLevel =
+      config.default_zoom == null ||
+      config.default_zoom < MIN_ZOOM ||
+      config.default_zoom > MAX_ZOOM
+        ? DEFAULT_ZOOM_LEVEL
+        : config.default_zoom;
   }
 
   connectedCallback() {
     this._render();
     clearInterval(this._autoUpdateTimer);
     this._autoUpdateTimer = setInterval(() => {
-      if (this._formatDate(this._currentDate).slice(0, 10) === this._formatDate(new Date()).slice(0, 10)) {
+      if (
+        this._formatDate(this._currentDate).slice(0, 10) ===
+        this._formatDate(new Date()).slice(0, 10)
+      ) {
         this._currentDate = new Date();
         this._render();
       }
@@ -1000,78 +1101,51 @@ class SolarViewCard extends HTMLElement {
   }
 
   _zoomIn() {
-    if (this._zoomLevel >= MAX_ZOOM) return;
-    this._zoomLevel++;
-    this._applyZoom();
+    if (this._viewState.zoomIn()) this._applyZoom();
   }
 
   _zoomOut() {
-    if (this._zoomLevel <= MIN_ZOOM) return;
-    this._zoomLevel--;
-    this._applyZoom();
+    if (this._viewState.zoomOut()) this._applyZoom();
   }
 
   _applyZoom() {
-    this._viewWidth = ZOOM_LEVELS[this._zoomLevel];
-    this._viewHeight = ZOOM_LEVELS[this._zoomLevel];
     this._updateViewBox();
     const levelDisplay = this.shadowRoot.querySelector(".zoom-level");
-    if (levelDisplay) levelDisplay.textContent = this._zoomLevel;
+    if (levelDisplay) levelDisplay.textContent = this._viewState.zoomLevel;
   }
 
   _updateViewBox() {
     const svg = this.shadowRoot.querySelector("#solar-view svg");
-    if (svg) {
-      const minX = this._viewCenterX - this._viewWidth / 2;
-      const minY = this._viewCenterY - this._viewHeight / 2;
-      svg.setAttribute(
-        "viewBox",
-        `${minX} ${minY} ${this._viewWidth} ${this._viewHeight}`
-      );
-    }
+    if (svg) svg.setAttribute("viewBox", this._viewState.viewBox);
   }
 
   _onPointerDown(e) {
     const svg = e.currentTarget;
     svg.setPointerCapture(e.pointerId);
-    this._isDragging = true;
-    this._dragStartX = e.clientX;
-    this._dragStartY = e.clientY;
-    this._dragStartCenterX = this._viewCenterX;
-    this._dragStartCenterY = this._viewCenterY;
+    this._viewState.startDrag(e.clientX, e.clientY);
     svg.style.cursor = "grabbing";
   }
 
   _onPointerMove(e) {
-    if (!this._isDragging) return;
+    if (!this._viewState.isDragging) return;
     const svg = e.currentTarget;
-    const dx = e.clientX - this._dragStartX;
-    const dy = e.clientY - this._dragStartY;
-    // Convert screen pixels to SVG coordinates
     const rect = svg.getBoundingClientRect();
-    const scaleX = this._viewWidth / rect.width;
-    const scaleY = this._viewHeight / rect.height;
-    this._viewCenterX = this._dragStartCenterX - dx * scaleX;
-    this._viewCenterY = this._dragStartCenterY - dy * scaleY;
+    this._viewState.updateDrag(e.clientX, e.clientY, rect);
     this._updateViewBox();
   }
 
   _onPointerUp(e) {
-    if (!this._isDragging) return;
-    this._isDragging = false;
+    if (!this._viewState.isDragging) return;
+    this._viewState.endDrag();
     const svg = e.currentTarget;
     svg.releasePointerCapture(e.pointerId);
     svg.style.cursor = "grab";
   }
 
   _render() {
-    // Initialize view state on first render
-    if (this._viewCenterX === null) {
-      this._viewCenterX = FULL_SYSTEM_SIZE / 2;
-      this._viewCenterY = FULL_SYSTEM_SIZE / 2;
-      this._zoomLevel = this._defaultZoomLevel;
-      this._viewWidth = ZOOM_LEVELS[this._zoomLevel];
-      this._viewHeight = ZOOM_LEVELS[this._zoomLevel];
+    // Initialize view state on first render only — preserves zoom/pan across re-renders
+    if (!this._viewState) {
+      this._viewState = new ViewState(this._defaultZoomLevel);
     }
 
     // Derive hemisphere from HA location when available
@@ -1079,67 +1153,74 @@ class SolarViewCard extends HTMLElement {
       this._hemisphere = this._lat < 0 ? "south" : "north";
     }
 
-    const locationData = (this._lat != null)
-      ? { lat: this._lat, lon: this._lon, timezone: this._timezone }
-      : null;
+    const locationData =
+      this._lat != null ? { lat: this._lat, lon: this._lon, timezone: this._timezone } : null;
 
     const statusBarHtml = buildStatusBarHtml(locationData, this._locationName, this._currentDate);
-    this.shadowRoot.innerHTML = buildCardHtml(statusBarHtml, this._formatDate(this._currentDate), this._zoomLevel);
+    this.shadowRoot.innerHTML = buildCardHtml(
+      statusBarHtml,
+      this._formatDate(this._currentDate),
+      this._viewState.zoomLevel
+    );
 
     const container = this.shadowRoot.getElementById("solar-view");
     const { svg } = renderSolarSystem(this._currentDate, this._hemisphere, locationData);
     container.appendChild(svg);
 
     this._updateViewBox();
+    this._bindEvents(svg);
+  }
 
-    // Wire up pointer events for drag-to-pan
+  /** Wire up SVG pointer events and nav button clicks. */
+  _bindEvents(svg) {
     svg.addEventListener("pointerdown", (e) => this._onPointerDown(e));
     svg.addEventListener("pointermove", (e) => this._onPointerMove(e));
     svg.addEventListener("pointerup", (e) => this._onPointerUp(e));
 
-    // Wire up navigation buttons
     this.shadowRoot.querySelectorAll(".nav button").forEach((btn) => {
-      btn.addEventListener("click", (e) => {
-        const action = e.currentTarget.dataset.action;
-        switch (action) {
-          case "zoom-out":
-            this._zoomOut();
-            break;
-          case "month-back": {
-            const d = new Date(this._currentDate);
-            d.setMonth(d.getMonth() - 1);
-            this._currentDate = d;
-            this._render();
-            break;
-          }
-          case "day-back":
-            this._navigate(-864e5);
-            break;
-          case "hour-back":
-            this._navigate(-36e5);
-            break;
-          case "today":
-            this._goToday();
-            break;
-          case "hour-forward":
-            this._navigate(3600000);
-            break;
-          case "day-forward":
-            this._navigate(86400000);
-            break;
-          case "month-forward": {
-            const d = new Date(this._currentDate);
-            d.setMonth(d.getMonth() + 1);
-            this._currentDate = d;
-            this._render();
-            break;
-          }
-          case "zoom-in":
-            this._zoomIn();
-            break;
-        }
-      });
+      btn.addEventListener("click", (e) => this._handleNavAction(e.currentTarget.dataset.action));
     });
+  }
+
+  /** Dispatch a navigation button action. */
+  _handleNavAction(action) {
+    switch (action) {
+      case "zoom-out":
+        this._zoomOut();
+        break;
+      case "month-back": {
+        const d = new Date(this._currentDate);
+        d.setMonth(d.getMonth() - 1);
+        this._currentDate = d;
+        this._render();
+        break;
+      }
+      case "day-back":
+        this._navigate(-864e5);
+        break;
+      case "hour-back":
+        this._navigate(-36e5);
+        break;
+      case "today":
+        this._goToday();
+        break;
+      case "hour-forward":
+        this._navigate(3600000);
+        break;
+      case "day-forward":
+        this._navigate(86400000);
+        break;
+      case "month-forward": {
+        const d = new Date(this._currentDate);
+        d.setMonth(d.getMonth() + 1);
+        this._currentDate = d;
+        this._render();
+        break;
+      }
+      case "zoom-in":
+        this._zoomIn();
+        break;
+    }
   }
 
   getCardSize() {

@@ -1,10 +1,10 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
-  getLocalTimeInZone,
-  computeSolarElevationDeg,
   computeNextTransitionTime,
+  computeSolarElevationDeg,
+  getLocalTimeInZone,
   getSkyMode,
-} from "../src/solar-position.js";
+} from "../../src/astronomy/solar-position.js";
 
 describe("getLocalTimeInZone", () => {
   it("returns correct local time for a UTC date in America/Chicago (CST = UTC-6)", () => {
@@ -146,9 +146,7 @@ describe("computeNextTransitionTime", () => {
     expect(result).not.toBeNull();
     // If only minute-level precision, seconds would always be 0; binary search gives < 60s error
     // Just verify the time is a valid timestamp (not exactly on the minute)
-    const seconds = result.time.getUTCSeconds();
-    // After binary search the time should not always be an exact minute boundary
-    // We verify it's refined by checking the time is consistent with elevation near threshold
+    // We verify the time is refined by checking elevation is near threshold
     const elevAtTransition = computeSolarElevationDeg(0, 0, result.time);
     // The transition is to Astronomical Twilight (boundary at -18°)
     expect(Math.abs(elevAtTransition + 18)).toBeLessThan(0.05);

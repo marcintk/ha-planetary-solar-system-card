@@ -1,6 +1,15 @@
-import { describe, it, expect } from "vitest";
-import { renderSolarSystem, calculateObserverAngle, calculateSolarElevationDeg, CONE_DAY, CONE_CIVIL, CONE_NAUTICAL, CONE_ASTRONOMICAL, CONE_NIGHT } from "../src/renderer.js";
-import { PLANETS, calculatePlanetPosition } from "../src/planet-data.js";
+import { describe, expect, it } from "vitest";
+import { calculatePlanetPosition } from "../../src/astronomy/orbital-mechanics.js";
+import { PLANETS } from "../../src/astronomy/planet-data.js";
+import { renderSolarSystem } from "../../src/renderer/index.js";
+import {
+  CONE_ASTRONOMICAL,
+  CONE_CIVIL,
+  CONE_DAY,
+  CONE_NAUTICAL,
+  CONE_NIGHT,
+  calculateObserverAngle,
+} from "../../src/renderer/observer.js";
 
 function renderInto(container, date) {
   const { svg, bounds } = renderSolarSystem(date);
@@ -13,12 +22,20 @@ function renderInto(container, date) {
 function coneEdgeDot(svg, clipId) {
   const path = svg.querySelector(`clipPath#${clipId} path`);
   if (!path) return null;
-  const nums = path.getAttribute("d").match(/[-\d.]+/g).map(Number);
-  const anchorX = nums[0], anchorY = nums[1];
-  const leftX = nums[2], leftY = nums[3];
-  const rightX = nums[9], rightY = nums[10];
-  const lDX = leftX - anchorX, lDY = leftY - anchorY;
-  const rDX = rightX - anchorX, rDY = rightY - anchorY;
+  const nums = path
+    .getAttribute("d")
+    .match(/[-\d.]+/g)
+    .map(Number);
+  const anchorX = nums[0],
+    anchorY = nums[1];
+  const leftX = nums[2],
+    leftY = nums[3];
+  const rightX = nums[9],
+    rightY = nums[10];
+  const lDX = leftX - anchorX,
+    lDY = leftY - anchorY;
+  const rDX = rightX - anchorX,
+    rDY = rightY - anchorY;
   const lLen = Math.sqrt(lDX * lDX + lDY * lDY);
   const rLen = Math.sqrt(rDX * rDX + rDY * rDY);
   return (lDX * rDX + lDY * rDY) / (lLen * rLen);
@@ -61,9 +78,7 @@ describe("renderSolarSystem", () => {
     renderInto(container, new Date("2026-02-14"));
 
     const svg = container.querySelector("svg");
-    const texts = Array.from(svg.querySelectorAll("text")).map(
-      (t) => t.textContent
-    );
+    const texts = Array.from(svg.querySelectorAll("text")).map((t) => t.textContent);
     expect(texts).toContain("Earth");
     expect(texts).toContain("Mars");
     expect(texts).toContain("Neptune");
@@ -173,13 +188,21 @@ describe("renderSolarSystem", () => {
 
     const svg = container.querySelector("svg");
     const path = svg.querySelector("clipPath#sky-clip path");
-    const nums = path.getAttribute("d").match(/[-\d.]+/g).map(Number);
-    const anchorX = nums[0], anchorY = nums[1];
-    const leftX = nums[2], leftY = nums[3];
-    const rightX = nums[9], rightY = nums[10];
+    const nums = path
+      .getAttribute("d")
+      .match(/[-\d.]+/g)
+      .map(Number);
+    const anchorX = nums[0],
+      anchorY = nums[1];
+    const leftX = nums[2],
+      leftY = nums[3];
+    const rightX = nums[9],
+      rightY = nums[10];
 
-    const leftDX = leftX - anchorX, leftDY = leftY - anchorY;
-    const rightDX = rightX - anchorX, rightDY = rightY - anchorY;
+    const leftDX = leftX - anchorX,
+      leftDY = leftY - anchorY;
+    const rightDX = rightX - anchorX,
+      rightDY = rightY - anchorY;
     const leftLen = Math.sqrt(leftDX * leftDX + leftDY * leftDY);
     const rightLen = Math.sqrt(rightDX * rightDX + rightDY * rightDY);
     const dot = (leftDX * rightDX + leftDY * rightDY) / (leftLen * rightLen);
@@ -257,8 +280,9 @@ describe("renderSolarSystem", () => {
     renderInto(container, new Date("2026-02-14T05:00:00"));
 
     const svg = container.querySelector("svg");
-    const fills = Array.from(svg.querySelectorAll("circle[clip-path]"))
-      .map(c => c.getAttribute("fill"));
+    const fills = Array.from(svg.querySelectorAll("circle[clip-path]")).map((c) =>
+      c.getAttribute("fill")
+    );
     expect(fills).toContain(CONE_ASTRONOMICAL);
     expect(fills).not.toContain(CONE_CIVIL);
     expect(fills).not.toContain(CONE_NAUTICAL);
@@ -271,8 +295,9 @@ describe("renderSolarSystem", () => {
     renderInto(container, new Date("2026-02-14T12:00:00"));
 
     const svg = container.querySelector("svg");
-    const fills = Array.from(svg.querySelectorAll("circle[clip-path]"))
-      .map(c => c.getAttribute("fill"));
+    const fills = Array.from(svg.querySelectorAll("circle[clip-path]")).map((c) =>
+      c.getAttribute("fill")
+    );
     expect(fills).not.toContain(CONE_CIVIL);
     expect(fills).not.toContain(CONE_NAUTICAL);
     expect(fills).not.toContain(CONE_ASTRONOMICAL);
@@ -284,8 +309,9 @@ describe("renderSolarSystem", () => {
     renderInto(container, new Date("2026-02-14T00:00:00"));
 
     const svg = container.querySelector("svg");
-    const fills = Array.from(svg.querySelectorAll("circle[clip-path]"))
-      .map(c => c.getAttribute("fill"));
+    const fills = Array.from(svg.querySelectorAll("circle[clip-path]")).map((c) =>
+      c.getAttribute("fill")
+    );
     expect(fills).not.toContain(CONE_CIVIL);
     expect(fills).not.toContain(CONE_NAUTICAL);
     expect(fills).not.toContain(CONE_ASTRONOMICAL);
@@ -330,9 +356,7 @@ describe("renderSolarSystem", () => {
 
     const path1 = c1.querySelector("clipPath#sky-clip path");
     const path2 = c2.querySelector("clipPath#sky-clip path");
-    expect(path1.getAttribute("d")).not.toBe(
-      path2.getAttribute("d")
-    );
+    expect(path1.getAttribute("d")).not.toBe(path2.getAttribute("d"));
   });
 
   it("day overlay covers observer's visible sky based on local time", () => {
@@ -442,7 +466,6 @@ describe("renderSolarSystem", () => {
     const container = document.createElement("div");
     renderInto(container, new Date("2026-02-14"));
 
-    const svg = container.querySelector("svg");
     // TODO(human): Write the assertion that verifies the ring ellipse
     // is centered at the same position as Saturn's body circle.
     // Hint: Saturn's color is "#e0c080" — find its circle, then compare
@@ -477,8 +500,6 @@ describe("renderSolarSystem", () => {
     expect(moonOrbit.getAttribute("fill")).toBe("none");
 
     // Should be centered at Earth's position
-    const earth = PLANETS.find((p) => p.name === "Earth");
-    const earthAngle = calculatePlanetPosition(earth, date);
     const earthCx = Number(moonOrbit.getAttribute("cx"));
     const earthCy = Number(moonOrbit.getAttribute("cy"));
 
@@ -582,8 +603,12 @@ describe("season overlay", () => {
     expect(seasonLines.length).toBe(2);
 
     // One horizontal, one vertical
-    const horizontal = Array.from(seasonLines).find((l) => l.getAttribute("y1") === "400" && l.getAttribute("y2") === "400");
-    const vertical = Array.from(seasonLines).find((l) => l.getAttribute("x1") === "400" && l.getAttribute("x2") === "400");
+    const horizontal = Array.from(seasonLines).find(
+      (l) => l.getAttribute("y1") === "400" && l.getAttribute("y2") === "400"
+    );
+    const vertical = Array.from(seasonLines).find(
+      (l) => l.getAttribute("x1") === "400" && l.getAttribute("x2") === "400"
+    );
     expect(horizontal).not.toBeNull();
     expect(vertical).not.toBeNull();
   });
@@ -633,14 +658,8 @@ describe("season overlay", () => {
     const defs = svg.querySelector("defs");
     // Season arcs: 0=Winter(top-left, 90-180°), 1=Autumn(top-right, 0-90°),
     //              2=Summer(bottom-right, 270-360°), 3=Spring(bottom-left, 180-270°)
-    const topArcs = [
-      defs.querySelector("#season-arc-0"),
-      defs.querySelector("#season-arc-1"),
-    ];
-    const bottomArcs = [
-      defs.querySelector("#season-arc-2"),
-      defs.querySelector("#season-arc-3"),
-    ];
+    const topArcs = [defs.querySelector("#season-arc-0"), defs.querySelector("#season-arc-1")];
+    const bottomArcs = [defs.querySelector("#season-arc-2"), defs.querySelector("#season-arc-3")];
 
     // Top-half arcs should use sweep-flag=1 (reversed for readability)
     for (const arc of topArcs) {
@@ -687,109 +706,13 @@ describe("season overlay", () => {
       (el) => el.tagName === "line" && el.getAttribute("stroke") === "rgba(255, 255, 255, 0.25)"
     );
     const firstOrbit = allElements.find(
-      (el) => el.tagName === "circle" && el.getAttribute("fill") === "none" && el.getAttribute("stroke-dasharray") === "5, 5"
+      (el) =>
+        el.tagName === "circle" &&
+        el.getAttribute("fill") === "none" &&
+        el.getAttribute("stroke-dasharray") === "5, 5"
     );
     const seasonIdx = allElements.indexOf(seasonLine);
     const orbitIdx = allElements.indexOf(firstOrbit);
     expect(seasonIdx).toBeLessThan(orbitIdx);
-  });
-});
-
-describe("calculateObserverAngle", () => {
-  it("at midnight observer faces away from Sun", () => {
-    const earthAngle = 1.5; // arbitrary orbital angle
-    const date = new Date("2026-02-14T00:00:00");
-    const angle = calculateObserverAngle(earthAngle, date);
-
-    // At midnight: observerAngle = earthAngle (away from Sun)
-    const expected = earthAngle;
-    const norm = (a) => ((a % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
-    const diff = Math.abs(norm(angle) - norm(expected));
-    const angleDiff = Math.min(diff, 2 * Math.PI - diff);
-    expect(angleDiff).toBeLessThan(0.001);
-  });
-
-  it("at noon observer faces toward Sun", () => {
-    const earthAngle = 1.5;
-    const date = new Date("2026-02-14T12:00:00");
-    const angle = calculateObserverAngle(earthAngle, date);
-
-    // At noon: observerAngle = earthAngle + PI (toward Sun)
-    const expected = earthAngle + Math.PI;
-    const norm = (a) => ((a % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
-    const diff = Math.abs(norm(angle) - norm(expected));
-    const angleDiff = Math.min(diff, 2 * Math.PI - diff);
-    expect(angleDiff).toBeLessThan(0.001);
-  });
-
-  it("at 6AM observer is 90 degrees from midnight", () => {
-    const earthAngle = 1.5;
-    const date = new Date("2026-02-14T06:00:00");
-    const angle = calculateObserverAngle(earthAngle, date);
-
-    // At 6AM: 6/24 * 2PI = PI/2 offset from midnight
-    const midnightAngle = earthAngle;
-    const expected = midnightAngle + Math.PI / 2;
-    const norm = (a) => ((a % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
-    const diff = Math.abs(norm(angle) - norm(expected));
-    const angleDiff = Math.min(diff, 2 * Math.PI - diff);
-    expect(angleDiff).toBeLessThan(0.001);
-  });
-
-  it("observer angles 12 hours apart are ~180° apart", () => {
-    // Tests calculateObserverAngle directly — avoids SVG geometry which depends on cone half-angle
-    const earth = PLANETS.find((p) => p.name === "Earth");
-    const date7am = new Date("2026-02-14T07:00:00");
-    const date7pm = new Date("2026-02-14T19:00:00");
-
-    const earthAngle = calculatePlanetPosition(earth, date7am); // same orbital position
-    const obs7am = calculateObserverAngle(earthAngle, date7am);
-    const obs7pm = calculateObserverAngle(earthAngle, date7pm);
-
-    const norm = (a) => ((a % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
-    const diff = Math.abs(norm(obs7am) - norm(obs7pm));
-    const angleDiff = Math.min(diff, 2 * Math.PI - diff);
-    expect(angleDiff).toBeCloseTo(Math.PI, 3);
-  });
-});
-
-describe("calculateSolarElevationDeg", () => {
-  const earthAngle = 1.0; // arbitrary orbital angle
-
-  it("returns ~90° when observer faces directly toward the Sun (local noon)", () => {
-    // At noon observerAngle = earthAngle + π (pointing toward Sun)
-    const observerAngle = earthAngle + Math.PI;
-    const elevation = calculateSolarElevationDeg(observerAngle, earthAngle);
-    expect(elevation).toBeCloseTo(90, 1);
-  });
-
-  it("returns ~-90° when observer faces directly away from the Sun (local midnight)", () => {
-    // At midnight observerAngle = earthAngle (pointing away from Sun)
-    const observerAngle = earthAngle;
-    const elevation = calculateSolarElevationDeg(observerAngle, earthAngle);
-    expect(elevation).toBeCloseTo(-90, 1);
-  });
-
-  it("returns ~0° when observer is perpendicular to Sun direction (horizon crossing)", () => {
-    // Observer 90° from Sun direction = Sun on horizon
-    const observerAngle = earthAngle + Math.PI / 2;
-    const elevation = calculateSolarElevationDeg(observerAngle, earthAngle);
-    expect(elevation).toBeCloseTo(0, 1);
-  });
-
-  it("handles 2π wrap-around correctly", () => {
-    // Same geometry, but angles cross the 0/2π boundary
-    const wrappedEarth = 0.1;
-    const wrappedObserver = wrappedEarth + Math.PI + 2 * Math.PI; // excess wrapping
-    const elevation = calculateSolarElevationDeg(wrappedObserver, wrappedEarth);
-    expect(elevation).toBeCloseTo(90, 1);
-  });
-
-  it("returns negative value when Sun is below horizon", () => {
-    // Sun 30° below horizon: observer must be 120° from Sun direction (|diff| = 120°)
-    // observerAngle = earthAngle + π - 2π/3 = earthAngle + π/3
-    const observerAngle = earthAngle + Math.PI / 3;
-    const elevation = calculateSolarElevationDeg(observerAngle, earthAngle);
-    expect(elevation).toBeCloseTo(-30, 1);
   });
 });

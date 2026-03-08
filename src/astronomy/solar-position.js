@@ -46,11 +46,11 @@ export function computeSolarElevationDeg(lat, lon, date) {
   const dayOfYear = Math.floor((date.getTime() - startOfYear) / 86400000);
 
   // Solar declination in radians
-  const declRad = (-23.45 * Math.cos((2 * Math.PI / 365) * (dayOfYear + 10)) * Math.PI) / 180;
+  const declRad = (-23.45 * Math.cos(((2 * Math.PI) / 365) * (dayOfYear + 10)) * Math.PI) / 180;
 
   // Local solar hour: UTC fractional hours + longitude offset (15°/hr)
   const utcHour = date.getUTCHours() + date.getUTCMinutes() / 60 + date.getUTCSeconds() / 3600;
-  const localSolarHour = ((utcHour + lon / 15) % 24 + 24) % 24;
+  const localSolarHour = (((utcHour + lon / 15) % 24) + 24) % 24;
 
   // Hour angle in radians (positive in afternoon)
   const hourAngleRad = ((localSolarHour - 12) * 15 * Math.PI) / 180;
@@ -91,7 +91,7 @@ export function computeNextTransitionTime(lat, lon, date) {
   const MAX_MINS = 24 * 60;
 
   const startElev = computeSolarElevationDeg(lat, lon, date);
-  let currentMode = getSkyMode(startElev);
+  const currentMode = getSkyMode(startElev);
 
   let bracketLoMs = null;
   let bracketHiMs = null;

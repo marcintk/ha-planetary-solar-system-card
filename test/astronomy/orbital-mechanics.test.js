@@ -1,49 +1,9 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
-  PLANETS,
-  MOON,
-  SUN,
-  calculatePlanetPosition,
   calculateMoonPosition,
-} from "../src/planet-data.js";
-
-describe("planet-data constants", () => {
-  it("exports 8 planets", () => {
-    expect(PLANETS).toHaveLength(8);
-  });
-
-  it("planets are ordered by AU distance", () => {
-    for (let i = 1; i < PLANETS.length; i++) {
-      expect(PLANETS[i].au).toBeGreaterThan(PLANETS[i - 1].au);
-    }
-  });
-
-  it("each planet has required fields", () => {
-    for (const planet of PLANETS) {
-      expect(planet).toHaveProperty("name");
-      expect(planet).toHaveProperty("au");
-      expect(planet).toHaveProperty("periodDays");
-      expect(planet).toHaveProperty("color");
-      expect(planet).toHaveProperty("size");
-      expect(planet).toHaveProperty("meanLongitudeJ2000");
-    }
-  });
-
-  it("Earth has AU of 1.0", () => {
-    const earth = PLANETS.find((p) => p.name === "Earth");
-    expect(earth.au).toBe(1.0);
-  });
-
-  it("MOON has required fields", () => {
-    expect(MOON.periodDays).toBeCloseTo(27.32, 1);
-    expect(MOON.auFromEarth).toBeDefined();
-  });
-
-  it("SUN has color and size", () => {
-    expect(SUN.color).toBeDefined();
-    expect(SUN.size).toBeGreaterThan(0);
-  });
-});
+  calculatePlanetPosition,
+} from "../../src/astronomy/orbital-mechanics.js";
+import { MOON, PLANETS } from "../../src/astronomy/planet-data.js";
 
 describe("calculatePlanetPosition", () => {
   const earth = PLANETS.find((p) => p.name === "Earth");
@@ -76,6 +36,13 @@ describe("calculatePlanetPosition", () => {
       expect(angle).toBeLessThan(2 * Math.PI);
     }
   });
+
+  it("returns 0–2π for outer planets (slow movers)", () => {
+    const neptune = PLANETS.find((p) => p.name === "Neptune");
+    const angle = calculatePlanetPosition(neptune, new Date("2026-02-14"));
+    expect(angle).toBeGreaterThanOrEqual(0);
+    expect(angle).toBeLessThan(2 * Math.PI);
+  });
 });
 
 describe("calculateMoonPosition", () => {
@@ -91,5 +58,11 @@ describe("calculateMoonPosition", () => {
     const a1 = calculateMoonPosition(d1);
     const a2 = calculateMoonPosition(d2);
     expect(a1).toBeCloseTo(a2, 1);
+  });
+
+  it("returns different positions for dates 2 weeks apart", () => {
+    const a1 = calculateMoonPosition(new Date("2024-01-01"));
+    const a2 = calculateMoonPosition(new Date("2024-01-15"));
+    expect(a1).not.toBeCloseTo(a2, 1);
   });
 });

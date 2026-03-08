@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|mcp__serena__(replace_symbol_body|insert_after_symbol|insert_before_symbol|rename_symbol)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npm run check 2>&1 || exit 2",
+            "timeout": 30,
+            "statusMessage": "Biome: checking format and lint..."
+          }
+        ]
+      }
+    ]
+  }
+}

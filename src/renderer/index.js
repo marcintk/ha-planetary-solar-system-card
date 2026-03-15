@@ -12,7 +12,7 @@ import { auToRadius, CENTER, createSvgElement, expandBounds, VIEW_SIZE } from ".
  * @param {{ lat: number, lon: number, timezone: string } | null} [locationData] - observer location from HA config
  * @returns {{ svg: SVGElement, bounds: { minX: number, minY: number, maxX: number, maxY: number } }}
  */
-export function renderSolarSystem(date, hemisphere = "north", locationData = null) {
+export function renderSolarSystem(date, hemisphere = "north", locationData = null, zoomLevel = 1) {
   const svg = createSvgElement("svg", {
     viewBox: `0 0 ${VIEW_SIZE} ${VIEW_SIZE}`,
     width: "100%",
@@ -21,14 +21,18 @@ export function renderSolarSystem(date, hemisphere = "north", locationData = nul
   });
 
   const bounds = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
+  const positions = [];
 
   // Day/night split (rendered first, behind everything)
   const earth = PLANETS.find((p) => p.name === "Earth");
   const earthRadius = auToRadius(1.0);
   renderDayNightSplit(svg, earthRadius, date, earth.size, locationData);
 
-  // Season quadrant overlay (after day/night, before orbits)
-  renderSeasonOverlay(svg, hemisphere);
+  // Season quadrant overlay (after day/night, before orbits) — hidden at zoom 2+ where
+  // the viewport season label provides this information instead
+  if (zoomLevel < 2) {
+    renderSeasonOverlay(svg, hemisphere);
+  }
 
   // Draw orbits
   for (const planet of PLANETS) {
@@ -46,6 +50,7 @@ export function renderSolarSystem(date, hemisphere = "north", locationData = nul
     const radius = auToRadius(planet.au);
     const x = CENTER + radius * Math.cos(angle);
     const y = CENTER - radius * Math.sin(angle);
+    positions.push({ name: planet.name, x, y, color: planet.color });
     if (planet.name === "Saturn") {
       // Shrink Saturn's body to make room for top-down circular ring
       const saturnRenderSize = Math.round(planet.size / 2);
@@ -83,6 +88,7 @@ export function renderSolarSystem(date, hemisphere = "north", locationData = nul
   const moonPixelOffset = 22; // pixels from Earth
   const moonX = earthX + moonPixelOffset * Math.cos(moonAngle);
   const moonY = earthY - moonPixelOffset * Math.sin(moonAngle);
+  positions.push({ name: MOON.name, x: moonX, y: moonY, color: MOON.color });
 
   // Moon orbit (dotted circle centered on Earth)
   svg.appendChild(
@@ -109,5 +115,5 @@ export function renderSolarSystem(date, hemisphere = "north", locationData = nul
   );
   renderObserverNeedle(svg, earthX, earthY, observerAngle, earth.size);
 
-  return { svg, bounds };
+  return { svg, bounds, positions };
 }

@@ -716,3 +716,21 @@ describe("season overlay", () => {
     expect(seasonIdx).toBeLessThan(orbitIdx);
   });
 });
+
+describe("renderSolarSystem zoom-level season overlay", () => {
+  const date = new Date("2025-06-15");
+
+  it("includes season arc textPath elements at zoom level 1 only", () => {
+    const { svg } = renderSolarSystem(date, "north", null, 1);
+    const textPaths = svg.querySelectorAll("textPath");
+    expect(textPaths.length).toBe(4);
+  });
+
+  it("does not include season arc textPath elements at zoom levels 2, 3 and 4", () => {
+    for (const zoom of [2, 3, 4]) {
+      const { svg } = renderSolarSystem(date, "north", null, zoom);
+      const textPaths = svg.querySelectorAll("textPath");
+      expect(textPaths.length).toBe(0);
+    }
+  });
+});

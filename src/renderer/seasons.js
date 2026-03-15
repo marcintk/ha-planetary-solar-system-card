@@ -96,3 +96,61 @@ export function renderSeasonOverlay(svg, hemisphere) {
     svg.appendChild(text);
   });
 }
+
+const SEASON_BY_MONTH_NORTH = [
+  "Winter", // Jan
+  "Winter", // Feb
+  "Spring", // Mar
+  "Spring", // Apr
+  "Spring", // May
+  "Summer", // Jun
+  "Summer", // Jul
+  "Summer", // Aug
+  "Autumn", // Sep
+  "Autumn", // Oct
+  "Autumn", // Nov
+  "Winter", // Dec
+];
+
+const OPPOSITE_SEASON = {
+  Spring: "Autumn",
+  Summer: "Winter",
+  Autumn: "Spring",
+  Winter: "Summer",
+};
+
+export function getCurrentSeason(date, hemisphere) {
+  const month = date.getMonth();
+  const season = SEASON_BY_MONTH_NORTH[month];
+  return hemisphere === "south" ? OPPOSITE_SEASON[season] : season;
+}
+
+const VIEWPORT_SEASON_GROUP_ID = "viewport-season-label";
+const VIEWPORT_SEASON_FONT_SIZE = 14;
+
+export function renderViewportSeasonLabel(date, hemisphere, viewState) {
+  const group = createSvgElement("g", { id: VIEWPORT_SEASON_GROUP_ID });
+
+  if (!viewState || viewState.zoomLevel < 2) return group;
+
+  const season = getCurrentSeason(date, hemisphere);
+  const w = viewState.width;
+  const h = viewState.height;
+  const right = viewState.centerX + w / 2;
+  const top = viewState.centerY - h / 2;
+
+  const text = createSvgElement("text", {
+    fill: SEASON_LABEL_COLOR,
+    "font-size": VIEWPORT_SEASON_FONT_SIZE,
+    "font-family": "sans-serif",
+    "text-anchor": "end",
+    x: right - 15,
+    y: top + 25,
+  });
+  text.textContent = season;
+  group.appendChild(text);
+
+  return group;
+}
+
+export { VIEWPORT_SEASON_GROUP_ID };

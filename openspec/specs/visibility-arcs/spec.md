@@ -14,6 +14,25 @@ exactly 180° (half-angle 90°), centred on the observer's zenith direction. Thi
 horizon boundary between the visible hemisphere above and the ground below, and SHALL always be
 rendered regardless of the Sun's position or elevation.
 
+Each arm of the horizon line SHALL extend from the anchor point (Earth's surface) to the edge of the
+visibility cone's clip circle (`MAX_RADIUS + 30` centred at `(CENTER, CENTER)`) plus an extra margin
+of 8 px. The arm length SHALL be computed independently for each direction using ray-circle
+intersection from the anchor point, so that both arms appear visually equal in length relative to
+the cone boundary regardless of Earth's orbital position.
+
+If the ray-circle intersection yields no positive solution for an arm (anchor outside the clip
+circle in that direction), the arm SHALL fall back to a minimum length of 20 px.
+
+Implementation: `renderDayNightSplit` in `src/renderer/observer.js`.
+
+#### Scenario: Horizon line arms end at cone boundary plus margin
+
+- **GIVEN** the card is rendered for any date and time
+- **WHEN** the horizon line is drawn at Earth's orbital position
+- **THEN** both arms of the dashed line SHALL terminate at the clip circle edge plus 8 px
+- **AND** the distance from anchor to each arm endpoint SHALL be computed via ray-circle
+  intersection against the circle of radius `MAX_RADIUS + 30` centred at `(CENTER, CENTER)`
+
 #### Scenario: Horizon line is always rendered
 
 - **GIVEN** the card is rendered for any date and time
@@ -27,6 +46,46 @@ rendered regardless of the Sun's position or elevation.
 - **WHEN** the horizon line is rendered
 - **THEN** its angular extent SHALL remain 180°
 - **AND** it SHALL be rendered as a dashed stroke
+
+#### Scenario: Horizon arms have minimum length
+
+- **GIVEN** the anchor point is near the edge of the clip circle
+- **WHEN** the ray-circle intersection yields a very short or negative distance for one arm
+- **THEN** that arm SHALL use a minimum length of 20 px
+
+### Requirement: Perpendicular zenith line
+
+The visibility display SHALL include a dashed line perpendicular to the horizon line, aligned along
+the observer's zenith direction (toward and away from zenith). This zenith line SHALL use the same
+arm-length computation as the horizon line: each arm extends from the anchor point to the clip
+circle edge (`MAX_RADIUS + 30` centred at `(CENTER, CENTER)`) plus 8 px margin, computed via
+ray-circle intersection. The same minimum arm length of 20 px SHALL apply.
+
+The zenith line SHALL use the same visual style as the horizon line: dashed stroke, same colour
+(`rgba(255, 255, 255, 0.3)`), same stroke width (1 px), same dash pattern (`4, 4`).
+
+Implementation: `renderDayNightSplit` in `src/renderer/observer.js`.
+
+#### Scenario: Zenith line is rendered perpendicular to horizon
+
+- **GIVEN** the card is rendered for any date and time
+- **WHEN** the visibility display at Earth's position is drawn
+- **THEN** a dashed line SHALL be rendered along the observer's zenith direction
+- **AND** the line SHALL be perpendicular to the horizon line (rotated 90° from horizon arms)
+
+#### Scenario: Zenith line arms end at cone boundary plus margin
+
+- **GIVEN** the card is rendered for any date and time
+- **WHEN** the zenith line is drawn
+- **THEN** both arms SHALL terminate at the clip circle edge plus 8 px
+- **AND** arm lengths SHALL be computed via the same ray-circle intersection as the horizon line
+
+#### Scenario: Zenith line uses same visual style as horizon
+
+- **WHEN** the zenith line is rendered
+- **THEN** it SHALL use stroke colour `rgba(255, 255, 255, 0.3)`
+- **AND** stroke width 1 px
+- **AND** dash pattern `4, 4`
 
 ### Requirement: Day cone fill
 

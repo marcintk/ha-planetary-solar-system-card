@@ -19,6 +19,24 @@ export const CONE_NIGHT = "rgba(255, 255, 255, 0.01)"; // Sun below -18°
  * @param {number} earthAngle - Earth's orbital angle from Sun (radians)
  * @returns {number} solar elevation in degrees, range [-90, 90]
  */
+
+/**
+ * Compute the distance from point (ax,ay) along direction (dx,dy) to the
+ * intersection with a circle centred at (cx,cy) with radius R.
+ * Returns the positive root, or `minLen` if no positive intersection exists.
+ */
+export function rayCircleDistance(ax, ay, dx, dy, cx, cy, R, minLen = 20) {
+  const ox = ax - cx;
+  const oy = ay - cy;
+  const a = dx * dx + dy * dy;
+  const b = 2 * (ox * dx + oy * dy);
+  const c = ox * ox + oy * oy - R * R;
+  const disc = b * b - 4 * a * c;
+  if (disc < 0) return minLen;
+  const t = (-b + Math.sqrt(disc)) / (2 * a);
+  return t > 0 ? t : minLen;
+}
+
 export function calculateSolarElevationDeg(observerAngle, earthAngle) {
   const dirToSun = earthAngle + Math.PI;
   const diff = Math.atan2(Math.sin(observerAngle - dirToSun), Math.cos(observerAngle - dirToSun));
@@ -131,21 +149,77 @@ export function renderDayNightSplit(svg, earthRadius, date, earthBodySize, locat
   const halfAngle = elevationDeg >= 0 || elevationDeg < -18 ? 90 : 90 - elevationDeg;
   renderVisibilityCone(svg, anchorX, anchorY, observerAngle, halfAngle, "sky-clip", coneColor);
 
-  // Horizon line — always drawn to show the 180° visible-sky boundary
-  const D = VIEW_SIZE;
-  const leftX = anchorX + D * Math.cos(observerAngle + Math.PI / 2);
-  const leftY = anchorY - D * Math.sin(observerAngle + Math.PI / 2);
-  const rightX = anchorX + D * Math.cos(observerAngle - Math.PI / 2);
-  const rightY = anchorY - D * Math.sin(observerAngle - Math.PI / 2);
+  // Shared constants for horizon and zenith lines
+  const CLIP_R = MAX_RADIUS + 30;
+  const EXTRA = 8;
+  const lineStyle = {
+    stroke: "rgba(255, 255, 255, 0.3)",
+    "stroke-width": 1,
+    "stroke-dasharray": "4, 4",
+  };
+
+  // Horizon line — each arm extends to the cone clip circle edge + margin
+  const leftAngle = observerAngle + Math.PI / 2;
+  const rightAngle = observerAngle - Math.PI / 2;
+  const leftD =
+    rayCircleDistance(
+      anchorX,
+      anchorY,
+      Math.cos(leftAngle),
+      -Math.sin(leftAngle),
+      CENTER,
+      CENTER,
+      CLIP_R
+    ) + EXTRA;
+  const rightD =
+    rayCircleDistance(
+      anchorX,
+      anchorY,
+      Math.cos(rightAngle),
+      -Math.sin(rightAngle),
+      CENTER,
+      CENTER,
+      CLIP_R
+    ) + EXTRA;
   svg.appendChild(
     createSvgElement("line", {
-      x1: leftX,
-      y1: leftY,
-      x2: rightX,
-      y2: rightY,
-      stroke: "rgba(255, 255, 255, 0.3)",
-      "stroke-width": 1,
-      "stroke-dasharray": "4, 4",
+      ...lineStyle,
+      x1: anchorX + leftD * Math.cos(leftAngle),
+      y1: anchorY - leftD * Math.sin(leftAngle),
+      x2: anchorX + rightD * Math.cos(rightAngle),
+      y2: anchorY - rightD * Math.sin(rightAngle),
+    })
+  );
+
+  // Zenith line — perpendicular to horizon, along observer zenith direction
+  const zenithD =
+    rayCircleDistance(
+      anchorX,
+      anchorY,
+      Math.cos(observerAngle),
+      -Math.sin(observerAngle),
+      CENTER,
+      CENTER,
+      CLIP_R
+    ) + EXTRA;
+  const nadirAngle = observerAngle + Math.PI;
+  const nadirD =
+    rayCircleDistance(
+      anchorX,
+      anchorY,
+      Math.cos(nadirAngle),
+      -Math.sin(nadirAngle),
+      CENTER,
+      CENTER,
+      CLIP_R
+    ) + EXTRA;
+  svg.appendChild(
+    createSvgElement("line", {
+      ...lineStyle,
+      x1: anchorX + zenithD * Math.cos(observerAngle),
+      y1: anchorY - zenithD * Math.sin(observerAngle),
+      x2: anchorX + nadirD * Math.cos(nadirAngle),
+      y2: anchorY - nadirD * Math.sin(nadirAngle),
     })
   );
 }

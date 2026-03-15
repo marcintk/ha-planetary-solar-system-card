@@ -9,9 +9,11 @@ import {
   CONE_NIGHT,
   calculateObserverAngle,
   calculateSolarElevationDeg,
+  rayCircleDistance,
+  renderDayNightSplit,
   renderObserverNeedle,
 } from "../../src/renderer/observer.js";
-import { SVG_NS } from "../../src/renderer/svg-utils.js";
+import { CENTER, MAX_RADIUS, SVG_NS } from "../../src/renderer/svg-utils.js";
 
 function createSvg() {
   return document.createElementNS(SVG_NS, "svg");
@@ -164,5 +166,91 @@ describe("renderObserverNeedle", () => {
     const dot = svg.querySelector("circle");
     expect(dot.getAttribute("cx")).toBe(line.getAttribute("x2"));
     expect(dot.getAttribute("cy")).toBe(line.getAttribute("y2"));
+  });
+});
+
+describe("rayCircleDistance", () => {
+  it("returns positive distance when ray intersects circle", () => {
+    // Point inside circle, shooting outward
+    const d = rayCircleDistance(CENTER, CENTER, 1, 0, CENTER, CENTER, 100);
+    expect(d).toBeCloseTo(100, 1);
+  });
+
+  it("returns minimum length when no positive intersection", () => {
+    // Point far outside circle, shooting away from it
+    const d = rayCircleDistance(CENTER + 1000, CENTER, 1, 0, CENTER, CENTER, 100);
+    expect(d).toBe(20);
+  });
+
+  it("uses custom minimum length", () => {
+    const d = rayCircleDistance(CENTER + 1000, CENTER, 1, 0, CENTER, CENTER, 100, 50);
+    expect(d).toBe(50);
+  });
+});
+
+describe("renderDayNightSplit horizon and zenith lines", () => {
+  const CLIP_R = MAX_RADIUS + 30;
+  const EXTRA = 8;
+
+  it("renders two dashed lines (horizon + zenith)", () => {
+    const svg = document.createElementNS(SVG_NS, "svg");
+    const earth = PLANETS.find((p) => p.name === "Earth");
+    renderDayNightSplit(svg, 200, new Date("2025-06-15T12:00:00Z"), earth.size, null);
+
+    const lines = svg.querySelectorAll('line[stroke-dasharray="4, 4"]');
+    expect(lines.length).toBe(2);
+  });
+
+  it("horizon line arms terminate at clip circle edge + 8px margin", () => {
+    const svg = document.createElementNS(SVG_NS, "svg");
+    const earth = PLANETS.find((p) => p.name === "Earth");
+    renderDayNightSplit(svg, 200, new Date("2025-06-15T12:00:00Z"), earth.size, null);
+
+    const lines = svg.querySelectorAll('line[stroke-dasharray="4, 4"]');
+    const horizon = lines[0];
+
+    const x1 = Number(horizon.getAttribute("x1"));
+    const y1 = Number(horizon.getAttribute("y1"));
+    const x2 = Number(horizon.getAttribute("x2"));
+    const y2 = Number(horizon.getAttribute("y2"));
+
+    // Each endpoint should be approximately CLIP_R + EXTRA from the SVG centre
+    const dist1 = Math.sqrt((x1 - CENTER) ** 2 + (y1 - CENTER) ** 2);
+    const dist2 = Math.sqrt((x2 - CENTER) ** 2 + (y2 - CENTER) ** 2);
+    // Endpoints land near the clip circle edge (within margin tolerance)
+    expect(dist1).toBeGreaterThan(CLIP_R - 5);
+    expect(dist2).toBeGreaterThan(CLIP_R - 5);
+  });
+
+  it("zenith line is perpendicular to the horizon line", () => {
+    const svg = document.createElementNS(SVG_NS, "svg");
+    const earth = PLANETS.find((p) => p.name === "Earth");
+    renderDayNightSplit(svg, 200, new Date("2025-06-15T12:00:00Z"), earth.size, null);
+
+    const lines = svg.querySelectorAll('line[stroke-dasharray="4, 4"]');
+    const horizon = lines[0];
+    const zenith = lines[1];
+
+    // Compute direction vectors
+    const hDx = Number(horizon.getAttribute("x2")) - Number(horizon.getAttribute("x1"));
+    const hDy = Number(horizon.getAttribute("y2")) - Number(horizon.getAttribute("y1"));
+    const zDx = Number(zenith.getAttribute("x2")) - Number(zenith.getAttribute("x1"));
+    const zDy = Number(zenith.getAttribute("y2")) - Number(zenith.getAttribute("y1"));
+
+    // Dot product of perpendicular vectors should be ~0
+    const dot = hDx * zDx + hDy * zDy;
+    expect(dot).toBeCloseTo(0, 0);
+  });
+
+  it("both lines use same stroke style", () => {
+    const svg = document.createElementNS(SVG_NS, "svg");
+    const earth = PLANETS.find((p) => p.name === "Earth");
+    renderDayNightSplit(svg, 200, new Date("2025-06-15T12:00:00Z"), earth.size, null);
+
+    const lines = svg.querySelectorAll('line[stroke-dasharray="4, 4"]');
+    for (const line of lines) {
+      expect(line.getAttribute("stroke")).toBe("rgba(255, 255, 255, 0.3)");
+      expect(line.getAttribute("stroke-width")).toBe("1");
+    }
   });
 });

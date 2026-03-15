@@ -55,6 +55,14 @@ export class ViewState {
     return true;
   }
 
+  /** Set zoom to a specific level, clamped to [MIN_ZOOM, MAX_ZOOM]. */
+  setZoomLevel(level) {
+    const clamped = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, level));
+    this.zoomLevel = clamped;
+    this._width = ZOOM_LEVELS[clamped];
+    this._height = ZOOM_LEVELS[clamped];
+  }
+
   startDrag(clientX, clientY) {
     this.isDragging = true;
     this._dragStartX = clientX;

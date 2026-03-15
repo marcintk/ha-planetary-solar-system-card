@@ -62,11 +62,31 @@ export class SolarViewCard extends HTMLElement {
       config.default_zoom > MAX_ZOOM
         ? DEFAULT_ZOOM_LEVEL
         : config.default_zoom;
+
+    const rawRefresh = Number(config.refresh_mins);
+    this._refreshMs = Number.isFinite(rawRefresh) && rawRefresh >= 0.1 ? rawRefresh * 60000 : 60000;
+
+    this._periodicZoomChange = config.periodic_zoom_change === true;
+
+    // Recreate timer if already connected
+    if (this._autoUpdateTimer != null) {
+      this._startAutoUpdateTimer();
+    }
   }
 
   connectedCallback() {
     this._render();
+    this._startAutoUpdateTimer();
+  }
+
+  disconnectedCallback() {
     clearInterval(this._autoUpdateTimer);
+    this._autoUpdateTimer = null;
+  }
+
+  _startAutoUpdateTimer() {
+    clearInterval(this._autoUpdateTimer);
+    const interval = this._refreshMs || 60000;
     this._autoUpdateTimer = setInterval(() => {
       if (
         this._formatDate(this._currentDate).slice(0, 10) ===
@@ -75,12 +95,16 @@ export class SolarViewCard extends HTMLElement {
         this._currentDate = new Date();
         this._render();
       }
-    }, 60000);
+      if (this._periodicZoomChange) {
+        this._advanceZoom();
+      }
+    }, interval);
   }
 
-  disconnectedCallback() {
-    clearInterval(this._autoUpdateTimer);
-    this._autoUpdateTimer = null;
+  _advanceZoom() {
+    const next = this._viewState.zoomLevel >= MAX_ZOOM ? MIN_ZOOM : this._viewState.zoomLevel + 1;
+    this._viewState.setZoomLevel(next);
+    this._applyZoom();
   }
 
   _formatDate(date) {
@@ -230,6 +254,6 @@ export class SolarViewCard extends HTMLElement {
   }
 
   static getStubConfig() {
-    return { default_zoom: 2 };
+    return { default_zoom: 2, periodic_zoom_change: false, refresh_mins: 1 };
   }
 }

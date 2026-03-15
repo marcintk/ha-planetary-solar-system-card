@@ -66,25 +66,51 @@ and consistent across symbol buttons, text buttons (Today, Now), and zoom contro
 
 Pressing the "Now" button SHALL update the displayed date to the current date and time only. It
 SHALL NOT reset the zoom level, zoom display, or view centre position. The user's current zoom level
-and pan position SHALL be preserved after pressing "Now".
+and pan position SHALL be preserved after pressing "Now". When `periodic_zoom_change` is enabled,
+pressing "Now" SHALL NOT interrupt the auto-cycle — the next tick SHALL continue advancing from the
+current zoom level.
 
 #### Scenario: Zoom level unchanged after pressing Now
 
-- **GIVEN** the user has set the zoom level to any value other than the default
-- **WHEN** the user presses the "Now" button
+- **WHEN** the user has set the zoom level to any value other than the default
+- **AND** the user presses the "Now" button
 - **THEN** the displayed date SHALL update to the current date and time
 - **AND** the zoom level SHALL remain unchanged
 - **AND** the zoom level indicator SHALL still display the same zoom value
 
 #### Scenario: View centre unchanged after pressing Now
 
-- **GIVEN** the user has panned the view to a non-default position
-- **WHEN** the user presses the "Now" button
+- **WHEN** the user has panned the view to a non-default position
+- **AND** the user presses the "Now" button
 - **THEN** the view centre SHALL remain at the same position
 - **AND** the solar system SHALL re-render at the current date without repositioning the viewport
 
 #### Scenario: Now button still navigates to today
 
-- **GIVEN** the card is displaying a past or future date
-- **WHEN** the user presses the "Now" button
+- **WHEN** the card is displaying a past or future date
+- **AND** the user presses the "Now" button
 - **THEN** the displayed date SHALL change to the current real-world date and time
+
+#### Scenario: Auto-cycle continues after pressing Now
+
+- **WHEN** `periodic_zoom_change` is `true` and the user presses the "Now" button
+- **THEN** the auto-cycle SHALL continue — the next refresh tick SHALL advance the zoom level by one
+  step from the current level
+
+### Requirement: Manual zoom resets auto-cycle position
+
+When `periodic_zoom_change` is enabled and the user manually changes the zoom level via zoom-in or
+zoom-out buttons, the auto-cycle SHALL continue from the user's new zoom level on the next refresh
+tick.
+
+#### Scenario: Manual zoom-in during auto-cycle
+
+- **WHEN** `periodic_zoom_change` is `true` and the auto-cycle is at level 2
+- **AND** the user presses the zoom-in button (advancing to level 3)
+- **THEN** the next refresh tick SHALL advance the zoom level to 4
+
+#### Scenario: Manual zoom-out during auto-cycle
+
+- **WHEN** `periodic_zoom_change` is `true` and the auto-cycle is at level 3
+- **AND** the user presses the zoom-out button (going back to level 2)
+- **THEN** the next refresh tick SHALL advance the zoom level to 3

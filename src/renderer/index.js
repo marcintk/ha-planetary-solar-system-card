@@ -1,6 +1,7 @@
 import { calculateMoonPosition, calculatePlanetPosition } from "../astronomy/orbital-mechanics.js";
 import { MOON, PLANETS, SUN } from "../astronomy/planet-data.js";
 import { ORBIT_COLOR, renderBody, renderOrbit, renderSaturnRings } from "./bodies.js";
+import { renderMoonPhaseIndicator } from "./moon-phase.js";
 import { calculateObserverAngle, renderDayNightSplit, renderObserverNeedle } from "./observer.js";
 import { renderSeasonOverlay } from "./seasons.js";
 import { auToRadius, CENTER, createSvgElement, expandBounds, VIEW_SIZE } from "./svg-utils.js";
@@ -117,6 +118,9 @@ export function renderSolarSystem(
     locationData?.lon
   );
   renderObserverNeedle(svg, earthX, earthY, observerAngle, earth.size);
+
+  // Moon phase indicator (rendered last so it appears on top)
+  renderMoonPhaseIndicator(svg, date, hemisphere);
 
   return { svg, bounds, positions };
 }

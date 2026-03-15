@@ -33,17 +33,22 @@ export function calculateSolarElevationDeg(observerAngle, earthAngle) {
  * @param {number} earthOrbitalAngle - Earth's orbital position (radians)
  * @param {Date} date - date/time used to extract local hours/minutes
  * @param {string} [timezone] - optional IANA timezone (e.g. "America/Chicago"); falls back to date.getHours()
+ * @param {number} [longitude] - optional observer longitude in degrees; when provided, uses true solar time instead of civil timezone
  * @returns {number} observer angle in radians
  */
-export function calculateObserverAngle(earthOrbitalAngle, date, timezone) {
-  let hours, minutes;
-  if (timezone) {
-    ({ hours, minutes } = getLocalTimeInZone(date, timezone));
+export function calculateObserverAngle(earthOrbitalAngle, date, timezone, longitude) {
+  let fractionalHours;
+  if (longitude != null) {
+    // True solar time: UTC hours + longitude offset (15° per hour)
+    const utcHour = date.getUTCHours() + date.getUTCMinutes() / 60 + date.getUTCSeconds() / 3600;
+    fractionalHours = (((utcHour + longitude / 15) % 24) + 24) % 24;
+  } else if (timezone) {
+    const { hours, minutes } = getLocalTimeInZone(date, timezone);
+    fractionalHours = hours + minutes / 60;
   } else {
-    hours = date.getHours();
-    minutes = date.getMinutes();
+    fractionalHours = date.getHours() + date.getMinutes() / 60;
   }
-  const localTimeAngle = ((hours + minutes / 60) / 24) * 2 * Math.PI;
+  const localTimeAngle = (fractionalHours / 24) * 2 * Math.PI;
   return earthOrbitalAngle + localTimeAngle;
 }
 
@@ -91,7 +96,12 @@ function renderVisibilityCone(
 export function renderDayNightSplit(svg, earthRadius, date, earthBodySize, locationData) {
   const earth = PLANETS.find((p) => p.name === "Earth");
   const earthAngle = calculatePlanetPosition(earth, date);
-  const observerAngle = calculateObserverAngle(earthAngle, date, locationData?.timezone);
+  const observerAngle = calculateObserverAngle(
+    earthAngle,
+    date,
+    locationData?.timezone,
+    locationData?.lon
+  );
 
   const earthDirX = Math.cos(earthAngle);
   const earthDirY = Math.sin(earthAngle);

@@ -1,6 +1,7 @@
 import { renderSolarSystem } from "../renderer/index.js";
 import { buildCardHtml, buildStatusBarHtml } from "./card-template.js";
 import { DEFAULT_ZOOM_LEVEL, MAX_ZOOM, MIN_ZOOM, ViewState } from "./card-view-state.js";
+import { ZoomAnimator } from "./zoom-animator.js";
 
 export class SolarViewCard extends HTMLElement {
   constructor() {
@@ -62,11 +63,32 @@ export class SolarViewCard extends HTMLElement {
       config.default_zoom > MAX_ZOOM
         ? DEFAULT_ZOOM_LEVEL
         : config.default_zoom;
+
+    const rawRefresh = Number(config.refresh_mins);
+    this._refreshMs = Number.isFinite(rawRefresh) && rawRefresh >= 0.1 ? rawRefresh * 60000 : 60000;
+
+    this._periodicZoomChange = config.periodic_zoom_change === true;
+    this._zoomAnimate = config.zoom_animate !== false;
+
+    // Recreate timer if already connected
+    if (this._autoUpdateTimer != null) {
+      this._startAutoUpdateTimer();
+    }
   }
 
   connectedCallback() {
     this._render();
+    this._startAutoUpdateTimer();
+  }
+
+  disconnectedCallback() {
     clearInterval(this._autoUpdateTimer);
+    this._autoUpdateTimer = null;
+  }
+
+  _startAutoUpdateTimer() {
+    clearInterval(this._autoUpdateTimer);
+    const interval = this._refreshMs || 60000;
     this._autoUpdateTimer = setInterval(() => {
       if (
         this._formatDate(this._currentDate).slice(0, 10) ===
@@ -75,12 +97,18 @@ export class SolarViewCard extends HTMLElement {
         this._currentDate = new Date();
         this._render();
       }
-    }, 60000);
+      if (this._periodicZoomChange) {
+        this._advanceZoom();
+      }
+    }, interval);
   }
 
-  disconnectedCallback() {
-    clearInterval(this._autoUpdateTimer);
-    this._autoUpdateTimer = null;
+  _advanceZoom() {
+    const prevWidth = this._viewState.width;
+    const prevHeight = this._viewState.height;
+    const next = this._viewState.zoomLevel >= MAX_ZOOM ? MIN_ZOOM : this._viewState.zoomLevel + 1;
+    this._viewState.setZoomLevel(next);
+    this._applyZoom(prevWidth, prevHeight);
   }
 
   _formatDate(date) {
@@ -103,15 +131,23 @@ export class SolarViewCard extends HTMLElement {
   }
 
   _zoomIn() {
-    if (this._viewState.zoomIn()) this._applyZoom();
+    const prevWidth = this._viewState.width;
+    const prevHeight = this._viewState.height;
+    if (this._viewState.zoomIn()) this._applyZoom(prevWidth, prevHeight);
   }
 
   _zoomOut() {
-    if (this._viewState.zoomOut()) this._applyZoom();
+    const prevWidth = this._viewState.width;
+    const prevHeight = this._viewState.height;
+    if (this._viewState.zoomOut()) this._applyZoom(prevWidth, prevHeight);
   }
 
-  _applyZoom() {
-    this._updateViewBox();
+  _applyZoom(fromWidth, fromHeight) {
+    if (this._zoomAnimate && this._zoomAnimator && fromWidth != null) {
+      this._zoomAnimator.animateTo(this._viewState.zoomLevel, fromWidth, fromHeight);
+    } else {
+      this._updateViewBox();
+    }
     const levelDisplay = this.shadowRoot.querySelector(".zoom-level");
     if (levelDisplay) levelDisplay.textContent = this._viewState.zoomLevel;
   }
@@ -148,6 +184,7 @@ export class SolarViewCard extends HTMLElement {
     // Initialize view state on first render only — preserves zoom/pan across re-renders
     if (!this._viewState) {
       this._viewState = new ViewState(this._defaultZoomLevel);
+      this._zoomAnimator = new ZoomAnimator(this._viewState, () => this._updateViewBox());
     }
 
     // Derive hemisphere from HA location when available
@@ -230,6 +267,6 @@ export class SolarViewCard extends HTMLElement {
   }
 
   static getStubConfig() {
-    return { default_zoom: 2 };
+    return { default_zoom: 2, periodic_zoom_change: false, refresh_mins: 1, zoom_animate: true };
   }
 }

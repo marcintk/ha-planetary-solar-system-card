@@ -24,8 +24,13 @@ describe("SolarViewCard", () => {
     expect(card.getCardSize()).toBe(6);
   });
 
-  it("getStubConfig returns default config with default_zoom 2", () => {
-    expect(SolarViewCard.getStubConfig()).toEqual({ default_zoom: 2 });
+  it("getStubConfig returns default config with all options", () => {
+    expect(SolarViewCard.getStubConfig()).toEqual({
+      default_zoom: 2,
+      periodic_zoom_change: false,
+      refresh_mins: 1,
+      zoom_animate: true,
+    });
   });
 
   function createAndMount() {
@@ -369,6 +374,158 @@ describe("SolarViewCard", () => {
     });
   });
 
+  describe("refresh_mins configuration", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("defaults to 60000ms when refresh_mins is not set", () => {
+      const card = document.createElement("ha-solar-view-card-test");
+      card.setConfig({});
+      expect(card._refreshMs).toBe(60000);
+    });
+
+    it("uses configured refresh_mins value", () => {
+      const card = document.createElement("ha-solar-view-card-test");
+      card.setConfig({ refresh_mins: 5 });
+      expect(card._refreshMs).toBe(300000);
+    });
+
+    it("clamps refresh_mins below 0.1 to default", () => {
+      const card = document.createElement("ha-solar-view-card-test");
+      card.setConfig({ refresh_mins: 0.05 });
+      expect(card._refreshMs).toBe(60000);
+    });
+
+    it("ignores non-numeric refresh_mins", () => {
+      const card = document.createElement("ha-solar-view-card-test");
+      card.setConfig({ refresh_mins: "abc" });
+      expect(card._refreshMs).toBe(60000);
+    });
+
+    it("timer uses configured interval", () => {
+      vi.useFakeTimers({ now: new Date("2026-02-15T10:00:00") });
+      const card = document.createElement("ha-solar-view-card-test");
+      card.setConfig({ refresh_mins: 2 });
+      card._currentDate = new Date("2026-02-15T10:00:00");
+      document.body.appendChild(card);
+      const dateBefore = card._formatDate(card._currentDate);
+      // At 60s nothing should have changed yet (interval is 120s)
+      vi.advanceTimersByTime(60000);
+      expect(card._formatDate(card._currentDate)).toBe(dateBefore);
+      // At 120s the timer should fire
+      vi.advanceTimersByTime(60000);
+      expect(card._formatDate(card._currentDate)).toContain("26-02-15");
+      card.remove();
+    });
+
+    it("recreates timer on setConfig when already connected", () => {
+      vi.useFakeTimers();
+      const card = document.createElement("ha-solar-view-card-test");
+      card.setConfig({ refresh_mins: 1 });
+      document.body.appendChild(card);
+      const firstTimer = card._autoUpdateTimer;
+      card.setConfig({ refresh_mins: 2 });
+      expect(card._autoUpdateTimer).not.toBe(firstTimer);
+      card.remove();
+    });
+  });
+
+  describe("periodic_zoom_change configuration", () => {
+    it("defaults to false when not set", () => {
+      const card = document.createElement("ha-solar-view-card-test");
+      card.setConfig({});
+      expect(card._periodicZoomChange).toBe(false);
+    });
+
+    it("is true when configured as true", () => {
+      const card = document.createElement("ha-solar-view-card-test");
+      card.setConfig({ periodic_zoom_change: true });
+      expect(card._periodicZoomChange).toBe(true);
+    });
+  });
+
+  describe("periodic zoom cycling", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("does not change zoom when periodic_zoom_change is false", () => {
+      vi.useFakeTimers();
+      const card = document.createElement("ha-solar-view-card-test");
+      card.setConfig({ periodic_zoom_change: false });
+      document.body.appendChild(card);
+      expect(card._zoomLevel).toBe(1);
+      vi.advanceTimersByTime(60000);
+      expect(card._zoomLevel).toBe(1);
+      card.remove();
+    });
+
+    it("advances zoom by one level per tick", () => {
+      vi.useFakeTimers();
+      const card = document.createElement("ha-solar-view-card-test");
+      card.setConfig({ periodic_zoom_change: true });
+      document.body.appendChild(card);
+      expect(card._zoomLevel).toBe(1);
+      vi.advanceTimersByTime(60000);
+      expect(card._zoomLevel).toBe(2);
+      vi.advanceTimersByTime(60000);
+      expect(card._zoomLevel).toBe(3);
+      card.remove();
+    });
+
+    it("wraps from MAX_ZOOM back to level 1", () => {
+      vi.useFakeTimers();
+      const card = document.createElement("ha-solar-view-card-test");
+      card.setConfig({ periodic_zoom_change: true, default_zoom: 4 });
+      document.body.appendChild(card);
+      expect(card._zoomLevel).toBe(4);
+      vi.advanceTimersByTime(60000);
+      expect(card._zoomLevel).toBe(1);
+      card.remove();
+    });
+
+    it("updates zoom level display on auto-cycle", () => {
+      vi.useFakeTimers();
+      const card = document.createElement("ha-solar-view-card-test");
+      card.setConfig({ periodic_zoom_change: true });
+      document.body.appendChild(card);
+      expect(card.shadowRoot.querySelector(".zoom-level").textContent).toBe("1");
+      vi.advanceTimersByTime(60000);
+      // Re-query after timer fires because _render() may rebuild the DOM
+      expect(card.shadowRoot.querySelector(".zoom-level").textContent).toBe("2");
+      card.remove();
+    });
+
+    it("manual zoom-in continues cycle from user level", () => {
+      vi.useFakeTimers();
+      const card = document.createElement("ha-solar-view-card-test");
+      card.setConfig({ periodic_zoom_change: true });
+      document.body.appendChild(card);
+      // Manually zoom in to level 2
+      clickButton(card, "zoom-in");
+      expect(card._zoomLevel).toBe(2);
+      // Next tick should go to 3
+      vi.advanceTimersByTime(60000);
+      expect(card._zoomLevel).toBe(3);
+      card.remove();
+    });
+
+    it("Now button does not interrupt auto-cycle", () => {
+      vi.useFakeTimers();
+      const card = document.createElement("ha-solar-view-card-test");
+      card.setConfig({ periodic_zoom_change: true });
+      document.body.appendChild(card);
+      vi.advanceTimersByTime(60000);
+      expect(card._zoomLevel).toBe(2);
+      clickButton(card, "today");
+      expect(card._zoomLevel).toBe(2);
+      vi.advanceTimersByTime(60000);
+      expect(card._zoomLevel).toBe(3);
+      card.remove();
+    });
+  });
+
   describe("date and time display", () => {
     it("displays date with time in HH:MM format", () => {
       const card = createAndMount();
@@ -559,6 +716,79 @@ describe("SolarViewCard", () => {
       const bar = card.shadowRoot.querySelector(".status-bar");
       const spans = bar.querySelectorAll("span");
       expect(spans).toHaveLength(1);
+      card.remove();
+    });
+  });
+
+  describe("zoom_animate configuration", () => {
+    it("defaults to true when not set", () => {
+      const card = document.createElement("ha-solar-view-card-test");
+      card.setConfig({});
+      expect(card._zoomAnimate).toBe(true);
+    });
+
+    it("is false when configured as false", () => {
+      const card = document.createElement("ha-solar-view-card-test");
+      card.setConfig({ zoom_animate: false });
+      expect(card._zoomAnimate).toBe(false);
+    });
+
+    it("zoom is instant when zoom_animate is false", () => {
+      const card = document.createElement("ha-solar-view-card-test");
+      card.setConfig({ zoom_animate: false });
+      document.body.appendChild(card);
+      clickButton(card, "zoom-in");
+      const { width } = parseViewBox(card);
+      expect(width).toBe(640);
+      card.remove();
+    });
+
+    it("zoom level display updates immediately even with animation enabled", () => {
+      const card = document.createElement("ha-solar-view-card-test");
+      card.setConfig({ zoom_animate: true });
+      document.body.appendChild(card);
+      clickButton(card, "zoom-in");
+      expect(card.shadowRoot.querySelector(".zoom-level").textContent).toBe("2");
+      card.remove();
+    });
+
+    it("initial render does not animate even when zoom_animate is true", () => {
+      const card = document.createElement("ha-solar-view-card-test");
+      card.setConfig({ zoom_animate: true, default_zoom: 3 });
+      document.body.appendChild(card);
+      const { width } = parseViewBox(card);
+      expect(width).toBe(480);
+      card.remove();
+    });
+
+    it("setConfig re-render applies zoom instantly without animation", () => {
+      const card = document.createElement("ha-solar-view-card-test");
+      card.setConfig({ zoom_animate: true, default_zoom: 1 });
+      document.body.appendChild(card);
+      expect(parseViewBox(card).width).toBe(800);
+      // Reconfigure with new default zoom — should re-render instantly
+      card._viewState = null; // force fresh ViewState on next render
+      card.setConfig({ zoom_animate: true, default_zoom: 3 });
+      card._render();
+      expect(parseViewBox(card).width).toBe(480);
+      card.remove();
+    });
+  });
+
+  describe("animated zoom with periodic auto-cycle", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("auto-cycle updates zoom level display with animation enabled", () => {
+      vi.useFakeTimers();
+      const card = document.createElement("ha-solar-view-card-test");
+      card.setConfig({ periodic_zoom_change: true, zoom_animate: true });
+      document.body.appendChild(card);
+      expect(card.shadowRoot.querySelector(".zoom-level").textContent).toBe("1");
+      vi.advanceTimersByTime(60000);
+      // Zoom level display should update immediately to target
+      expect(card.shadowRoot.querySelector(".zoom-level").textContent).toBe("2");
       card.remove();
     });
   });

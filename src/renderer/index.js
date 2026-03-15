@@ -101,7 +101,12 @@ export function renderSolarSystem(date, hemisphere = "north", locationData = nul
   expandBounds(bounds, moonX, moonY, MOON.size + 17);
 
   // Observer needle on Earth (tip at surface)
-  const observerAngle = calculateObserverAngle(earthAngle, date, locationData?.timezone);
+  const observerAngle = calculateObserverAngle(
+    earthAngle,
+    date,
+    locationData?.timezone,
+    locationData?.lon
+  );
   renderObserverNeedle(svg, earthX, earthY, observerAngle, earth.size);
 
   return { svg, bounds };

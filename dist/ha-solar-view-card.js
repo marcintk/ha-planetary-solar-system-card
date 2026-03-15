@@ -408,17 +408,22 @@ function calculateSolarElevationDeg(observerAngle, earthAngle) {
  * @param {number} earthOrbitalAngle - Earth's orbital position (radians)
  * @param {Date} date - date/time used to extract local hours/minutes
  * @param {string} [timezone] - optional IANA timezone (e.g. "America/Chicago"); falls back to date.getHours()
+ * @param {number} [longitude] - optional observer longitude in degrees; when provided, uses true solar time instead of civil timezone
  * @returns {number} observer angle in radians
  */
-function calculateObserverAngle(earthOrbitalAngle, date, timezone) {
-  let hours, minutes;
-  if (timezone) {
-    ({ hours, minutes } = getLocalTimeInZone(date, timezone));
+function calculateObserverAngle(earthOrbitalAngle, date, timezone, longitude) {
+  let fractionalHours;
+  if (longitude != null) {
+    // True solar time: UTC hours + longitude offset (15° per hour)
+    const utcHour = date.getUTCHours() + date.getUTCMinutes() / 60 + date.getUTCSeconds() / 3600;
+    fractionalHours = (((utcHour + longitude / 15) % 24) + 24) % 24;
+  } else if (timezone) {
+    const { hours, minutes } = getLocalTimeInZone(date, timezone);
+    fractionalHours = hours + minutes / 60;
   } else {
-    hours = date.getHours();
-    minutes = date.getMinutes();
+    fractionalHours = date.getHours() + date.getMinutes() / 60;
   }
-  const localTimeAngle = ((hours + minutes / 60) / 24) * 2 * Math.PI;
+  const localTimeAngle = (fractionalHours / 24) * 2 * Math.PI;
   return earthOrbitalAngle + localTimeAngle;
 }
 
@@ -466,7 +471,12 @@ function renderVisibilityCone(
 function renderDayNightSplit(svg, earthRadius, date, earthBodySize, locationData) {
   const earth = PLANETS.find((p) => p.name === "Earth");
   const earthAngle = calculatePlanetPosition(earth, date);
-  const observerAngle = calculateObserverAngle(earthAngle, date, locationData?.timezone);
+  const observerAngle = calculateObserverAngle(
+    earthAngle,
+    date,
+    locationData?.timezone,
+    locationData?.lon
+  );
 
   const earthDirX = Math.cos(earthAngle);
   const earthDirY = Math.sin(earthAngle);
@@ -735,7 +745,12 @@ function renderSolarSystem(date, hemisphere = "north", locationData = null) {
   expandBounds(bounds, moonX, moonY, MOON.size + 17);
 
   // Observer needle on Earth (tip at surface)
-  const observerAngle = calculateObserverAngle(earthAngle, date, locationData?.timezone);
+  const observerAngle = calculateObserverAngle(
+    earthAngle,
+    date,
+    locationData?.timezone,
+    locationData?.lon
+  );
   renderObserverNeedle(svg, earthX, earthY, observerAngle, earth.size);
 
   return { svg, bounds };
@@ -976,6 +991,20 @@ class ViewState {
     return true;
   }
 
+  /** Set zoom to a specific level, clamped to [MIN_ZOOM, MAX_ZOOM]. */
+  setZoomLevel(level) {
+    const clamped = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, level));
+    this.zoomLevel = clamped;
+    this._width = ZOOM_LEVELS[clamped];
+    this._height = ZOOM_LEVELS[clamped];
+  }
+
+  /** Set viewport dimensions directly (for animation frames) without changing zoomLevel. */
+  setViewport(width, height) {
+    this._width = width;
+    this._height = height;
+  }
+
   startDrag(clientX, clientY) {
     this.isDragging = true;
     this._dragStartX = clientX;
@@ -997,6 +1026,70 @@ class ViewState {
 
   endDrag() {
     this.isDragging = false;
+  }
+}
+
+const ZOOM_ANIMATE_DURATION_MS = 2000;
+
+function easeInOutCubic(t) {
+  return t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
+}
+
+class ZoomAnimator {
+  constructor(viewState, onFrame) {
+    this._viewState = viewState;
+    this._onFrame = onFrame;
+    this._animationId = null;
+    this._startWidth = 0;
+    this._startHeight = 0;
+    this._targetWidth = 0;
+    this._targetHeight = 0;
+    this._startTime = -1;
+  }
+
+  get isAnimating() {
+    return this._animationId !== null;
+  }
+
+  animateTo(targetLevel, fromWidth, fromHeight) {
+    this.cancel();
+
+    this._startWidth = fromWidth != null ? fromWidth : this._viewState.width;
+    this._startHeight = fromHeight != null ? fromHeight : this._viewState.height;
+    this._targetWidth = ZOOM_LEVELS[targetLevel];
+    this._targetHeight = ZOOM_LEVELS[targetLevel];
+    this._targetLevel = targetLevel;
+    this._startTime = -1;
+
+    const step = (timestamp) => {
+      if (this._startTime < 0) this._startTime = timestamp;
+      const elapsed = timestamp - this._startTime;
+      const t = Math.min(elapsed / ZOOM_ANIMATE_DURATION_MS, 1);
+      const eased = easeInOutCubic(t);
+
+      const w = this._startWidth + (this._targetWidth - this._startWidth) * eased;
+      const h = this._startHeight + (this._targetHeight - this._startHeight) * eased;
+
+      this._viewState.setViewport(w, h);
+      this._onFrame();
+
+      if (t < 1) {
+        this._animationId = requestAnimationFrame(step);
+      } else {
+        this._viewState.setZoomLevel(this._targetLevel);
+        this._animationId = null;
+        this._onFrame();
+      }
+    };
+
+    this._animationId = requestAnimationFrame(step);
+  }
+
+  cancel() {
+    if (this._animationId !== null) {
+      cancelAnimationFrame(this._animationId);
+      this._animationId = null;
+    }
   }
 }
 
@@ -1060,11 +1153,32 @@ class SolarViewCard extends HTMLElement {
       config.default_zoom > MAX_ZOOM
         ? DEFAULT_ZOOM_LEVEL
         : config.default_zoom;
+
+    const rawRefresh = Number(config.refresh_mins);
+    this._refreshMs = Number.isFinite(rawRefresh) && rawRefresh >= 0.1 ? rawRefresh * 60000 : 60000;
+
+    this._periodicZoomChange = config.periodic_zoom_change === true;
+    this._zoomAnimate = config.zoom_animate !== false;
+
+    // Recreate timer if already connected
+    if (this._autoUpdateTimer != null) {
+      this._startAutoUpdateTimer();
+    }
   }
 
   connectedCallback() {
     this._render();
+    this._startAutoUpdateTimer();
+  }
+
+  disconnectedCallback() {
     clearInterval(this._autoUpdateTimer);
+    this._autoUpdateTimer = null;
+  }
+
+  _startAutoUpdateTimer() {
+    clearInterval(this._autoUpdateTimer);
+    const interval = this._refreshMs || 60000;
     this._autoUpdateTimer = setInterval(() => {
       if (
         this._formatDate(this._currentDate).slice(0, 10) ===
@@ -1073,12 +1187,18 @@ class SolarViewCard extends HTMLElement {
         this._currentDate = new Date();
         this._render();
       }
-    }, 60000);
+      if (this._periodicZoomChange) {
+        this._advanceZoom();
+      }
+    }, interval);
   }
 
-  disconnectedCallback() {
-    clearInterval(this._autoUpdateTimer);
-    this._autoUpdateTimer = null;
+  _advanceZoom() {
+    const prevWidth = this._viewState.width;
+    const prevHeight = this._viewState.height;
+    const next = this._viewState.zoomLevel >= MAX_ZOOM ? MIN_ZOOM : this._viewState.zoomLevel + 1;
+    this._viewState.setZoomLevel(next);
+    this._applyZoom(prevWidth, prevHeight);
   }
 
   _formatDate(date) {
@@ -1101,15 +1221,23 @@ class SolarViewCard extends HTMLElement {
   }
 
   _zoomIn() {
-    if (this._viewState.zoomIn()) this._applyZoom();
+    const prevWidth = this._viewState.width;
+    const prevHeight = this._viewState.height;
+    if (this._viewState.zoomIn()) this._applyZoom(prevWidth, prevHeight);
   }
 
   _zoomOut() {
-    if (this._viewState.zoomOut()) this._applyZoom();
+    const prevWidth = this._viewState.width;
+    const prevHeight = this._viewState.height;
+    if (this._viewState.zoomOut()) this._applyZoom(prevWidth, prevHeight);
   }
 
-  _applyZoom() {
-    this._updateViewBox();
+  _applyZoom(fromWidth, fromHeight) {
+    if (this._zoomAnimate && this._zoomAnimator && fromWidth != null) {
+      this._zoomAnimator.animateTo(this._viewState.zoomLevel, fromWidth, fromHeight);
+    } else {
+      this._updateViewBox();
+    }
     const levelDisplay = this.shadowRoot.querySelector(".zoom-level");
     if (levelDisplay) levelDisplay.textContent = this._viewState.zoomLevel;
   }
@@ -1146,6 +1274,7 @@ class SolarViewCard extends HTMLElement {
     // Initialize view state on first render only — preserves zoom/pan across re-renders
     if (!this._viewState) {
       this._viewState = new ViewState(this._defaultZoomLevel);
+      this._zoomAnimator = new ZoomAnimator(this._viewState, () => this._updateViewBox());
     }
 
     // Derive hemisphere from HA location when available
@@ -1228,7 +1357,7 @@ class SolarViewCard extends HTMLElement {
   }
 
   static getStubConfig() {
-    return { default_zoom: 2 };
+    return { default_zoom: 2, periodic_zoom_change: false, refresh_mins: 1, zoom_animate: true };
   }
 }
 

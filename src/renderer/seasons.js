@@ -4,7 +4,7 @@ const SEASON_LINE_COLOR = "rgba(255, 255, 255, 0.25)";
 const SEASON_LABEL_COLOR = "rgba(255, 255, 255, 0.5)";
 const SEASON_FONT_SIZE = 20;
 
-export function renderSeasonOverlay(svg, hemisphere, viewState) {
+export function renderSeasonOverlay(svg, hemisphere) {
   // Dotted dividing lines through the Sun
   svg.appendChild(
     createSvgElement("line", {
@@ -48,11 +48,7 @@ export function renderSeasonOverlay(svg, hemisphere, viewState) {
   ];
 
   const seasons = hemisphere === "south" ? southSeasons : northSeasons;
-  const defaultRadius = MAX_RADIUS + 20;
-  const labelRadius =
-    viewState && viewState.zoomLevel > 1
-      ? Math.min(defaultRadius, viewState.width / 2 - 15)
-      : defaultRadius;
+  const labelRadius = MAX_RADIUS + 20;
 
   const defs =
     svg.querySelector("defs") || svg.insertBefore(createSvgElement("defs", {}), svg.firstChild);

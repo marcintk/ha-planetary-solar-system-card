@@ -124,6 +124,9 @@ export function renderOffscreenMarkers(positions, viewState) {
   const bottom = top + h;
 
   for (const pos of positions) {
+    // Skip bodies that opt out of offscreen markers (e.g. Moon)
+    if (pos.offscreen === false) continue;
+
     // Skip if inside viewport
     if (pos.x >= left && pos.x <= right && pos.y >= top && pos.y <= bottom) {
       continue;

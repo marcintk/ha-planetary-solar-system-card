@@ -11,6 +11,9 @@ The `renderSolarSystem` function SHALL return a `positions` array alongside the 
 `bounds` properties. Each entry SHALL contain `{ name, x, y, color }` for every planet and the Moon,
 where `x` and `y` are SVG coordinate positions and `color` is the object's rendered color.
 
+The Moon's position entry SHALL include an `offscreen: false` property to signal that offscreen
+markers SHALL NOT be rendered for the Moon.
+
 #### Scenario: Positions array includes all planets and Moon
 
 - **WHEN** `renderSolarSystem` is called for any date
@@ -24,11 +27,20 @@ where `x` and `y` are SVG coordinate positions and `color` is the object's rende
 - **THEN** each planet's `x` and `y` in the positions array SHALL match the coordinates used to
   render that planet's body in the SVG
 
+#### Scenario: Moon position entry has offscreen flag set to false
+
+- **WHEN** `renderSolarSystem` is called for any date
+- **THEN** the Moon's entry in `positions` SHALL include `offscreen: false`
+- **AND** all planet entries SHALL NOT include an `offscreen` property (defaulting to eligible)
+
 ### Requirement: Off-screen marker display
 
-When a planet or the Moon falls outside the current viewBox boundaries, the card SHALL render a
-triangular marker at the nearest viewport edge pointing toward the off-screen object. The marker
-SHALL be accompanied by a name label identifying the object.
+When a planet falls outside the current viewBox boundaries, the card SHALL render a triangular
+marker at the nearest viewport edge pointing toward the off-screen object. The marker SHALL be
+accompanied by a name label identifying the object.
+
+The Moon SHALL be excluded from offscreen marker rendering. `renderOffscreenMarkers` in
+`src/renderer/offscreen-markers.js` SHALL skip any position entry where `offscreen` is `false`.
 
 #### Scenario: Marker appears for off-screen planet
 
@@ -46,6 +58,13 @@ SHALL be accompanied by a name label identifying the object.
 
 - **WHEN** an off-screen marker is displayed for a planet
 - **THEN** the planet's name SHALL be displayed adjacent to the triangle marker
+
+#### Scenario: Moon excluded from offscreen markers
+
+- **WHEN** the Moon's SVG coordinates fall outside the visible viewBox rectangle
+- **THEN** no off-screen marker SHALL be displayed for the Moon
+- **AND** the Moon's position entry with `offscreen: false` SHALL be skipped by
+  `renderOffscreenMarkers`
 
 #### Scenario: All planets at zoom level 1
 
@@ -117,3 +136,25 @@ toward the planet.
 - **WHEN** a planet is off-screen to the upper-right of the viewport
 - **THEN** the marker SHALL appear at the intersection of the line from center to planet with the
   viewport boundary (either top or right edge, whichever is hit first)
+
+### Requirement: Moon text label suppression
+
+The Moon's circular body marker SHALL be rendered by `renderBody` in `src/renderer/bodies.js`, but
+the text label ("Moon") SHALL be suppressed by passing `showLabel = false`. This prevents visual
+clutter where the Moon and Earth labels overlap due to their close proximity (22px offset).
+
+Implementation: `renderSolarSystem` in `src/renderer/index.js` SHALL call
+`renderBody(svg, moonX, moonY, MOON, false)`.
+
+#### Scenario: Moon body visible without text label
+
+- **WHEN** the solar system is rendered for any date
+- **THEN** the Moon's circular body marker SHALL be visible at its computed position
+- **AND** no text element with content "Moon" SHALL be rendered by the Moon's `renderBody` call
+
+#### Scenario: Moon marker dot unchanged
+
+- **WHEN** the Moon is rendered
+- **THEN** the Moon's circle element SHALL have the same size and color as before (defined by `MOON`
+  in `src/astronomy/planet-data.js`)
+- **AND** the Moon's orbital dotted circle around Earth SHALL remain unchanged

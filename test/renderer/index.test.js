@@ -82,7 +82,7 @@ describe("renderSolarSystem", () => {
     expect(texts).toContain("Earth");
     expect(texts).toContain("Mars");
     expect(texts).toContain("Neptune");
-    expect(texts).toContain("Moon");
+    expect(texts).not.toContain("Moon");
   });
 
   it("renders AU distance labels on vertical axis in mirrored pairs", () => {

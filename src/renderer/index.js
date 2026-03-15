@@ -35,7 +35,7 @@ export function renderSolarSystem(
   renderDayNightSplit(svg, earthRadius, date, earth.size, locationData);
 
   // Season quadrant overlay (after day/night, before orbits)
-  renderSeasonOverlay(svg, hemisphere, viewState);
+  renderSeasonOverlay(svg, hemisphere);
 
   // Draw orbits
   for (const planet of PLANETS) {
@@ -91,7 +91,7 @@ export function renderSolarSystem(
   const moonPixelOffset = 22; // pixels from Earth
   const moonX = earthX + moonPixelOffset * Math.cos(moonAngle);
   const moonY = earthY - moonPixelOffset * Math.sin(moonAngle);
-  positions.push({ name: MOON.name, x: moonX, y: moonY, color: MOON.color });
+  positions.push({ name: MOON.name, x: moonX, y: moonY, color: MOON.color, offscreen: false });
 
   // Moon orbit (dotted circle centered on Earth)
   svg.appendChild(
@@ -106,7 +106,7 @@ export function renderSolarSystem(
     })
   );
 
-  renderBody(svg, moonX, moonY, MOON);
+  renderBody(svg, moonX, moonY, MOON, false);
   expandBounds(bounds, moonX, moonY, MOON.size + 17);
 
   // Observer needle on Earth (tip at surface)

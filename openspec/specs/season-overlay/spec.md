@@ -9,40 +9,40 @@ through the Sun and curved arc labels along Neptune's orbit showing season names
 
 The season quadrant overlay (dividing lines and curved arc labels rendered by `renderSeasonOverlay`
 in `src/renderer/seasons.js`) SHALL be rendered at **all zoom levels** (1 through 4). The arc labels
-SHALL be repositioned at higher zoom levels so they remain within the visible viewport.
+SHALL always use a fixed radius of `MAX_RADIUS + 20`, regardless of the current zoom level or
+viewport size.
 
-When a `viewState` is provided and the zoom level is greater than 1, the label radius SHALL be
-computed as `min(MAX_RADIUS + 20, viewState.width / 2 - margin)` so that arc labels fit within the
-current viewBox. When no `viewState` is provided or zoom level is 1, the label radius SHALL default
-to `MAX_RADIUS + 20` (existing behavior).
+The `renderSeasonOverlay` function SHALL accept only `svg` and `hemisphere` parameters. The
+`viewState` parameter SHALL be removed from the function signature and from the call site in
+`renderSolarSystem` (`src/renderer/index.js`).
 
 Implementation: `renderSeasonOverlay` in `src/renderer/seasons.js`, called from `renderSolarSystem`
 in `src/renderer/index.js`.
 
-#### Scenario: Season overlay visible at zoom level 1
+#### Scenario: Season overlay at zoom level 1 uses fixed radius
 
 - **GIVEN** the viewBox is at zoom level 1 (800x800)
 - **WHEN** the season overlay is rendered
 - **THEN** the season quadrant overlay SHALL be rendered with dividing lines and arc labels
 - **AND** the label radius SHALL be `MAX_RADIUS + 20`
 
-#### Scenario: Season overlay visible at zoom level 2
+#### Scenario: Season overlay at zoom level 2 uses same fixed radius
 
 - **GIVEN** the viewBox is at zoom level 2 (640x640)
-- **WHEN** the season overlay is rendered with a `viewState`
-- **THEN** the season quadrant overlay SHALL be rendered with dividing lines and arc labels
-- **AND** the arc labels SHALL be repositioned to fit within the 640x640 viewport
+- **WHEN** the season overlay is rendered
+- **THEN** the label radius SHALL be `MAX_RADIUS + 20`
+- **AND** the labels SHALL NOT be repositioned to fit the viewport
 
-#### Scenario: Season overlay visible at zoom level 4
+#### Scenario: Season overlay at zoom level 4 uses same fixed radius
 
 - **GIVEN** the viewBox is at zoom level 4 (320x320)
-- **WHEN** the season overlay is rendered with a `viewState`
-- **THEN** the season quadrant overlay SHALL be rendered with dividing lines and arc labels
-- **AND** the arc labels SHALL be repositioned to fit within the 320x320 viewport
-
-#### Scenario: Season overlay without viewState uses default radius
-
-- **GIVEN** no `viewState` is provided (e.g., in tests or previews)
 - **WHEN** the season overlay is rendered
-- **THEN** the label radius SHALL default to `MAX_RADIUS + 20`
-- **AND** behavior SHALL be identical to the existing implementation
+- **THEN** the label radius SHALL be `MAX_RADIUS + 20`
+- **AND** the labels SHALL NOT be repositioned to fit the viewport
+
+#### Scenario: renderSeasonOverlay does not accept viewState
+
+- **GIVEN** the `renderSeasonOverlay` function in `src/renderer/seasons.js`
+- **WHEN** the function is called
+- **THEN** it SHALL accept exactly two parameters: `svg` and `hemisphere`
+- **AND** it SHALL NOT reference `viewState` or zoom level in its label radius calculation

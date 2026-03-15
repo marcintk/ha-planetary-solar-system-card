@@ -619,7 +619,7 @@ const SEASON_LINE_COLOR = "rgba(255, 255, 255, 0.25)";
 const SEASON_LABEL_COLOR = "rgba(255, 255, 255, 0.5)";
 const SEASON_FONT_SIZE = 20;
 
-function renderSeasonOverlay(svg, hemisphere, viewState) {
+function renderSeasonOverlay(svg, hemisphere) {
   // Dotted dividing lines through the Sun
   svg.appendChild(
     createSvgElement("line", {
@@ -663,11 +663,7 @@ function renderSeasonOverlay(svg, hemisphere, viewState) {
   ];
 
   const seasons = hemisphere === "south" ? southSeasons : northSeasons;
-  const defaultRadius = MAX_RADIUS + 20;
-  const labelRadius =
-    viewState && viewState.zoomLevel > 1
-      ? Math.min(defaultRadius, viewState.width / 2 - 15)
-      : defaultRadius;
+  const labelRadius = MAX_RADIUS + 20;
 
   const defs =
     svg.querySelector("defs") || svg.insertBefore(createSvgElement("defs", {}), svg.firstChild);
@@ -746,7 +742,7 @@ function renderSolarSystem(
   renderDayNightSplit(svg, earthRadius, date, earth.size, locationData);
 
   // Season quadrant overlay (after day/night, before orbits)
-  renderSeasonOverlay(svg, hemisphere, viewState);
+  renderSeasonOverlay(svg, hemisphere);
 
   // Draw orbits
   for (const planet of PLANETS) {
@@ -802,7 +798,7 @@ function renderSolarSystem(
   const moonPixelOffset = 22; // pixels from Earth
   const moonX = earthX + moonPixelOffset * Math.cos(moonAngle);
   const moonY = earthY - moonPixelOffset * Math.sin(moonAngle);
-  positions.push({ name: MOON.name, x: moonX, y: moonY, color: MOON.color });
+  positions.push({ name: MOON.name, x: moonX, y: moonY, color: MOON.color, offscreen: false });
 
   // Moon orbit (dotted circle centered on Earth)
   svg.appendChild(
@@ -817,7 +813,7 @@ function renderSolarSystem(
     })
   );
 
-  renderBody(svg, moonX, moonY, MOON);
+  renderBody(svg, moonX, moonY, MOON, false);
   expandBounds(bounds, moonX, moonY, MOON.size + 17);
 
   // Observer needle on Earth (tip at surface)
@@ -956,6 +952,9 @@ function renderOffscreenMarkers(positions, viewState) {
   const bottom = top + h;
 
   for (const pos of positions) {
+    // Skip bodies that opt out of offscreen markers (e.g. Moon)
+    if (pos.offscreen === false) continue;
+
     // Skip if inside viewport
     if (pos.x >= left && pos.x <= right && pos.y >= top && pos.y <= bottom) {
       continue;

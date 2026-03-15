@@ -119,19 +119,8 @@ describe("renderSeasonOverlay", () => {
   });
 });
 
-describe("renderSeasonOverlay viewport-aware positioning", () => {
-  const defaultRadius = MAX_RADIUS + 20;
-
-  function makeViewState(zoomLevel) {
-    const sizes = { 1: 800, 2: 640, 3: 480, 4: 320 };
-    return {
-      centerX: 400,
-      centerY: 400,
-      width: sizes[zoomLevel],
-      height: sizes[zoomLevel],
-      zoomLevel,
-    };
-  }
+describe("renderSeasonOverlay fixed label radius", () => {
+  const expectedRadius = MAX_RADIUS + 20;
 
   function extractRadius(svg) {
     const path = svg.querySelector("defs #season-arc-2");
@@ -139,39 +128,14 @@ describe("renderSeasonOverlay viewport-aware positioning", () => {
     return Number(match[1]);
   }
 
-  it("uses default radius when no viewState is provided", () => {
+  it("uses fixed radius MAX_RADIUS + 20", () => {
     const svg = createSvg();
     renderSeasonOverlay(svg, "north");
-    expect(extractRadius(svg)).toBe(defaultRadius);
+    expect(extractRadius(svg)).toBe(expectedRadius);
   });
 
-  it("uses default radius at zoom level 1", () => {
-    const svg = createSvg();
-    renderSeasonOverlay(svg, "north", makeViewState(1));
-    expect(extractRadius(svg)).toBe(defaultRadius);
-  });
-
-  it("uses reduced radius at zoom level 2 to fit viewport", () => {
-    const svg = createSvg();
-    renderSeasonOverlay(svg, "north", makeViewState(2));
-    const radius = extractRadius(svg);
-    expect(radius).toBeLessThan(defaultRadius);
-    expect(radius).toBe(640 / 2 - 15);
-  });
-
-  it("uses reduced radius at zoom level 4 to fit viewport", () => {
-    const svg = createSvg();
-    renderSeasonOverlay(svg, "north", makeViewState(4));
-    const radius = extractRadius(svg);
-    expect(radius).toBeLessThan(defaultRadius);
-    expect(radius).toBe(320 / 2 - 15);
-  });
-
-  it("still renders all four season labels at high zoom", () => {
-    const svg = createSvg();
-    renderSeasonOverlay(svg, "north", makeViewState(4));
-    const textPaths = svg.querySelectorAll("textPath");
-    expect(textPaths.length).toBe(4);
+  it("does not accept a viewState parameter", () => {
+    expect(renderSeasonOverlay.length).toBe(2);
   });
 });
 

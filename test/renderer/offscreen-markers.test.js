@@ -66,4 +66,11 @@ describe("renderOffscreenMarkers", () => {
     const group = renderOffscreenMarkers(positions, vs);
     expect(group.children.length).toBe(0);
   });
+
+  it("no marker for Moon when offscreen is false", () => {
+    const positions = [{ name: "Moon", x: 0, y: 0, color: "#cccccc", offscreen: false }];
+    const vs = makeViewState(4);
+    const group = renderOffscreenMarkers(positions, vs);
+    expect(group.children.length).toBe(0);
+  });
 });

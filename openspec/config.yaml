@@ -83,7 +83,5 @@ rules:
       replace_symbol_body, insert_after_symbol, insert_before_symbol). Never use raw file writes for code.
     - For library or browser API documentation, use Context7 MCP (resolve-library-id then query-docs)
       before implementing. Do not use web search when Context7 covers the library.
-    - For spec/design/task work, use OpenSpec skills in order: opsx:explore → opsx:new → opsx:continue
-      → opsx:apply. Do not skip to implementation without a spec.
     - After implementing, use opsx:verify then opsx:archive to close the change.
     - Store Serena-specific operational notes in Serena memory; all other project info stays in CLAUDE.md.

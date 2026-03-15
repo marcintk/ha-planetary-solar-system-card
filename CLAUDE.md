@@ -59,14 +59,8 @@ provides.
 - add some other object like comets i.e. Halley
 - add Earth centric view (every update should move all objects except Earth)
 - add zodiac constellations
-- add moon phases
 - add information if this Northern or Southern hemisphere
 - add auto zoom level to fit all planets in view
-- add changing zoom level every n minutes
-- add configurations options:
-  - refresh time, default: 60 seconds
-  - zoom level to fit all planets, default: false
-  - centric view, default: Sun (or Earth)
 
 ### Fixes
 

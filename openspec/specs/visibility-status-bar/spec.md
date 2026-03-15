@@ -1,12 +1,3 @@
-## Purpose
-
-Defines the transparent status bar overlay rendered at the top of the solar system SVG. It displays
-the observer's location name, current sky condition with solar elevation, and the time of the next
-mode transition — providing actionable sky-condition information without extending the card
-dimensions.
-
-## Requirements
-
 ### Requirement: Status bar overlay at top of card
 
 A status bar element SHALL be rendered inside `.solar-view-wrapper` as an absolutely-positioned

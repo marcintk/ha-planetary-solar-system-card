@@ -1,10 +1,3 @@
-## Purpose
-
-Defines the season quadrant overlay rendered on the solar system visualization — dividing lines
-through the Sun and curved arc labels along Neptune's orbit showing season names for each quadrant.
-
-## Requirements
-
 ### Requirement: Season overlay visibility
 
 The season quadrant overlay (dividing lines and curved arc labels rendered by `renderSeasonOverlay`

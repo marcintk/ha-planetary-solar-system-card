@@ -1,12 +1,3 @@
-## Purpose
-
-Defines the visibility cone and horizon line displayed at Earth's orbital position. These elements
-communicate the current daylight, twilight, and night conditions to the observer, using the Sun's
-elevation angle computed from the observer's real geographic location via the `observer-location`
-capability.
-
-## Requirements
-
 ### Requirement: Fixed horizon arc
 
 The visibility display at Earth's orbital position SHALL include a fixed dashed line spanning

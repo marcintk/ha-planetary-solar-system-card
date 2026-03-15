@@ -16,11 +16,6 @@ behavior).
 - **WHEN** the card is configured with `zoom_animate: false`
 - **THEN** zoom level changes SHALL apply instantly without animation
 
-#### Scenario: getStubConfig includes zoom_animate
-
-- **WHEN** `SolarViewCard.getStubConfig()` is called
-- **THEN** the result SHALL include `zoom_animate: true`
-
 ### Requirement: Animated zoom transition duration
 
 When `zoom_animate` is enabled, each zoom transition SHALL complete in approximately 2000

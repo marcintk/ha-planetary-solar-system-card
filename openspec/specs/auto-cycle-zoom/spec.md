@@ -30,7 +30,9 @@ missing values SHALL default to 1.
 
 The card SHALL accept a `periodic_zoom_change` configuration option (boolean, default: false). When
 enabled, each refresh tick SHALL advance the zoom level by one step. After reaching MAX_ZOOM (level
-4), the next tick SHALL wrap around to MIN_ZOOM (level 1).
+4), the next tick SHALL wrap around to MIN_ZOOM (level 1). When `zoom_animate` is enabled, each
+periodic zoom advance SHALL trigger an animated transition. When `zoom_animate` is disabled, each
+periodic zoom advance SHALL apply instantly.
 
 #### Scenario: Zoom cycling disabled by default
 
@@ -54,6 +56,26 @@ enabled, each refresh tick SHALL advance the zoom level by one step. After reach
 - **THEN** the zoom level display in the navigation bar SHALL update to show the new level
 - **AND** the SVG viewBox SHALL update to reflect the new zoom level
 
+#### Scenario: Auto-cycle triggers animation when enabled
+
+- **WHEN** `periodic_zoom_change` is `true` and `zoom_animate` is `true`
+- **AND** a refresh tick advances the zoom level
+- **THEN** the viewBox SHALL animate smoothly from the current level dimensions to the next level
+  dimensions over approximately 2000ms
+
+#### Scenario: Auto-cycle is instant when animation disabled
+
+- **WHEN** `periodic_zoom_change` is `true` and `zoom_animate` is `false`
+- **AND** a refresh tick advances the zoom level
+- **THEN** the viewBox SHALL update instantly without animation
+
+#### Scenario: Auto-cycle animation interrupted by next tick
+
+- **WHEN** `periodic_zoom_change` is `true` and `zoom_animate` is `true`
+- **AND** a zoom animation is still in progress when the next refresh tick fires
+- **THEN** the in-progress animation SHALL be cancelled
+- **AND** a new animation SHALL begin from the current interpolated position to the next zoom level
+
 ### Requirement: ViewState setZoomLevel method
 
 The `ViewState` class SHALL provide a `setZoomLevel(level)` method that directly sets the zoom level
@@ -73,11 +95,11 @@ width and height SHALL update to match the new level.
 
 ### Requirement: getStubConfig includes new options
 
-The `getStubConfig()` static method SHALL return `periodic_zoom_change: false` and `refresh_mins: 1`
-alongside the existing `default_zoom: 2`.
+The `getStubConfig()` static method SHALL return `periodic_zoom_change: false`, `refresh_mins: 1`,
+and `zoom_animate: true` alongside the existing `default_zoom: 2`.
 
 #### Scenario: Stub config includes all options
 
 - **WHEN** `SolarViewCard.getStubConfig()` is called
 - **THEN** the result SHALL include
-  `{ default_zoom: 2, periodic_zoom_change: false, refresh_mins: 1 }`
+  `{ default_zoom: 2, periodic_zoom_change: false, refresh_mins: 1, zoom_animate: true }`

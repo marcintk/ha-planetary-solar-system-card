@@ -101,7 +101,8 @@ current zoom level.
 
 When `periodic_zoom_change` is enabled and the user manually changes the zoom level via zoom-in or
 zoom-out buttons, the auto-cycle SHALL continue from the user's new zoom level on the next refresh
-tick.
+tick. When `zoom_animate` is enabled, the manual zoom change SHALL trigger an animated transition.
+When `zoom_animate` is disabled, the manual zoom change SHALL apply instantly.
 
 #### Scenario: Manual zoom-in during auto-cycle
 
@@ -114,3 +115,20 @@ tick.
 - **WHEN** `periodic_zoom_change` is `true` and the auto-cycle is at level 3
 - **AND** the user presses the zoom-out button (going back to level 2)
 - **THEN** the next refresh tick SHALL advance the zoom level to 3
+
+#### Scenario: Manual zoom-in triggers animation when enabled
+
+- **WHEN** `zoom_animate` is `true` and the user presses the zoom-in button
+- **THEN** the viewBox SHALL animate smoothly from the current level dimensions to the next level
+  dimensions
+
+#### Scenario: Manual zoom-out triggers animation when enabled
+
+- **WHEN** `zoom_animate` is `true` and the user presses the zoom-out button
+- **THEN** the viewBox SHALL animate smoothly from the current level dimensions to the previous
+  level dimensions
+
+#### Scenario: Manual zoom is instant when animation disabled
+
+- **WHEN** `zoom_animate` is `false` and the user presses zoom-in or zoom-out
+- **THEN** the viewBox SHALL update instantly without animation

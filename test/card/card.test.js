@@ -271,6 +271,86 @@ describe("SolarViewCard", () => {
     });
   });
 
+  describe("hass setter", () => {
+    it("set hass updates location fields and re-renders", () => {
+      const card = createAndMount();
+      card.hass = {
+        config: {
+          latitude: 51.5,
+          longitude: -0.1,
+          time_zone: "Europe/London",
+          location_name: "London",
+        },
+      };
+      expect(card._lat).toBe(51.5);
+      expect(card._lon).toBe(-0.1);
+      expect(card._timezone).toBe("Europe/London");
+      expect(card._locationName).toBe("London");
+      const bar = card.shadowRoot.querySelector(".status-bar");
+      expect(bar).not.toBeNull();
+      card.remove();
+    });
+
+    it("set hass does not re-render when location has not changed", () => {
+      const card = createAndMount();
+      const hassObj = {
+        config: {
+          latitude: 40,
+          longitude: -74,
+          time_zone: "America/New_York",
+          location_name: "NY",
+        },
+      };
+      card.hass = hassObj;
+      const htmlAfterFirst = card.shadowRoot.innerHTML;
+      card.hass = hassObj;
+      // innerHTML should be identical — no re-render occurred
+      expect(card.shadowRoot.innerHTML).toBe(htmlAfterFirst);
+      card.remove();
+    });
+
+    it("set hass with null config fields clears location", () => {
+      const card = createAndMount();
+      card.hass = {
+        config: {
+          latitude: 51.5,
+          longitude: -0.1,
+          time_zone: "Europe/London",
+          location_name: "London",
+        },
+      };
+      expect(card._lat).toBe(51.5);
+      card.hass = { config: {} };
+      expect(card._lat).toBeNull();
+      expect(card._lon).toBeNull();
+      expect(card._timezone).toBeNull();
+      expect(card._locationName).toBeNull();
+      card.remove();
+    });
+  });
+
+  describe("month-back navigation", () => {
+    it("month-back rewinds by one month", () => {
+      const card = createAndMount();
+      card._currentDate = new Date("2026-03-15T12:00:00");
+      card._render();
+      clickButton(card, "month-back");
+      expect(card._currentDate.getMonth()).toBe(1); // February (0-indexed)
+      expect(card._currentDate.getFullYear()).toBe(2026);
+      card.remove();
+    });
+
+    it("month-back crosses year boundary", () => {
+      const card = createAndMount();
+      card._currentDate = new Date("2026-01-15T12:00:00");
+      card._render();
+      clickButton(card, "month-back");
+      expect(card._currentDate.getMonth()).toBe(11); // December
+      expect(card._currentDate.getFullYear()).toBe(2025);
+      card.remove();
+    });
+  });
+
   describe("button labels", () => {
     it("time navigation buttons use Unicode single-character symbols", () => {
       const card = createAndMount();

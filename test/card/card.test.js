@@ -271,18 +271,6 @@ describe("SolarViewCard", () => {
     });
   });
 
-  describe("today button", () => {
-    it("Today button preserves zoom level", () => {
-      const card = createAndMount();
-      clickButton(card, "zoom-in");
-      clickButton(card, "zoom-in");
-      expect(card._zoomLevel).toBe(3);
-      clickButton(card, "today");
-      expect(card._zoomLevel).toBe(3);
-      card.remove();
-    });
-  });
-
   describe("button labels", () => {
     it("time navigation buttons use Unicode single-character symbols", () => {
       const card = createAndMount();

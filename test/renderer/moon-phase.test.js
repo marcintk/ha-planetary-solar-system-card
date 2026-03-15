@@ -86,11 +86,11 @@ describe("renderMoonPhaseIndicator", () => {
     expect(arcMatch[3]).toBe("0");
   });
 
-  it("text label uses middle text-anchor", () => {
+  it("text label uses start text-anchor", () => {
     const svg = createSvg();
     renderMoonPhaseIndicator(svg, new Date("2024-06-15"), "north");
 
     const text = svg.querySelector("g.moon-phase-indicator text");
-    expect(text.getAttribute("text-anchor")).toBe("middle");
+    expect(text.getAttribute("text-anchor")).toBe("start");
   });
 });

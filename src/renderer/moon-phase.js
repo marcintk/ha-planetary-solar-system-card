@@ -1,13 +1,13 @@
 import { getMoonPhase } from "../astronomy/moon-phase.js";
 import { createSvgElement } from "./svg-utils.js";
 
-const INDICATOR_RADIUS = 10;
-const INDICATOR_X = 30;
-const INDICATOR_Y = 770;
+const INDICATOR_RADIUS = 30;
+const INDICATOR_X = 40;
+const INDICATOR_Y = 735;
 const DISC_COLOR = "#cccccc";
 const SHADOW_COLOR = "#1a1a2e";
 const LABEL_COLOR = "#aaaaaa";
-const LABEL_FONT_SIZE = "9";
+const LABEL_FONT_SIZE = "14";
 
 /**
  * Render a moon phase indicator (disc + label) and append it to the SVG.
@@ -82,12 +82,12 @@ export function renderMoonPhaseIndicator(svg, date, hemisphere) {
 
   // Phase name label below the disc
   const label = createSvgElement("text", {
-    x: INDICATOR_X,
-    y: INDICATOR_Y + INDICATOR_RADIUS + 12,
+    x: INDICATOR_X - INDICATOR_RADIUS,
+    y: INDICATOR_Y + INDICATOR_RADIUS + 14,
     fill: LABEL_COLOR,
     "font-size": LABEL_FONT_SIZE,
     "font-family": "sans-serif",
-    "text-anchor": "middle",
+    "text-anchor": "start",
   });
   label.textContent = phaseName;
   g.appendChild(label);

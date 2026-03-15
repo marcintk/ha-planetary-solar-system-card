@@ -599,6 +599,18 @@ describe("renderSolarSystem", () => {
     expect(dots.length).toBe(1);
     expect(dots[0].getAttribute("r")).toBe("2");
   });
+
+  it("renders moon phase indicator group", () => {
+    const container = document.createElement("div");
+    renderInto(container, new Date("2026-02-14"));
+
+    const svg = container.querySelector("svg");
+    const indicator = svg.querySelector("g.moon-phase-indicator");
+    expect(indicator).not.toBeNull();
+    expect(indicator.querySelector("circle")).not.toBeNull();
+    expect(indicator.querySelector("text")).not.toBeNull();
+    expect(indicator.querySelector("text").textContent.length).toBeGreaterThan(0);
+  });
 });
 
 describe("renderSolarSystem zoom-level season overlay", () => {

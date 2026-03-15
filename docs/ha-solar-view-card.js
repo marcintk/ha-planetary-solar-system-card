@@ -148,7 +148,7 @@ function expandBounds(bounds, x, y, margin) {
 }
 
 const ORBIT_COLOR = "rgba(255, 255, 255, 0.12)";
-const LABEL_COLOR = "rgba(255, 255, 255, 0.5)";
+const LABEL_COLOR$1 = "rgba(255, 255, 255, 0.5)";
 
 function renderOrbit(svg, radius, auLabel) {
   svg.appendChild(
@@ -168,7 +168,7 @@ function renderOrbit(svg, radius, auLabel) {
   const offset = 3;
   const horizontalOffset = 3;
   const labelAttrs = {
-    fill: LABEL_COLOR,
+    fill: LABEL_COLOR$1,
     "font-size": "9",
     "font-family": "sans-serif",
     "text-anchor": "start",
@@ -248,6 +248,145 @@ function renderSaturnRings(svg, x, y, body, _renderSize) {
       "stroke-width": 6,
     })
   );
+}
+
+/**
+ * Moon phase calculation using synodic month cycle.
+ */
+
+/** Synodic month in days (New Moon to New Moon). */
+const SYNODIC_MONTH = 29.53059;
+
+/** Known New Moon epoch: January 6, 2000 18:14 UTC. */
+const NEW_MOON_EPOCH = Date.UTC(2000, 0, 6, 18, 14, 0);
+
+/** Phase name boundaries — 8 equal segments centered on each phase's ideal value. */
+const PHASE_NAMES = [
+  "New Moon",
+  "Waxing Crescent",
+  "First Quarter",
+  "Waxing Gibbous",
+  "Full Moon",
+  "Waning Gibbous",
+  "Third Quarter",
+  "Waning Crescent",
+];
+
+/**
+ * Compute the Moon's synodic phase for a given date.
+ * @param {Date} date
+ * @returns {{ phase: number, phaseName: string, illumination: number }}
+ *   - phase: 0–1 where 0 = New Moon, 0.5 = Full Moon
+ *   - phaseName: one of 8 discrete phase names
+ *   - illumination: 0–1 fraction of visible disc illuminated
+ */
+function getMoonPhase(date) {
+  const daysSinceEpoch = (date.getTime() - NEW_MOON_EPOCH) / 86400000;
+  const phase =
+    (((daysSinceEpoch % SYNODIC_MONTH) + SYNODIC_MONTH) % SYNODIC_MONTH) / SYNODIC_MONTH;
+
+  // Map to 8 segments: each segment is 1/8 wide, centered on ideal values 0, 0.125, 0.25, ...
+  const segment = Math.floor(((phase + 1 / 16) % 1) * 8);
+  const phaseName = PHASE_NAMES[segment];
+
+  // Illumination: 0 at New Moon, 1 at Full Moon, 0.5 at quarters
+  const illumination = (1 - Math.cos(2 * Math.PI * phase)) / 2;
+
+  return { phase, phaseName, illumination };
+}
+
+const INDICATOR_RADIUS = 30;
+const INDICATOR_X = 40;
+const INDICATOR_Y = 735;
+const DISC_COLOR = "#cccccc";
+const SHADOW_COLOR = "#1a1a2e";
+const LABEL_COLOR = "#aaaaaa";
+const LABEL_FONT_SIZE$1 = "14";
+
+/**
+ * Render a moon phase indicator (disc + label) and append it to the SVG.
+ * @param {SVGElement} svg
+ * @param {Date} date
+ * @param {string} hemisphere - "north" or "south"
+ */
+function renderMoonPhaseIndicator(svg, date, hemisphere) {
+  const { phase, phaseName, illumination } = getMoonPhase(date);
+
+  const g = createSvgElement("g", { class: "moon-phase-indicator" });
+
+  // Background disc (dark)
+  g.appendChild(
+    createSvgElement("circle", {
+      cx: INDICATOR_X,
+      cy: INDICATOR_Y,
+      r: INDICATOR_RADIUS,
+      fill: SHADOW_COLOR,
+    })
+  );
+
+  if (illumination > 0.01) {
+    // Build illuminated portion using a path.
+    // The approach: draw two arcs forming a closed shape.
+    // For waxing (phase < 0.5 in north), right side lit.
+    // For waning (phase > 0.5 in north), left side lit.
+    // Southern hemisphere mirrors the illumination side.
+    const r = INDICATOR_RADIUS;
+    const top = INDICATOR_Y - r;
+    const bottom = INDICATOR_Y + r;
+
+    // Terminator bulge: at illumination 0.5 the terminator is straight (rx=0),
+    // below 0.5 it bulges toward shadow, above 0.5 it bulges toward light.
+    const fraction = illumination;
+    const rx = Math.abs(2 * fraction - 1) * r;
+    const bulgeRight = fraction > 0.5;
+
+    // Determine which side is lit
+    const isWaxing = phase < 0.5;
+    let litOnRight = isWaxing;
+    if (hemisphere === "south") litOnRight = !litOnRight;
+
+    // The lit half is drawn as: a semicircular arc on the lit side + an elliptical
+    // arc for the terminator.
+    // Semicircle: always sweeps from top to bottom on the lit side.
+    const semiSweep = litOnRight ? 1 : 0;
+    // Terminator ellipse sweep depends on whether bulge goes toward lit side
+    let terminatorSweep;
+    if (litOnRight) {
+      terminatorSweep = bulgeRight ? 1 : 0;
+    } else {
+      terminatorSweep = bulgeRight ? 0 : 1;
+    }
+
+    const d = [
+      `M ${INDICATOR_X} ${top}`,
+      // Semicircular arc on the lit side
+      `A ${r} ${r} 0 0 ${semiSweep} ${INDICATOR_X} ${bottom}`,
+      // Terminator arc back to top
+      `A ${rx} ${r} 0 0 ${terminatorSweep} ${INDICATOR_X} ${top}`,
+      "Z",
+    ].join(" ");
+
+    g.appendChild(
+      createSvgElement("path", {
+        d,
+        fill: DISC_COLOR,
+      })
+    );
+  }
+
+  // Phase name label below the disc
+  const label = createSvgElement("text", {
+    x: INDICATOR_X - INDICATOR_RADIUS,
+    y: INDICATOR_Y + INDICATOR_RADIUS + 14,
+    fill: LABEL_COLOR,
+    "font-size": LABEL_FONT_SIZE$1,
+    "font-family": "sans-serif",
+    "text-anchor": "start",
+  });
+  label.textContent = phaseName;
+  g.appendChild(label);
+
+  svg.appendChild(g);
 }
 
 /**
@@ -824,6 +963,9 @@ function renderSolarSystem(
     locationData?.lon
   );
   renderObserverNeedle(svg, earthX, earthY, observerAngle, earth.size);
+
+  // Moon phase indicator (rendered last so it appears on top)
+  renderMoonPhaseIndicator(svg, date, hemisphere);
 
   return { svg, bounds, positions };
 }

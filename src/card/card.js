@@ -1,6 +1,5 @@
 import { renderSolarSystem } from "../renderer/index.js";
 import { MARKER_GROUP_ID, renderOffscreenMarkers } from "../renderer/offscreen-markers.js";
-import { renderViewportSeasonLabel, VIEWPORT_SEASON_GROUP_ID } from "../renderer/seasons.js";
 import { buildCardHtml, buildStatusBarHtml } from "./card-template.js";
 import { DEFAULT_ZOOM_LEVEL, MAX_ZOOM, MIN_ZOOM, ViewState } from "./card-view-state.js";
 import { ZoomAnimator } from "./zoom-animator.js";
@@ -158,7 +157,6 @@ export class SolarViewCard extends HTMLElement {
     const svg = this.shadowRoot.querySelector("#solar-view svg");
     if (svg) svg.setAttribute("viewBox", this._viewState.viewBox);
     this._updateOffscreenMarkers();
-    this._updateSeasonLabel();
   }
 
   _updateOffscreenMarkers() {
@@ -168,18 +166,6 @@ export class SolarViewCard extends HTMLElement {
     if (old) old.remove();
     if (this._positions && this._viewState) {
       svg.appendChild(renderOffscreenMarkers(this._positions, this._viewState));
-    }
-  }
-
-  _updateSeasonLabel() {
-    const svg = this.shadowRoot.querySelector("#solar-view svg");
-    if (!svg) return;
-    const old = svg.getElementById(VIEWPORT_SEASON_GROUP_ID);
-    if (old) old.remove();
-    if (this._viewState) {
-      svg.appendChild(
-        renderViewportSeasonLabel(this._currentDate, this._hemisphere, this._viewState)
-      );
     }
   }
 
@@ -233,7 +219,7 @@ export class SolarViewCard extends HTMLElement {
       this._currentDate,
       this._hemisphere,
       locationData,
-      this._viewState.zoomLevel
+      this._viewState
     );
     this._positions = positions;
     container.appendChild(svg);

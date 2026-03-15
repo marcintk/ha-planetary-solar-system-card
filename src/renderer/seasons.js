@@ -4,7 +4,7 @@ const SEASON_LINE_COLOR = "rgba(255, 255, 255, 0.25)";
 const SEASON_LABEL_COLOR = "rgba(255, 255, 255, 0.5)";
 const SEASON_FONT_SIZE = 20;
 
-export function renderSeasonOverlay(svg, hemisphere) {
+export function renderSeasonOverlay(svg, hemisphere, viewState) {
   // Dotted dividing lines through the Sun
   svg.appendChild(
     createSvgElement("line", {
@@ -48,7 +48,11 @@ export function renderSeasonOverlay(svg, hemisphere) {
   ];
 
   const seasons = hemisphere === "south" ? southSeasons : northSeasons;
-  const labelRadius = MAX_RADIUS + 20;
+  const defaultRadius = MAX_RADIUS + 20;
+  const labelRadius =
+    viewState && viewState.zoomLevel > 1
+      ? Math.min(defaultRadius, viewState.width / 2 - 15)
+      : defaultRadius;
 
   const defs =
     svg.querySelector("defs") || svg.insertBefore(createSvgElement("defs", {}), svg.firstChild);
@@ -124,33 +128,3 @@ export function getCurrentSeason(date, hemisphere) {
   const season = SEASON_BY_MONTH_NORTH[month];
   return hemisphere === "south" ? OPPOSITE_SEASON[season] : season;
 }
-
-const VIEWPORT_SEASON_GROUP_ID = "viewport-season-label";
-const VIEWPORT_SEASON_FONT_SIZE = 14;
-
-export function renderViewportSeasonLabel(date, hemisphere, viewState) {
-  const group = createSvgElement("g", { id: VIEWPORT_SEASON_GROUP_ID });
-
-  if (!viewState || viewState.zoomLevel < 2) return group;
-
-  const season = getCurrentSeason(date, hemisphere);
-  const w = viewState.width;
-  const h = viewState.height;
-  const right = viewState.centerX + w / 2;
-  const top = viewState.centerY - h / 2;
-
-  const text = createSvgElement("text", {
-    fill: SEASON_LABEL_COLOR,
-    "font-size": VIEWPORT_SEASON_FONT_SIZE,
-    "font-family": "sans-serif",
-    "text-anchor": "end",
-    x: right - 15,
-    y: top + 25,
-  });
-  text.textContent = season;
-  group.appendChild(text);
-
-  return group;
-}
-
-export { VIEWPORT_SEASON_GROUP_ID };

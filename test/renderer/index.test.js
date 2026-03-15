@@ -719,18 +719,29 @@ describe("season overlay", () => {
 
 describe("renderSolarSystem zoom-level season overlay", () => {
   const date = new Date("2025-06-15");
+  const sizes = { 1: 800, 2: 640, 3: 480, 4: 320 };
 
-  it("includes season arc textPath elements at zoom level 1 only", () => {
-    const { svg } = renderSolarSystem(date, "north", null, 1);
-    const textPaths = svg.querySelectorAll("textPath");
-    expect(textPaths.length).toBe(4);
+  function makeViewState(zoomLevel) {
+    return {
+      centerX: 400,
+      centerY: 400,
+      width: sizes[zoomLevel],
+      height: sizes[zoomLevel],
+      zoomLevel,
+    };
+  }
+
+  it("includes season arc textPath elements at all zoom levels", () => {
+    for (const zoom of [1, 2, 3, 4]) {
+      const { svg } = renderSolarSystem(date, "north", null, makeViewState(zoom));
+      const textPaths = svg.querySelectorAll("textPath");
+      expect(textPaths.length).toBe(4);
+    }
   });
 
-  it("does not include season arc textPath elements at zoom levels 2, 3 and 4", () => {
-    for (const zoom of [2, 3, 4]) {
-      const { svg } = renderSolarSystem(date, "north", null, zoom);
-      const textPaths = svg.querySelectorAll("textPath");
-      expect(textPaths.length).toBe(0);
-    }
+  it("includes season arc textPath elements when no viewState is provided", () => {
+    const { svg } = renderSolarSystem(date, "north", null, null);
+    const textPaths = svg.querySelectorAll("textPath");
+    expect(textPaths.length).toBe(4);
   });
 });

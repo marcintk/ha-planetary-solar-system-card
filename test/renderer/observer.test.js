@@ -190,7 +190,6 @@ describe("rayCircleDistance", () => {
 
 describe("renderDayNightSplit horizon and zenith lines", () => {
   const CLIP_R = MAX_RADIUS + 30;
-  const EXTRA = 8;
 
   it("renders two dashed lines (horizon + zenith)", () => {
     const svg = document.createElementNS(SVG_NS, "svg");
@@ -240,6 +239,30 @@ describe("renderDayNightSplit horizon and zenith lines", () => {
     // Dot product of perpendicular vectors should be ~0
     const dot = hDx * zDx + hDy * zDy;
     expect(dot).toBeCloseTo(0, 0);
+  });
+
+  it("zenith line starts at the anchor point (no nadir arm)", () => {
+    const svg = document.createElementNS(SVG_NS, "svg");
+    const earth = PLANETS.find((p) => p.name === "Earth");
+    renderDayNightSplit(svg, 200, new Date("2025-06-15T12:00:00Z"), earth.size, null);
+
+    const lines = svg.querySelectorAll('line[stroke-dasharray="4, 4"]');
+    const zenith = lines[1];
+
+    const x1 = Number(zenith.getAttribute("x1"));
+    const y1 = Number(zenith.getAttribute("y1"));
+    const x2 = Number(zenith.getAttribute("x2"));
+    const y2 = Number(zenith.getAttribute("y2"));
+
+    // One endpoint (x1,y1) should be near Earth's orbital position (the anchor)
+    // while the other (x2,y2) extends outward to the clip circle
+    const dist1 = Math.sqrt((x1 - CENTER) ** 2 + (y1 - CENTER) ** 2);
+    const dist2 = Math.sqrt((x2 - CENTER) ** 2 + (y2 - CENTER) ** 2);
+
+    // Anchor is near Earth's orbit (~200px radius + small body offset)
+    expect(dist1).toBeLessThan(CLIP_R - 50);
+    // Zenith endpoint should reach the clip circle edge
+    expect(dist2).toBeGreaterThan(CLIP_R - 5);
   });
 
   it("both lines use same stroke style", () => {

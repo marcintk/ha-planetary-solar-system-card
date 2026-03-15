@@ -56,29 +56,34 @@ Implementation: `renderDayNightSplit` in `src/renderer/observer.js`.
 ### Requirement: Perpendicular zenith line
 
 The visibility display SHALL include a dashed line perpendicular to the horizon line, aligned along
-the observer's zenith direction (toward and away from zenith). This zenith line SHALL use the same
-arm-length computation as the horizon line: each arm extends from the anchor point to the clip
-circle edge (`MAX_RADIUS + 30` centred at `(CENTER, CENTER)`) plus 8 px margin, computed via
-ray-circle intersection. The same minimum arm length of 20 px SHALL apply.
+the observer's zenith direction. This zenith line SHALL extend **only in the skyward direction** —
+from the anchor point (Earth's surface) outward toward the visibility cone. The nadir direction
+(behind Earth, away from the sky) SHALL NOT be drawn.
 
-The zenith line SHALL use the same visual style as the horizon line: dashed stroke, same colour
-(`rgba(255, 255, 255, 0.3)`), same stroke width (1 px), same dash pattern (`4, 4`).
+The skyward arm SHALL extend from the anchor point to the clip circle edge (`MAX_RADIUS + 30`
+centred at `(CENTER, CENTER)`) plus 8 px margin, computed via ray-circle intersection. The minimum
+arm length of 20 px SHALL apply if the intersection yields no positive solution.
+
+The zenith line SHALL use the same visual style as the horizon line: dashed stroke, colour
+`rgba(255, 255, 255, 0.3)`, stroke width 1 px, dash pattern `4, 4`.
 
 Implementation: `renderDayNightSplit` in `src/renderer/observer.js`.
 
-#### Scenario: Zenith line is rendered perpendicular to horizon
+#### Scenario: Zenith line extends only skyward from anchor
 
 - **GIVEN** the card is rendered for any date and time
-- **WHEN** the visibility display at Earth's position is drawn
-- **THEN** a dashed line SHALL be rendered along the observer's zenith direction
-- **AND** the line SHALL be perpendicular to the horizon line (rotated 90° from horizon arms)
+- **WHEN** the zenith line is drawn at Earth's orbital position
+- **THEN** the line SHALL start at the anchor point (`anchorX`, `anchorY`)
+- **AND** the line SHALL extend in the observer's zenith direction (toward the sky)
+- **AND** no line segment SHALL extend in the nadir direction (opposite to zenith)
 
-#### Scenario: Zenith line arms end at cone boundary plus margin
+#### Scenario: Zenith line skyward arm ends at cone boundary plus margin
 
 - **GIVEN** the card is rendered for any date and time
 - **WHEN** the zenith line is drawn
-- **THEN** both arms SHALL terminate at the clip circle edge plus 8 px
-- **AND** arm lengths SHALL be computed via the same ray-circle intersection as the horizon line
+- **THEN** the skyward arm SHALL terminate at the clip circle edge plus 8 px
+- **AND** arm length SHALL be computed via ray-circle intersection against the circle of radius
+  `MAX_RADIUS + 30` centred at `(CENTER, CENTER)`
 
 #### Scenario: Zenith line uses same visual style as horizon
 
@@ -86,6 +91,13 @@ Implementation: `renderDayNightSplit` in `src/renderer/observer.js`.
 - **THEN** it SHALL use stroke colour `rgba(255, 255, 255, 0.3)`
 - **AND** stroke width 1 px
 - **AND** dash pattern `4, 4`
+
+#### Scenario: Zenith line is perpendicular to horizon
+
+- **GIVEN** the card is rendered for any date and time
+- **WHEN** the visibility display at Earth's position is drawn
+- **THEN** the zenith line SHALL be perpendicular to the horizon line (rotated 90° from horizon
+  arms)
 
 ### Requirement: Day cone fill
 

@@ -566,7 +566,7 @@ function renderDayNightSplit(svg, earthRadius, date, earthBodySize, locationData
     })
   );
 
-  // Zenith line — perpendicular to horizon, along observer zenith direction
+  // Zenith line — from anchor skyward only (no nadir segment)
   const zenithD =
     rayCircleDistance(
       anchorX,
@@ -577,24 +577,13 @@ function renderDayNightSplit(svg, earthRadius, date, earthBodySize, locationData
       CENTER,
       CLIP_R
     ) + EXTRA;
-  const nadirAngle = observerAngle + Math.PI;
-  const nadirD =
-    rayCircleDistance(
-      anchorX,
-      anchorY,
-      Math.cos(nadirAngle),
-      -Math.sin(nadirAngle),
-      CENTER,
-      CENTER,
-      CLIP_R
-    ) + EXTRA;
   svg.appendChild(
     createSvgElement("line", {
       ...lineStyle,
-      x1: anchorX + zenithD * Math.cos(observerAngle),
-      y1: anchorY - zenithD * Math.sin(observerAngle),
-      x2: anchorX + nadirD * Math.cos(nadirAngle),
-      y2: anchorY - nadirD * Math.sin(nadirAngle),
+      x1: anchorX,
+      y1: anchorY,
+      x2: anchorX + zenithD * Math.cos(observerAngle),
+      y2: anchorY - zenithD * Math.sin(observerAngle),
     })
   );
 }
@@ -630,7 +619,7 @@ const SEASON_LINE_COLOR = "rgba(255, 255, 255, 0.25)";
 const SEASON_LABEL_COLOR = "rgba(255, 255, 255, 0.5)";
 const SEASON_FONT_SIZE = 20;
 
-function renderSeasonOverlay(svg, hemisphere) {
+function renderSeasonOverlay(svg, hemisphere, viewState) {
   // Dotted dividing lines through the Sun
   svg.appendChild(
     createSvgElement("line", {
@@ -674,7 +663,11 @@ function renderSeasonOverlay(svg, hemisphere) {
   ];
 
   const seasons = hemisphere === "south" ? southSeasons : northSeasons;
-  const labelRadius = MAX_RADIUS + 20;
+  const defaultRadius = MAX_RADIUS + 20;
+  const labelRadius =
+    viewState && viewState.zoomLevel > 1
+      ? Math.min(defaultRadius, viewState.width / 2 - 15)
+      : defaultRadius;
 
   const defs =
     svg.querySelector("defs") || svg.insertBefore(createSvgElement("defs", {}), svg.firstChild);
@@ -723,70 +716,20 @@ function renderSeasonOverlay(svg, hemisphere) {
   });
 }
 
-const SEASON_BY_MONTH_NORTH = [
-  "Winter", // Jan
-  "Winter", // Feb
-  "Spring", // Mar
-  "Spring", // Apr
-  "Spring", // May
-  "Summer", // Jun
-  "Summer", // Jul
-  "Summer", // Aug
-  "Autumn", // Sep
-  "Autumn", // Oct
-  "Autumn", // Nov
-  "Winter", // Dec
-];
-
-const OPPOSITE_SEASON = {
-  Spring: "Autumn",
-  Summer: "Winter",
-  Autumn: "Spring",
-  Winter: "Summer",
-};
-
-function getCurrentSeason(date, hemisphere) {
-  const month = date.getMonth();
-  const season = SEASON_BY_MONTH_NORTH[month];
-  return hemisphere === "south" ? OPPOSITE_SEASON[season] : season;
-}
-
-const VIEWPORT_SEASON_GROUP_ID = "viewport-season-label";
-const VIEWPORT_SEASON_FONT_SIZE = 14;
-
-function renderViewportSeasonLabel(date, hemisphere, viewState) {
-  const group = createSvgElement("g", { id: VIEWPORT_SEASON_GROUP_ID });
-
-  if (!viewState || viewState.zoomLevel < 2) return group;
-
-  const season = getCurrentSeason(date, hemisphere);
-  const w = viewState.width;
-  const h = viewState.height;
-  const right = viewState.centerX + w / 2;
-  const top = viewState.centerY - h / 2;
-
-  const text = createSvgElement("text", {
-    fill: SEASON_LABEL_COLOR,
-    "font-size": VIEWPORT_SEASON_FONT_SIZE,
-    "font-family": "sans-serif",
-    "text-anchor": "end",
-    x: right - 15,
-    y: top + 25,
-  });
-  text.textContent = season;
-  group.appendChild(text);
-
-  return group;
-}
-
 /**
  * Renders the solar system SVG and returns it with bounding box metadata.
  * @param {Date} date - date to calculate positions for
  * @param {string} [hemisphere="north"] - "north" or "south" for season labels
  * @param {{ lat: number, lon: number, timezone: string } | null} [locationData] - observer location from HA config
+ * @param {{ zoomLevel: number, width: number, height: number, centerX: number, centerY: number } | null} [viewState] - current view state for zoom-aware rendering
  * @returns {{ svg: SVGElement, bounds: { minX: number, minY: number, maxX: number, maxY: number } }}
  */
-function renderSolarSystem(date, hemisphere = "north", locationData = null, zoomLevel = 1) {
+function renderSolarSystem(
+  date,
+  hemisphere = "north",
+  locationData = null,
+  viewState = null
+) {
   const svg = createSvgElement("svg", {
     viewBox: `0 0 ${VIEW_SIZE} ${VIEW_SIZE}`,
     width: "100%",
@@ -802,11 +745,8 @@ function renderSolarSystem(date, hemisphere = "north", locationData = null, zoom
   const earthRadius = auToRadius(1.0);
   renderDayNightSplit(svg, earthRadius, date, earth.size, locationData);
 
-  // Season quadrant overlay (after day/night, before orbits) — hidden at zoom 2+ where
-  // the viewport season label provides this information instead
-  if (zoomLevel < 2) {
-    renderSeasonOverlay(svg, hemisphere);
-  }
+  // Season quadrant overlay (after day/night, before orbits)
+  renderSeasonOverlay(svg, hemisphere, viewState);
 
   // Draw orbits
   for (const planet of PLANETS) {
@@ -1533,7 +1473,6 @@ class SolarViewCard extends HTMLElement {
     const svg = this.shadowRoot.querySelector("#solar-view svg");
     if (svg) svg.setAttribute("viewBox", this._viewState.viewBox);
     this._updateOffscreenMarkers();
-    this._updateSeasonLabel();
   }
 
   _updateOffscreenMarkers() {
@@ -1543,18 +1482,6 @@ class SolarViewCard extends HTMLElement {
     if (old) old.remove();
     if (this._positions && this._viewState) {
       svg.appendChild(renderOffscreenMarkers(this._positions, this._viewState));
-    }
-  }
-
-  _updateSeasonLabel() {
-    const svg = this.shadowRoot.querySelector("#solar-view svg");
-    if (!svg) return;
-    const old = svg.getElementById(VIEWPORT_SEASON_GROUP_ID);
-    if (old) old.remove();
-    if (this._viewState) {
-      svg.appendChild(
-        renderViewportSeasonLabel(this._currentDate, this._hemisphere, this._viewState)
-      );
     }
   }
 
@@ -1608,7 +1535,7 @@ class SolarViewCard extends HTMLElement {
       this._currentDate,
       this._hemisphere,
       locationData,
-      this._viewState.zoomLevel
+      this._viewState
     );
     this._positions = positions;
     container.appendChild(svg);

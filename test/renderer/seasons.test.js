@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
-import {
-  getCurrentSeason,
-  renderSeasonOverlay,
-  renderViewportSeasonLabel,
-} from "../../src/renderer/seasons.js";
-import { SVG_NS } from "../../src/renderer/svg-utils.js";
+import { getCurrentSeason, renderSeasonOverlay } from "../../src/renderer/seasons.js";
+import { MAX_RADIUS, SVG_NS } from "../../src/renderer/svg-utils.js";
 
 function createSvg() {
   return document.createElementNS(SVG_NS, "svg");
@@ -123,16 +119,61 @@ describe("renderSeasonOverlay", () => {
   });
 });
 
-function makeViewState(zoomLevel) {
-  const sizes = { 1: 800, 2: 640, 3: 480, 4: 320 };
-  return {
-    centerX: 400,
-    centerY: 400,
-    width: sizes[zoomLevel],
-    height: sizes[zoomLevel],
-    zoomLevel,
-  };
-}
+describe("renderSeasonOverlay viewport-aware positioning", () => {
+  const defaultRadius = MAX_RADIUS + 20;
+
+  function makeViewState(zoomLevel) {
+    const sizes = { 1: 800, 2: 640, 3: 480, 4: 320 };
+    return {
+      centerX: 400,
+      centerY: 400,
+      width: sizes[zoomLevel],
+      height: sizes[zoomLevel],
+      zoomLevel,
+    };
+  }
+
+  function extractRadius(svg) {
+    const path = svg.querySelector("defs #season-arc-2");
+    const match = path.getAttribute("d").match(/A ([\d.]+) ([\d.]+)/);
+    return Number(match[1]);
+  }
+
+  it("uses default radius when no viewState is provided", () => {
+    const svg = createSvg();
+    renderSeasonOverlay(svg, "north");
+    expect(extractRadius(svg)).toBe(defaultRadius);
+  });
+
+  it("uses default radius at zoom level 1", () => {
+    const svg = createSvg();
+    renderSeasonOverlay(svg, "north", makeViewState(1));
+    expect(extractRadius(svg)).toBe(defaultRadius);
+  });
+
+  it("uses reduced radius at zoom level 2 to fit viewport", () => {
+    const svg = createSvg();
+    renderSeasonOverlay(svg, "north", makeViewState(2));
+    const radius = extractRadius(svg);
+    expect(radius).toBeLessThan(defaultRadius);
+    expect(radius).toBe(640 / 2 - 15);
+  });
+
+  it("uses reduced radius at zoom level 4 to fit viewport", () => {
+    const svg = createSvg();
+    renderSeasonOverlay(svg, "north", makeViewState(4));
+    const radius = extractRadius(svg);
+    expect(radius).toBeLessThan(defaultRadius);
+    expect(radius).toBe(320 / 2 - 15);
+  });
+
+  it("still renders all four season labels at high zoom", () => {
+    const svg = createSvg();
+    renderSeasonOverlay(svg, "north", makeViewState(4));
+    const textPaths = svg.querySelectorAll("textPath");
+    expect(textPaths.length).toBe(4);
+  });
+});
 
 describe("getCurrentSeason", () => {
   it("northern hemisphere returns correct season for each quarter", () => {
@@ -147,33 +188,5 @@ describe("getCurrentSeason", () => {
     expect(getCurrentSeason(new Date("2025-06-15"), "south")).toBe("Winter");
     expect(getCurrentSeason(new Date("2025-09-15"), "south")).toBe("Spring");
     expect(getCurrentSeason(new Date("2025-12-15"), "south")).toBe("Summer");
-  });
-});
-
-describe("renderViewportSeasonLabel", () => {
-  it("returns empty group at zoom level 1", () => {
-    const date = new Date("2025-06-15");
-    const group = renderViewportSeasonLabel(date, "north", makeViewState(1));
-    expect(group.tagName).toBe("g");
-    expect(group.children.length).toBe(0);
-  });
-
-  it("returns season text at zoom levels 2, 3 and 4", () => {
-    const date = new Date("2025-06-15");
-    for (const level of [2, 3, 4]) {
-      const group = renderViewportSeasonLabel(date, "north", makeViewState(level));
-      const text = group.querySelector("text");
-      expect(text).not.toBeNull();
-      expect(text.textContent).toBe("Summer");
-    }
-  });
-
-  it("season label text matches getCurrentSeason for given date and hemisphere", () => {
-    const date = new Date("2025-04-15");
-    const northGroup = renderViewportSeasonLabel(date, "north", makeViewState(3));
-    expect(northGroup.querySelector("text").textContent).toBe("Spring");
-
-    const southGroup = renderViewportSeasonLabel(date, "south", makeViewState(3));
-    expect(southGroup.querySelector("text").textContent).toBe("Autumn");
   });
 });

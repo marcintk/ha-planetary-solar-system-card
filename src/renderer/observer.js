@@ -191,7 +191,7 @@ export function renderDayNightSplit(svg, earthRadius, date, earthBodySize, locat
     })
   );
 
-  // Zenith line — perpendicular to horizon, along observer zenith direction
+  // Zenith line — from anchor skyward only (no nadir segment)
   const zenithD =
     rayCircleDistance(
       anchorX,
@@ -202,24 +202,13 @@ export function renderDayNightSplit(svg, earthRadius, date, earthBodySize, locat
       CENTER,
       CLIP_R
     ) + EXTRA;
-  const nadirAngle = observerAngle + Math.PI;
-  const nadirD =
-    rayCircleDistance(
-      anchorX,
-      anchorY,
-      Math.cos(nadirAngle),
-      -Math.sin(nadirAngle),
-      CENTER,
-      CENTER,
-      CLIP_R
-    ) + EXTRA;
   svg.appendChild(
     createSvgElement("line", {
       ...lineStyle,
-      x1: anchorX + zenithD * Math.cos(observerAngle),
-      y1: anchorY - zenithD * Math.sin(observerAngle),
-      x2: anchorX + nadirD * Math.cos(nadirAngle),
-      y2: anchorY - nadirD * Math.sin(nadirAngle),
+      x1: anchorX,
+      y1: anchorY,
+      x2: anchorX + zenithD * Math.cos(observerAngle),
+      y2: anchorY - zenithD * Math.sin(observerAngle),
     })
   );
 }

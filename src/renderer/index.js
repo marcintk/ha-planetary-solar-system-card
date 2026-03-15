@@ -10,9 +10,15 @@ import { auToRadius, CENTER, createSvgElement, expandBounds, VIEW_SIZE } from ".
  * @param {Date} date - date to calculate positions for
  * @param {string} [hemisphere="north"] - "north" or "south" for season labels
  * @param {{ lat: number, lon: number, timezone: string } | null} [locationData] - observer location from HA config
+ * @param {{ zoomLevel: number, width: number, height: number, centerX: number, centerY: number } | null} [viewState] - current view state for zoom-aware rendering
  * @returns {{ svg: SVGElement, bounds: { minX: number, minY: number, maxX: number, maxY: number } }}
  */
-export function renderSolarSystem(date, hemisphere = "north", locationData = null, zoomLevel = 1) {
+export function renderSolarSystem(
+  date,
+  hemisphere = "north",
+  locationData = null,
+  viewState = null
+) {
   const svg = createSvgElement("svg", {
     viewBox: `0 0 ${VIEW_SIZE} ${VIEW_SIZE}`,
     width: "100%",
@@ -28,11 +34,8 @@ export function renderSolarSystem(date, hemisphere = "north", locationData = nul
   const earthRadius = auToRadius(1.0);
   renderDayNightSplit(svg, earthRadius, date, earth.size, locationData);
 
-  // Season quadrant overlay (after day/night, before orbits) — hidden at zoom 2+ where
-  // the viewport season label provides this information instead
-  if (zoomLevel < 2) {
-    renderSeasonOverlay(svg, hemisphere);
-  }
+  // Season quadrant overlay (after day/night, before orbits)
+  renderSeasonOverlay(svg, hemisphere, viewState);
 
   // Draw orbits
   for (const planet of PLANETS) {

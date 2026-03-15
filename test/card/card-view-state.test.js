@@ -115,6 +115,63 @@ describe("ViewState zoom", () => {
   });
 });
 
+describe("ViewState setZoomLevel", () => {
+  it("sets zoom level directly and updates viewport size", () => {
+    const vs = new ViewState(1);
+    vs.setZoomLevel(3);
+    expect(vs.zoomLevel).toBe(3);
+    expect(vs.width).toBe(480);
+    expect(vs.height).toBe(480);
+  });
+
+  it("clamps level above MAX_ZOOM to MAX_ZOOM", () => {
+    const vs = new ViewState(1);
+    vs.setZoomLevel(10);
+    expect(vs.zoomLevel).toBe(MAX_ZOOM);
+    expect(vs.width).toBe(320);
+  });
+
+  it("clamps level below MIN_ZOOM to MIN_ZOOM", () => {
+    const vs = new ViewState(3);
+    vs.setZoomLevel(0);
+    expect(vs.zoomLevel).toBe(MIN_ZOOM);
+    expect(vs.width).toBe(800);
+  });
+
+  it("sets zoom to MIN_ZOOM (level 1) from MAX_ZOOM", () => {
+    const vs = new ViewState(MAX_ZOOM);
+    vs.setZoomLevel(MIN_ZOOM);
+    expect(vs.zoomLevel).toBe(1);
+    expect(vs.width).toBe(800);
+  });
+});
+
+describe("ViewState setViewport", () => {
+  it("sets width and height without changing zoomLevel", () => {
+    const vs = new ViewState(1);
+    vs.setViewport(500, 500);
+    expect(vs.width).toBe(500);
+    expect(vs.height).toBe(500);
+    expect(vs.zoomLevel).toBe(1);
+  });
+
+  it("allows non-standard intermediate values", () => {
+    const vs = new ViewState(2);
+    vs.setViewport(700, 700);
+    expect(vs.width).toBe(700);
+    expect(vs.height).toBe(700);
+    expect(vs.zoomLevel).toBe(2);
+  });
+
+  it("viewBox reflects updated viewport", () => {
+    const vs = new ViewState(1);
+    vs.setViewport(600, 600);
+    const [, , w, h] = vs.viewBox.split(" ").map(Number);
+    expect(w).toBe(600);
+    expect(h).toBe(600);
+  });
+});
+
 describe("ViewState pan (drag)", () => {
   it("startDrag sets isDragging to true", () => {
     const vs = new ViewState();

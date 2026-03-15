@@ -96,3 +96,31 @@ export function renderSeasonOverlay(svg, hemisphere) {
     svg.appendChild(text);
   });
 }
+
+const SEASON_BY_MONTH_NORTH = [
+  "Winter", // Jan
+  "Winter", // Feb
+  "Spring", // Mar
+  "Spring", // Apr
+  "Spring", // May
+  "Summer", // Jun
+  "Summer", // Jul
+  "Summer", // Aug
+  "Autumn", // Sep
+  "Autumn", // Oct
+  "Autumn", // Nov
+  "Winter", // Dec
+];
+
+const OPPOSITE_SEASON = {
+  Spring: "Autumn",
+  Summer: "Winter",
+  Autumn: "Spring",
+  Winter: "Summer",
+};
+
+export function getCurrentSeason(date, hemisphere) {
+  const month = date.getMonth();
+  const season = SEASON_BY_MONTH_NORTH[month];
+  return hemisphere === "south" ? OPPOSITE_SEASON[season] : season;
+}

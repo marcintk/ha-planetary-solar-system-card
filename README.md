@@ -26,6 +26,14 @@ time, zoom, and pan interactively.
    type: custom:ha-solar-view-card
    default_zoom: 2
    ```
+## Configuration
+
+Configuration (YAML in HA)
+
+- refresh_mins: auto-update interval in minutes (default: 1)
+- periodic_zoom_change: cycle zoom levels on each refresh tick (default: false)
+- default_zoom: starting zoom level (default: 1)
+- zoom_animate: animate zoom in and out (default: true)
 
 ## Development
 

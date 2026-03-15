@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { renderSeasonOverlay } from "../../src/renderer/seasons.js";
-import { SVG_NS } from "../../src/renderer/svg-utils.js";
+import { getCurrentSeason, renderSeasonOverlay } from "../../src/renderer/seasons.js";
+import { MAX_RADIUS, SVG_NS } from "../../src/renderer/svg-utils.js";
 
 function createSvg() {
   return document.createElementNS(SVG_NS, "svg");
@@ -116,5 +116,41 @@ describe("renderSeasonOverlay", () => {
     const topRadius = extractRadius(defs.querySelector("#season-arc-0"));
     const bottomRadius = extractRadius(defs.querySelector("#season-arc-2"));
     expect(topRadius).toBeLessThan(bottomRadius);
+  });
+});
+
+describe("renderSeasonOverlay fixed label radius", () => {
+  const expectedRadius = MAX_RADIUS + 20;
+
+  function extractRadius(svg) {
+    const path = svg.querySelector("defs #season-arc-2");
+    const match = path.getAttribute("d").match(/A ([\d.]+) ([\d.]+)/);
+    return Number(match[1]);
+  }
+
+  it("uses fixed radius MAX_RADIUS + 20", () => {
+    const svg = createSvg();
+    renderSeasonOverlay(svg, "north");
+    expect(extractRadius(svg)).toBe(expectedRadius);
+  });
+
+  it("does not accept a viewState parameter", () => {
+    expect(renderSeasonOverlay.length).toBe(2);
+  });
+});
+
+describe("getCurrentSeason", () => {
+  it("northern hemisphere returns correct season for each quarter", () => {
+    expect(getCurrentSeason(new Date("2025-03-15"), "north")).toBe("Spring");
+    expect(getCurrentSeason(new Date("2025-06-15"), "north")).toBe("Summer");
+    expect(getCurrentSeason(new Date("2025-09-15"), "north")).toBe("Autumn");
+    expect(getCurrentSeason(new Date("2025-12-15"), "north")).toBe("Winter");
+  });
+
+  it("southern hemisphere reverses seasons", () => {
+    expect(getCurrentSeason(new Date("2025-03-15"), "south")).toBe("Autumn");
+    expect(getCurrentSeason(new Date("2025-06-15"), "south")).toBe("Winter");
+    expect(getCurrentSeason(new Date("2025-09-15"), "south")).toBe("Spring");
+    expect(getCurrentSeason(new Date("2025-12-15"), "south")).toBe("Summer");
   });
 });

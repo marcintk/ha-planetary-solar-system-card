@@ -394,6 +394,24 @@ const CONE_NIGHT = "rgba(255, 255, 255, 0.01)"; // Sun below -18°
  * @param {number} earthAngle - Earth's orbital angle from Sun (radians)
  * @returns {number} solar elevation in degrees, range [-90, 90]
  */
+
+/**
+ * Compute the distance from point (ax,ay) along direction (dx,dy) to the
+ * intersection with a circle centred at (cx,cy) with radius R.
+ * Returns the positive root, or `minLen` if no positive intersection exists.
+ */
+function rayCircleDistance(ax, ay, dx, dy, cx, cy, R, minLen = 20) {
+  const ox = ax - cx;
+  const oy = ay - cy;
+  const a = dx * dx + dy * dy;
+  const b = 2 * (ox * dx + oy * dy);
+  const c = ox * ox + oy * oy - R * R;
+  const disc = b * b - 4 * a * c;
+  if (disc < 0) return minLen;
+  const t = (-b + Math.sqrt(disc)) / (2 * a);
+  return t > 0 ? t : minLen;
+}
+
 function calculateSolarElevationDeg(observerAngle, earthAngle) {
   const dirToSun = earthAngle + Math.PI;
   const diff = Math.atan2(Math.sin(observerAngle - dirToSun), Math.cos(observerAngle - dirToSun));
@@ -408,17 +426,22 @@ function calculateSolarElevationDeg(observerAngle, earthAngle) {
  * @param {number} earthOrbitalAngle - Earth's orbital position (radians)
  * @param {Date} date - date/time used to extract local hours/minutes
  * @param {string} [timezone] - optional IANA timezone (e.g. "America/Chicago"); falls back to date.getHours()
+ * @param {number} [longitude] - optional observer longitude in degrees; when provided, uses true solar time instead of civil timezone
  * @returns {number} observer angle in radians
  */
-function calculateObserverAngle(earthOrbitalAngle, date, timezone) {
-  let hours, minutes;
-  if (timezone) {
-    ({ hours, minutes } = getLocalTimeInZone(date, timezone));
+function calculateObserverAngle(earthOrbitalAngle, date, timezone, longitude) {
+  let fractionalHours;
+  if (longitude != null) {
+    // True solar time: UTC hours + longitude offset (15° per hour)
+    const utcHour = date.getUTCHours() + date.getUTCMinutes() / 60 + date.getUTCSeconds() / 3600;
+    fractionalHours = (((utcHour + longitude / 15) % 24) + 24) % 24;
+  } else if (timezone) {
+    const { hours, minutes } = getLocalTimeInZone(date, timezone);
+    fractionalHours = hours + minutes / 60;
   } else {
-    hours = date.getHours();
-    minutes = date.getMinutes();
+    fractionalHours = date.getHours() + date.getMinutes() / 60;
   }
-  const localTimeAngle = ((hours + minutes / 60) / 24) * 2 * Math.PI;
+  const localTimeAngle = (fractionalHours / 24) * 2 * Math.PI;
   return earthOrbitalAngle + localTimeAngle;
 }
 
@@ -466,7 +489,12 @@ function renderVisibilityCone(
 function renderDayNightSplit(svg, earthRadius, date, earthBodySize, locationData) {
   const earth = PLANETS.find((p) => p.name === "Earth");
   const earthAngle = calculatePlanetPosition(earth, date);
-  const observerAngle = calculateObserverAngle(earthAngle, date, locationData?.timezone);
+  const observerAngle = calculateObserverAngle(
+    earthAngle,
+    date,
+    locationData?.timezone,
+    locationData?.lon
+  );
 
   const earthDirX = Math.cos(earthAngle);
   const earthDirY = Math.sin(earthAngle);
@@ -496,21 +524,66 @@ function renderDayNightSplit(svg, earthRadius, date, earthBodySize, locationData
   const halfAngle = elevationDeg >= 0 || elevationDeg < -18 ? 90 : 90 - elevationDeg;
   renderVisibilityCone(svg, anchorX, anchorY, observerAngle, halfAngle, "sky-clip", coneColor);
 
-  // Horizon line — always drawn to show the 180° visible-sky boundary
-  const D = VIEW_SIZE;
-  const leftX = anchorX + D * Math.cos(observerAngle + Math.PI / 2);
-  const leftY = anchorY - D * Math.sin(observerAngle + Math.PI / 2);
-  const rightX = anchorX + D * Math.cos(observerAngle - Math.PI / 2);
-  const rightY = anchorY - D * Math.sin(observerAngle - Math.PI / 2);
+  // Shared constants for horizon and zenith lines
+  const CLIP_R = MAX_RADIUS + 30;
+  const EXTRA = 8;
+  const lineStyle = {
+    stroke: "rgba(255, 255, 255, 0.3)",
+    "stroke-width": 1,
+    "stroke-dasharray": "4, 4",
+  };
+
+  // Horizon line — each arm extends to the cone clip circle edge + margin
+  const leftAngle = observerAngle + Math.PI / 2;
+  const rightAngle = observerAngle - Math.PI / 2;
+  const leftD =
+    rayCircleDistance(
+      anchorX,
+      anchorY,
+      Math.cos(leftAngle),
+      -Math.sin(leftAngle),
+      CENTER,
+      CENTER,
+      CLIP_R
+    ) + EXTRA;
+  const rightD =
+    rayCircleDistance(
+      anchorX,
+      anchorY,
+      Math.cos(rightAngle),
+      -Math.sin(rightAngle),
+      CENTER,
+      CENTER,
+      CLIP_R
+    ) + EXTRA;
   svg.appendChild(
     createSvgElement("line", {
-      x1: leftX,
-      y1: leftY,
-      x2: rightX,
-      y2: rightY,
-      stroke: "rgba(255, 255, 255, 0.3)",
-      "stroke-width": 1,
-      "stroke-dasharray": "4, 4",
+      ...lineStyle,
+      x1: anchorX + leftD * Math.cos(leftAngle),
+      y1: anchorY - leftD * Math.sin(leftAngle),
+      x2: anchorX + rightD * Math.cos(rightAngle),
+      y2: anchorY - rightD * Math.sin(rightAngle),
+    })
+  );
+
+  // Zenith line — from anchor skyward only (no nadir segment)
+  const zenithD =
+    rayCircleDistance(
+      anchorX,
+      anchorY,
+      Math.cos(observerAngle),
+      -Math.sin(observerAngle),
+      CENTER,
+      CENTER,
+      CLIP_R
+    ) + EXTRA;
+  svg.appendChild(
+    createSvgElement("line", {
+      ...lineStyle,
+      x1: anchorX,
+      y1: anchorY,
+      x2: anchorX + zenithD * Math.cos(observerAngle),
+      y2: anchorY - zenithD * Math.sin(observerAngle),
     })
   );
 }
@@ -644,9 +717,15 @@ function renderSeasonOverlay(svg, hemisphere) {
  * @param {Date} date - date to calculate positions for
  * @param {string} [hemisphere="north"] - "north" or "south" for season labels
  * @param {{ lat: number, lon: number, timezone: string } | null} [locationData] - observer location from HA config
+ * @param {{ zoomLevel: number, width: number, height: number, centerX: number, centerY: number } | null} [viewState] - current view state for zoom-aware rendering
  * @returns {{ svg: SVGElement, bounds: { minX: number, minY: number, maxX: number, maxY: number } }}
  */
-function renderSolarSystem(date, hemisphere = "north", locationData = null) {
+function renderSolarSystem(
+  date,
+  hemisphere = "north",
+  locationData = null,
+  viewState = null
+) {
   const svg = createSvgElement("svg", {
     viewBox: `0 0 ${VIEW_SIZE} ${VIEW_SIZE}`,
     width: "100%",
@@ -655,6 +734,7 @@ function renderSolarSystem(date, hemisphere = "north", locationData = null) {
   });
 
   const bounds = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
+  const positions = [];
 
   // Day/night split (rendered first, behind everything)
   const earth = PLANETS.find((p) => p.name === "Earth");
@@ -680,6 +760,7 @@ function renderSolarSystem(date, hemisphere = "north", locationData = null) {
     const radius = auToRadius(planet.au);
     const x = CENTER + radius * Math.cos(angle);
     const y = CENTER - radius * Math.sin(angle);
+    positions.push({ name: planet.name, x, y, color: planet.color });
     if (planet.name === "Saturn") {
       // Shrink Saturn's body to make room for top-down circular ring
       const saturnRenderSize = Math.round(planet.size / 2);
@@ -717,6 +798,7 @@ function renderSolarSystem(date, hemisphere = "north", locationData = null) {
   const moonPixelOffset = 22; // pixels from Earth
   const moonX = earthX + moonPixelOffset * Math.cos(moonAngle);
   const moonY = earthY - moonPixelOffset * Math.sin(moonAngle);
+  positions.push({ name: MOON.name, x: moonX, y: moonY, color: MOON.color, offscreen: false });
 
   // Moon orbit (dotted circle centered on Earth)
   svg.appendChild(
@@ -731,14 +813,173 @@ function renderSolarSystem(date, hemisphere = "north", locationData = null) {
     })
   );
 
-  renderBody(svg, moonX, moonY, MOON);
+  renderBody(svg, moonX, moonY, MOON, false);
   expandBounds(bounds, moonX, moonY, MOON.size + 17);
 
   // Observer needle on Earth (tip at surface)
-  const observerAngle = calculateObserverAngle(earthAngle, date, locationData?.timezone);
+  const observerAngle = calculateObserverAngle(
+    earthAngle,
+    date,
+    locationData?.timezone,
+    locationData?.lon
+  );
   renderObserverNeedle(svg, earthX, earthY, observerAngle, earth.size);
 
-  return { svg, bounds };
+  return { svg, bounds, positions };
+}
+
+const MARKER_SIZE = 8;
+const EDGE_MARGIN = 10;
+const LABEL_FONT_SIZE = 9;
+const MARKER_GROUP_ID = "offscreen-markers";
+
+/**
+ * Compute the intersection of a ray from (cx, cy) to (px, py) with a rectangle.
+ * Returns { x, y } on the rectangle edge, inset by margin.
+ */
+function edgeIntersection(cx, cy, px, py, left, top, right, bottom, margin) {
+  const dx = px - cx;
+  const dy = py - cy;
+
+  const inLeft = left + margin;
+  const inTop = top + margin;
+  const inRight = right - margin;
+  const inBottom = bottom - margin;
+
+  let tMin = Number.POSITIVE_INFINITY;
+
+  // Check each edge
+  if (dx !== 0) {
+    const tLeft = (inLeft - cx) / dx;
+    if (tLeft > 0 && tLeft < tMin) {
+      const yAt = cy + dy * tLeft;
+      if (yAt >= inTop && yAt <= inBottom) tMin = tLeft;
+    }
+    const tRight = (inRight - cx) / dx;
+    if (tRight > 0 && tRight < tMin) {
+      const yAt = cy + dy * tRight;
+      if (yAt >= inTop && yAt <= inBottom) tMin = tRight;
+    }
+  }
+  if (dy !== 0) {
+    const tTop = (inTop - cy) / dy;
+    if (tTop > 0 && tTop < tMin) {
+      const xAt = cx + dx * tTop;
+      if (xAt >= inLeft && xAt <= inRight) tMin = tTop;
+    }
+    const tBottom = (inBottom - cy) / dy;
+    if (tBottom > 0 && tBottom < tMin) {
+      const xAt = cx + dx * tBottom;
+      if (xAt >= inLeft && xAt <= inRight) tMin = tBottom;
+    }
+  }
+
+  if (tMin === Number.POSITIVE_INFINITY) {
+    return { x: cx, y: cy };
+  }
+
+  return { x: cx + dx * tMin, y: cy + dy * tMin };
+}
+
+/**
+ * Create a triangle polygon pointing from (ix, iy) toward (px, py).
+ */
+function createTriangle(ix, iy, px, py, color) {
+  const angle = Math.atan2(py - iy, px - ix);
+  const h = (MARKER_SIZE * Math.sqrt(3)) / 2;
+  // Triangle tip points toward the planet
+  const tipX = ix + (Math.cos(angle) * h) / 2;
+  const tipY = iy + (Math.sin(angle) * h) / 2;
+  const baseAngle1 = angle + Math.PI / 2;
+  const baseAngle2 = angle - Math.PI / 2;
+  const halfBase = MARKER_SIZE / 2;
+  const b1x = ix - (Math.cos(angle) * h) / 2 + Math.cos(baseAngle1) * halfBase;
+  const b1y = iy - (Math.sin(angle) * h) / 2 + Math.sin(baseAngle1) * halfBase;
+  const b2x = ix - (Math.cos(angle) * h) / 2 + Math.cos(baseAngle2) * halfBase;
+  const b2y = iy - (Math.sin(angle) * h) / 2 + Math.sin(baseAngle2) * halfBase;
+
+  const polygon = createSvgElement("polygon", {});
+  polygon.setAttribute("points", `${tipX},${tipY} ${b1x},${b1y} ${b2x},${b2y}`);
+  polygon.setAttribute("fill", color);
+  return polygon;
+}
+
+/**
+ * Create a text label for a planet name near the marker.
+ */
+function createLabel(ix, iy, px, py, name, color, left, right) {
+  const text = createSvgElement("text", {});
+  text.setAttribute("fill", color);
+  text.setAttribute("font-size", LABEL_FONT_SIZE);
+  text.setAttribute("font-family", "sans-serif");
+  text.textContent = name;
+
+  // Position label inward from the marker
+  const angle = Math.atan2(py - iy, px - ix);
+  const offsetDist = MARKER_SIZE + 2;
+  const lx = ix - Math.cos(angle) * offsetDist;
+  const ly = iy - Math.sin(angle) * offsetDist;
+
+  // Determine text-anchor based on position relative to viewport center
+  const midX = (left + right) / 2;
+  if (lx < midX) {
+    text.setAttribute("text-anchor", "start");
+  } else {
+    text.setAttribute("text-anchor", "end");
+  }
+
+  text.setAttribute("x", lx);
+  text.setAttribute("y", ly + LABEL_FONT_SIZE / 3);
+  return text;
+}
+
+/**
+ * Render off-screen markers for planets/Moon outside the current viewport.
+ * @param {Array<{name: string, x: number, y: number, color: string}>} positions
+ * @param {object} viewState - ViewState instance with centerX, centerY, width, height
+ * @returns {SVGGElement} A <g> group containing all markers
+ */
+function renderOffscreenMarkers(positions, viewState) {
+  const group = createSvgElement("g", { id: MARKER_GROUP_ID });
+
+  if (!positions || !viewState) return group;
+
+  const w = viewState.width;
+  const h = viewState.height;
+  const left = viewState.centerX - w / 2;
+  const top = viewState.centerY - h / 2;
+  const right = left + w;
+  const bottom = top + h;
+
+  for (const pos of positions) {
+    // Skip bodies that opt out of offscreen markers (e.g. Moon)
+    if (pos.offscreen === false) continue;
+
+    // Skip if inside viewport
+    if (pos.x >= left && pos.x <= right && pos.y >= top && pos.y <= bottom) {
+      continue;
+    }
+
+    const { x: ix, y: iy } = edgeIntersection(
+      viewState.centerX,
+      viewState.centerY,
+      pos.x,
+      pos.y,
+      left,
+      top,
+      right,
+      bottom,
+      EDGE_MARGIN
+    );
+
+    const triangle = createTriangle(ix, iy, pos.x, pos.y, pos.color);
+    group.appendChild(triangle);
+
+    const label = createLabel(ix, iy, pos.x, pos.y, pos.name, pos.color, left, right);
+    group.appendChild(label);
+  }
+
+  return group;
 }
 
 const CARD_STYLES = `
@@ -976,6 +1217,20 @@ class ViewState {
     return true;
   }
 
+  /** Set zoom to a specific level, clamped to [MIN_ZOOM, MAX_ZOOM]. */
+  setZoomLevel(level) {
+    const clamped = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, level));
+    this.zoomLevel = clamped;
+    this._width = ZOOM_LEVELS[clamped];
+    this._height = ZOOM_LEVELS[clamped];
+  }
+
+  /** Set viewport dimensions directly (for animation frames) without changing zoomLevel. */
+  setViewport(width, height) {
+    this._width = width;
+    this._height = height;
+  }
+
   startDrag(clientX, clientY) {
     this.isDragging = true;
     this._dragStartX = clientX;
@@ -997,6 +1252,70 @@ class ViewState {
 
   endDrag() {
     this.isDragging = false;
+  }
+}
+
+const ZOOM_ANIMATE_DURATION_MS = 2000;
+
+function easeInOutCubic(t) {
+  return t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
+}
+
+class ZoomAnimator {
+  constructor(viewState, onFrame) {
+    this._viewState = viewState;
+    this._onFrame = onFrame;
+    this._animationId = null;
+    this._startWidth = 0;
+    this._startHeight = 0;
+    this._targetWidth = 0;
+    this._targetHeight = 0;
+    this._startTime = -1;
+  }
+
+  get isAnimating() {
+    return this._animationId !== null;
+  }
+
+  animateTo(targetLevel, fromWidth, fromHeight) {
+    this.cancel();
+
+    this._startWidth = fromWidth != null ? fromWidth : this._viewState.width;
+    this._startHeight = fromHeight != null ? fromHeight : this._viewState.height;
+    this._targetWidth = ZOOM_LEVELS[targetLevel];
+    this._targetHeight = ZOOM_LEVELS[targetLevel];
+    this._targetLevel = targetLevel;
+    this._startTime = -1;
+
+    const step = (timestamp) => {
+      if (this._startTime < 0) this._startTime = timestamp;
+      const elapsed = timestamp - this._startTime;
+      const t = Math.min(elapsed / ZOOM_ANIMATE_DURATION_MS, 1);
+      const eased = easeInOutCubic(t);
+
+      const w = this._startWidth + (this._targetWidth - this._startWidth) * eased;
+      const h = this._startHeight + (this._targetHeight - this._startHeight) * eased;
+
+      this._viewState.setViewport(w, h);
+      this._onFrame();
+
+      if (t < 1) {
+        this._animationId = requestAnimationFrame(step);
+      } else {
+        this._viewState.setZoomLevel(this._targetLevel);
+        this._animationId = null;
+        this._onFrame();
+      }
+    };
+
+    this._animationId = requestAnimationFrame(step);
+  }
+
+  cancel() {
+    if (this._animationId !== null) {
+      cancelAnimationFrame(this._animationId);
+      this._animationId = null;
+    }
   }
 }
 
@@ -1060,11 +1379,32 @@ class SolarViewCard extends HTMLElement {
       config.default_zoom > MAX_ZOOM
         ? DEFAULT_ZOOM_LEVEL
         : config.default_zoom;
+
+    const rawRefresh = Number(config.refresh_mins);
+    this._refreshMs = Number.isFinite(rawRefresh) && rawRefresh >= 0.1 ? rawRefresh * 60000 : 60000;
+
+    this._periodicZoomChange = config.periodic_zoom_change === true;
+    this._zoomAnimate = config.zoom_animate !== false;
+
+    // Recreate timer if already connected
+    if (this._autoUpdateTimer != null) {
+      this._startAutoUpdateTimer();
+    }
   }
 
   connectedCallback() {
     this._render();
+    this._startAutoUpdateTimer();
+  }
+
+  disconnectedCallback() {
     clearInterval(this._autoUpdateTimer);
+    this._autoUpdateTimer = null;
+  }
+
+  _startAutoUpdateTimer() {
+    clearInterval(this._autoUpdateTimer);
+    const interval = this._refreshMs || 60000;
     this._autoUpdateTimer = setInterval(() => {
       if (
         this._formatDate(this._currentDate).slice(0, 10) ===
@@ -1073,12 +1413,18 @@ class SolarViewCard extends HTMLElement {
         this._currentDate = new Date();
         this._render();
       }
-    }, 60000);
+      if (this._periodicZoomChange) {
+        this._advanceZoom();
+      }
+    }, interval);
   }
 
-  disconnectedCallback() {
-    clearInterval(this._autoUpdateTimer);
-    this._autoUpdateTimer = null;
+  _advanceZoom() {
+    const prevWidth = this._viewState.width;
+    const prevHeight = this._viewState.height;
+    const next = this._viewState.zoomLevel >= MAX_ZOOM ? MIN_ZOOM : this._viewState.zoomLevel + 1;
+    this._viewState.setZoomLevel(next);
+    this._applyZoom(prevWidth, prevHeight);
   }
 
   _formatDate(date) {
@@ -1101,15 +1447,23 @@ class SolarViewCard extends HTMLElement {
   }
 
   _zoomIn() {
-    if (this._viewState.zoomIn()) this._applyZoom();
+    const prevWidth = this._viewState.width;
+    const prevHeight = this._viewState.height;
+    if (this._viewState.zoomIn()) this._applyZoom(prevWidth, prevHeight);
   }
 
   _zoomOut() {
-    if (this._viewState.zoomOut()) this._applyZoom();
+    const prevWidth = this._viewState.width;
+    const prevHeight = this._viewState.height;
+    if (this._viewState.zoomOut()) this._applyZoom(prevWidth, prevHeight);
   }
 
-  _applyZoom() {
-    this._updateViewBox();
+  _applyZoom(fromWidth, fromHeight) {
+    if (this._zoomAnimate && this._zoomAnimator && fromWidth != null) {
+      this._zoomAnimator.animateTo(this._viewState.zoomLevel, fromWidth, fromHeight);
+    } else {
+      this._updateViewBox();
+    }
     const levelDisplay = this.shadowRoot.querySelector(".zoom-level");
     if (levelDisplay) levelDisplay.textContent = this._viewState.zoomLevel;
   }
@@ -1117,6 +1471,17 @@ class SolarViewCard extends HTMLElement {
   _updateViewBox() {
     const svg = this.shadowRoot.querySelector("#solar-view svg");
     if (svg) svg.setAttribute("viewBox", this._viewState.viewBox);
+    this._updateOffscreenMarkers();
+  }
+
+  _updateOffscreenMarkers() {
+    const svg = this.shadowRoot.querySelector("#solar-view svg");
+    if (!svg) return;
+    const old = svg.getElementById(MARKER_GROUP_ID);
+    if (old) old.remove();
+    if (this._positions && this._viewState) {
+      svg.appendChild(renderOffscreenMarkers(this._positions, this._viewState));
+    }
   }
 
   _onPointerDown(e) {
@@ -1146,6 +1511,7 @@ class SolarViewCard extends HTMLElement {
     // Initialize view state on first render only — preserves zoom/pan across re-renders
     if (!this._viewState) {
       this._viewState = new ViewState(this._defaultZoomLevel);
+      this._zoomAnimator = new ZoomAnimator(this._viewState, () => this._updateViewBox());
     }
 
     // Derive hemisphere from HA location when available
@@ -1164,7 +1530,13 @@ class SolarViewCard extends HTMLElement {
     );
 
     const container = this.shadowRoot.getElementById("solar-view");
-    const { svg } = renderSolarSystem(this._currentDate, this._hemisphere, locationData);
+    const { svg, positions } = renderSolarSystem(
+      this._currentDate,
+      this._hemisphere,
+      locationData,
+      this._viewState
+    );
+    this._positions = positions;
     container.appendChild(svg);
 
     this._updateViewBox();
@@ -1228,7 +1600,7 @@ class SolarViewCard extends HTMLElement {
   }
 
   static getStubConfig() {
-    return { default_zoom: 2 };
+    return { default_zoom: 2, periodic_zoom_change: false, refresh_mins: 1, zoom_animate: true };
   }
 }
 

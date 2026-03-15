@@ -10,9 +10,15 @@ import { auToRadius, CENTER, createSvgElement, expandBounds, VIEW_SIZE } from ".
  * @param {Date} date - date to calculate positions for
  * @param {string} [hemisphere="north"] - "north" or "south" for season labels
  * @param {{ lat: number, lon: number, timezone: string } | null} [locationData] - observer location from HA config
+ * @param {{ zoomLevel: number, width: number, height: number, centerX: number, centerY: number } | null} [viewState] - current view state for zoom-aware rendering
  * @returns {{ svg: SVGElement, bounds: { minX: number, minY: number, maxX: number, maxY: number } }}
  */
-export function renderSolarSystem(date, hemisphere = "north", locationData = null) {
+export function renderSolarSystem(
+  date,
+  hemisphere = "north",
+  locationData = null,
+  viewState = null
+) {
   const svg = createSvgElement("svg", {
     viewBox: `0 0 ${VIEW_SIZE} ${VIEW_SIZE}`,
     width: "100%",
@@ -21,6 +27,7 @@ export function renderSolarSystem(date, hemisphere = "north", locationData = nul
   });
 
   const bounds = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
+  const positions = [];
 
   // Day/night split (rendered first, behind everything)
   const earth = PLANETS.find((p) => p.name === "Earth");
@@ -46,6 +53,7 @@ export function renderSolarSystem(date, hemisphere = "north", locationData = nul
     const radius = auToRadius(planet.au);
     const x = CENTER + radius * Math.cos(angle);
     const y = CENTER - radius * Math.sin(angle);
+    positions.push({ name: planet.name, x, y, color: planet.color });
     if (planet.name === "Saturn") {
       // Shrink Saturn's body to make room for top-down circular ring
       const saturnRenderSize = Math.round(planet.size / 2);
@@ -83,6 +91,7 @@ export function renderSolarSystem(date, hemisphere = "north", locationData = nul
   const moonPixelOffset = 22; // pixels from Earth
   const moonX = earthX + moonPixelOffset * Math.cos(moonAngle);
   const moonY = earthY - moonPixelOffset * Math.sin(moonAngle);
+  positions.push({ name: MOON.name, x: moonX, y: moonY, color: MOON.color, offscreen: false });
 
   // Moon orbit (dotted circle centered on Earth)
   svg.appendChild(
@@ -97,12 +106,17 @@ export function renderSolarSystem(date, hemisphere = "north", locationData = nul
     })
   );
 
-  renderBody(svg, moonX, moonY, MOON);
+  renderBody(svg, moonX, moonY, MOON, false);
   expandBounds(bounds, moonX, moonY, MOON.size + 17);
 
   // Observer needle on Earth (tip at surface)
-  const observerAngle = calculateObserverAngle(earthAngle, date, locationData?.timezone);
+  const observerAngle = calculateObserverAngle(
+    earthAngle,
+    date,
+    locationData?.timezone,
+    locationData?.lon
+  );
   renderObserverNeedle(svg, earthX, earthY, observerAngle, earth.size);
 
-  return { svg, bounds };
+  return { svg, bounds, positions };
 }

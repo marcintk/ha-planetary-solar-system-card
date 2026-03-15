@@ -82,7 +82,7 @@ describe("renderSolarSystem", () => {
     expect(texts).toContain("Earth");
     expect(texts).toContain("Mars");
     expect(texts).toContain("Neptune");
-    expect(texts).toContain("Moon");
+    expect(texts).not.toContain("Moon");
   });
 
   it("renders AU distance labels on vertical axis in mirrored pairs", () => {
@@ -466,10 +466,18 @@ describe("renderSolarSystem", () => {
     const container = document.createElement("div");
     renderInto(container, new Date("2026-02-14"));
 
-    // TODO(human): Write the assertion that verifies the ring ellipse
-    // is centered at the same position as Saturn's body circle.
-    // Hint: Saturn's color is "#e0c080" — find its circle, then compare
-    // cx/cy with the ellipse's cx/cy.
+    const svg = container.querySelector("svg");
+    const saturnBody = svg.querySelector('circle[fill="#e0c080"]');
+    expect(saturnBody).not.toBeNull();
+
+    const ringColor = "rgba(224, 192, 128, 0.6)";
+    const rings = svg.querySelectorAll(`circle[stroke="${ringColor}"]`);
+    expect(rings.length).toBe(2);
+
+    for (const ring of rings) {
+      expect(ring.getAttribute("cx")).toBe(saturnBody.getAttribute("cx"));
+      expect(ring.getAttribute("cy")).toBe(saturnBody.getAttribute("cy"));
+    }
   });
 
   it("no other planets have ring elements", () => {
@@ -593,126 +601,31 @@ describe("renderSolarSystem", () => {
   });
 });
 
-describe("season overlay", () => {
-  it("renders two season dividing lines through the center", () => {
-    const container = document.createElement("div");
-    renderInto(container, new Date("2026-02-14"));
+describe("renderSolarSystem zoom-level season overlay", () => {
+  const date = new Date("2025-06-15");
+  const sizes = { 1: 800, 2: 640, 3: 480, 4: 320 };
 
-    const svg = container.querySelector("svg");
-    const seasonLines = svg.querySelectorAll('line[stroke="rgba(255, 255, 255, 0.25)"]');
-    expect(seasonLines.length).toBe(2);
+  function makeViewState(zoomLevel) {
+    return {
+      centerX: 400,
+      centerY: 400,
+      width: sizes[zoomLevel],
+      height: sizes[zoomLevel],
+      zoomLevel,
+    };
+  }
 
-    // One horizontal, one vertical
-    const horizontal = Array.from(seasonLines).find(
-      (l) => l.getAttribute("y1") === "400" && l.getAttribute("y2") === "400"
-    );
-    const vertical = Array.from(seasonLines).find(
-      (l) => l.getAttribute("x1") === "400" && l.getAttribute("x2") === "400"
-    );
-    expect(horizontal).not.toBeNull();
-    expect(vertical).not.toBeNull();
+  it("includes season arc textPath elements at all zoom levels", () => {
+    for (const zoom of [1, 2, 3, 4]) {
+      const { svg } = renderSolarSystem(date, "north", null, makeViewState(zoom));
+      const textPaths = svg.querySelectorAll("textPath");
+      expect(textPaths.length).toBe(4);
+    }
   });
 
-  it("renders four season labels", () => {
-    const container = document.createElement("div");
-    renderInto(container, new Date("2026-02-14"));
-
-    const svg = container.querySelector("svg");
+  it("includes season arc textPath elements when no viewState is provided", () => {
+    const { svg } = renderSolarSystem(date, "north", null, null);
     const textPaths = svg.querySelectorAll("textPath");
     expect(textPaths.length).toBe(4);
-
-    const labels = Array.from(textPaths).map((tp) => tp.textContent);
-    expect(labels).toContain("Spring");
-    expect(labels).toContain("Summer");
-    expect(labels).toContain("Autumn");
-    expect(labels).toContain("Winter");
-  });
-
-  it("uses Northern Hemisphere mapping by default", () => {
-    const container = document.createElement("div");
-    renderInto(container, new Date("2026-02-14"));
-
-    const svg = container.querySelector("svg");
-    const textPaths = svg.querySelectorAll("textPath");
-    const labels = Array.from(textPaths).map((tp) => tp.textContent);
-    // Default (north): Winter, Autumn, Summer, Spring order
-    expect(labels).toEqual(["Winter", "Autumn", "Summer", "Spring"]);
-  });
-
-  it("swaps seasons for Southern Hemisphere", () => {
-    const container = document.createElement("div");
-    const { svg } = renderSolarSystem(new Date("2026-02-14"), "south");
-    container.appendChild(svg);
-
-    const textPaths = svg.querySelectorAll("textPath");
-    const labels = Array.from(textPaths).map((tp) => tp.textContent);
-    // South: Summer, Spring, Winter, Autumn order
-    expect(labels).toEqual(["Summer", "Spring", "Winter", "Autumn"]);
-  });
-
-  it("top-half season labels use reversed arc sweep for left-to-right reading", () => {
-    const container = document.createElement("div");
-    renderInto(container, new Date("2026-02-14"));
-
-    const svg = container.querySelector("svg");
-    const defs = svg.querySelector("defs");
-    // Season arcs: 0=Winter(top-left, 90-180°), 1=Autumn(top-right, 0-90°),
-    //              2=Summer(bottom-right, 270-360°), 3=Spring(bottom-left, 180-270°)
-    const topArcs = [defs.querySelector("#season-arc-0"), defs.querySelector("#season-arc-1")];
-    const bottomArcs = [defs.querySelector("#season-arc-2"), defs.querySelector("#season-arc-3")];
-
-    // Top-half arcs should use sweep-flag=1 (reversed for readability)
-    for (const arc of topArcs) {
-      expect(arc.getAttribute("d")).toMatch(/A \d+ \d+ 0 0 1/);
-    }
-    // Bottom-half arcs should use sweep-flag=0 (original direction)
-    for (const arc of bottomArcs) {
-      expect(arc.getAttribute("d")).toMatch(/A \d+ \d+ 0 0 0/);
-    }
-  });
-
-  it("top-half season label arcs use a larger radius than bottom-half arcs (outside Neptune)", () => {
-    const container = document.createElement("div");
-    renderInto(container, new Date("2026-02-14"));
-
-    const svg = container.querySelector("svg");
-    const defs = svg.querySelector("defs");
-
-    // Top-half arcs: 0=Winter(90-180°), 1=Autumn(0-90°)
-    // Bottom-half arcs: 2=Summer(270-360°), 3=Spring(180-270°)
-    const topArc = defs.querySelector("#season-arc-0");
-    const bottomArc = defs.querySelector("#season-arc-2");
-
-    // Extract radius from arc path "A <rx> <ry> ..."
-    const extractRadius = (path) => {
-      const match = path.getAttribute("d").match(/A ([\d.]+) ([\d.]+)/);
-      return Number(match[1]);
-    };
-
-    const topRadius = extractRadius(topArc);
-    const bottomRadius = extractRadius(bottomArc);
-    expect(topRadius).toBe(368);
-    expect(bottomRadius).toBe(380);
-    expect(topRadius).toBeLessThan(bottomRadius);
-  });
-
-  it("season dividing lines are rendered before orbits (behind them)", () => {
-    const container = document.createElement("div");
-    renderInto(container, new Date("2026-02-14"));
-
-    const svg = container.querySelector("svg");
-    const allElements = Array.from(svg.children);
-    const seasonLine = allElements.find(
-      (el) => el.tagName === "line" && el.getAttribute("stroke") === "rgba(255, 255, 255, 0.25)"
-    );
-    const firstOrbit = allElements.find(
-      (el) =>
-        el.tagName === "circle" &&
-        el.getAttribute("fill") === "none" &&
-        el.getAttribute("stroke-dasharray") === "5, 5"
-    );
-    const seasonIdx = allElements.indexOf(seasonLine);
-    const orbitIdx = allElements.indexOf(firstOrbit);
-    expect(seasonIdx).toBeLessThan(orbitIdx);
   });
 });

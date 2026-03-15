@@ -68,7 +68,7 @@ quarters, and 1 at Full Moon.
 
 The system SHALL render a moon phase indicator in the SVG via
 `renderMoonPhaseIndicator(svg, date, hemisphere)` in `src/renderer/moon-phase.js`. The indicator
-SHALL consist of a `<g>` group containing a circular moon disc (radius 10px) showing the illuminated
+SHALL consist of a `<g>` group containing a circular moon disc (radius 30px) showing the illuminated
 portion, and a text label with the phase name. The indicator SHALL be appended to the SVG element.
 
 #### Scenario: Indicator creates SVG group with disc and label
@@ -104,17 +104,36 @@ illumination direction SHALL be horizontally mirrored compared to "north".
 - **WHEN** `renderMoonPhaseIndicator` is called with a Waxing Crescent date and hemisphere "south"
 - **THEN** the left side of the disc SHALL be illuminated
 
+### Requirement: Indicator position in SVG
+
+The moon phase indicator SHALL be placed at a fixed position in the bottom-left corner of the SVG
+coordinate space, at approximately `(40, 735)`. The position SHALL remain constant regardless of
+zoom level or pan position — it is anchored to the SVG canvas, not the viewport. The `hemisphere`
+parameter SHALL be sourced from the observer-location capability's latitude-based hemisphere
+derivation.
+
+#### Scenario: Indicator appears in bottom-left corner
+
+- **WHEN** `renderMoonPhaseIndicator` is called
+- **THEN** the indicator group SHALL be positioned at fixed SVG coordinates near `(40, 735)`
+- **AND** the position SHALL NOT change when the user zooms or pans
+
 ### Requirement: Integration into renderSolarSystem
 
 The main compositor `renderSolarSystem` in `src/renderer/index.js` SHALL call
 `renderMoonPhaseIndicator` to add the moon phase indicator to the SVG output. The indicator SHALL be
-rendered after all other elements so it appears on top.
+rendered after planet bodies but before any viewport-edge overlays (e.g., offscreen markers).
 
 #### Scenario: renderSolarSystem includes moon phase indicator
 
 - **WHEN** `renderSolarSystem` is called with a date and hemisphere
 - **THEN** the returned SVG SHALL contain a moon phase indicator group
-- **THEN** the indicator SHALL be the last child group appended to the SVG
+
+#### Scenario: Indicator renders before viewport overlays
+
+- **WHEN** both moon phase indicator and offscreen markers are rendered
+- **THEN** the moon phase indicator group SHALL appear before the offscreen markers group in SVG
+  child order
 
 ### Requirement: Indicator updates with date navigation
 
@@ -127,3 +146,25 @@ hour-forward, today), the indicator SHALL update to show the phase for the new d
 - **WHEN** the user clicks "month-forward"
 - **THEN** the re-rendered SVG SHALL show the moon phase for the new date
 - **THEN** the phase name SHALL differ from the previous date's phase (for most months)
+
+### Requirement: Moon text label suppression
+
+The Moon's circular body marker SHALL be rendered by `renderBody` in `src/renderer/bodies.js`, but
+the text label ("Moon") SHALL be suppressed by passing `showLabel = false`. This prevents visual
+clutter where the Moon and Earth labels overlap due to their close proximity (22px offset).
+
+Implementation: `renderSolarSystem` in `src/renderer/index.js` SHALL call
+`renderBody(svg, moonX, moonY, MOON, false)`.
+
+#### Scenario: Moon body visible without text label
+
+- **WHEN** the solar system is rendered for any date
+- **THEN** the Moon's circular body marker SHALL be visible at its computed position
+- **AND** no text element with content "Moon" SHALL be rendered by the Moon's `renderBody` call
+
+#### Scenario: Moon marker dot unchanged
+
+- **WHEN** the Moon is rendered
+- **THEN** the Moon's circle element SHALL have the same size and color as before (defined by `MOON`
+  in `src/astronomy/planet-data.js`)
+- **AND** the Moon's orbital dotted circle around Earth SHALL remain unchanged

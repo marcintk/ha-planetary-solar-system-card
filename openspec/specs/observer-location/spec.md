@@ -1,11 +1,3 @@
-## Purpose
-
-Defines how the card obtains the observer's real geographic location from Home Assistant
-configuration and uses it to compute accurate solar position data. Replaces the orbital-geometry
-approximation and browser geolocation API with synchronous HA config values.
-
-## Requirements
-
 ### Requirement: HA config extraction
 
 The card SHALL read `latitude`, `longitude`, `time_zone`, and `location_name` from `hass.config` in

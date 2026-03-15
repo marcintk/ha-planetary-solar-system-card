@@ -1,10 +1,3 @@
-## Purpose
-
-Provide visual indicators at the viewport edge for planets and the Moon that are outside the visible
-area, so users maintain spatial awareness at higher zoom levels.
-
-## Requirements
-
 ### Requirement: Planet positions exposed from renderer
 
 The `renderSolarSystem` function SHALL return a `positions` array alongside the existing `svg` and
@@ -136,25 +129,3 @@ toward the planet.
 - **WHEN** a planet is off-screen to the upper-right of the viewport
 - **THEN** the marker SHALL appear at the intersection of the line from center to planet with the
   viewport boundary (either top or right edge, whichever is hit first)
-
-### Requirement: Moon text label suppression
-
-The Moon's circular body marker SHALL be rendered by `renderBody` in `src/renderer/bodies.js`, but
-the text label ("Moon") SHALL be suppressed by passing `showLabel = false`. This prevents visual
-clutter where the Moon and Earth labels overlap due to their close proximity (22px offset).
-
-Implementation: `renderSolarSystem` in `src/renderer/index.js` SHALL call
-`renderBody(svg, moonX, moonY, MOON, false)`.
-
-#### Scenario: Moon body visible without text label
-
-- **WHEN** the solar system is rendered for any date
-- **THEN** the Moon's circular body marker SHALL be visible at its computed position
-- **AND** no text element with content "Moon" SHALL be rendered by the Moon's `renderBody` call
-
-#### Scenario: Moon marker dot unchanged
-
-- **WHEN** the Moon is rendered
-- **THEN** the Moon's circle element SHALL have the same size and color as before (defined by `MOON`
-  in `src/astronomy/planet-data.js`)
-- **AND** the Moon's orbital dotted circle around Earth SHALL remain unchanged

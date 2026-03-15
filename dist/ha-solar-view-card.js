@@ -999,6 +999,12 @@ class ViewState {
     this._height = ZOOM_LEVELS[clamped];
   }
 
+  /** Set viewport dimensions directly (for animation frames) without changing zoomLevel. */
+  setViewport(width, height) {
+    this._width = width;
+    this._height = height;
+  }
+
   startDrag(clientX, clientY) {
     this.isDragging = true;
     this._dragStartX = clientX;
@@ -1020,6 +1026,70 @@ class ViewState {
 
   endDrag() {
     this.isDragging = false;
+  }
+}
+
+const ZOOM_ANIMATE_DURATION_MS = 2000;
+
+function easeInOutCubic(t) {
+  return t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
+}
+
+class ZoomAnimator {
+  constructor(viewState, onFrame) {
+    this._viewState = viewState;
+    this._onFrame = onFrame;
+    this._animationId = null;
+    this._startWidth = 0;
+    this._startHeight = 0;
+    this._targetWidth = 0;
+    this._targetHeight = 0;
+    this._startTime = -1;
+  }
+
+  get isAnimating() {
+    return this._animationId !== null;
+  }
+
+  animateTo(targetLevel, fromWidth, fromHeight) {
+    this.cancel();
+
+    this._startWidth = fromWidth != null ? fromWidth : this._viewState.width;
+    this._startHeight = fromHeight != null ? fromHeight : this._viewState.height;
+    this._targetWidth = ZOOM_LEVELS[targetLevel];
+    this._targetHeight = ZOOM_LEVELS[targetLevel];
+    this._targetLevel = targetLevel;
+    this._startTime = -1;
+
+    const step = (timestamp) => {
+      if (this._startTime < 0) this._startTime = timestamp;
+      const elapsed = timestamp - this._startTime;
+      const t = Math.min(elapsed / ZOOM_ANIMATE_DURATION_MS, 1);
+      const eased = easeInOutCubic(t);
+
+      const w = this._startWidth + (this._targetWidth - this._startWidth) * eased;
+      const h = this._startHeight + (this._targetHeight - this._startHeight) * eased;
+
+      this._viewState.setViewport(w, h);
+      this._onFrame();
+
+      if (t < 1) {
+        this._animationId = requestAnimationFrame(step);
+      } else {
+        this._viewState.setZoomLevel(this._targetLevel);
+        this._animationId = null;
+        this._onFrame();
+      }
+    };
+
+    this._animationId = requestAnimationFrame(step);
+  }
+
+  cancel() {
+    if (this._animationId !== null) {
+      cancelAnimationFrame(this._animationId);
+      this._animationId = null;
+    }
   }
 }
 
@@ -1088,6 +1158,7 @@ class SolarViewCard extends HTMLElement {
     this._refreshMs = Number.isFinite(rawRefresh) && rawRefresh >= 0.1 ? rawRefresh * 60000 : 60000;
 
     this._periodicZoomChange = config.periodic_zoom_change === true;
+    this._zoomAnimate = config.zoom_animate !== false;
 
     // Recreate timer if already connected
     if (this._autoUpdateTimer != null) {
@@ -1123,9 +1194,11 @@ class SolarViewCard extends HTMLElement {
   }
 
   _advanceZoom() {
+    const prevWidth = this._viewState.width;
+    const prevHeight = this._viewState.height;
     const next = this._viewState.zoomLevel >= MAX_ZOOM ? MIN_ZOOM : this._viewState.zoomLevel + 1;
     this._viewState.setZoomLevel(next);
-    this._applyZoom();
+    this._applyZoom(prevWidth, prevHeight);
   }
 
   _formatDate(date) {
@@ -1148,15 +1221,23 @@ class SolarViewCard extends HTMLElement {
   }
 
   _zoomIn() {
-    if (this._viewState.zoomIn()) this._applyZoom();
+    const prevWidth = this._viewState.width;
+    const prevHeight = this._viewState.height;
+    if (this._viewState.zoomIn()) this._applyZoom(prevWidth, prevHeight);
   }
 
   _zoomOut() {
-    if (this._viewState.zoomOut()) this._applyZoom();
+    const prevWidth = this._viewState.width;
+    const prevHeight = this._viewState.height;
+    if (this._viewState.zoomOut()) this._applyZoom(prevWidth, prevHeight);
   }
 
-  _applyZoom() {
-    this._updateViewBox();
+  _applyZoom(fromWidth, fromHeight) {
+    if (this._zoomAnimate && this._zoomAnimator && fromWidth != null) {
+      this._zoomAnimator.animateTo(this._viewState.zoomLevel, fromWidth, fromHeight);
+    } else {
+      this._updateViewBox();
+    }
     const levelDisplay = this.shadowRoot.querySelector(".zoom-level");
     if (levelDisplay) levelDisplay.textContent = this._viewState.zoomLevel;
   }
@@ -1193,6 +1274,7 @@ class SolarViewCard extends HTMLElement {
     // Initialize view state on first render only — preserves zoom/pan across re-renders
     if (!this._viewState) {
       this._viewState = new ViewState(this._defaultZoomLevel);
+      this._zoomAnimator = new ZoomAnimator(this._viewState, () => this._updateViewBox());
     }
 
     // Derive hemisphere from HA location when available
@@ -1275,7 +1357,7 @@ class SolarViewCard extends HTMLElement {
   }
 
   static getStubConfig() {
-    return { default_zoom: 2, periodic_zoom_change: false, refresh_mins: 1 };
+    return { default_zoom: 2, periodic_zoom_change: false, refresh_mins: 1, zoom_animate: true };
   }
 }
 

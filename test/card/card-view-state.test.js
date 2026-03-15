@@ -146,6 +146,32 @@ describe("ViewState setZoomLevel", () => {
   });
 });
 
+describe("ViewState setViewport", () => {
+  it("sets width and height without changing zoomLevel", () => {
+    const vs = new ViewState(1);
+    vs.setViewport(500, 500);
+    expect(vs.width).toBe(500);
+    expect(vs.height).toBe(500);
+    expect(vs.zoomLevel).toBe(1);
+  });
+
+  it("allows non-standard intermediate values", () => {
+    const vs = new ViewState(2);
+    vs.setViewport(700, 700);
+    expect(vs.width).toBe(700);
+    expect(vs.height).toBe(700);
+    expect(vs.zoomLevel).toBe(2);
+  });
+
+  it("viewBox reflects updated viewport", () => {
+    const vs = new ViewState(1);
+    vs.setViewport(600, 600);
+    const [, , w, h] = vs.viewBox.split(" ").map(Number);
+    expect(w).toBe(600);
+    expect(h).toBe(600);
+  });
+});
+
 describe("ViewState pan (drag)", () => {
   it("startDrag sets isDragging to true", () => {
     const vs = new ViewState();

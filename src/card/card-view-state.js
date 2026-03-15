@@ -3,7 +3,7 @@ export const DEFAULT_ZOOM_LEVEL = 1;
 export const MIN_ZOOM = 1;
 export const MAX_ZOOM = 4;
 
-const ZOOM_LEVELS = { 1: 800, 2: 640, 3: 480, 4: 320 };
+export const ZOOM_LEVELS = { 1: 800, 2: 640, 3: 480, 4: 320 };
 
 /**
  * Encapsulates all pan and zoom state for the solar system view.
@@ -61,6 +61,12 @@ export class ViewState {
     this.zoomLevel = clamped;
     this._width = ZOOM_LEVELS[clamped];
     this._height = ZOOM_LEVELS[clamped];
+  }
+
+  /** Set viewport dimensions directly (for animation frames) without changing zoomLevel. */
+  setViewport(width, height) {
+    this._width = width;
+    this._height = height;
   }
 
   startDrag(clientX, clientY) {

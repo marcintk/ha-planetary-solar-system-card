@@ -29,6 +29,7 @@ describe("SolarViewCard", () => {
       default_zoom: 2,
       periodic_zoom_change: false,
       refresh_mins: 1,
+      zoom_animate: true,
     });
   });
 
@@ -715,6 +716,79 @@ describe("SolarViewCard", () => {
       const bar = card.shadowRoot.querySelector(".status-bar");
       const spans = bar.querySelectorAll("span");
       expect(spans).toHaveLength(1);
+      card.remove();
+    });
+  });
+
+  describe("zoom_animate configuration", () => {
+    it("defaults to true when not set", () => {
+      const card = document.createElement("ha-solar-view-card-test");
+      card.setConfig({});
+      expect(card._zoomAnimate).toBe(true);
+    });
+
+    it("is false when configured as false", () => {
+      const card = document.createElement("ha-solar-view-card-test");
+      card.setConfig({ zoom_animate: false });
+      expect(card._zoomAnimate).toBe(false);
+    });
+
+    it("zoom is instant when zoom_animate is false", () => {
+      const card = document.createElement("ha-solar-view-card-test");
+      card.setConfig({ zoom_animate: false });
+      document.body.appendChild(card);
+      clickButton(card, "zoom-in");
+      const { width } = parseViewBox(card);
+      expect(width).toBe(640);
+      card.remove();
+    });
+
+    it("zoom level display updates immediately even with animation enabled", () => {
+      const card = document.createElement("ha-solar-view-card-test");
+      card.setConfig({ zoom_animate: true });
+      document.body.appendChild(card);
+      clickButton(card, "zoom-in");
+      expect(card.shadowRoot.querySelector(".zoom-level").textContent).toBe("2");
+      card.remove();
+    });
+
+    it("initial render does not animate even when zoom_animate is true", () => {
+      const card = document.createElement("ha-solar-view-card-test");
+      card.setConfig({ zoom_animate: true, default_zoom: 3 });
+      document.body.appendChild(card);
+      const { width } = parseViewBox(card);
+      expect(width).toBe(480);
+      card.remove();
+    });
+
+    it("setConfig re-render applies zoom instantly without animation", () => {
+      const card = document.createElement("ha-solar-view-card-test");
+      card.setConfig({ zoom_animate: true, default_zoom: 1 });
+      document.body.appendChild(card);
+      expect(parseViewBox(card).width).toBe(800);
+      // Reconfigure with new default zoom — should re-render instantly
+      card._viewState = null; // force fresh ViewState on next render
+      card.setConfig({ zoom_animate: true, default_zoom: 3 });
+      card._render();
+      expect(parseViewBox(card).width).toBe(480);
+      card.remove();
+    });
+  });
+
+  describe("animated zoom with periodic auto-cycle", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("auto-cycle updates zoom level display with animation enabled", () => {
+      vi.useFakeTimers();
+      const card = document.createElement("ha-solar-view-card-test");
+      card.setConfig({ periodic_zoom_change: true, zoom_animate: true });
+      document.body.appendChild(card);
+      expect(card.shadowRoot.querySelector(".zoom-level").textContent).toBe("1");
+      vi.advanceTimersByTime(60000);
+      // Zoom level display should update immediately to target
+      expect(card.shadowRoot.querySelector(".zoom-level").textContent).toBe("2");
       card.remove();
     });
   });

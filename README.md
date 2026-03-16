@@ -1,11 +1,11 @@
 # ha-solar-view-card
 
-Home Assistant custom Lovelace card showing all 8 planets and Moon aligned around the Sun. Navigate
-time, zoom, and pan interactively.
+Home Assistant custom Lovelace card showing all 8 planets, Moon and comet Halley aligned around the Sun.
+Navigate time, zoom, and pan interactively.
 
 ## Demo
 
-[**→ Try the interactive demo**](https://marcintk.github.io/ha-planetary-solar-system-card/)
+[**→ Try the interactive demo**](https://marcintk.github.io/ha-solar-view-card/)
 
 [![Screenshot](example.png)](https://marcintk.github.io/ha-planetary-solar-system-card/)
 

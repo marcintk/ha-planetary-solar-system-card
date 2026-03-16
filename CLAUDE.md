@@ -56,7 +56,6 @@ provides.
 
 ### Features
 
-- add some other object like comets i.e. Halley
 - add Earth centric view (every update should move all objects except Earth)
 - add zodiac constellations
 - add information if this Northern or Southern hemisphere

@@ -209,7 +209,7 @@ describe("renderCometBody", () => {
     expect(dot).toBeGreaterThan(0);
   });
 
-  it("tail length matches comet tailLength property", () => {
+  it("tail length uses comet tailLength when no dynamic length provided", () => {
     const svg = createSvg();
     renderCometBody(svg, bodyX, bodyY, halley, sunX, sunY);
 
@@ -221,6 +221,33 @@ describe("renderCometBody", () => {
     const tailDY = y2 - bodyY;
     const tailLen = Math.sqrt(tailDX * tailDX + tailDY * tailDY);
     expect(tailLen).toBeCloseTo(halley.tailLength, 1);
+  });
+
+  it("tail length uses dynamicTailLength when provided", () => {
+    const svg = createSvg();
+    const dynamicLen = 15;
+    renderCometBody(svg, bodyX, bodyY, halley, sunX, sunY, dynamicLen);
+
+    const line = svg.querySelector("line");
+    const x2 = Number(line.getAttribute("x2"));
+    const y2 = Number(line.getAttribute("y2"));
+
+    const tailDX = x2 - bodyX;
+    const tailDY = y2 - bodyY;
+    const tailLen = Math.sqrt(tailDX * tailDX + tailDY * tailDY);
+    expect(tailLen).toBeCloseTo(dynamicLen, 1);
+  });
+
+  it("dynamicTailLength of 0 produces zero-length tail", () => {
+    const svg = createSvg();
+    renderCometBody(svg, bodyX, bodyY, halley, sunX, sunY, 0);
+
+    const line = svg.querySelector("line");
+    const x2 = Number(line.getAttribute("x2"));
+    const y2 = Number(line.getAttribute("y2"));
+
+    expect(x2).toBe(bodyX);
+    expect(y2).toBe(bodyY);
   });
 
   it("appends a label with the comet name", () => {
@@ -319,5 +346,45 @@ describe("comets in renderSolarSystem integration", () => {
     const halley2 = p2.find((p) => p.name === "Halley");
     const different = halley1.x !== halley2.x || halley1.y !== halley2.y;
     expect(different).toBe(true);
+  });
+
+  it("comet tail length is at most comet.tailLength (capped at perihelion)", () => {
+    const { svg } = renderSolarSystem(new Date("2026-03-15"));
+    const tailLines = svg.querySelectorAll('line[stroke-linecap="round"]');
+    const halley = COMETS.find((c) => c.name === "Halley");
+
+    for (const line of tailLines) {
+      const x1 = Number(line.getAttribute("x1"));
+      const y1 = Number(line.getAttribute("y1"));
+      const x2 = Number(line.getAttribute("x2"));
+      const y2 = Number(line.getAttribute("y2"));
+      const len = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+      expect(len).toBeLessThanOrEqual(halley.tailLength + 0.1);
+    }
+  });
+
+  it("tail scales inversely with distance — farther from Sun means shorter tail", () => {
+    // Halley is far from the Sun currently (large radius), so tail should be
+    // shorter than the max tailLength
+    const halley = COMETS.find((c) => c.name === "Halley");
+    const { radius } = calculateCometPosition(halley, new Date("2026-03-15"));
+    const perihelion = halley.semiMajorAxis * (1 - halley.eccentricity);
+
+    // If comet is beyond perihelion, tail should be scaled down
+    if (radius > perihelion * 1.1) {
+      const { svg } = renderSolarSystem(new Date("2026-03-15"));
+      const tailLines = svg.querySelectorAll('line[stroke-linecap="round"]');
+      // At least one tail line should be shorter than max
+      let foundShortTail = false;
+      for (const line of tailLines) {
+        const x1 = Number(line.getAttribute("x1"));
+        const y1 = Number(line.getAttribute("y1"));
+        const x2 = Number(line.getAttribute("x2"));
+        const y2 = Number(line.getAttribute("y2"));
+        const len = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+        if (len < halley.tailLength - 0.1) foundShortTail = true;
+      }
+      expect(foundShortTail).toBe(true);
+    }
   });
 });

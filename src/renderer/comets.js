@@ -45,7 +45,7 @@ export function renderCometOrbit(svg, comet) {
  * Render the comet body and its anti-sunward tail.
  * The tail always points directly away from the Sun.
  */
-export function renderCometBody(svg, x, y, comet, sunX, sunY) {
+export function renderCometBody(svg, x, y, comet, sunX, sunY, dynamicTailLength) {
   // Direction away from the Sun
   const dx = x - sunX;
   const dy = y - sunY;
@@ -54,7 +54,7 @@ export function renderCometBody(svg, x, y, comet, sunX, sunY) {
   const ny = dy / dist;
 
   // Tail end point (away from Sun)
-  const tailLen = comet.tailLength || 30;
+  const tailLen = dynamicTailLength ?? comet.tailLength ?? 30;
   const tx = x + nx * tailLen;
   const ty = y + ny * tailLen;
 

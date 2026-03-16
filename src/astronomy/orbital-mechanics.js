@@ -7,7 +7,7 @@ function daysSinceJ2000(date) {
   return (date.getTime() - J2000) / 86400000;
 }
 
-function degreesToRadians(deg) {
+export function degreesToRadians(deg) {
   return (deg * Math.PI) / 180;
 }
 

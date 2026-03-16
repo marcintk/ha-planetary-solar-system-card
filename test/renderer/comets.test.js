@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { COMETS } from "../../src/astronomy/comet-data.js";
+import { calculateCometPosition } from "../../src/astronomy/orbital-mechanics.js";
 import { renderCometBody, renderCometOrbit } from "../../src/renderer/comets.js";
 import { renderSolarSystem } from "../../src/renderer/index.js";
-import { CENTER, SVG_NS } from "../../src/renderer/svg-utils.js";
+import { auToRadius, CENTER, SVG_NS } from "../../src/renderer/svg-utils.js";
 
 function createSvg() {
   return document.createElementNS(SVG_NS, "svg");
@@ -11,76 +12,96 @@ function createSvg() {
 describe("renderCometOrbit", () => {
   const halley = COMETS.find((c) => c.name === "Halley");
 
-  it("appends an ellipse element to the SVG", () => {
+  it("appends a path element to the SVG", () => {
     const svg = createSvg();
     renderCometOrbit(svg, halley);
 
-    const ellipse = svg.querySelector("ellipse");
-    expect(ellipse).not.toBeNull();
+    const path = svg.querySelector("path");
+    expect(path).not.toBeNull();
+    expect(svg.querySelector("ellipse")).toBeNull();
   });
 
-  it("ellipse is centered at CENTER", () => {
+  it("path has a d attribute starting with M (moveto)", () => {
     const svg = createSvg();
     renderCometOrbit(svg, halley);
 
-    const ellipse = svg.querySelector("ellipse");
-    expect(ellipse.getAttribute("cx")).toBe(String(CENTER));
-    expect(ellipse.getAttribute("cy")).toBe(String(CENTER));
+    const path = svg.querySelector("path");
+    expect(path.getAttribute("d")).toMatch(/^M /);
   });
 
-  it("ellipse has dashed stroke", () => {
+  it("path has dashed stroke styling", () => {
     const svg = createSvg();
     renderCometOrbit(svg, halley);
 
-    const ellipse = svg.querySelector("ellipse");
-    expect(ellipse.getAttribute("stroke-dasharray")).toBe("4, 8");
-    expect(ellipse.getAttribute("stroke-width")).toBe("1");
+    const path = svg.querySelector("path");
+    expect(path.getAttribute("stroke-dasharray")).toBe("4, 8");
+    expect(path.getAttribute("stroke-width")).toBe("1");
   });
 
-  it("ellipse has no fill", () => {
+  it("path has no fill", () => {
     const svg = createSvg();
     renderCometOrbit(svg, halley);
 
-    const ellipse = svg.querySelector("ellipse");
-    expect(ellipse.getAttribute("fill")).toBe("none");
+    const path = svg.querySelector("path");
+    expect(path.getAttribute("fill")).toBe("none");
   });
 
-  it("ellipse has rotation transform matching longitude of perihelion", () => {
+  it("path contains many line segments (L commands)", () => {
     const svg = createSvg();
     renderCometOrbit(svg, halley);
 
-    const ellipse = svg.querySelector("ellipse");
-    const transform = ellipse.getAttribute("transform");
-    expect(transform).toContain(`rotate(${halley.longitudeOfPerihelion}`);
-    expect(transform).toContain(`${CENTER}, ${CENTER}`);
+    const d = svg.querySelector("path").getAttribute("d");
+    const lineSegments = (d.match(/L /g) || []).length;
+    // 120 steps → 120 L commands (plus 1 M command)
+    expect(lineSegments).toBe(120);
   });
 
-  it("ellipse transform includes a translation offset (focus shift)", () => {
+  it("path forms a closed-ish loop (first and last points are near each other)", () => {
     const svg = createSvg();
     renderCometOrbit(svg, halley);
 
-    const ellipse = svg.querySelector("ellipse");
-    const transform = ellipse.getAttribute("transform");
-    expect(transform).toContain("translate(");
+    const d = svg.querySelector("path").getAttribute("d");
+    const coords = d.match(/[-\d.]+/g).map(Number);
+    // First point (after M)
+    const firstX = coords[0];
+    const firstY = coords[1];
+    // Last point
+    const lastX = coords[coords.length - 2];
+    const lastY = coords[coords.length - 1];
+    const dist = Math.sqrt((lastX - firstX) ** 2 + (lastY - firstY) ** 2);
+    expect(dist).toBeLessThan(5); // nearly closed loop
   });
 
-  it("ellipse ry < rx (semi-minor < semi-major for eccentric orbit)", () => {
+  it("comet body position lies on or near the orbit path", () => {
+    const date = new Date("2026-03-15");
+    const { angle, radius } = calculateCometPosition(halley, date);
+    const pixelR = auToRadius(radius);
+    const bodyX = CENTER + pixelR * Math.cos(angle);
+    const bodyY = CENTER - pixelR * Math.sin(angle);
+
     const svg = createSvg();
     renderCometOrbit(svg, halley);
 
-    const ellipse = svg.querySelector("ellipse");
-    const rx = Number(ellipse.getAttribute("rx"));
-    const ry = Number(ellipse.getAttribute("ry"));
-    expect(ry).toBeLessThan(rx);
-    expect(rx).toBeGreaterThan(0);
-    expect(ry).toBeGreaterThan(0);
+    const d = svg.querySelector("path").getAttribute("d");
+    const coords = d.match(/[-\d.]+/g).map(Number);
+
+    // Find the closest point on the path to the body position
+    let minDist = Infinity;
+    for (let i = 0; i < coords.length - 1; i += 2) {
+      const px = coords[i];
+      const py = coords[i + 1];
+      const dist = Math.sqrt((px - bodyX) ** 2 + (py - bodyY) ** 2);
+      if (dist < minDist) minDist = dist;
+    }
+    // Body should be within a few pixels of the orbit path
+    expect(minDist).toBeLessThan(15);
   });
 
   it("works for all comets without error", () => {
     for (const comet of COMETS) {
       const svg = createSvg();
       renderCometOrbit(svg, comet);
-      expect(svg.querySelector("ellipse")).not.toBeNull();
+      expect(svg.querySelector("path")).not.toBeNull();
     }
   });
 });
@@ -227,10 +248,11 @@ describe("comets in renderSolarSystem integration", () => {
     }
   });
 
-  it("SVG contains comet orbit ellipses", () => {
+  it("SVG contains comet orbit paths (not ellipses)", () => {
     const { svg } = renderSolarSystem(new Date("2026-03-15"));
-    const ellipses = svg.querySelectorAll('ellipse[stroke-dasharray="4, 8"]');
-    expect(ellipses.length).toBe(COMETS.length);
+    const orbitPaths = svg.querySelectorAll('path[stroke-dasharray="4, 8"]');
+    expect(orbitPaths.length).toBe(COMETS.length);
+    expect(svg.querySelectorAll("ellipse").length).toBe(0);
   });
 
   it("SVG contains comet labels", () => {

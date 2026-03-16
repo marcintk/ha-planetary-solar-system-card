@@ -427,11 +427,8 @@ describe("renderSolarSystem", () => {
     const planetToRingGap = innerInnerEdge - bodyRadius;
     expect(planetToRingGap).toBeGreaterThanOrEqual(interRingGap * 2);
 
-    // Ellipses belong to comet orbits only (no Saturn ring ellipses)
-    const cometEllipses = svg.querySelectorAll('ellipse[stroke-dasharray="4, 8"]');
-    for (const el of cometEllipses) {
-      expect(el.getAttribute("fill")).toBe("none");
-    }
+    // No ellipses should exist (comet orbits use path, not ellipse)
+    expect(svg.querySelectorAll("ellipse").length).toBe(0);
 
     // Saturn's body should be rendered at half its data size (13px)
     const saturnBody = svg.querySelector('circle[fill="#e0c080"]');
@@ -492,9 +489,8 @@ describe("renderSolarSystem", () => {
     const ringColor = "rgba(224, 192, 128, 0.6)";
     const ringCircles = svg.querySelectorAll(`circle[stroke="${ringColor}"]`);
     expect(ringCircles.length).toBe(2); // Only Saturn's dual rings
-    // Ellipses are comet orbits only (not ring ellipses)
-    const cometEllipses2 = svg.querySelectorAll('ellipse[stroke-dasharray="4, 8"]');
-    expect(svg.querySelectorAll("ellipse").length).toBe(cometEllipses2.length);
+    // No ellipses (comet orbits use path elements now)
+    expect(svg.querySelectorAll("ellipse").length).toBe(0);
   });
 
   it("renders Moon orbit as a dotted circle centered on Earth", () => {

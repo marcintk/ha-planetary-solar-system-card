@@ -5,7 +5,7 @@ Navigate time, zoom, and pan interactively.
 
 ## Demo
 
-[**→ Try the interactive demo**](https://marcintk.github.io/ha-solar-view-card/)
+[**→ Try the interactive demo**](https://marcintk.github.io/ha-planetary-solar-system-card/)
 
 [![Screenshot](example.png)](https://marcintk.github.io/ha-planetary-solar-system-card/)
 

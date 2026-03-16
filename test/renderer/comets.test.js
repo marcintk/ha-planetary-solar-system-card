@@ -7,7 +7,7 @@ import {
   renderCometOrbit,
 } from "../../src/renderer/comets.js";
 import { renderSolarSystem } from "../../src/renderer/index.js";
-import { CENTER, SVG_NS } from "../../src/renderer/svg-utils.js";
+import { auToRadius, CENTER, SVG_NS } from "../../src/renderer/svg-utils.js";
 
 function createSvg() {
   return document.createElementNS(SVG_NS, "svg");
@@ -46,6 +46,52 @@ describe("computeCometVisualEllipse", () => {
   it("aPx² ≈ bPx² + cPx² (ellipse geometry)", () => {
     const { aPx, bPx, cPx } = computeCometVisualEllipse(halley);
     expect(aPx * aPx).toBeCloseTo(bPx * bPx + cPx * cPx, 5);
+  });
+
+  it("aphelion extends visibly beyond Neptune's pixel radius", () => {
+    const { aPx, cPx } = computeCometVisualEllipse(halley);
+    // Aphelion pixel distance from Sun (focus) = aPx + cPx
+    const aphelionPx = aPx + cPx;
+    const neptunePx = auToRadius(30.05);
+    expect(aphelionPx).toBeGreaterThan(neptunePx);
+  });
+
+  it("exaggeration amplifies only the portion beyond Neptune", () => {
+    const { aPx, cPx } = computeCometVisualEllipse(halley);
+    const aphelionPx = aPx + cPx;
+    const neptunePx = auToRadius(30.05);
+
+    // Without exaggeration, the aphelion pixel distance would be auToRadius(a*(1+e))
+    const rawAphelionPx = auToRadius(halley.semiMajorAxis * (1 + halley.eccentricity));
+    const rawExcess = rawAphelionPx - neptunePx;
+
+    // With 4x exaggeration: exaggerated = neptunePx + rawExcess * 4
+    const expectedAphelionPx = neptunePx + rawExcess * 4;
+    // The actual aphelion from the visual ellipse should match
+    expect(aphelionPx).toBeCloseTo(expectedAphelionPx, 1);
+  });
+
+  it("no exaggeration when aphelion is within Neptune's orbit", () => {
+    // Create a hypothetical comet with aphelion inside Neptune
+    const innerComet = {
+      ...halley,
+      semiMajorAxis: 5,
+      eccentricity: 0.5,
+      // aphelion = 5 * 1.5 = 7.5 AU, well within Neptune at 30.05 AU
+    };
+    const { aPx, cPx } = computeCometVisualEllipse(innerComet);
+    const aphelionPx = aPx + cPx;
+    const rawAphelionPx = auToRadius(innerComet.semiMajorAxis * (1 + innerComet.eccentricity));
+    // Should match exactly — no exaggeration applied
+    expect(aphelionPx).toBeCloseTo(rawAphelionPx, 2);
+  });
+
+  it("perihelion pixel distance is unchanged by exaggeration", () => {
+    const { aPx, cPx } = computeCometVisualEllipse(halley);
+    // Perihelion pixel distance from Sun (focus) = aPx - cPx
+    const perihelionPx = aPx - cPx;
+    const rawPerihelionPx = auToRadius(halley.semiMajorAxis * (1 - halley.eccentricity));
+    expect(perihelionPx).toBeCloseTo(rawPerihelionPx, 2);
   });
 });
 

@@ -1,3 +1,19 @@
+// Orbital elements for comets at J2000 epoch
+// Sources: JPL Small-Body Database
+const COMETS = [
+  {
+    name: "Halley",
+    semiMajorAxis: 17.834,
+    eccentricity: 0.967,
+    periodDays: 27510,
+    longitudeOfPerihelion: 111.33,
+    meanAnomalyJ2000: 38.38,
+    color: "#88ccff",
+    size: 4,
+    tailLength: 40,
+  },
+];
+
 const SUN = {
   name: "Sun",
   color: "#ffd700",
@@ -115,6 +131,51 @@ function calculateMoonPosition(date) {
   return ((angle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
 }
 
+/**
+ * Solve Kepler's equation M = E - e*sin(E) for eccentric anomaly E.
+ * Uses Newton-Raphson iteration.
+ */
+function solveKeplerEquation(M, e) {
+  let E = M;
+  for (let i = 0; i < 10; i++) {
+    const dE = (E - e * Math.sin(E) - M) / (1 - e * Math.cos(E));
+    E -= dE;
+  }
+  return E;
+}
+
+/**
+ * Calculate a comet's position (angle and radius) for a given date.
+ * Uses full elliptical orbit model with Kepler's equation.
+ * Returns { angle (radians), radius (AU), trueAnomaly (radians) }.
+ */
+function calculateCometPosition(comet, date) {
+  const days = daysSinceJ2000(date);
+
+  // Mean anomaly at date
+  const meanMotion = (2 * Math.PI) / comet.periodDays;
+  const M0 = degreesToRadians(comet.meanAnomalyJ2000);
+  let M = M0 + meanMotion * days;
+  M = ((M % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+
+  // Solve Kepler's equation for eccentric anomaly
+  const E = solveKeplerEquation(M, comet.eccentricity);
+
+  // True anomaly from eccentric anomaly
+  const e = comet.eccentricity;
+  const trueAnomaly =
+    2 * Math.atan2(Math.sqrt(1 + e) * Math.sin(E / 2), Math.sqrt(1 - e) * Math.cos(E / 2));
+
+  // Radius from the focus (Sun)
+  const radius = comet.semiMajorAxis * (1 - e * Math.cos(E));
+
+  // Angle in the orbital plane (true anomaly + longitude of perihelion)
+  const angle = trueAnomaly + degreesToRadians(comet.longitudeOfPerihelion);
+  const normalizedAngle = ((angle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+
+  return { angle: normalizedAngle, radius, trueAnomaly };
+}
+
 const SVG_NS = "http://www.w3.org/2000/svg";
 const VIEW_SIZE = 800;
 const CENTER = VIEW_SIZE / 2;
@@ -147,7 +208,7 @@ function expandBounds(bounds, x, y, margin) {
   bounds.maxY = Math.max(bounds.maxY, y + margin);
 }
 
-const ORBIT_COLOR = "rgba(255, 255, 255, 0.12)";
+const ORBIT_COLOR$1 = "rgba(255, 255, 255, 0.12)";
 const LABEL_COLOR$1 = "rgba(255, 255, 255, 0.5)";
 
 function renderOrbit(svg, radius, auLabel) {
@@ -157,7 +218,7 @@ function renderOrbit(svg, radius, auLabel) {
       cy: CENTER,
       r: radius,
       fill: "none",
-      stroke: ORBIT_COLOR,
+      stroke: ORBIT_COLOR$1,
       "stroke-width": 1,
       "stroke-dasharray": "5, 5",
     })
@@ -248,6 +309,109 @@ function renderSaturnRings(svg, x, y, body, _renderSize) {
       "stroke-width": 6,
     })
   );
+}
+
+const ORBIT_COLOR = "rgba(255, 255, 255, 0.12)";
+const TAIL_COLOR = "rgba(136, 204, 255, 0.5)";
+
+/**
+ * Compute the visual ellipse parameters in pixel space for a comet.
+ * Returns { aPx, bPx, cPx, ePx, rotationDeg }.
+ */
+function computeCometVisualEllipse(comet) {
+  const e = comet.eccentricity;
+  const a = comet.semiMajorAxis;
+  const perihelionPx = auToRadius(a * (1 - e));
+  let aphelionPx = auToRadius(a * (1 + e));
+
+  // Exaggerate extension beyond Neptune for visual clarity
+  const neptunePx = auToRadius(30.05);
+  if (aphelionPx > neptunePx) {
+    const excess = aphelionPx - neptunePx;
+    aphelionPx = neptunePx + excess * 4;
+  }
+
+  const aPx = (perihelionPx + aphelionPx) / 2;
+  const cPx = (aphelionPx - perihelionPx) / 2;
+  const bPx = Math.sqrt(aPx * aPx - cPx * cPx);
+  const ePx = cPx / aPx;
+  return { aPx, bPx, cPx, ePx, rotationDeg: comet.longitudeOfPerihelion };
+}
+
+/**
+ * Render a comet's orbit as an SVG ellipse in pixel space.
+ * The ellipse is offset so the Sun (at CENTER) sits at one focus.
+ */
+function renderCometOrbit(svg, comet) {
+  const { aPx, bPx, cPx, rotationDeg } = computeCometVisualEllipse(comet);
+
+  svg.appendChild(
+    createSvgElement("ellipse", {
+      cx: CENTER,
+      cy: CENTER,
+      rx: aPx,
+      ry: bPx,
+      fill: "none",
+      stroke: ORBIT_COLOR,
+      "stroke-width": 1,
+      "stroke-dasharray": "4, 8",
+      transform: `rotate(${-rotationDeg}, ${CENTER}, ${CENTER}) translate(${-cPx}, 0)`,
+    })
+  );
+}
+
+/**
+ * Render the comet body and its anti-sunward tail.
+ * The tail always points directly away from the Sun.
+ */
+function renderCometBody(svg, x, y, comet, sunX, sunY, dynamicTailLength) {
+  // Direction away from the Sun
+  const dx = x - sunX;
+  const dy = y - sunY;
+  const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+  const nx = dx / dist;
+  const ny = dy / dist;
+
+  // Tail end point (away from Sun)
+  const tailLen = dynamicTailLength ?? comet.tailLength ?? 30;
+  const tx = x + nx * tailLen;
+  const ty = y + ny * tailLen;
+
+  // Tail as a semi-transparent line
+  svg.appendChild(
+    createSvgElement("line", {
+      x1: x,
+      y1: y,
+      x2: tx,
+      y2: ty,
+      stroke: TAIL_COLOR,
+      "stroke-width": 2,
+      "stroke-linecap": "round",
+      opacity: "0.7",
+    })
+  );
+
+  // Comet body
+  svg.appendChild(
+    createSvgElement("circle", {
+      cx: x,
+      cy: y,
+      r: comet.size,
+      fill: comet.color,
+    })
+  );
+
+  // Label
+  svg.appendChild(
+    createSvgElement("text", {
+      x: x,
+      y: y - comet.size - 6,
+      fill: "#ffffff",
+      "font-size": "11",
+      "font-family": "sans-serif",
+      "text-anchor": "middle",
+    })
+  ).textContent = comet.name;
 }
 
 /**
@@ -883,10 +1047,13 @@ function renderSolarSystem(
   // Season quadrant overlay (after day/night, before orbits)
   renderSeasonOverlay(svg, hemisphere);
 
-  // Draw orbits
+  // Draw orbits (planets then comets, so all orbits are behind bodies)
   for (const planet of PLANETS) {
     const radius = auToRadius(planet.au);
     renderOrbit(svg, radius, planet.au);
+  }
+  for (const comet of COMETS) {
+    renderCometOrbit(svg, comet);
   }
 
   // Sun at center
@@ -927,6 +1094,22 @@ function renderSolarSystem(
     }
   }
 
+  // Draw comets using visual ellipse for pixel positioning
+  for (const comet of COMETS) {
+    const { angle, radius, trueAnomaly } = calculateCometPosition(comet, date);
+    const { aPx, ePx } = computeCometVisualEllipse(comet);
+    const rPx = (aPx * (1 - ePx * ePx)) / (1 + ePx * Math.cos(trueAnomaly));
+    const cx = CENTER + rPx * Math.cos(angle);
+    const cy = CENTER - rPx * Math.sin(angle);
+    // Tail scales inversely with distance from Sun
+    const perihelion = comet.semiMajorAxis * (1 - comet.eccentricity);
+    const tailScale = Math.min(1, perihelion / radius);
+    const dynamicTail = comet.tailLength * tailScale;
+    renderCometBody(svg, cx, cy, comet, CENTER, CENTER, dynamicTail);
+    positions.push({ name: comet.name, x: cx, y: cy, color: comet.color });
+    expandBounds(bounds, cx, cy, comet.size + dynamicTail);
+  }
+
   // Draw Moon near Earth
   const earthAngle = calculatePlanetPosition(earth, date);
   const earthPixelRadius = auToRadius(earth.au);
@@ -946,7 +1129,7 @@ function renderSolarSystem(
       cy: earthY,
       r: moonPixelOffset,
       fill: "none",
-      stroke: ORBIT_COLOR,
+      stroke: ORBIT_COLOR$1,
       "stroke-width": 0.5,
       "stroke-dasharray": "2, 3",
     })

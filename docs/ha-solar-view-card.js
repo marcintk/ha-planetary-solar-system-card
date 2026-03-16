@@ -322,7 +322,15 @@ function computeCometVisualEllipse(comet) {
   const e = comet.eccentricity;
   const a = comet.semiMajorAxis;
   const perihelionPx = auToRadius(a * (1 - e));
-  const aphelionPx = auToRadius(a * (1 + e));
+  let aphelionPx = auToRadius(a * (1 + e));
+
+  // Exaggerate extension beyond Neptune for visual clarity
+  const neptunePx = auToRadius(30.05);
+  if (aphelionPx > neptunePx) {
+    const excess = aphelionPx - neptunePx;
+    aphelionPx = neptunePx + excess * 4;
+  }
+
   const aPx = (perihelionPx + aphelionPx) / 2;
   const cPx = (aphelionPx - perihelionPx) / 2;
   const bPx = Math.sqrt(aPx * aPx - cPx * cPx);

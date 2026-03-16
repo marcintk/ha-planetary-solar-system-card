@@ -13,7 +13,8 @@ describe("renderSolarSystem positions", () => {
   it("returns a positions array with 9 entries each having name, x, y, and color", () => {
     const date = new Date("2025-06-15");
     const { positions } = renderSolarSystem(date);
-    expect(positions).toHaveLength(9);
+    // 8 planets + Moon + comets (currently 1 = Halley)
+    expect(positions).toHaveLength(10);
     for (const p of positions) {
       expect(p).toHaveProperty("name");
       expect(p).toHaveProperty("x");

@@ -1,6 +1,12 @@
-import { calculateMoonPosition, calculatePlanetPosition } from "../astronomy/orbital-mechanics.js";
+import { COMETS } from "../astronomy/comet-data.js";
+import {
+  calculateCometPosition,
+  calculateMoonPosition,
+  calculatePlanetPosition,
+} from "../astronomy/orbital-mechanics.js";
 import { MOON, PLANETS, SUN } from "../astronomy/planet-data.js";
 import { ORBIT_COLOR, renderBody, renderOrbit, renderSaturnRings } from "./bodies.js";
+import { renderCometBody, renderCometOrbit } from "./comets.js";
 import { renderMoonPhaseIndicator } from "./moon-phase.js";
 import { calculateObserverAngle, renderDayNightSplit, renderObserverNeedle } from "./observer.js";
 import { renderSeasonOverlay } from "./seasons.js";
@@ -38,10 +44,13 @@ export function renderSolarSystem(
   // Season quadrant overlay (after day/night, before orbits)
   renderSeasonOverlay(svg, hemisphere);
 
-  // Draw orbits
+  // Draw orbits (planets then comets, so all orbits are behind bodies)
   for (const planet of PLANETS) {
     const radius = auToRadius(planet.au);
     renderOrbit(svg, radius, planet.au);
+  }
+  for (const comet of COMETS) {
+    renderCometOrbit(svg, comet);
   }
 
   // Sun at center
@@ -80,6 +89,17 @@ export function renderSolarSystem(
       // Account for body size + label height (~17px above body)
       expandBounds(bounds, x, y, planet.size + 17);
     }
+  }
+
+  // Draw comets
+  for (const comet of COMETS) {
+    const { angle, radius } = calculateCometPosition(comet, date);
+    const pixelRadius = auToRadius(radius);
+    const cx = CENTER + pixelRadius * Math.cos(angle);
+    const cy = CENTER - pixelRadius * Math.sin(angle);
+    renderCometBody(svg, cx, cy, comet, CENTER, CENTER);
+    positions.push({ name: comet.name, x: cx, y: cy, color: comet.color });
+    expandBounds(bounds, cx, cy, comet.size + comet.tailLength);
   }
 
   // Draw Moon near Earth

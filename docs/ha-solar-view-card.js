@@ -356,7 +356,7 @@ function renderCometOrbit(svg, comet) {
  * Render the comet body and its anti-sunward tail.
  * The tail always points directly away from the Sun.
  */
-function renderCometBody(svg, x, y, comet, sunX, sunY) {
+function renderCometBody(svg, x, y, comet, sunX, sunY, dynamicTailLength) {
   // Direction away from the Sun
   const dx = x - sunX;
   const dy = y - sunY;
@@ -365,7 +365,7 @@ function renderCometBody(svg, x, y, comet, sunX, sunY) {
   const ny = dy / dist;
 
   // Tail end point (away from Sun)
-  const tailLen = comet.tailLength || 30;
+  const tailLen = dynamicTailLength ?? comet.tailLength ?? 30;
   const tx = x + nx * tailLen;
   const ty = y + ny * tailLen;
 
@@ -1088,14 +1088,18 @@ function renderSolarSystem(
 
   // Draw comets using visual ellipse for pixel positioning
   for (const comet of COMETS) {
-    const { angle, trueAnomaly } = calculateCometPosition(comet, date);
+    const { angle, radius, trueAnomaly } = calculateCometPosition(comet, date);
     const { aPx, ePx } = computeCometVisualEllipse(comet);
     const rPx = (aPx * (1 - ePx * ePx)) / (1 + ePx * Math.cos(trueAnomaly));
     const cx = CENTER + rPx * Math.cos(angle);
     const cy = CENTER - rPx * Math.sin(angle);
-    renderCometBody(svg, cx, cy, comet, CENTER, CENTER);
+    // Tail scales inversely with distance from Sun
+    const perihelion = comet.semiMajorAxis * (1 - comet.eccentricity);
+    const tailScale = Math.min(1, perihelion / radius);
+    const dynamicTail = comet.tailLength * tailScale;
+    renderCometBody(svg, cx, cy, comet, CENTER, CENTER, dynamicTail);
     positions.push({ name: comet.name, x: cx, y: cy, color: comet.color });
-    expandBounds(bounds, cx, cy, comet.size + comet.tailLength);
+    expandBounds(bounds, cx, cy, comet.size + dynamicTail);
   }
 
   // Draw Moon near Earth

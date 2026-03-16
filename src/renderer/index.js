@@ -6,7 +6,7 @@ import {
 } from "../astronomy/orbital-mechanics.js";
 import { MOON, PLANETS, SUN } from "../astronomy/planet-data.js";
 import { ORBIT_COLOR, renderBody, renderOrbit, renderSaturnRings } from "./bodies.js";
-import { renderCometBody, renderCometOrbit } from "./comets.js";
+import { computeCometVisualEllipse, renderCometBody, renderCometOrbit } from "./comets.js";
 import { renderMoonPhaseIndicator } from "./moon-phase.js";
 import { calculateObserverAngle, renderDayNightSplit, renderObserverNeedle } from "./observer.js";
 import { renderSeasonOverlay } from "./seasons.js";
@@ -91,12 +91,13 @@ export function renderSolarSystem(
     }
   }
 
-  // Draw comets
+  // Draw comets using visual ellipse for pixel positioning
   for (const comet of COMETS) {
-    const { angle, radius } = calculateCometPosition(comet, date);
-    const pixelRadius = auToRadius(radius);
-    const cx = CENTER + pixelRadius * Math.cos(angle);
-    const cy = CENTER - pixelRadius * Math.sin(angle);
+    const { angle, trueAnomaly } = calculateCometPosition(comet, date);
+    const { aPx, ePx } = computeCometVisualEllipse(comet);
+    const rPx = (aPx * (1 - ePx * ePx)) / (1 + ePx * Math.cos(trueAnomaly));
+    const cx = CENTER + rPx * Math.cos(angle);
+    const cy = CENTER - rPx * Math.sin(angle);
     renderCometBody(svg, cx, cy, comet, CENTER, CENTER);
     positions.push({ name: comet.name, x: cx, y: cy, color: comet.color });
     expandBounds(bounds, cx, cy, comet.size + comet.tailLength);

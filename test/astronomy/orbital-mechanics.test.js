@@ -121,10 +121,11 @@ describe("solveKeplerEquation", () => {
 describe("calculateCometPosition", () => {
   const halley = COMETS.find((c) => c.name === "Halley");
 
-  it("returns an object with angle and radius", () => {
+  it("returns an object with angle, radius, and trueAnomaly", () => {
     const result = calculateCometPosition(halley, new Date("2024-06-15"));
     expect(result).toHaveProperty("angle");
     expect(result).toHaveProperty("radius");
+    expect(result).toHaveProperty("trueAnomaly");
   });
 
   it("returns angle between 0 and 2π", () => {
@@ -149,12 +150,18 @@ describe("calculateCometPosition", () => {
     }
   });
 
+  it("trueAnomaly is a finite number", () => {
+    const { trueAnomaly } = calculateCometPosition(halley, new Date("2024-06-15"));
+    expect(Number.isFinite(trueAnomaly)).toBe(true);
+  });
+
   it("returns consistent results for the same date", () => {
     const date = new Date("2024-06-15");
     const r1 = calculateCometPosition(halley, date);
     const r2 = calculateCometPosition(halley, date);
     expect(r1.angle).toBe(r2.angle);
     expect(r1.radius).toBe(r2.radius);
+    expect(r1.trueAnomaly).toBe(r2.trueAnomaly);
   });
 
   it("returns different positions for different dates", () => {

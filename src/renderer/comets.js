@@ -1,41 +1,42 @@
-import { solveKeplerEquation } from "../astronomy/orbital-mechanics.js";
 import { auToRadius, CENTER, createSvgElement } from "./svg-utils.js";
 
 const ORBIT_COLOR = "rgba(255, 255, 255, 0.12)";
 const TAIL_COLOR = "rgba(136, 204, 255, 0.5)";
 
 /**
- * Render a comet's orbit by sampling points around the full orbit
- * and connecting them with an SVG path. Uses log-scaled auToRadius
- * so the path matches actual body positions.
+ * Compute the visual ellipse parameters in pixel space for a comet.
+ * Returns { aPx, bPx, cPx, ePx, rotationDeg }.
  */
-export function renderCometOrbit(svg, comet) {
+export function computeCometVisualEllipse(comet) {
   const e = comet.eccentricity;
   const a = comet.semiMajorAxis;
-  const longPeriRad = (comet.longitudeOfPerihelion * Math.PI) / 180;
-  const steps = 120;
-  const parts = [];
+  const perihelionPx = auToRadius(a * (1 - e));
+  const aphelionPx = auToRadius(a * (1 + e));
+  const aPx = (perihelionPx + aphelionPx) / 2;
+  const cPx = (aphelionPx - perihelionPx) / 2;
+  const bPx = Math.sqrt(aPx * aPx - cPx * cPx);
+  const ePx = cPx / aPx;
+  return { aPx, bPx, cPx, ePx, rotationDeg: comet.longitudeOfPerihelion };
+}
 
-  for (let i = 0; i <= steps; i++) {
-    const M = (i / steps) * 2 * Math.PI;
-    const E = solveKeplerEquation(M, e);
-    const trueAnomaly =
-      2 * Math.atan2(Math.sqrt(1 + e) * Math.sin(E / 2), Math.sqrt(1 - e) * Math.cos(E / 2));
-    const radius = a * (1 - e * Math.cos(E));
-    const angle = trueAnomaly + longPeriRad;
-    const pixelR = auToRadius(radius);
-    const x = CENTER + pixelR * Math.cos(angle);
-    const y = CENTER - pixelR * Math.sin(angle);
-    parts.push(`${i === 0 ? "M" : "L"} ${x.toFixed(2)} ${y.toFixed(2)}`);
-  }
+/**
+ * Render a comet's orbit as an SVG ellipse in pixel space.
+ * The ellipse is offset so the Sun (at CENTER) sits at one focus.
+ */
+export function renderCometOrbit(svg, comet) {
+  const { aPx, bPx, cPx, rotationDeg } = computeCometVisualEllipse(comet);
 
   svg.appendChild(
-    createSvgElement("path", {
-      d: parts.join(" "),
+    createSvgElement("ellipse", {
+      cx: CENTER,
+      cy: CENTER,
+      rx: aPx,
+      ry: bPx,
       fill: "none",
       stroke: ORBIT_COLOR,
       "stroke-width": 1,
       "stroke-dasharray": "4, 8",
+      transform: `rotate(${-rotationDeg}, ${CENTER}, ${CENTER}) translate(${-cPx}, 0)`,
     })
   );
 }

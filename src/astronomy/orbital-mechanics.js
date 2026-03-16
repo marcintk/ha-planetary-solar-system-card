@@ -50,7 +50,7 @@ export function solveKeplerEquation(M, e) {
 /**
  * Calculate a comet's position (angle and radius) for a given date.
  * Uses full elliptical orbit model with Kepler's equation.
- * Returns { angle (radians), radius (AU) }.
+ * Returns { angle (radians), radius (AU), trueAnomaly (radians) }.
  */
 export function calculateCometPosition(comet, date) {
   const days = daysSinceJ2000(date);
@@ -76,5 +76,5 @@ export function calculateCometPosition(comet, date) {
   const angle = trueAnomaly + degreesToRadians(comet.longitudeOfPerihelion);
   const normalizedAngle = ((angle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
 
-  return { angle: normalizedAngle, radius };
+  return { angle: normalizedAngle, radius, trueAnomaly };
 }

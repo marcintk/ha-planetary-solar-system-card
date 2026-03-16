@@ -315,29 +315,37 @@ const ORBIT_COLOR = "rgba(255, 255, 255, 0.12)";
 const TAIL_COLOR = "rgba(136, 204, 255, 0.5)";
 
 /**
- * Render an elliptical orbit path for a comet.
- * The ellipse is centered on the focus (Sun) offset, then rotated
- * by the longitude of perihelion.
+ * Render a comet's orbit by sampling points around the full orbit
+ * and connecting them with an SVG path. Uses log-scaled auToRadius
+ * so the path matches actual body positions.
  */
 function renderCometOrbit(svg, comet) {
-  const a = auToRadius(comet.semiMajorAxis);
   const e = comet.eccentricity;
-  const b = a * Math.sqrt(1 - e * e);
-  // Distance from center of ellipse to focus (Sun is at focus)
-  const c = a * e;
-  const rotationDeg = comet.longitudeOfPerihelion;
+  const a = comet.semiMajorAxis;
+  const longPeriRad = (comet.longitudeOfPerihelion * Math.PI) / 180;
+  const steps = 120;
+  const parts = [];
+
+  for (let i = 0; i <= steps; i++) {
+    const M = (i / steps) * 2 * Math.PI;
+    const E = solveKeplerEquation(M, e);
+    const trueAnomaly =
+      2 * Math.atan2(Math.sqrt(1 + e) * Math.sin(E / 2), Math.sqrt(1 - e) * Math.cos(E / 2));
+    const radius = a * (1 - e * Math.cos(E));
+    const angle = trueAnomaly + longPeriRad;
+    const pixelR = auToRadius(radius);
+    const x = CENTER + pixelR * Math.cos(angle);
+    const y = CENTER - pixelR * Math.sin(angle);
+    parts.push(`${i === 0 ? "M" : "L"} ${x.toFixed(2)} ${y.toFixed(2)}`);
+  }
 
   svg.appendChild(
-    createSvgElement("ellipse", {
-      cx: CENTER,
-      cy: CENTER,
-      rx: a,
-      ry: b,
+    createSvgElement("path", {
+      d: parts.join(" "),
       fill: "none",
       stroke: ORBIT_COLOR,
       "stroke-width": 1,
       "stroke-dasharray": "4, 8",
-      transform: `rotate(${rotationDeg}, ${CENTER}, ${CENTER}) translate(${-c}, 0)`,
     })
   );
 }

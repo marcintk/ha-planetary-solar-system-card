@@ -69,6 +69,9 @@ export class SolarViewCard extends HTMLElement {
     this._refreshMs = Number.isFinite(rawRefresh) && rawRefresh >= 0.1 ? rawRefresh * 60000 : 60000;
 
     this._periodicZoomChange = config.periodic_zoom_change === true;
+    const rawMax = Number(config.periodic_zoom_max);
+    this._periodicZoomMax =
+      Number.isInteger(rawMax) && rawMax >= 2 && rawMax <= MAX_ZOOM ? rawMax : MAX_ZOOM;
     this._zoomAnimate = config.zoom_animate !== false;
 
     // Recreate timer if already connected
@@ -107,7 +110,7 @@ export class SolarViewCard extends HTMLElement {
   _advanceZoom() {
     const prevWidth = this._viewState.width;
     const prevHeight = this._viewState.height;
-    const next = this._viewState.zoomLevel >= MAX_ZOOM ? MIN_ZOOM : this._viewState.zoomLevel + 1;
+    const next = this._viewState.zoomLevel >= this._periodicZoomMax ? MIN_ZOOM : this._viewState.zoomLevel + 1;
     this._viewState.setZoomLevel(next);
     this._applyZoom(prevWidth, prevHeight);
   }
@@ -285,6 +288,6 @@ export class SolarViewCard extends HTMLElement {
   }
 
   static getStubConfig() {
-    return { default_zoom: 2, periodic_zoom_change: false, refresh_mins: 1, zoom_animate: true };
+    return { default_zoom: 2, periodic_zoom_change: false, periodic_zoom_max: 4, refresh_mins: 1, zoom_animate: true };
   }
 }

@@ -1312,9 +1312,9 @@ const CARD_STYLES = `
     display: block;
   }
   .card {
-    background: #1e1e1e;
-    border-radius: 12px;
-    padding: 2px;
+    background: transparent;
+    border-radius: 0px;
+    padding: 0px;
     color: #ffffff;
     font-family: sans-serif;
   }

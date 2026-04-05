@@ -28,6 +28,7 @@ describe("SolarViewCard", () => {
     expect(SolarViewCard.getStubConfig()).toEqual({
       default_zoom: 2,
       periodic_zoom_change: false,
+      periodic_zoom_max: 4,
       refresh_mins: 1,
       zoom_animate: true,
     });
@@ -590,6 +591,64 @@ describe("SolarViewCard", () => {
       expect(card._zoomLevel).toBe(2);
       vi.advanceTimersByTime(60000);
       expect(card._zoomLevel).toBe(3);
+      card.remove();
+    });
+  });
+
+  describe("periodic_zoom_max configuration", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("wraps at configured max level instead of MAX_ZOOM", () => {
+      vi.useFakeTimers();
+      const card = document.createElement("ha-solar-view-card-test");
+      card.setConfig({ periodic_zoom_change: true, periodic_zoom_max: 3 });
+      document.body.appendChild(card);
+      expect(card._zoomLevel).toBe(1);
+      vi.advanceTimersByTime(60000);
+      expect(card._zoomLevel).toBe(2);
+      vi.advanceTimersByTime(60000);
+      expect(card._zoomLevel).toBe(3);
+      vi.advanceTimersByTime(60000);
+      expect(card._zoomLevel).toBe(1);
+      card.remove();
+    });
+
+    it("defaults to MAX_ZOOM (4) when periodic_zoom_max is not set", () => {
+      vi.useFakeTimers();
+      const card = document.createElement("ha-solar-view-card-test");
+      card.setConfig({ periodic_zoom_change: true });
+      document.body.appendChild(card);
+      vi.advanceTimersByTime(60000);
+      vi.advanceTimersByTime(60000);
+      vi.advanceTimersByTime(60000);
+      expect(card._zoomLevel).toBe(4);
+      vi.advanceTimersByTime(60000);
+      expect(card._zoomLevel).toBe(1);
+      card.remove();
+    });
+
+    it("defaults to MAX_ZOOM for invalid periodic_zoom_max values", () => {
+      const card = document.createElement("ha-solar-view-card-test");
+      card.setConfig({ periodic_zoom_max: "abc" });
+      expect(card._periodicZoomMax).toBe(4);
+      card.setConfig({ periodic_zoom_max: 2.5 });
+      expect(card._periodicZoomMax).toBe(4);
+      card.setConfig({ periodic_zoom_max: 1 });
+      expect(card._periodicZoomMax).toBe(4);
+      card.setConfig({ periodic_zoom_max: 5 });
+      expect(card._periodicZoomMax).toBe(4);
+    });
+
+    it("has no effect when periodic_zoom_change is false", () => {
+      vi.useFakeTimers();
+      const card = document.createElement("ha-solar-view-card-test");
+      card.setConfig({ periodic_zoom_change: false, periodic_zoom_max: 3 });
+      document.body.appendChild(card);
+      expect(card._zoomLevel).toBe(1);
+      vi.advanceTimersByTime(60000);
+      expect(card._zoomLevel).toBe(1);
       card.remove();
     });
   });

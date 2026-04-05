@@ -1,7 +1,7 @@
 # ha-solar-view-card
 
-Home Assistant custom Lovelace card showing all 8 planets, Moon and comet Halley aligned around the Sun.
-Navigate time, zoom, and pan interactively.
+Home Assistant custom Lovelace card showing all 8 planets, Moon and comet Halley aligned around the
+Sun. Navigate time, zoom, and pan interactively.
 
 ## Demo
 
@@ -26,12 +26,14 @@ Navigate time, zoom, and pan interactively.
    type: custom:ha-solar-view-card
    default_zoom: 2
    ```
+
 ## Configuration
 
 Configuration (YAML in HA)
 
 - **refresh_mins**: auto-update interval in minutes (default: 1)
 - **periodic_zoom_change**: cycle zoom levels on each refresh tick (default: false)
+- **periodic_zoom_max**: maximum zoom level for auto-cycle, 2–4 (default: 4)
 - **default_zoom**: starting zoom level (default: 1)
 - **zoom_animate**: animate zoom in and out (default: true)
 

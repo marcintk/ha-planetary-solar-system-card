@@ -219,12 +219,7 @@ export class SolarViewCard extends HTMLElement {
     );
 
     const container = this.shadowRoot.getElementById("solar-view");
-    const { svg, positions } = renderSolarSystem(
-      this._currentDate,
-      this._hemisphere,
-      locationData,
-      this._viewState
-    );
+    const { svg, positions } = renderSolarSystem(this._currentDate, this._hemisphere, locationData);
     this._positions = positions;
     container.appendChild(svg);
 

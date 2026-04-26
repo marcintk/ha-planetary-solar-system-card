@@ -39,5 +39,4 @@ Configuration (YAML in HA)
 
 ## Development
 
-AI-generated using [OpenSpec](https://github.com/Fission-AI/OpenSpec). See [CLAUDE.md](CLAUDE.md)
-for details.
+AI-generated using GSD. See [CLAUDE.md](CLAUDE.md) for details.

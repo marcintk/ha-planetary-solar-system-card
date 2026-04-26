@@ -17,15 +17,9 @@ import { auToRadius, CENTER, createSvgElement, expandBounds, VIEW_SIZE } from ".
  * @param {Date} date - date to calculate positions for
  * @param {string} [hemisphere="north"] - "north" or "south" for season labels
  * @param {{ lat: number, lon: number, timezone: string } | null} [locationData] - observer location from HA config
- * @param {{ zoomLevel: number, width: number, height: number, centerX: number, centerY: number } | null} [viewState] - current view state for zoom-aware rendering
  * @returns {{ svg: SVGElement, bounds: { minX: number, minY: number, maxX: number, maxY: number } }}
  */
-export function renderSolarSystem(
-  date,
-  hemisphere = "north",
-  locationData = null,
-  viewState = null
-) {
+export function renderSolarSystem(date, hemisphere = "north", locationData = null) {
   const svg = createSvgElement("svg", {
     viewBox: `0 0 ${VIEW_SIZE} ${VIEW_SIZE}`,
     width: "100%",

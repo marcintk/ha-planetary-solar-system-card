@@ -1020,15 +1020,9 @@ function renderSeasonOverlay(svg, hemisphere) {
  * @param {Date} date - date to calculate positions for
  * @param {string} [hemisphere="north"] - "north" or "south" for season labels
  * @param {{ lat: number, lon: number, timezone: string } | null} [locationData] - observer location from HA config
- * @param {{ zoomLevel: number, width: number, height: number, centerX: number, centerY: number } | null} [viewState] - current view state for zoom-aware rendering
  * @returns {{ svg: SVGElement, bounds: { minX: number, minY: number, maxX: number, maxY: number } }}
  */
-function renderSolarSystem(
-  date,
-  hemisphere = "north",
-  locationData = null,
-  viewState = null
-) {
+function renderSolarSystem(date, hemisphere = "north", locationData = null) {
   const svg = createSvgElement("svg", {
     viewBox: `0 0 ${VIEW_SIZE} ${VIEW_SIZE}`,
     width: "100%",
@@ -1750,7 +1744,8 @@ class SolarViewCard extends HTMLElement {
   _advanceZoom() {
     const prevWidth = this._viewState.width;
     const prevHeight = this._viewState.height;
-    const next = this._viewState.zoomLevel >= this._periodicZoomMax ? MIN_ZOOM : this._viewState.zoomLevel + 1;
+    const next =
+      this._viewState.zoomLevel >= this._periodicZoomMax ? MIN_ZOOM : this._viewState.zoomLevel + 1;
     this._viewState.setZoomLevel(next);
     this._applyZoom(prevWidth, prevHeight);
   }
@@ -1858,12 +1853,7 @@ class SolarViewCard extends HTMLElement {
     );
 
     const container = this.shadowRoot.getElementById("solar-view");
-    const { svg, positions } = renderSolarSystem(
-      this._currentDate,
-      this._hemisphere,
-      locationData,
-      this._viewState
-    );
+    const { svg, positions } = renderSolarSystem(this._currentDate, this._hemisphere, locationData);
     this._positions = positions;
     container.appendChild(svg);
 
@@ -1928,7 +1918,13 @@ class SolarViewCard extends HTMLElement {
   }
 
   static getStubConfig() {
-    return { default_zoom: 2, periodic_zoom_change: false, periodic_zoom_max: 4, refresh_mins: 1, zoom_animate: true };
+    return {
+      default_zoom: 2,
+      periodic_zoom_change: false,
+      periodic_zoom_max: 4,
+      refresh_mins: 1,
+      zoom_animate: true,
+    };
   }
 }
 

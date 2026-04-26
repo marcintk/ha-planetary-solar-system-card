@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
+import { COMETS } from "../../src/astronomy/comet-data.js";
 import {
   calculateCometPosition,
   calculateMoonPosition,
   calculatePlanetPosition,
   solveKeplerEquation,
 } from "../../src/astronomy/orbital-mechanics.js";
-import { COMETS } from "../../src/astronomy/comet-data.js";
 import { MOON, PLANETS } from "../../src/astronomy/planet-data.js";
 
 describe("calculatePlanetPosition", () => {
@@ -135,11 +135,7 @@ describe("calculateCometPosition", () => {
   });
 
   it("returns radius within orbital bounds [a*(1-e), a*(1+e)]", () => {
-    const dates = [
-      new Date("2020-01-01"),
-      new Date("2024-06-15"),
-      new Date("2026-03-15"),
-    ];
+    const dates = [new Date("2020-01-01"), new Date("2024-06-15"), new Date("2026-03-15")];
     const perihelion = halley.semiMajorAxis * (1 - halley.eccentricity);
     const aphelion = halley.semiMajorAxis * (1 + halley.eccentricity);
 

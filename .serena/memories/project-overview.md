@@ -1,35 +1,13 @@
 # ha-planetary-solar-system-card — Serena Operational Notes
 
-**Project info, TODO, and tool rules are in `CLAUDE.md` — read it first.**
-**Architecture, source layout, and conventions are in `openspec/config.yaml`.**
+This memory contains only Serena-specific operational notes. For everything else:
 
-Do not duplicate that content here. This memory contains only Serena-specific operational notes.
+- **Project entry point and tool ecosystem rules**: `CLAUDE.md`
+- **Architecture, source layout, conventions, testing, concerns**: `.planning/codebase/*.md`
+- **Backlog (features + fixes)**: `.planning/BACKLOG.md`
+- **User-facing docs**: `README.md`
 
-## Tool Ecosystem (summary)
-
-- **Serena MCP** — all code navigation and edits (this tool)
-- **Context7 MCP** — library documentation before implementing
-- **OpenSpec skills** (`/opsx:*`) — spec/design/task workflow before coding
-- **Claude Code** — orchestrates everything; CLAUDE.md is the single source of truth
-
-## Source Layout (as of Mar 2026 refactor)
-
-```
-src/index.js                        ← entry (stays at top)
-src/card/{card, card-template, card-styles, card-view-state}.js
-src/astronomy/{planet-data, orbital-mechanics, solar-position}.js
-src/renderer/{index, bodies, observer, seasons, svg-utils}.js
-test/card/, test/astronomy/, test/renderer/   ← mirrors src/
-```
-- `src/renderer/index.js` is the main compositor (was `renderer.js`)
-- `test/renderer/index.test.js` is the integration test (was `renderer.test.js`)
-
-## Code Style (needed for symbol editing)
-
-- camelCase functions/variables, PascalCase classes, UPPER_SNAKE constants
-- JSDoc comments on public functions
-- JavaScript ES modules (no TypeScript); semicolons at statement ends
-- SVG elements via `createSvgElement(tag, attrs)` from `src/renderer/svg-utils.js`
+Do not duplicate that content here.
 
 ## Key Serena Rules
 

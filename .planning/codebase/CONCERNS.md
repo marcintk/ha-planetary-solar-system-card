@@ -4,257 +4,272 @@
 
 ## Known Bugs
 
-**Moon appears at Venus position:**
+**Moon renders at Venus's position for some dates:**
 
-- Symptoms: Moon sometimes renders at the same coordinates as Venus, causing overlap or misplaced
-  positioning
-- Files: `src/renderer/index.js`, `src/astronomy/orbital-mechanics.js`, `src/renderer/moon-phase.js`
-- Trigger: Specific date/time combinations; not consistently reproducible
-- Root cause: `calculateMoonPosition()` in `src/astronomy/orbital-mechanics.js` uses a simplified
-  mean-motion model (J2000 epoch with constant period) that doesn't account for lunar perturbations,
-  libration, or precise ephemerides. The Moon's absolute angle is calculated independently of
-  Earth's position, which can lead to the Moon being positioned far from Earth's actual location in
-  the ecliptic plane.
-- Workaround: None currently documented; affects specific date ranges unpredictably
-- Impact: Critical visual error; reduces credibility of astronomy data
+- Symptoms: Moon icon overlaps Venus (or appears far from Earth) on certain date/time combinations.
+- Files: `src/renderer/index.js` (lines 110-114), `src/astronomy/orbital-mechanics.js` (lines
+  30-35), `src/astronomy/planet-data.js` (line 76-83)
+- Trigger: Date-dependent; tracked in `.planning/BACKLOG.md` under "Fixes"
+- Root cause: `calculateMoonPosition(date)` returns the Moon's mean ecliptic longitude from J2000
+  using only its own mean motion (`MOON.meanLongitudeJ2000 + 2π/27.32 × days`). The renderer in
+  `src/renderer/index.js` then places the Moon on a 22-pixel circle centered on Earth using that
+  absolute angle, but the angle is not Earth-relative — so the rendered direction from Earth to Moon
+  depends on coincidental phase alignment between Earth's mean longitude and the Moon's mean
+  longitude. When the two cancel toward Venus, the Moon appears next to Venus rather than next to
+  Earth's day/night terminator side.
+- Workaround: None. Affects unpredictable date ranges.
+- Impact: High — visible visual error; reduces credibility of the visualization.
 
 ## Tech Debt
 
-**Moon positioning model lacks accuracy:**
+**Moon position uses mean longitude in heliocentric frame, not Earth-relative geometry:**
 
-- Issue: `calculateMoonPosition()` returns an absolute ecliptic angle using mean motion only, not
-  referenced to Earth's location
-- Files: `src/astronomy/orbital-mechanics.js` (lines 30-35)
-- Current implementation: Moon angle = J2000 mean longitude + (2π / 27.32 days) × days since J2000
-- Problem: This ignores Earth's orbital position entirely. The Moon should be rendered near Earth's
-  position, not as an independent body in a fixed orbital plane
-- Fix approach: Calculate Moon's position relative to Earth's instantaneous orbital position, or use
-  more accurate ephemeris data (e.g., MEEUS algorithms or NASA HORIZONS data)
+- Issue: `calculateMoonPosition()` ignores Earth's instantaneous orbital position. The Moon's
+  position is conceptually "an angle around the Sun" using mean motion, then re-anchored to Earth
+  visually by the renderer.
+- Files: `src/astronomy/orbital-mechanics.js` (lines 30-35), `src/renderer/index.js` (lines 105-114)
+- Fix approach: Compute the Moon's geocentric ecliptic longitude (e.g., a Meeus-style series, or at
+  minimum subtract Earth's mean longitude so the Moon's angle is referenced to the Earth-Sun line),
+  then apply that as the offset angle around Earth in the renderer.
+- Priority: High (drives the "Moon at Venus" bug above).
 
-**Configuration XSS vulnerability via locationName:**
+**`renderSolarSystem()` returns a `bounds` field that no production code consumes:**
 
-- Issue: User-supplied `locationName` from Home Assistant config is interpolated directly into HTML
-  template literals without sanitization
-- Files: `src/card/card-template.js` (line 34), `src/card/card.js` (line 213-215)
-- Risk: If Home Assistant's config.location_name contains HTML/script content, it will be injected
-  into shadowRoot.innerHTML
-- Current mitigation: Minimal — relies on Home Assistant's config validation, but no explicit
-  escaping in the card
-- Recommendation: Add explicit HTML escaping for `locationName` before template interpolation (e.g.,
-  `escapeHtml()` utility), or use DOM methods instead of innerHTML
-- Priority: Medium (requires malicious config, but Home Assistant card should be defensive)
+- Issue: `src/renderer/index.js` builds and returns `bounds` (`{ minX, minY, maxX, maxY }`) but the
+  only caller, `src/card/card.js` line 222, destructures only `{ svg, positions }`. The bounds are
+  computed every render via `expandBounds()` calls scattered through the function and then
+  discarded. Tests at `test/renderer/index.test.js` (lines 14-18) and `test/card/card.test.js`
+  (lines 58-81) still assert against `bounds`, so removing it would require test updates.
+- Files: `src/renderer/index.js` (lines 30, 52, 66, 80, 84, 101, 130, 144),
+  `src/renderer/svg-utils.js` (lines 28-33), `test/renderer/index.test.js` (lines 14-18),
+  `test/card/card.test.js` (lines 58-81)
+- Impact: Dead computation on every render; misleading `@returns` JSDoc; test surface for an unused
+  contract.
+- Fix approach: Either drop the `bounds` field entirely (and remove `expandBounds`,
+  `bounds`-asserting tests), or wire `bounds` into card.js for an "auto-fit" zoom feature (which is
+  the matching item in `.planning/BACKLOG.md` under "Auto zoom level to fit all planets in view").
+- Priority: Medium (no functional impact, but it is a load-bearing-looking API that does nothing).
 
-**Periodic zoom cycling can break user interaction:**
+**`MARKER_GROUP_ID` exported twice with two different mechanisms:**
 
-- Issue: `periodicZoomChange` feature automatically advances zoom level on a timer
-- Files: `src/card/card.js` (lines 71, 104-106, 110-116)
-- Problem: If user is panning or about to interact, auto-zoom mid-interaction can trigger unintended
-  behavior or disorienting view changes
-- Current behavior: Zoom changes on `_refreshMs` interval (default 60 seconds), independent of user
-  input
-- Improvement: Add logic to pause auto-zoom while user is dragging, or add a flag to defer zoom
-  changes during active pointer events
-- Priority: Medium
+- Issue: `src/renderer/offscreen-markers.js` declares `const MARKER_GROUP_ID` at line 6 (no `export`
+  keyword) then re-exports it at the bottom via `export { MARKER_GROUP_ID }` (line 157). This works
+  but is inconsistent with every other constant/function in the renderer module (which use inline
+  `export const`/`export function`).
+- Files: `src/renderer/offscreen-markers.js` (lines 6, 157)
+- Fix approach: Move `export` inline at line 6 and delete the trailing `export {}` block.
+- Priority: Low (style/consistency only).
 
-**ViewState lacks bounds clamping for pan:**
+**Configuration XSS surface via `locationName`:**
 
-- Issue: `updateDrag()` in `src/card/card-view-state.js` (lines 81-89) allows panning to arbitrary
-  coordinates without constraints
-- Problem: User can pan far outside the rendered SVG bounds (up to Infinity), causing confusing
-  blank views
-- Current behavior: Pan limits are not enforced; there's no automatic snap-back or boundary
-  detection
-- Fix approach: Clamp centerX/centerY to keep viewport within the full system bounds
-  (±FULL_SYSTEM_SIZE/2)
-- Priority: Low (visual UX issue, not a crash)
+- Issue: `buildStatusBarHtml()` interpolates `locationName` directly into a template literal that
+  becomes `shadowRoot.innerHTML` in card.js. Same applies to `mode` (the sky-mode string), but
+  `mode` comes from a fixed enum.
+- Files: `src/card/card-template.js` (line 34), `src/card/card.js` (line 215)
+- Risk: If a Home Assistant config supplies a `location_name` containing HTML or `<script>`, it is
+  injected into the shadow DOM. Likelihood is low (HA config is owned by the same user running the
+  card) but this is a defense-in-depth issue.
+- Fix approach: Add an `escapeHtml()` helper and apply it to `locationName` before interpolation, or
+  render the status bar via DOM APIs instead of `innerHTML`.
+- Priority: Medium.
 
-**DeletedButNotReplaced: openspec/ system removed:**
+**Periodic auto-zoom can fight active user interaction:**
 
-- Issue: Previous spec infrastructure (`openspec/` directory) was deleted in commit `07cd201` but no
-  replacement specification system is in place
-- Files: `openspec/specs/*` (deleted), `openspec/config.yaml` (deleted), `openspec/.gitignore`
-  (deleted)
-- Impact: Loss of feature specifications, design docs, and task definitions previously managed by
-  OpenSpec
-- Current status: CLAUDE.md references a nonexistent `openspec/config.yaml` (line 7)
-- Recommendation: Either restore a spec system (new OpenSpec, MDX, or GitHub Wiki), or move all
-  critical architecture docs into CLAUDE.md directly
-- Priority: High (roadmap and design docs are missing)
+- Issue: `_startAutoUpdateTimer()` advances zoom on every refresh tick when
+  `periodic_zoom_change: true`, with no check for whether the user is mid-drag or has just clicked.
+- Files: `src/card/card.js` (lines 93-117)
+- Behavior: A 60s tick can call `_advanceZoom()` while a `pointerdown`/`pointermove` sequence is in
+  progress, which interrupts the drag and reshapes the viewBox under the cursor.
+- Fix approach: Skip `_advanceZoom()` when `this._viewState.isDragging` is true, or when the zoom
+  animator is mid-animation (`this._zoomAnimator.isAnimating`).
+- Priority: Medium.
+
+**Pan offset is unbounded:**
+
+- Issue: `ViewState.updateDrag()` sets `centerX`/`centerY` from drag deltas with no clamp. A user
+  who pans far enough sees a blank background with no bodies in view and no auto-recenter.
+- Files: `src/card/card-view-state.js` (lines 80-89)
+- Fix approach: Clamp `centerX`/`centerY` to keep the viewport overlapping the system bounds (e.g.,
+  `±FULL_SYSTEM_SIZE/2 ± width/2`), or snap back on pointer up.
+- Priority: Low (UX wart, not a crash).
+
+## Documentation Drift
+
+**`STRUCTURE.md` still lists `TEAM.md`:**
+
+- Files: `.planning/codebase/STRUCTURE.md` (line 84)
+- Problem: The directory tree still contains
+  `├── TEAM.md                        # Team contact info`, but `TEAM.md` was deleted from the repo
+  root earlier today. `find -maxdepth 2 -name TEAM.md` returns nothing.
+- Fix approach: Remove the line from the tree diagram in `STRUCTURE.md`.
+- Priority: Medium (low cost; high impact on planner trust in the doc).
+
+**`CONVENTIONS.md` documents a removed `viewState` parameter on `renderSolarSystem`:**
+
+- Files: `.planning/codebase/CONVENTIONS.md` (lines 168, 171, 191, 229)
+- Problem: The JSDoc example, the "max 4 parameters" example, and the "Example from
+  `src/renderer/index.js`" code block all show
+  `renderSolarSystem(date, hemisphere = "north", locationData = null, viewState = null)`. The actual
+  current signature in `src/renderer/index.js` (line 22) is
+  `renderSolarSystem(date, hemisphere = "north", locationData = null)` — `viewState` was removed in
+  commit `faf385f` earlier today.
+- Fix approach: Update the four occurrences to match the 3-parameter signature, and reword the "max
+  4 parameters" rationale to use a different example.
+- Priority: Medium (a planner reading CONVENTIONS.md would re-introduce the parameter on edits).
 
 ## Performance Bottlenecks
 
-**SVG re-render on every state change:**
+**Full SVG rebuild on every nav action and on every refresh tick:**
 
-- Issue: Card re-renders entire SVG on date/zoom/pan updates instead of updating in-place
-- Files: `src/card/card.js` (line 214: `this.shadowRoot.innerHTML = buildCardHtml(...)`)
-- Problem: Every nav button click, timer tick, or zoom triggers full DOM rebuild
-- Impact: Noticeable lag on low-end devices; 18 source files + SVG generation per render
-- Improvement: Implement incremental updates for pan/zoom; only rebuild on date/config changes
-- Priority: Medium (affects perceived responsiveness)
+- Issue: `_render()` sets `shadowRoot.innerHTML = buildCardHtml(...)` and rebuilds the entire SVG
+  via `renderSolarSystem()` — orbits, planets, comets, season overlay, day/night cone, moon-phase
+  indicator — for every date change, every "Now" click, every minute tick when on today's date.
+- Files: `src/card/card.js` (lines 199-228)
+- Impact: Each render reconstructs the shadow DOM and re-runs every astronomy/renderer module.
+  Acceptable on desktop, but noticeable on low-end HA dashboards (Raspberry Pi tablets).
+- Fix approach: Split static structure (orbits, season overlay, AU labels) from per-frame structure
+  (planet positions, day/night cone, observer needle), and update only the latter on date change.
+- Priority: Medium.
 
-**Offscreen marker calculation runs on every viewport update:**
+**Twilight transition scan is up to 1440 minute samples per render:**
 
-- Issue: `renderOffscreenMarkers()` in `src/renderer/offscreen-markers.js` recalculates edge
-  intersections for all positions on every pan/zoom frame
-- Problem: With animation frames running at 60fps during zoom, this runs repeatedly
-- Mitigation: Already optimized by rendering once per zoom event (not per frame), but could cache
-  geometry if > 10 bodies
-- Priority: Low (currently acceptable, only matters with many comets)
-
-**Solar elevation and sky-mode transition computation:**
-
-- Issue: `computeNextTransitionTime()` in `src/astronomy/solar-position.js` uses minute-by-minute
-  forward scan + binary refinement
-- Problem: Runs on every render; scans up to 1440 points (24 hours) per call
-- Optimization available: Cache the last result and reuse if date hasn't advanced significantly
-- Priority: Low (lookup is sub-second, cached at template level)
+- Issue: `computeNextTransitionTime()` scans up to 24 hours minute-by-minute, recomputing
+  `computeSolarElevationDeg()` on each step, then runs 10-iteration binary search for refinement. It
+  is invoked from `buildStatusBarHtml()` on every render (status bar is included in the same
+  `innerHTML` rebuild as the SVG).
+- Files: `src/astronomy/solar-position.js` (lines 89-127), `src/card/card-template.js` (line 22)
+- Impact: A scan that finds nothing (e.g. polar night) costs 1440 trig evaluations per render.
+- Fix approach: Memoize on `(lat, lon, floor(time / 60s))`, or step in larger increments first and
+  only refine near sign changes of `(elevation - threshold)`.
+- Priority: Low (sub-second today, but worth caching since the result is reused across many ticks).
 
 ## Fragile Areas
 
-**Visibility cone and observer angle calculations:**
+**Day/night cone half-angle and color logic:**
 
-- Files: `src/renderer/observer.js` (lines 57-71, 73-112, 114-150)
-- Why fragile: Complex spherical-to-ecliptic projection with timezone/longitude conversion; easy to
-  introduce off-by-180° or sign errors
-- Test coverage: `test/renderer/observer.test.js` and `test/renderer/twilight-accuracy.test.js`
-  provide good coverage, but edge cases (poles, DST boundaries) not fully tested
-- Safe modification: Always run full test suite after changes to angle math; add explicit tests for
-  observer.calculateObserverAngle() with known reference times (sunrise/sunset)
+- Files: `src/renderer/observer.js` (lines 114-150)
+- Why fragile: `renderDayNightSplit()` selects between `computeSolarElevationDeg()` (true spherical
+  astronomy) and `calculateSolarElevationDeg()` (orbital approximation) based on whether
+  `locationData.lat` is set, and then derives both `coneColor` and `halfAngle` from the chosen
+  value. The branching is a single chain of if/else — easy to introduce off-by-180° errors when
+  modifying.
+- Test coverage: `test/renderer/index.test.js` exercises day/twilight/night fills but does not cover
+  the fallback path (`locationData = null` with daylight time of day).
+- Safe modification: Always run `npm test` after touching this function; add a fixture test for
+  `locationData = null` at noon to lock the orbital fallback.
 
-**Offscreen marker triangle geometry:**
+**Moon-phase terminator path arc sweeps:**
 
-- Files: `src/renderer/offscreen-markers.js` (lines 12-54, 59-77)
-- Why fragile: Ray-circle intersection and triangle point calculation use floating-point math; small
-  viewport changes can cause markers to jump or flicker
-- Current state: Tested in `test/renderer/offscreen-markers.test.js`, but visual regression
-  potential (pixel-level rendering)
-- Safe modification: Always validate with multiple viewport sizes (320px, 800px, 1600px); screenshot
-  compare if possible
+- Files: `src/renderer/moon-phase.js` (lines 33-81)
+- Why fragile: `terminatorSweep` is selected by a 2x2 truth table over `litOnRight` and
+  `bulgeRight`. Hemisphere flipping at line 52 inverts `litOnRight`, which means a hemisphere change
+  has to be propagated through the sweep computation correctly. Tests cover phase but the logic is
+  opaque.
+- Safe modification: Run `test/renderer/moon-phase.test.js` and visually verify with both
+  hemispheres at the four canonical phases (new/first quarter/full/third quarter).
 
-**Season overlay label positioning:**
+**Saturn rendering replaces `planet.size` mid-loop:**
 
-- Files: `src/renderer/seasons.js` (lines 56-80)
-- Why fragile: Top-half arc reversal logic (line 65) has hard-coded angle ranges; changing labels or
-  adding new hemispheres requires careful coordination
-- Problem: Comments indicate top-half labels are hand-positioned to appear visually correct; SVG arc
-  direction reversals are easy to misalign
-- Safe modification: Keep corresponding unit tests in sync; manually verify label rendering after
-  changes
+- Files: `src/renderer/index.js` (lines 61-85)
+- Why fragile: When `planet.name === "Saturn"`, the renderer creates `saturnOverride` with half size
+  and renders the body at that size, then renders rings at the original `planet.size`. Two separate
+  `expandBounds()` calls then use different sizes. A future addition (e.g. Jupiter rings) would be
+  tempted to copy this pattern and inherit its quirks.
+- Safe modification: If adding more ringed bodies, factor the special-case into a
+  `renderRingedBody()` helper that owns both the body resize and the bounds bookkeeping.
 
-**Moon phase indicator math:**
+**Season-arc top-half radius adjustment:**
 
-- Files: `src/renderer/moon-phase.js` (lines 34-80)
-- Why fragile: Terminator ellipse sweep direction logic (lines 47-64) depends on phase, hemisphere,
-  and illumination fraction in complex boolean branches
-- Current state: Unit tests exist (`test/renderer/moon-phase.test.js`), but visual correctness
-  depends on SVG arc rendering
-- Safe modification: Test with known moon phases (new moon, quarter, full) in both hemispheres;
-  verify against ephemeris data
-
-**Auto-cycle-zoom animation interaction:**
-
-- Files: `src/card/card.js` (lines 110-116), `src/card/zoom-animator.js`
-- Why fragile: Zoom animation can conflict with user interactions; animator state must be carefully
-  managed across pointer events and nav clicks
-- Problem: If animator is mid-animation and user drags, behavior is undefined
-- Safe modification: Add explicit animator cancel/pause during user input; ensure no orphaned
-  animation frames
+- Files: `src/renderer/seasons.js` (lines 56-83)
+- Why fragile: Top-half arcs use `arcRadius = labelRadius - 12` to make labels visually equidistant
+  with bottom-half labels, and the arc direction (`A ... 0 0 1` vs `A ... 0 0 0`) is reversed
+  between halves so `textPath` flows readably. The 12-pixel correction is a magic number.
+- Safe modification: Don't change `SEASON_FONT_SIZE` (line 5) without re-tuning the offset.
 
 ## Security Considerations
 
-**XSS via locationName in status bar:**
+**XSS via `locationName` in status bar:**
 
-- Risk: Home Assistant user provides `config.location_name`; if it contains `<script>` or event
-  handlers, they execute in card's shadowRoot
-- Files: `src/card/card-template.js` (line 34), `src/card/card.js` (line 213)
-- Likelihood: Low (Home Assistant config is user-controlled, not attacker-controlled in typical
-  deployment), but a defense-in-depth issue
-- Mitigation: Implement explicit HTML entity escaping for `locationName` and `mode` strings before
-  insertion
-- Recommendation: Create a sanitization function, e.g. `escapeHtml(str)` using standard replacements
-  (`&` → `&amp;`, etc.), and apply to all user-supplied config strings
+- See "Configuration XSS surface via `locationName`" under Tech Debt above. Same root cause and fix;
+  listed here for security audit visibility.
 
-**Timezone string injection:**
+**Timezone string passed to `Intl.DateTimeFormat`:**
 
-- Risk: `locationData.timezone` from HA config is passed to `Intl.DateTimeFormat()` and used in IANA
-  lookup
-- Files: `src/card/card-template.js` (line 26), `src/astronomy/solar-position.js` (line 10)
-- Likelihood: Very low (Intl catches invalid timezones), but a string is used directly
-- Mitigation: Already wrapped in try-catch in `solar-position.js` (line 9), so gracefully falls back
-  to UTC
-- Recommendation: No change needed; current error handling is adequate
+- Files: `src/astronomy/solar-position.js` (lines 10-23), `src/card/card-template.js` (line 26)
+- Risk: The `time_zone` string from HA config is passed to `Intl.DateTimeFormat` constructors. If
+  invalid, `Intl` throws, and `getLocalTimeInZone()` already wraps the call in `try/catch` falling
+  back to UTC. `buildStatusBarHtml()` does not wrap its `Intl.DateTimeFormat` construction in
+  try/catch — a malformed timezone string would throw out of `_render()`.
+- Fix approach: Wrap the `Intl.DateTimeFormat` construction in `card-template.js` (line 25) in a
+  try/catch with a UTC fallback, mirroring `solar-position.js`.
+- Priority: Low (HA validates timezones, but the card crashing the dashboard on a config typo is
+  worse than falling back to UTC).
 
 ## Test Coverage Gaps
 
-**Card lifecycle and event handling untested:**
+**`renderSolarSystem()` fallback path with `locationData = null`:**
 
-- Untested: `connectedCallback()`, `disconnectedCallback()`, pointer events, nav button dispatching
-- Files: `src/card/card.js` (lines 83-243)
-- Impact: No automated verification that pointer events update viewBox, button clicks work, or
-  timers clean up
-- Priority: High (interaction is core functionality)
+- What's not tested: Day/night cone color and half-angle when no location is configured (the orbital
+  approximation in `calculateSolarElevationDeg()`).
+- Files: `src/renderer/observer.js` (line 142, the `else` branch), `test/renderer/index.test.js`
+- Risk: The fallback path is the default state for users without HA location set; regressions there
+  would not be caught by existing tests.
+- Priority: Medium.
 
-**Configuration validation and edge cases:**
+**No assertions on the unused `bounds` semantic in card.js consumption:**
 
-- Untested: Invalid zoom levels, out-of-range refresh intervals, null/undefined config
-- Files: `src/card/card.js` (lines 59-81)
-- Impact: Could crash or behave unpredictably with malformed Home Assistant config
-- Priority: Medium (HA likely validates, but card should be defensive)
+- What's not tested: That dropping `bounds` from `renderSolarSystem`'s return shape does not affect
+  card.js. See "renderSolarSystem returns a bounds field that no production code consumes" above.
+- Risk: Tests still validate `bounds` exists, but no test validates that card behavior is
+  independent of it. Refactoring would require reasoning about the test surface.
+- Priority: Low.
 
-**SVG rendering with extreme zoom levels:**
+**`escape`/sanitization tests for `buildStatusBarHtml`:**
 
-- Untested: Rendering at zoom level 4 with maximum pan offset; visual bounds correctness
-- Files: `src/renderer/index.js`, `src/card/zoom-animator.js`
-- Current: Unit tests exist but don't verify visual output
-- Priority: Low (functionality works, but no visual regression detection)
+- What's not tested: Behavior when `locationName` contains `<`, `>`, or `&`.
+- Files: `src/card/card-template.js`, `test/card/card-template.test.js`
+- Risk: Without an assertion that special characters are escaped, any future "fix" to add escaping
+  has no regression net.
+- Priority: Medium (paired with the XSS fix above).
+
+**Pointer-event lifecycle on disconnect during drag:**
+
+- What's not tested: `disconnectedCallback()` is called while `_isDragging` is true. Currently the
+  `setInterval` is cleared but `_viewState.isDragging` is left true; reconnecting starts a new
+  `_render()` flow on top of stale drag state.
+- Files: `src/card/card.js` (lines 88-91, 176-197), `test/card/card.test.js`
+- Risk: Edge case; rare in practice.
+- Priority: Low.
 
 ## Scaling Limits
 
-**SVG DOM grows with comet count:**
+**Comet count vs SVG node count:**
 
-- Current: COMETS array has 1 entry (Halley)
-- Limit: SVG rendering becomes slow with > 50 bodies (each body = circle + text + optional rings)
-- Scaling path: Implement level-of-detail rendering (hide labels at far zoom, use simplified comets
-  beyond 20px diameter)
-- Current state: Acceptable up to ~10 comets; beyond that, consider culling or LOD
+- Current: `COMETS` array contains a single entry (Halley) in `src/astronomy/comet-data.js`.
+- Limit: Each comet contributes an ellipse orbit, a body circle, a tail line, a label, and an
+  off-screen marker — roughly 5 SVG nodes plus one Kepler solve per render. Past ~50 comets, the
+  per-render Kepler solves and node creation become noticeable on low-end clients.
+- Scaling path: Cull comets outside the current viewport pre-render; share a single `<defs>` ellipse
+  template and reposition via `<use>`.
 
-**Observer visibility cone rendering:**
+**`offscreen-markers` runs `edgeIntersection()` per body per zoom event:**
 
-- Current: Fixed cone geometry per viewport update
-- Limit: Cone is clipped against entire SVG bounds; becomes expensive with many zones/clipPaths
-- Current state: Only 1 visibility cone at a time; acceptable
+- Current: ~10 bodies (8 planets, Moon, Halley) → 10 ray/rectangle solves per pan/zoom update.
+- Limit: Acceptable; only re-runs when `_updateOffscreenMarkers()` is called (after pan, zoom, full
+  render). Not a per-frame cost during animation.
+- Scaling path: Memoize the rectangle bounds per ViewState; skip recomputation if `centerX`,
+  `centerY`, `width`, `height` are unchanged.
 
-## Missing Critical Features (from CLAUDE.md TODO)
+## Missing Features (Backlog)
 
-**Earth-centric view not implemented:**
+The features list in `.planning/BACKLOG.md` is the source of truth for missing capabilities. Listed
+here only for completeness during a concerns pass:
 
-- Problem: All objects are Sun-centric; no way to switch to Earth-centric view where Earth stays
-  fixed and other bodies move relative to it
-- Blocks: Users cannot intuitively understand geocentric astronomy, which is useful for some
-  observations
-- Workaround: None; requires architectural change
-
-**Zodiac constellations not implemented:**
-
-- Problem: No constellation background or constellation labels
-- Blocks: Users cannot correlate planetary positions with zodiacal signs
-- Workaround: None; requires new renderer module
-
-**Hemisphere hemisphere information not displayed:**
-
-- Problem: CLAUDE.md notes "add information if this Northern or Southern hemisphere" but current
-  code only uses hemisphere for season labels
-- Blocks: Users may not realize they're seeing Southern Hemisphere seasons if their Home Assistant
-  is in SH
-- Current: Hemisphere is correctly derived (line 207 in `src/card/card.js`) but not displayed to
-  user
-- Improvement: Add hemisphere label to status bar or info panel
-
-**Auto-zoom to fit all planets:**
-
-- Problem: No automatic zoom level selection to keep all objects in view
-- Blocks: On very zoomed-in views, Neptune can be off-screen; user must manually zoom out
-- Improvement: Compute bounds from all positions and auto-select MIN_ZOOM or intermediate level
+- Earth-centric view (Earth fixed, all other bodies move relative to it).
+- Zodiac constellations background.
+- Northern/Southern hemisphere indicator in the status bar.
+- Auto-zoom to fit all bodies — the closest existing surface is the unused `bounds` return value
+  from `renderSolarSystem()` (see Tech Debt above).
 
 ---
 

@@ -29,6 +29,12 @@ Durable visual/UX constraints. Preserve unless the user explicitly changes them.
 - **Every feature or fix needs a test file** — new source modules must have a corresponding
   `test/<path>.test.js`. Tests live in the same directory structure under `test/` as the source
   under `src/`.
+- **Code coverage target is 99%** — run `npm run test:coverage` before opening a PR and ensure all
+  areas (statements, branches, functions, lines) stay at or above 99%. Do not merge if coverage
+  drops below this threshold.
+- **Delete the branch after a successful merge** — once a PR is merged, delete the remote branch
+  (`git push origin --delete <branch>`) and the local branch (`git branch -d <branch>`). Keep the
+  repository clean; no stale branches should linger after merge.
 
 ## Releasing
 

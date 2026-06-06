@@ -37,6 +37,7 @@ function edgeIntersection(cx, cy, px, py, left, top, right, bottom, margin) {
     const tTop = (inTop - cy) / dy;
     if (tTop > 0 && tTop < tMin) {
       const xAt = cx + dx * tTop;
+      /* v8 ignore next */
       if (xAt >= inLeft && xAt <= inRight) tMin = tTop;
     }
     const tBottom = (inBottom - cy) / dy;

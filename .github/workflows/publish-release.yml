@@ -25,6 +25,10 @@ jobs:
           cache: npm
 
       - run: npm ci
+
+      - name: Bump version in package.json
+        run: npm pkg set version="${{ github.event.inputs.version }}"
+
       - run: npm run build:prod
 
       - name: Tag and publish release

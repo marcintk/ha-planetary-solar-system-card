@@ -106,4 +106,11 @@ export const CARD_STYLES = `
     align-items: center;
     box-sizing: border-box;
   }
+  .card-version {
+    font-size: 9px;
+    color: rgba(255, 255, 255, 0.3);
+    margin-left: 4px;
+    user-select: none;
+    font-family: sans-serif;
+  }
 `;

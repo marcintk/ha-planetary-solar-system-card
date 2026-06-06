@@ -4,6 +4,7 @@ import {
   getSkyMode,
 } from "../astronomy/solar-position.js";
 import { CARD_STYLES } from "./card-styles.js";
+import { CARD_VERSION } from "./version.js";
 
 /**
  * Build the status bar HTML fragment.
@@ -68,6 +69,7 @@ export function buildCardHtml(statusBarHtml, formattedDate, zoomLevel) {
           <span class="zoom-level">${zoomLevel}</span>
           <button data-action="zoom-in">+</button>
         </span>
+        <span class="card-version">v${CARD_VERSION}</span>
       </div>
     </div>
   `;

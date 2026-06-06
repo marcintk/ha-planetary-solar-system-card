@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   computeNextTransitionTime,
   computeSolarElevationDeg,
@@ -34,6 +34,21 @@ describe("getLocalTimeInZone", () => {
     const { hours, minutes } = getLocalTimeInZone(date, "Not/A/Valid/Timezone");
     expect(hours).toBe(date.getUTCHours());
     expect(minutes).toBe(date.getUTCMinutes());
+  });
+
+  it("normalises hour value 24 to 0 (engine-quirk branch)", () => {
+    // Some JS engines return '24' instead of '0' for midnight. This mocks that
+    // behaviour to cover the `if (hours === 24) hours = 0` guard branch.
+    vi.spyOn(Intl.DateTimeFormat.prototype, "formatToParts").mockReturnValueOnce([
+      { type: "hour", value: "24" },
+      { type: "minute", value: "00" },
+    ]);
+    const { hours } = getLocalTimeInZone(new Date("2026-03-20T00:00:00Z"), "UTC");
+    expect(hours).toBe(0);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 });
 

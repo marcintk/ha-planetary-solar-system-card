@@ -149,4 +149,26 @@ describe("buildCardHtml", () => {
     const groups = root.querySelectorAll(".btn-group");
     expect(groups.length).toBe(2);
   });
+
+  it("formats the Next span using UTC when timezone is null", () => {
+    // Exercises the `locationData.timezone || "UTC"` fallback branch:
+    // next transition exists but no timezone is provided.
+    const html = buildStatusBarHtml(
+      { lat: 51.5, lon: -0.1, timezone: null },
+      "Somewhere",
+      new Date("2026-03-05T12:00:00Z")
+    );
+    const root = parse(html);
+    const spans = root.querySelectorAll(".status-bar span");
+    // Should still render two spans (left info + right Next:)
+    expect(spans.length).toBe(2);
+    expect(spans[1].textContent).toMatch(/^Next: .+ \(\d{2}:\d{2}\)$/);
+  });
+
+  it("displays a version badge starting with 'v'", () => {
+    const root = parse(buildCardHtml("", "26-03-07 12:00", 1));
+    const badge = root.querySelector(".card-version");
+    expect(badge).not.toBeNull();
+    expect(badge.textContent).toMatch(/^v\d+\.\d+\.\d+$/);
+  });
 });

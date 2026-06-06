@@ -74,4 +74,45 @@ describe("renderOffscreenMarkers", () => {
     const group = renderOffscreenMarkers(positions, vs);
     expect(group.children.length).toBe(0);
   });
+
+  it("returns empty group when positions is null", () => {
+    const group = renderOffscreenMarkers(null, makeViewState(1));
+    expect(group.tagName).toBe("g");
+    expect(group.children.length).toBe(0);
+  });
+
+  it("returns empty group when viewState is null", () => {
+    const group = renderOffscreenMarkers([{ name: "X", x: 0, y: 0, color: "#fff" }], null);
+    expect(group.tagName).toBe("g");
+    expect(group.children.length).toBe(0);
+  });
+
+  it("places marker when edge intersection falls back to center (degenerate viewport)", () => {
+    // A 1×1 viewport means the inset box (margin=10) degenerates, causing
+    // edgeIntersection to return the fallback { x: cx, y: cy } (POSITIVE_INFINITY path).
+    const vs = makeViewState(1, 400, 400, 1); // 1×1 viewport, center at 400,400
+    const positions = [{ name: "Far", x: 0, y: 0, color: "#ff0000" }];
+    const group = renderOffscreenMarkers(positions, vs);
+    // A marker is still created (polygon + text) even via the fallback path
+    expect(group.querySelector("polygon")).not.toBeNull();
+  });
+
+  it("places marker for a planet directly above center (dx = 0)", () => {
+    // x equals centerX → dx=0, exercises the `if (dx !== 0)` false branch
+    const vs = makeViewState(4); // center (400,400)
+    const positions = [{ name: "Above", x: 400, y: -100, color: "#aaaaaa" }];
+    const group = renderOffscreenMarkers(positions, vs);
+    expect(group.querySelector("polygon")).not.toBeNull();
+  });
+
+  it("label uses end text-anchor for a planet to the right of center", () => {
+    // Planet at (900, 400) is to the right of center (400,400), so the label
+    // x position > midX → text-anchor should be "end".
+    const vs = makeViewState(4); // center=400, viewport 320×320
+    const positions = [{ name: "RightPlanet", x: 900, y: 400, color: "#0000ff" }];
+    const group = renderOffscreenMarkers(positions, vs);
+    const label = group.querySelector("text");
+    expect(label).not.toBeNull();
+    expect(label.getAttribute("text-anchor")).toBe("end");
+  });
 });

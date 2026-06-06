@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <!-- Background -->
+  <rect width="256" height="256" fill="#0f172a" rx="48"/>
+
+  <!-- Stars -->
+  <circle cx="32"  cy="28"  r="1.2" fill="#e2e8f0" opacity="0.5"/>
+  <circle cx="75"  cy="18"  r="0.8" fill="#e2e8f0" opacity="0.4"/>
+  <circle cx="195" cy="24"  r="1.0" fill="#e2e8f0" opacity="0.6"/>
+  <circle cx="228" cy="58"  r="0.8" fill="#e2e8f0" opacity="0.4"/>
+  <circle cx="22"  cy="108" r="1.0" fill="#e2e8f0" opacity="0.5"/>
+  <circle cx="238" cy="148" r="1.2" fill="#e2e8f0" opacity="0.4"/>
+  <circle cx="18"  cy="198" r="0.8" fill="#e2e8f0" opacity="0.5"/>
+  <circle cx="218" cy="225" r="1.0" fill="#e2e8f0" opacity="0.6"/>
+  <circle cx="55"  cy="235" r="1.2" fill="#e2e8f0" opacity="0.4"/>
+  <circle cx="175" cy="242" r="0.8" fill="#e2e8f0" opacity="0.5"/>
+  <circle cx="110" cy="22"  r="0.8" fill="#e2e8f0" opacity="0.4"/>
+  <circle cx="240" cy="95"  r="1.0" fill="#e2e8f0" opacity="0.5"/>
+
+  <!-- Orbit 1 (inner) -->
+  <circle cx="128" cy="128" r="38" fill="none" stroke="#334155" stroke-width="1.2"/>
+  <!-- Orbit 2 (middle) -->
+  <circle cx="128" cy="128" r="65" fill="none" stroke="#334155" stroke-width="1.2"/>
+  <!-- Orbit 3 (outer) -->
+  <circle cx="128" cy="128" r="95" fill="none" stroke="#334155" stroke-width="1.2"/>
+
+  <!-- Sun glow layers -->
+  <circle cx="128" cy="128" r="28" fill="#fbbf24" opacity="0.08"/>
+  <circle cx="128" cy="128" r="20" fill="#fbbf24" opacity="0.12"/>
+
+  <!-- Sun -->
+  <circle cx="128" cy="128" r="14" fill="#fbbf24"/>
+  <circle cx="128" cy="128" r="11" fill="#f59e0b"/>
+
+  <!-- Planet on orbit 1 — grey (Mercury-like), top-right -->
+  <circle cx="155" cy="95"  r="4"   fill="#94a3b8"/>
+
+  <!-- Planet on orbit 2 — blue (Earth-like), right -->
+  <circle cx="193" cy="128" r="5.5" fill="#3b82f6"/>
+  <circle cx="193" cy="128" r="4"   fill="#60a5fa"/>
+
+  <!-- Planet on orbit 3 — orange (Mars-like), bottom-left -->
+  <circle cx="68"  cy="185" r="4.5" fill="#f97316"/>
+</svg>

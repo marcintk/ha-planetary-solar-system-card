@@ -2,7 +2,7 @@
 
 [![HACS Default](https://img.shields.io/badge/HACS-Default-41BDF5.svg)](https://hacs.xyz)
 [![GitHub Release](https://img.shields.io/github/release/marcintk/ha-planetary-solar-system-card.svg)](https://github.com/marcintk/ha-planetary-solar-system-card/releases)
-[![CI](https://github.com/marcintk/ha-planetary-solar-system-card/actions/workflows/ci.yml/badge.svg)](https://github.com/marcintk/ha-planetary-solar-system-card/actions/workflows/ci.yml)
+[![CI](https://github.com/marcintk/ha-planetary-solar-system-card/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/marcintk/ha-planetary-solar-system-card/actions/workflows/build-and-test.yml)
 
 Home Assistant custom Lovelace card showing all 8 planets, Moon and comet Halley aligned around the
 Sun. Navigate time, zoom, and pan interactively.
@@ -11,7 +11,7 @@ Sun. Navigate time, zoom, and pan interactively.
 
 [**→ Try the interactive demo**](https://marcintk.github.io/ha-planetary-solar-system-card/)
 
-[![Screenshot](example.png)](https://marcintk.github.io/ha-planetary-solar-system-card/)
+[![Preview](https://raw.githubusercontent.com/marcintk/ha-planetary-solar-system-card/main/docs/example.png)](https://marcintk.github.io/ha-planetary-solar-system-card/)
 
 ## Installation
 

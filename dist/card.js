@@ -1409,7 +1409,16 @@ const CARD_STYLES = `
     align-items: center;
     box-sizing: border-box;
   }
+  .card-version {
+    font-size: 9px;
+    color: rgba(255, 255, 255, 0.3);
+    margin-left: 4px;
+    user-select: none;
+    font-family: sans-serif;
+  }
 `;
+
+const CARD_VERSION = "1.0.0";
 
 /**
  * Build the status bar HTML fragment.
@@ -1474,6 +1483,7 @@ function buildCardHtml(statusBarHtml, formattedDate, zoomLevel) {
           <span class="zoom-level">${zoomLevel}</span>
           <button data-action="zoom-in">+</button>
         </span>
+        <span class="card-version">v${CARD_VERSION}</span>
       </div>
     </div>
   `;

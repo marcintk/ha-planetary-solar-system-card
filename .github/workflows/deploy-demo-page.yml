@@ -36,7 +36,7 @@ jobs:
         run: |
           mkdir -p _site
           cp docs/index.html _site/index.html
-          cp dist/ha-solar-view-card.js _site/ha-solar-view-card.js
+          cp dist/card.js _site/card.js
 
       - uses: actions/configure-pages@v5
 

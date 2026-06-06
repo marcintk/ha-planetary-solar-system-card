@@ -40,5 +40,5 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: "v${{ github.event.inputs.version }}"
-          files: dist/ha-solar-view-card.js
+          files: dist/card.js
           generate_release_notes: true

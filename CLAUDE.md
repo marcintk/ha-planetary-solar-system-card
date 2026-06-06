@@ -4,7 +4,7 @@ Entry point for Claude Code sessions on this repository.
 
 ## Commands
 
-- `npm run build` — bundle to `dist/ha-solar-view-card.js` (unminified)
+- `npm run build` — bundle to `dist/card.js` (unminified)
 - `npm run build:prod` — production bundle (minified with terser)
 - `npm test` — run all tests once
 - `npm run test:watch` — run tests in watch mode
@@ -25,5 +25,5 @@ Durable visual/UX constraints. Preserve unless the user explicitly changes them.
 ## Releasing
 
 Trigger the **Release** workflow in GitHub Actions with a version number (e.g. `1.0.1`). It builds,
-tags, and attaches `dist/ha-solar-view-card.js` to the GitHub Release automatically. HACS users get
-the update on the next store refresh.
+tags, and attaches `dist/card.js` to the GitHub Release automatically. HACS users get the update on
+the next store refresh.

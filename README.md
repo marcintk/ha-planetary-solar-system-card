@@ -15,28 +15,24 @@ Sun. Navigate time, zoom, and pan interactively.
 
 ## Installation
 
-### HACS (recommended)
+### Via HACS (recommended)
 
-1. Open HACS in Home Assistant
-2. Go to **Frontend** → click the three-dot menu → **Custom repositories**
-3. Add `https://github.com/marcintk/ha-planetary-solar-system-card` with category **Lovelace**
-4. Search for **Planetary Solar System Card** and install it
-5. Reload your browser
-
-> Once this repo is listed in the HACS default store, you can skip step 2–3 and search directly.
+1. In HACS → Frontend → click the three-dot menu → **Custom repositories**
+   - Repository: `https://github.com/marcintk/ha-planetary-solar-system-card` (exact URL)
+   - Category: **Dashboard**
+2. Search **Planetary Solar System Card** → Install
+3. Reload your browser
+4. Add the card to your dashboard (see Configuration below)
 
 ### Manual
 
-1. Download `ha-solar-view-card.js` from the
+1. Download `card.js` from the
    [latest release](https://github.com/marcintk/ha-planetary-solar-system-card/releases/latest)
-2. Copy it to `<config>/www/ha-solar-view-card/ha-solar-view-card.js`
-3. Add to Dashboard resources:
-   ```yaml
-   resources:
-     - url: /local/ha-solar-view-card/ha-solar-view-card.js
-       type: JavaScript Module
-   ```
-4. Restart Home Assistant
+2. Copy it to `<config>/www/ha-planetary-solar-system-card/card.js` (create the folder if needed)
+3. In Home Assistant → Settings → Dashboards → Resources → **Add resource**
+   - URL: `/local/ha-planetary-solar-system-card/card.js`
+   - Type: **JavaScript Module**
+4. Reload your browser
 
 ## Usage
 

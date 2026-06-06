@@ -1,5 +1,5 @@
 {
   "name": "Planetary Solar System Card",
   "render_readme": true,
-  "filename": "dist/ha-solar-view-card.js"
+  "filename": "dist/card.js"
 }

@@ -24,7 +24,7 @@ export const CARD_STYLES = `
     left: 0;
     right: 0;
     background: rgba(42, 42, 42, 0.3);
-    font-size: 9px;
+    font-size: 10px;
     color: rgba(255, 255, 255, 0.85);
     display: flex;
     justify-content: space-between;
@@ -58,6 +58,7 @@ export const CARD_STYLES = `
     align-items: center;
     gap: 4px;
     margin-top: 2px;
+    position: relative;
   }
   .nav button {
     background: rgba(42, 42, 42, 0.3);
@@ -109,8 +110,9 @@ export const CARD_STYLES = `
   .card-version {
     font-size: 9px;
     color: rgba(255, 255, 255, 0.3);
-    margin-left: 4px;
     user-select: none;
     font-family: sans-serif;
+    position: absolute;
+    right: 0;
   }
 `;

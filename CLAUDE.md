@@ -29,8 +29,6 @@ Durable visual/UX constraints. Preserve unless the user explicitly changes them.
 - **Every feature or fix needs a test file** — new source modules must have a corresponding
   `test/<path>.test.js`. Tests live in the same directory structure under `test/` as the source
   under `src/`.
-- **Code coverage target is 99%** — run `npm run test:coverage` before opening a PR. The threshold
-  is enforced in `vitest.config.mjs`; CI will fail if any area drops below 99%.
 
 ## Releasing
 

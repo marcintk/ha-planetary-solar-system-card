@@ -7,11 +7,11 @@ describe("src/index.js bootstrap", () => {
     delete window.customCards;
   });
 
-  it("defines ha-solar-view-card as a custom element", async () => {
+  it("defines ha-planetary-solar-system-card as a custom element", async () => {
     const define = vi.fn();
     vi.stubGlobal("customElements", { define, get: vi.fn(() => undefined) });
     await import("../src/index.js");
-    expect(define).toHaveBeenCalledWith("ha-solar-view-card", expect.any(Function));
+    expect(define).toHaveBeenCalledWith("ha-planetary-solar-system-card", expect.any(Function));
   });
 
   it("creates window.customCards when absent and pushes card metadata", async () => {
@@ -19,7 +19,7 @@ describe("src/index.js bootstrap", () => {
     // window.customCards is undefined — exercises the `|| []` branch
     await import("../src/index.js");
     expect(Array.isArray(window.customCards)).toBe(true);
-    const entry = window.customCards.find((c) => c.type === "ha-solar-view-card");
+    const entry = window.customCards.find((c) => c.type === "ha-planetary-solar-system-card");
     expect(entry).toBeDefined();
     expect(entry.name).toBe("Solar View Card");
     expect(typeof entry.description).toBe("string");

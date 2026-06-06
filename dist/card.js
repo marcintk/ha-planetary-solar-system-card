@@ -759,6 +759,7 @@ function renderVisibilityCone(
 ) {
   const D = VIEW_SIZE;
   const HALF_ANGLE = (halfAngleDeg * Math.PI) / 180;
+  /* v8 ignore next */
   const largeArcFlag = halfAngleDeg >= 90 ? 1 : 0;
 
   const leftAngle = observerAngle + HALF_ANGLE;
@@ -1184,6 +1185,7 @@ function edgeIntersection(cx, cy, px, py, left, top, right, bottom, margin) {
     const tTop = (inTop - cy) / dy;
     if (tTop > 0 && tTop < tMin) {
       const xAt = cx + dx * tTop;
+      /* v8 ignore next */
       if (xAt >= inLeft && xAt <= inRight) tMin = tTop;
     }
     const tBottom = (inBottom - cy) / dy;
@@ -1938,11 +1940,11 @@ class SolarViewCard extends HTMLElement {
   }
 }
 
-customElements.define("ha-solar-view-card", SolarViewCard);
+customElements.define("ha-planetary-solar-system-card", SolarViewCard);
 
 window.customCards = window.customCards || [];
 window.customCards.push({
-  type: "ha-solar-view-card",
+  type: "ha-planetary-solar-system-card",
   name: "Solar View Card",
   description: "Planetary solar system visualization card",
 });

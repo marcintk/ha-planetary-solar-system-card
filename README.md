@@ -39,7 +39,7 @@ Sun. Navigate time, zoom, and pan interactively.
 Add the card to your dashboard:
 
 ```yaml
-type: custom:ha-solar-view-card
+type: custom:ha-planetary-solar-system-card
 default_zoom: 2
 ```
 

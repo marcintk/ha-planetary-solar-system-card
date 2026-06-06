@@ -22,6 +22,14 @@ Durable visual/UX constraints. Preserve unless the user explicitly changes them.
 - Dark slate theme matching Home Assistant dark mode colors
 - Buttons to move back/forward (by 1 day, 1 month) plus a "back to today" button
 
+## Workflow
+
+- **Always work on a branch** — never commit directly to `main`. Create a descriptive branch
+  (`git checkout -b feature/...` or `fix/...`), push it, and open a PR.
+- **Every feature or fix needs a test file** — new source modules must have a corresponding
+  `test/<path>.test.js`. Tests live in the same directory structure under `test/` as the source
+  under `src/`.
+
 ## Releasing
 
 Trigger the **Release** workflow in GitHub Actions with a version number (e.g. `1.0.1`). It builds,

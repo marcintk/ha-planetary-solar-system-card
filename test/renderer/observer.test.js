@@ -186,6 +186,12 @@ describe("rayCircleDistance", () => {
     const d = rayCircleDistance(CENTER + 1000, CENTER, 1, 0, CENTER, CENTER, 100, 50);
     expect(d).toBe(50);
   });
+
+  it("returns minimum length when discriminant is negative (ray misses circle entirely)", () => {
+    // Ray from far above, moving horizontally — never intersects the small circle below.
+    const d = rayCircleDistance(0, 1000, 1, 0, CENTER, CENTER, 10);
+    expect(d).toBe(20); // default minLen
+  });
 });
 
 describe("renderDayNightSplit horizon and zenith lines", () => {

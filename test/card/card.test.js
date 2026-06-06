@@ -230,6 +230,17 @@ describe("SolarViewCard", () => {
     });
   });
 
+  describe("day navigation", () => {
+    it("day-back rewinds by 1 day", () => {
+      const card = createAndMount();
+      card._currentDate = new Date("2026-03-15T12:00:00");
+      card._render();
+      clickButton(card, "day-back");
+      expect(card._currentDate.getDate()).toBe(14);
+      card.remove();
+    });
+  });
+
   describe("hour navigation", () => {
     it("hour-forward advances by 1 hour", () => {
       const card = createAndMount();
@@ -667,6 +678,68 @@ describe("SolarViewCard", () => {
       const card = document.createElement("ha-solar-view-card-test");
       const date = new Date("2026-02-15T21:05:00");
       expect(card._formatDate(date)).toBe("26-02-15 21:05");
+    });
+  });
+
+  describe("proxy getters before first render", () => {
+    it("return safe defaults when _viewState is null", () => {
+      const card = document.createElement("ha-solar-view-card-test");
+      // Card created but never mounted — _viewState is null
+      expect(card._isDragging).toBe(false);
+      expect(card._viewCenterX).toBeNull();
+      expect(card._viewCenterY).toBeNull();
+      expect(card._zoomLevel).toBeNull();
+    });
+  });
+
+  describe("internal method null guards", () => {
+    it("_updateViewBox is a no-op when shadow DOM has no SVG", () => {
+      const card = document.createElement("ha-solar-view-card-test");
+      expect(() => card._updateViewBox()).not.toThrow();
+    });
+
+    it("_applyZoom is safe when shadow DOM has no .zoom-level element", () => {
+      const card = document.createElement("ha-solar-view-card-test");
+      expect(() => card._applyZoom(800, 800)).not.toThrow();
+    });
+
+    it("_updateOffscreenMarkers skips appending when _positions is null", () => {
+      const card = createAndMount();
+      card._positions = null;
+      expect(() => card._updateOffscreenMarkers()).not.toThrow();
+      card.remove();
+    });
+  });
+
+  describe("southern hemisphere", () => {
+    it("sets hemisphere to south when lat is negative", () => {
+      const card = createAndMount();
+      card._lat = -33.9; // Sydney
+      card._lon = 151.2;
+      card._render();
+      expect(card._hemisphere).toBe("south");
+      card.remove();
+    });
+  });
+
+  describe("pointer events when not dragging", () => {
+    it("pointermove before pointerdown is a no-op", () => {
+      const card = createAndMount();
+      const svg = card.shadowRoot.querySelector("#solar-view svg");
+      const centerBefore = card._viewCenterX;
+      svg.dispatchEvent(new PointerEvent("pointermove", { clientX: 300, clientY: 300 }));
+      expect(card._viewCenterX).toBe(centerBefore);
+      card.remove();
+    });
+
+    it("pointerup before pointerdown is a no-op", () => {
+      const card = createAndMount();
+      const svg = card.shadowRoot.querySelector("#solar-view svg");
+      svg.releasePointerCapture = () => {};
+      // Should not throw and dragging flag stays false
+      svg.dispatchEvent(new PointerEvent("pointerup", { clientX: 300, clientY: 300 }));
+      expect(card._isDragging).toBe(false);
+      card.remove();
     });
   });
 

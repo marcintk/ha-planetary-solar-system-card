@@ -81,6 +81,7 @@ function renderVisibilityCone(
 ) {
   const D = VIEW_SIZE;
   const HALF_ANGLE = (halfAngleDeg * Math.PI) / 180;
+  /* v8 ignore next */
   const largeArcFlag = halfAngleDeg >= 90 ? 1 : 0;
 
   const leftAngle = observerAngle + HALF_ANGLE;

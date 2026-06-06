@@ -8,6 +8,12 @@ export default defineConfig({
       include: ["src/**/*.js"],
       reporter: ["text", "html", "json-summary", "json"],
       reportsDirectory: "coverage",
+      thresholds: {
+        statements: 99,
+        branches: 99,
+        functions: 99,
+        lines: 99,
+      },
     },
   },
 });

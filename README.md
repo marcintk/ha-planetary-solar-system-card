@@ -11,7 +11,7 @@ Sun. Navigate time, zoom, and pan interactively.
 
 [**→ Try the interactive demo**](https://marcintk.github.io/ha-planetary-solar-system-card/)
 
-[![Preview](https://raw.githubusercontent.com/marcintk/ha-planetary-solar-system-card/main/docs/example.png)](https://marcintk.github.io/ha-planetary-solar-system-card/)
+[![Preview](https://raw.githubusercontent.com/marcintk/ha-planetary-solar-system-card/main/docs/preview.png)](https://marcintk.github.io/ha-planetary-solar-system-card/)
 
 ## Installation
 

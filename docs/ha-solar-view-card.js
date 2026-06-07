@@ -1,1 +1,0 @@
-../dist/ha-solar-view-card.js

@@ -22,6 +22,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v5
         with:
@@ -29,6 +31,11 @@ jobs:
           cache: npm
 
       - run: npm ci
+
+      - name: Set version from latest git tag
+        run: |
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          npm pkg set version="${LATEST_TAG#v}"
 
       - run: npm run build:prod
 

@@ -1,7 +1,8 @@
 import { auToRadius, CENTER, createSvgElement } from "./svg-utils.js";
 
-const ORBIT_COLOR = "rgba(255, 255, 255, 0.12)";
+const DEFAULT_ORBIT_COLOR = "rgba(255, 255, 255, 0.12)";
 const TAIL_COLOR = "rgba(136, 204, 255, 0.5)";
+const DEFAULT_LABEL_COLOR = "#ffffff";
 
 /**
  * Compute the visual ellipse parameters in pixel space for a comet.
@@ -31,7 +32,8 @@ export function computeCometVisualEllipse(comet) {
  * Render a comet's orbit as an SVG ellipse in pixel space.
  * The ellipse is offset so the Sun (at CENTER) sits at one focus.
  */
-export function renderCometOrbit(svg, comet) {
+export function renderCometOrbit(svg, comet, colors = {}) {
+  const orbitColor = colors.orbit ?? DEFAULT_ORBIT_COLOR;
   const { aPx, bPx, cPx, rotationDeg } = computeCometVisualEllipse(comet);
 
   svg.appendChild(
@@ -41,7 +43,7 @@ export function renderCometOrbit(svg, comet) {
       rx: aPx,
       ry: bPx,
       fill: "none",
-      stroke: ORBIT_COLOR,
+      stroke: orbitColor,
       "stroke-width": 1,
       "stroke-dasharray": "4, 8",
       transform: `rotate(${-rotationDeg}, ${CENTER}, ${CENTER}) translate(${-cPx}, 0)`,
@@ -53,7 +55,8 @@ export function renderCometOrbit(svg, comet) {
  * Render the comet body and its anti-sunward tail.
  * The tail always points directly away from the Sun.
  */
-export function renderCometBody(svg, x, y, comet, sunX, sunY, dynamicTailLength) {
+export function renderCometBody(svg, x, y, comet, sunX, sunY, dynamicTailLength, colors = {}) {
+  const labelColor = colors.label ?? DEFAULT_LABEL_COLOR;
   // Direction away from the Sun
   const dx = x - sunX;
   const dy = y - sunY;
@@ -95,7 +98,7 @@ export function renderCometBody(svg, x, y, comet, sunX, sunY, dynamicTailLength)
     createSvgElement("text", {
       x: x,
       y: y - comet.size - 6,
-      fill: "#ffffff",
+      fill: labelColor,
       "font-size": "11",
       "font-family": "sans-serif",
       "text-anchor": "middle",

@@ -1,10 +1,13 @@
 import { CENTER, createSvgElement, MAX_RADIUS, VIEW_SIZE } from "./svg-utils.js";
 
-const SEASON_LINE_COLOR = "rgba(255, 255, 255, 0.25)";
-const SEASON_LABEL_COLOR = "rgba(255, 255, 255, 0.5)";
+const DEFAULT_SEASON_LINE_COLOR = "rgba(255, 255, 255, 0.25)";
+const DEFAULT_SEASON_LABEL_COLOR = "rgba(255, 255, 255, 0.5)";
 const SEASON_FONT_SIZE = 20;
 
-export function renderSeasonOverlay(svg, hemisphere) {
+export function renderSeasonOverlay(svg, hemisphere, colors = {}) {
+  const lineColor = colors.seasonLine ?? DEFAULT_SEASON_LINE_COLOR;
+  const labelColor = colors.seasonLabel ?? DEFAULT_SEASON_LABEL_COLOR;
+
   // Dotted dividing lines through the Sun
   svg.appendChild(
     createSvgElement("line", {
@@ -12,7 +15,7 @@ export function renderSeasonOverlay(svg, hemisphere) {
       y1: CENTER,
       x2: VIEW_SIZE,
       y2: CENTER,
-      stroke: SEASON_LINE_COLOR,
+      stroke: lineColor,
       "stroke-width": 1,
       "stroke-dasharray": "4, 6",
     })
@@ -23,7 +26,7 @@ export function renderSeasonOverlay(svg, hemisphere) {
       y1: 0,
       x2: CENTER,
       y2: VIEW_SIZE,
-      stroke: SEASON_LINE_COLOR,
+      stroke: lineColor,
       "stroke-width": 1,
       "stroke-dasharray": "4, 6",
     })
@@ -82,7 +85,7 @@ export function renderSeasonOverlay(svg, hemisphere) {
     defs.appendChild(arcPath);
 
     const text = createSvgElement("text", {
-      fill: SEASON_LABEL_COLOR,
+      fill: labelColor,
       "font-size": SEASON_FONT_SIZE,
       "font-family": "sans-serif",
     });

@@ -4,6 +4,12 @@ import { buildCardHtml, buildStatusBarHtml } from "./card-template.js";
 import { DEFAULT_ZOOM_LEVEL, MAX_ZOOM, MIN_ZOOM, ViewState } from "./card-view-state.js";
 import { ZoomAnimator } from "./zoom-animator.js";
 
+const DEFAULT_COLORS = {
+  background: "#1a1a2e",
+  orbit: "rgba(255, 255, 255, 0.12)",
+  label: "#ffffff",
+};
+
 export class SolarViewCard extends HTMLElement {
   constructor() {
     super();
@@ -17,6 +23,7 @@ export class SolarViewCard extends HTMLElement {
     this._timezone = null;
     this._locationName = null;
     this._autoUpdateTimer = null; // Auto-update timer
+    this._colors = { ...DEFAULT_COLORS };
   }
 
   // ---------------------------------------------------------------------------
@@ -73,6 +80,12 @@ export class SolarViewCard extends HTMLElement {
     this._periodicZoomMax =
       Number.isInteger(rawMax) && rawMax >= 2 && rawMax <= MAX_ZOOM ? rawMax : MAX_ZOOM;
     this._zoomAnimate = config.zoom_animate !== false;
+
+    this._colors = {
+      background: config.colors?.background ?? DEFAULT_COLORS.background,
+      orbit: config.colors?.orbit ?? DEFAULT_COLORS.orbit,
+      label: config.colors?.label ?? DEFAULT_COLORS.label,
+    };
 
     // Recreate timer if already connected
     if (this._autoUpdateTimer != null) {
@@ -218,8 +231,15 @@ export class SolarViewCard extends HTMLElement {
       this._viewState.zoomLevel
     );
 
+    this.shadowRoot.querySelector(".card").style.background = this._colors.background;
+
     const container = this.shadowRoot.getElementById("solar-view");
-    const { svg, positions } = renderSolarSystem(this._currentDate, this._hemisphere, locationData);
+    const { svg, positions } = renderSolarSystem(
+      this._currentDate,
+      this._hemisphere,
+      locationData,
+      this._colors
+    );
     this._positions = positions;
     container.appendChild(svg);
 
@@ -290,6 +310,11 @@ export class SolarViewCard extends HTMLElement {
       periodic_zoom_max: 4,
       refresh_mins: 1,
       zoom_animate: true,
+      colors: {
+        background: DEFAULT_COLORS.background,
+        orbit: DEFAULT_COLORS.orbit,
+        label: DEFAULT_COLORS.label,
+      },
     };
   }
 }

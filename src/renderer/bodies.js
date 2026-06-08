@@ -1,16 +1,19 @@
 import { CENTER, createSvgElement } from "./svg-utils.js";
 
 export const ORBIT_COLOR = "rgba(255, 255, 255, 0.12)";
-const LABEL_COLOR = "rgba(255, 255, 255, 0.5)";
+const AU_LABEL_COLOR = "rgba(255, 255, 255, 0.5)";
+const DEFAULT_LABEL_COLOR = "#ffffff";
 
-export function renderOrbit(svg, radius, auLabel) {
+export function renderOrbit(svg, radius, auLabel, colors = {}) {
+  const orbitColor = colors.orbit ?? ORBIT_COLOR;
+
   svg.appendChild(
     createSvgElement("circle", {
       cx: CENTER,
       cy: CENTER,
       r: radius,
       fill: "none",
-      stroke: ORBIT_COLOR,
+      stroke: orbitColor,
       "stroke-width": 1,
       "stroke-dasharray": "5, 5",
     })
@@ -21,7 +24,7 @@ export function renderOrbit(svg, radius, auLabel) {
   const offset = 3;
   const horizontalOffset = 3;
   const labelAttrs = {
-    fill: LABEL_COLOR,
+    fill: AU_LABEL_COLOR,
     "font-size": "9",
     "font-family": "sans-serif",
     "text-anchor": "start",
@@ -46,7 +49,9 @@ export function renderOrbit(svg, radius, auLabel) {
   ).textContent = `${Number(auLabel).toFixed(1)} AU`;
 }
 
-export function renderBody(svg, x, y, body, showLabel = true) {
+export function renderBody(svg, x, y, body, showLabel = true, colors = {}) {
+  const labelColor = colors.label ?? DEFAULT_LABEL_COLOR;
+
   svg.appendChild(
     createSvgElement("circle", {
       cx: x,
@@ -61,7 +66,7 @@ export function renderBody(svg, x, y, body, showLabel = true) {
       createSvgElement("text", {
         x: x,
         y: y - body.size - 6,
-        fill: "#ffffff",
+        fill: labelColor,
         "font-size": "11",
         "font-family": "sans-serif",
         "text-anchor": "middle",

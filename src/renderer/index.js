@@ -17,9 +17,13 @@ import { auToRadius, CENTER, createSvgElement, expandBounds, VIEW_SIZE } from ".
  * @param {Date} date - date to calculate positions for
  * @param {string} [hemisphere="north"] - "north" or "south" for season labels
  * @param {{ lat: number, lon: number, timezone: string } | null} [locationData] - observer location from HA config
+ * @param {{ background?: string, orbit?: string, label?: string, seasonLine?: string, seasonLabel?: string }} [colors] - optional color overrides
  * @returns {{ svg: SVGElement, bounds: { minX: number, minY: number, maxX: number, maxY: number } }}
  */
-export function renderSolarSystem(date, hemisphere = "north", locationData = null) {
+export function renderSolarSystem(date, hemisphere = "north", locationData = null, colors = {}) {
+  const orbitColor = colors.orbit ?? ORBIT_COLOR;
+  const labelColor = colors.label ?? "#ffffff";
+
   const svg = createSvgElement("svg", {
     viewBox: `0 0 ${VIEW_SIZE} ${VIEW_SIZE}`,
     width: "100%",
@@ -36,19 +40,19 @@ export function renderSolarSystem(date, hemisphere = "north", locationData = nul
   renderDayNightSplit(svg, earthRadius, date, earth.size, locationData);
 
   // Season quadrant overlay (after day/night, before orbits)
-  renderSeasonOverlay(svg, hemisphere);
+  renderSeasonOverlay(svg, hemisphere, colors);
 
   // Draw orbits (planets then comets, so all orbits are behind bodies)
   for (const planet of PLANETS) {
     const radius = auToRadius(planet.au);
-    renderOrbit(svg, radius, planet.au);
+    renderOrbit(svg, radius, planet.au, colors);
   }
   for (const comet of COMETS) {
-    renderCometOrbit(svg, comet);
+    renderCometOrbit(svg, comet, colors);
   }
 
   // Sun at center
-  renderBody(svg, CENTER, CENTER, SUN, false);
+  renderBody(svg, CENTER, CENTER, SUN, false, colors);
   expandBounds(bounds, CENTER, CENTER, SUN.size);
 
   // Draw planets
@@ -62,7 +66,7 @@ export function renderSolarSystem(date, hemisphere = "north", locationData = nul
       // Shrink Saturn's body to make room for top-down circular ring
       const saturnRenderSize = Math.round(planet.size / 2);
       const saturnOverride = { ...planet, size: saturnRenderSize };
-      renderBody(svg, x, y, saturnOverride, false);
+      renderBody(svg, x, y, saturnOverride, false, colors);
       expandBounds(bounds, x, y, saturnOverride.size + 20);
       renderSaturnRings(svg, x, y, planet, saturnRenderSize);
       // Draw label after rings so it paints on top
@@ -70,7 +74,7 @@ export function renderSolarSystem(date, hemisphere = "north", locationData = nul
         createSvgElement("text", {
           x: x,
           y: y - saturnRenderSize - 16,
-          fill: "#ffffff",
+          fill: labelColor,
           "font-size": "11",
           "font-family": "sans-serif",
           "text-anchor": "middle",
@@ -79,7 +83,7 @@ export function renderSolarSystem(date, hemisphere = "north", locationData = nul
       // Total footprint: ring outer edge = ringRadius + strokeWidth/2 = (planet.size - 2) + 2 = planet.size
       expandBounds(bounds, x, y, planet.size);
     } else {
-      renderBody(svg, x, y, planet);
+      renderBody(svg, x, y, planet, true, colors);
       // Account for body size + label height (~17px above body)
       expandBounds(bounds, x, y, planet.size + 17);
     }
@@ -96,7 +100,7 @@ export function renderSolarSystem(date, hemisphere = "north", locationData = nul
     const perihelion = comet.semiMajorAxis * (1 - comet.eccentricity);
     const tailScale = Math.min(1, perihelion / radius);
     const dynamicTail = comet.tailLength * tailScale;
-    renderCometBody(svg, cx, cy, comet, CENTER, CENTER, dynamicTail);
+    renderCometBody(svg, cx, cy, comet, CENTER, CENTER, dynamicTail, colors);
     positions.push({ name: comet.name, x: cx, y: cy, color: comet.color });
     expandBounds(bounds, cx, cy, comet.size + dynamicTail);
   }
@@ -120,13 +124,13 @@ export function renderSolarSystem(date, hemisphere = "north", locationData = nul
       cy: earthY,
       r: moonPixelOffset,
       fill: "none",
-      stroke: ORBIT_COLOR,
+      stroke: orbitColor,
       "stroke-width": 0.5,
       "stroke-dasharray": "2, 3",
     })
   );
 
-  renderBody(svg, moonX, moonY, MOON, false);
+  renderBody(svg, moonX, moonY, MOON, false, colors);
   expandBounds(bounds, moonX, moonY, MOON.size + 17);
 
   // Observer needle on Earth (tip at surface)

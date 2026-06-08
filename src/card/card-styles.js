@@ -3,7 +3,7 @@ export const CARD_STYLES = `
     display: block;
   }
   .card {
-    background: transparent;
+    background: #1a1a2e;
     border-radius: 0px;
     padding: 0px;
     color: #ffffff;

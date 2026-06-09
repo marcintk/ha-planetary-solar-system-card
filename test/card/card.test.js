@@ -32,7 +32,7 @@ describe("SolarViewCard", () => {
       refresh_mins: 1,
       zoom_animate: true,
       colors: {
-        background: "#1a1a2e",
+        background: "#090909",
         orbit: "rgba(255, 255, 255, 0.12)",
         label: "#ffffff",
       },

@@ -4,6 +4,7 @@
 [![GitHub Release](https://img.shields.io/github/release/marcintk/ha-planetary-solar-system-card.svg)](https://github.com/marcintk/ha-planetary-solar-system-card/releases)
 [![License](https://img.shields.io/github/license/marcintk/ha-planetary-solar-system-card.svg)](LICENSE)
 ![Maintenance](https://img.shields.io/maintenance/yes/2026)
+[![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen)](https://github.com/marcintk/ha-planetary-solar-system-card/actions/workflows/build-and-test.yml)
 [![CI](https://github.com/marcintk/ha-planetary-solar-system-card/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/marcintk/ha-planetary-solar-system-card/actions/workflows/build-and-test.yml)
 
 Home Assistant custom Lovelace card showing all 8 planets, Moon and comet Halley aligned around the

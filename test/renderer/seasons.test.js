@@ -139,7 +139,7 @@ describe("renderSeasonOverlay fixed label radius", () => {
   });
 });
 
-describe("renderSeasonOverlay flip_view", () => {
+describe("renderSeasonOverlay south_ecliptic_pole", () => {
   function getArcPaths(svg) {
     return Array.from(svg.querySelectorAll("defs path")).map((p) => p.getAttribute("d"));
   }

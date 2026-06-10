@@ -87,7 +87,7 @@ export class SolarViewCard extends HTMLElement {
       label: config.colors?.label ?? DEFAULT_COLORS.label,
     };
 
-    this._flipView = config.flip_view === true;
+    this._southEclipticPole = config.south_ecliptic_pole === true;
 
     // Recreate timer if already connected
     if (this._autoUpdateTimer != null) {
@@ -241,7 +241,7 @@ export class SolarViewCard extends HTMLElement {
       this._hemisphere,
       locationData,
       this._colors,
-      this._flipView
+      this._southEclipticPole
     );
     this._positions = positions;
     container.appendChild(svg);

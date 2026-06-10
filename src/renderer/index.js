@@ -25,9 +25,9 @@ export function renderSolarSystem(
   hemisphere = "north",
   locationData = null,
   colors = {},
-  flipView = false
+  southEclipticPole = false
 ) {
-  const yDir = flipView ? 1 : -1;
+  const eclipticSign = southEclipticPole ? 1 : -1;
   const orbitColor = colors.orbit ?? ORBIT_COLOR;
   const labelColor = colors.label ?? "#ffffff";
 
@@ -44,10 +44,10 @@ export function renderSolarSystem(
   // Day/night split (rendered first, behind everything)
   const earth = PLANETS.find((p) => p.name === "Earth");
   const earthRadius = auToRadius(1.0);
-  renderDayNightSplit(svg, earthRadius, date, earth.size, locationData, yDir);
+  renderDayNightSplit(svg, earthRadius, date, earth.size, locationData, eclipticSign);
 
   // Season quadrant overlay (after day/night, before orbits)
-  renderSeasonOverlay(svg, hemisphere, colors, yDir);
+  renderSeasonOverlay(svg, hemisphere, colors, eclipticSign);
 
   // Draw orbits (planets then comets, so all orbits are behind bodies)
   for (const planet of PLANETS) {
@@ -67,7 +67,7 @@ export function renderSolarSystem(
     const angle = calculatePlanetPosition(planet, date);
     const radius = auToRadius(planet.au);
     const x = CENTER + radius * Math.cos(angle);
-    const y = CENTER + yDir * radius * Math.sin(angle);
+    const y = CENTER + eclipticSign * radius * Math.sin(angle);
     positions.push({ name: planet.name, x, y, color: planet.color });
     if (planet.name === "Saturn") {
       // Shrink Saturn's body to make room for top-down circular ring
@@ -102,7 +102,7 @@ export function renderSolarSystem(
     const { aPx, ePx } = computeCometVisualEllipse(comet);
     const rPx = (aPx * (1 - ePx * ePx)) / (1 + ePx * Math.cos(trueAnomaly));
     const cx = CENTER + rPx * Math.cos(angle);
-    const cy = CENTER + yDir * rPx * Math.sin(angle);
+    const cy = CENTER + eclipticSign * rPx * Math.sin(angle);
     // Tail scales inversely with distance from Sun
     const perihelion = comet.semiMajorAxis * (1 - comet.eccentricity);
     const tailScale = Math.min(1, perihelion / radius);
@@ -116,12 +116,12 @@ export function renderSolarSystem(
   const earthAngle = calculatePlanetPosition(earth, date);
   const earthPixelRadius = auToRadius(earth.au);
   const earthX = CENTER + earthPixelRadius * Math.cos(earthAngle);
-  const earthY = CENTER + yDir * earthPixelRadius * Math.sin(earthAngle);
+  const earthY = CENTER + eclipticSign * earthPixelRadius * Math.sin(earthAngle);
 
   const moonAngle = calculateMoonPosition(date);
   const moonPixelOffset = 22; // pixels from Earth
   const moonX = earthX + moonPixelOffset * Math.cos(moonAngle);
-  const moonY = earthY + yDir * moonPixelOffset * Math.sin(moonAngle);
+  const moonY = earthY + eclipticSign * moonPixelOffset * Math.sin(moonAngle);
   positions.push({ name: MOON.name, x: moonX, y: moonY, color: MOON.color, offscreen: false });
 
   // Moon orbit (dotted circle centered on Earth)
@@ -147,7 +147,7 @@ export function renderSolarSystem(
     locationData?.timezone,
     locationData?.lon
   );
-  renderObserverNeedle(svg, earthX, earthY, observerAngle, earth.size, yDir);
+  renderObserverNeedle(svg, earthX, earthY, observerAngle, earth.size, eclipticSign);
 
   // Moon phase indicator (rendered last so it appears on top)
   renderMoonPhaseIndicator(svg, date, hemisphere);

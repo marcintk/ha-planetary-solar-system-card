@@ -168,7 +168,7 @@ describe("renderObserverNeedle", () => {
     expect(dot.getAttribute("cy")).toBe(line.getAttribute("y2"));
   });
 
-  it("yDir=1 mirrors tip Y around earthY compared to yDir=-1", () => {
+  it("eclipticSign=1 mirrors tip Y around earthY compared to eclipticSign=-1", () => {
     const earthY = 400;
     const angle = Math.PI / 4;
     const size = 20;
@@ -189,7 +189,7 @@ describe("renderObserverNeedle", () => {
 });
 
 describe("renderDayNightSplit flip_view", () => {
-  it("yDir=1 mirrors anchor Y around CENTER compared to yDir=-1", () => {
+  it("eclipticSign=1 mirrors anchor Y around CENTER compared to eclipticSign=-1", () => {
     const earth = PLANETS.find((p) => p.name === "Earth");
     const date = new Date("2025-06-15T06:00:00Z");
 

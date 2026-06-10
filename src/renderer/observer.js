@@ -77,7 +77,8 @@ function renderVisibilityCone(
   observerAngle,
   halfAngleDeg,
   clipId,
-  fillColor
+  fillColor,
+  yDir = -1
 ) {
   const D = VIEW_SIZE;
   const HALF_ANGLE = (halfAngleDeg * Math.PI) / 180;
@@ -87,9 +88,9 @@ function renderVisibilityCone(
   const leftAngle = observerAngle + HALF_ANGLE;
   const rightAngle = observerAngle - HALF_ANGLE;
   const leftX = anchorX + D * Math.cos(leftAngle);
-  const leftY = anchorY - D * Math.sin(leftAngle);
+  const leftY = anchorY + yDir * D * Math.sin(leftAngle);
   const rightX = anchorX + D * Math.cos(rightAngle);
-  const rightY = anchorY - D * Math.sin(rightAngle);
+  const rightY = anchorY + yDir * D * Math.sin(rightAngle);
 
   // SVG path: MoveTo apex, LineTo left edge, Arc to right edge, ClosePath
   const pathD = `M ${anchorX} ${anchorY} L ${leftX} ${leftY} A ${D} ${D} 0 ${largeArcFlag} 1 ${rightX} ${rightY} Z`;
@@ -112,7 +113,14 @@ function renderVisibilityCone(
   );
 }
 
-export function renderDayNightSplit(svg, earthRadius, date, earthBodySize, locationData) {
+export function renderDayNightSplit(
+  svg,
+  earthRadius,
+  date,
+  earthBodySize,
+  locationData,
+  yDir = -1
+) {
   const earth = PLANETS.find((p) => p.name === "Earth");
   const earthAngle = calculatePlanetPosition(earth, date);
   const observerAngle = calculateObserverAngle(
@@ -129,9 +137,9 @@ export function renderDayNightSplit(svg, earthRadius, date, earthBodySize, locat
 
   // Anchor point at Earth's surface
   const earthOrbitalX = CENTER + earthRadius * earthDirX;
-  const earthOrbitalY = CENTER - earthRadius * earthDirY;
+  const earthOrbitalY = CENTER + yDir * earthRadius * earthDirY;
   const anchorX = earthOrbitalX + earthBodySize * obsDirX;
-  const anchorY = earthOrbitalY - earthBodySize * obsDirY;
+  const anchorY = earthOrbitalY + yDir * earthBodySize * obsDirY;
 
   // Filled cone — colour determined by which twilight phase the solar elevation falls in.
   // Half-angle = 90° − elevationDeg expands the cone below the horizon during twilight.
@@ -148,7 +156,16 @@ export function renderDayNightSplit(svg, earthRadius, date, earthBodySize, locat
   else if (elevationDeg >= -18) coneColor = CONE_ASTRONOMICAL;
   else coneColor = CONE_NIGHT;
   const halfAngle = elevationDeg >= 0 || elevationDeg < -18 ? 90 : 90 - elevationDeg;
-  renderVisibilityCone(svg, anchorX, anchorY, observerAngle, halfAngle, "sky-clip", coneColor);
+  renderVisibilityCone(
+    svg,
+    anchorX,
+    anchorY,
+    observerAngle,
+    halfAngle,
+    "sky-clip",
+    coneColor,
+    yDir
+  );
 
   // Shared constants for horizon and zenith lines
   const CLIP_R = MAX_RADIUS + 30;
@@ -167,7 +184,7 @@ export function renderDayNightSplit(svg, earthRadius, date, earthBodySize, locat
       anchorX,
       anchorY,
       Math.cos(leftAngle),
-      -Math.sin(leftAngle),
+      yDir * Math.sin(leftAngle),
       CENTER,
       CENTER,
       CLIP_R
@@ -177,7 +194,7 @@ export function renderDayNightSplit(svg, earthRadius, date, earthBodySize, locat
       anchorX,
       anchorY,
       Math.cos(rightAngle),
-      -Math.sin(rightAngle),
+      yDir * Math.sin(rightAngle),
       CENTER,
       CENTER,
       CLIP_R
@@ -186,9 +203,9 @@ export function renderDayNightSplit(svg, earthRadius, date, earthBodySize, locat
     createSvgElement("line", {
       ...lineStyle,
       x1: anchorX + leftD * Math.cos(leftAngle),
-      y1: anchorY - leftD * Math.sin(leftAngle),
+      y1: anchorY + yDir * leftD * Math.sin(leftAngle),
       x2: anchorX + rightD * Math.cos(rightAngle),
-      y2: anchorY - rightD * Math.sin(rightAngle),
+      y2: anchorY + yDir * rightD * Math.sin(rightAngle),
     })
   );
 
@@ -198,7 +215,7 @@ export function renderDayNightSplit(svg, earthRadius, date, earthBodySize, locat
       anchorX,
       anchorY,
       Math.cos(observerAngle),
-      -Math.sin(observerAngle),
+      yDir * Math.sin(observerAngle),
       CENTER,
       CENTER,
       CLIP_R
@@ -209,14 +226,14 @@ export function renderDayNightSplit(svg, earthRadius, date, earthBodySize, locat
       x1: anchorX,
       y1: anchorY,
       x2: anchorX + zenithD * Math.cos(observerAngle),
-      y2: anchorY - zenithD * Math.sin(observerAngle),
+      y2: anchorY + yDir * zenithD * Math.sin(observerAngle),
     })
   );
 }
 
-export function renderObserverNeedle(svg, earthX, earthY, observerAngle, earthSize) {
+export function renderObserverNeedle(svg, earthX, earthY, observerAngle, earthSize, yDir = -1) {
   const tipX = earthX + earthSize * Math.cos(observerAngle);
-  const tipY = earthY - earthSize * Math.sin(observerAngle);
+  const tipY = earthY + yDir * earthSize * Math.sin(observerAngle);
 
   svg.appendChild(
     createSvgElement("line", {

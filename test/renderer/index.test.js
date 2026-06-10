@@ -10,6 +10,7 @@ import {
   CONE_NIGHT,
   calculateObserverAngle,
 } from "../../src/renderer/observer.js";
+import { auToRadius } from "../../src/renderer/svg-utils.js";
 
 function renderInto(container, date) {
   const { svg, bounds } = renderSolarSystem(date);
@@ -612,5 +613,40 @@ describe("renderSolarSystem", () => {
     expect(indicator.querySelector("circle")).not.toBeNull();
     expect(indicator.querySelector("text")).not.toBeNull();
     expect(indicator.querySelector("text").textContent.length).toBeGreaterThan(0);
+  });
+});
+
+describe("renderSolarSystem flip_view", () => {
+  const DATE = new Date("2026-06-01");
+  const CENTER = 400;
+
+  function getEarthPosition(flipView) {
+    const { positions } = renderSolarSystem(DATE, "north", null, {}, flipView);
+    return positions.find((p) => p.name === "Earth");
+  }
+
+  it("planet Y-coordinates mirror around CENTER when flipped", () => {
+    const normal = getEarthPosition(false);
+    const flipped = getEarthPosition(true);
+    expect(normal.x).toBeCloseTo(flipped.x, 3);
+    expect(normal.y + flipped.y).toBeCloseTo(2 * CENTER, 3);
+  });
+
+  it("default (flipView=false) places planet at CENTER - radius*sin(angle)", () => {
+    const earth = PLANETS.find((p) => p.name === "Earth");
+    const angle = calculatePlanetPosition(earth, DATE);
+    const radius = auToRadius(earth.au);
+    const { positions } = renderSolarSystem(DATE, "north", null, {}, false);
+    const pos = positions.find((p) => p.name === "Earth");
+    expect(pos.y).toBeCloseTo(CENTER - radius * Math.sin(angle), 5);
+  });
+
+  it("flipped view produces a different Y for a planet not on the equator", () => {
+    const normal = getEarthPosition(false);
+    const flipped = getEarthPosition(true);
+    // Only equal if sin(angle) == 0 (planet on X-axis), extremely unlikely
+    if (Math.abs(normal.y - CENTER) > 0.5) {
+      expect(normal.y).not.toBeCloseTo(flipped.y, 1);
+    }
   });
 });

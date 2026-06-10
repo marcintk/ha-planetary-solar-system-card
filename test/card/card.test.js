@@ -19,6 +19,24 @@ describe("SolarViewCard", () => {
     expect(card._config).toEqual({ title: "test" });
   });
 
+  it("flip_view defaults to false when not set", () => {
+    const card = document.createElement("ha-planetary-solar-system-card-test");
+    card.setConfig({});
+    expect(card._flipView).toBe(false);
+  });
+
+  it("flip_view is true when config.flip_view is true", () => {
+    const card = document.createElement("ha-planetary-solar-system-card-test");
+    card.setConfig({ flip_view: true });
+    expect(card._flipView).toBe(true);
+  });
+
+  it("flip_view coerces non-boolean truthy to false", () => {
+    const card = document.createElement("ha-planetary-solar-system-card-test");
+    card.setConfig({ flip_view: 1 });
+    expect(card._flipView).toBe(false);
+  });
+
   it("getCardSize returns 6", () => {
     const card = document.createElement("ha-planetary-solar-system-card-test");
     expect(card.getCardSize()).toBe(6);

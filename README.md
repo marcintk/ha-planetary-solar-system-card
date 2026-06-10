@@ -48,14 +48,15 @@ default_zoom: 2
 
 ## Configuration
 
-| Option                 | Type    | Default   | Description                             |
-| ---------------------- | ------- | --------- | --------------------------------------- |
-| `refresh_mins`         | number  | `1`       | Auto-update interval in minutes         |
-| `default_zoom`         | number  | `1`       | Starting zoom level                     |
-| `zoom_animate`         | boolean | `true`    | Animate zoom transitions                |
-| `periodic_zoom_change` | boolean | `false`   | Cycle zoom levels on each refresh tick  |
-| `periodic_zoom_max`    | number  | `4`       | Maximum zoom level for auto-cycle (2–4) |
-| `colors`               | object  | see below | Color overrides (see Colors)            |
+| Option                 | Type    | Default   | Description                                                                  |
+| ---------------------- | ------- | --------- | ---------------------------------------------------------------------------- |
+| `refresh_mins`         | number  | `1`       | Auto-update interval in minutes                                              |
+| `default_zoom`         | number  | `1`       | Starting zoom level                                                          |
+| `zoom_animate`         | boolean | `true`    | Animate zoom transitions                                                     |
+| `periodic_zoom_change` | boolean | `false`   | Cycle zoom levels on each refresh tick                                       |
+| `periodic_zoom_max`    | number  | `4`       | Maximum zoom level for auto-cycle (2–4)                                      |
+| `colors`               | object  | see below | Color overrides (see Colors)                                                 |
+| `flip_view`            | boolean | `false`   | Mirror the view vertically (south-pole perspective, orbits appear clockwise) |
 
 ### Colors
 

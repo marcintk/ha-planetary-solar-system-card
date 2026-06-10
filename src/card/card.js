@@ -87,6 +87,8 @@ export class SolarViewCard extends HTMLElement {
       label: config.colors?.label ?? DEFAULT_COLORS.label,
     };
 
+    this._flipView = config.flip_view === true;
+
     // Recreate timer if already connected
     if (this._autoUpdateTimer != null) {
       this._startAutoUpdateTimer();
@@ -238,7 +240,8 @@ export class SolarViewCard extends HTMLElement {
       this._currentDate,
       this._hemisphere,
       locationData,
-      this._colors
+      this._colors,
+      this._flipView
     );
     this._positions = positions;
     container.appendChild(svg);

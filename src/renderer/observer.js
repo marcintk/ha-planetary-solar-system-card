@@ -78,7 +78,7 @@ function renderVisibilityCone(
   halfAngleDeg,
   clipId,
   fillColor,
-  eclipticSign = -1
+  eclipticViewDirection = -1
 ) {
   const D = VIEW_SIZE;
   const HALF_ANGLE = (halfAngleDeg * Math.PI) / 180;
@@ -88,9 +88,9 @@ function renderVisibilityCone(
   const leftAngle = observerAngle + HALF_ANGLE;
   const rightAngle = observerAngle - HALF_ANGLE;
   const leftX = anchorX + D * Math.cos(leftAngle);
-  const leftY = anchorY + eclipticSign * D * Math.sin(leftAngle);
+  const leftY = anchorY + eclipticViewDirection * D * Math.sin(leftAngle);
   const rightX = anchorX + D * Math.cos(rightAngle);
-  const rightY = anchorY + eclipticSign * D * Math.sin(rightAngle);
+  const rightY = anchorY + eclipticViewDirection * D * Math.sin(rightAngle);
 
   // SVG path: MoveTo apex, LineTo left edge, Arc to right edge, ClosePath
   const pathD = `M ${anchorX} ${anchorY} L ${leftX} ${leftY} A ${D} ${D} 0 ${largeArcFlag} 1 ${rightX} ${rightY} Z`;
@@ -119,7 +119,7 @@ export function renderDayNightSplit(
   date,
   earthBodySize,
   locationData,
-  eclipticSign = -1
+  eclipticViewDirection = -1
 ) {
   const earth = PLANETS.find((p) => p.name === "Earth");
   const earthAngle = calculatePlanetPosition(earth, date);
@@ -137,9 +137,9 @@ export function renderDayNightSplit(
 
   // Anchor point at Earth's surface
   const earthOrbitalX = CENTER + earthRadius * earthDirX;
-  const earthOrbitalY = CENTER + eclipticSign * earthRadius * earthDirY;
+  const earthOrbitalY = CENTER + eclipticViewDirection * earthRadius * earthDirY;
   const anchorX = earthOrbitalX + earthBodySize * obsDirX;
-  const anchorY = earthOrbitalY + eclipticSign * earthBodySize * obsDirY;
+  const anchorY = earthOrbitalY + eclipticViewDirection * earthBodySize * obsDirY;
 
   // Filled cone — colour determined by which twilight phase the solar elevation falls in.
   // Half-angle = 90° − elevationDeg expands the cone below the horizon during twilight.
@@ -164,7 +164,7 @@ export function renderDayNightSplit(
     halfAngle,
     "sky-clip",
     coneColor,
-    eclipticSign
+    eclipticViewDirection
   );
 
   // Shared constants for horizon and zenith lines
@@ -184,7 +184,7 @@ export function renderDayNightSplit(
       anchorX,
       anchorY,
       Math.cos(leftAngle),
-      eclipticSign * Math.sin(leftAngle),
+      eclipticViewDirection * Math.sin(leftAngle),
       CENTER,
       CENTER,
       CLIP_R
@@ -194,7 +194,7 @@ export function renderDayNightSplit(
       anchorX,
       anchorY,
       Math.cos(rightAngle),
-      eclipticSign * Math.sin(rightAngle),
+      eclipticViewDirection * Math.sin(rightAngle),
       CENTER,
       CENTER,
       CLIP_R
@@ -203,9 +203,9 @@ export function renderDayNightSplit(
     createSvgElement("line", {
       ...lineStyle,
       x1: anchorX + leftD * Math.cos(leftAngle),
-      y1: anchorY + eclipticSign * leftD * Math.sin(leftAngle),
+      y1: anchorY + eclipticViewDirection * leftD * Math.sin(leftAngle),
       x2: anchorX + rightD * Math.cos(rightAngle),
-      y2: anchorY + eclipticSign * rightD * Math.sin(rightAngle),
+      y2: anchorY + eclipticViewDirection * rightD * Math.sin(rightAngle),
     })
   );
 
@@ -215,7 +215,7 @@ export function renderDayNightSplit(
       anchorX,
       anchorY,
       Math.cos(observerAngle),
-      eclipticSign * Math.sin(observerAngle),
+      eclipticViewDirection * Math.sin(observerAngle),
       CENTER,
       CENTER,
       CLIP_R
@@ -226,7 +226,7 @@ export function renderDayNightSplit(
       x1: anchorX,
       y1: anchorY,
       x2: anchorX + zenithD * Math.cos(observerAngle),
-      y2: anchorY + eclipticSign * zenithD * Math.sin(observerAngle),
+      y2: anchorY + eclipticViewDirection * zenithD * Math.sin(observerAngle),
     })
   );
 }
@@ -237,10 +237,10 @@ export function renderObserverNeedle(
   earthY,
   observerAngle,
   earthSize,
-  eclipticSign = -1
+  eclipticViewDirection = -1
 ) {
   const tipX = earthX + earthSize * Math.cos(observerAngle);
-  const tipY = earthY + eclipticSign * earthSize * Math.sin(observerAngle);
+  const tipY = earthY + eclipticViewDirection * earthSize * Math.sin(observerAngle);
 
   svg.appendChild(
     createSvgElement("line", {

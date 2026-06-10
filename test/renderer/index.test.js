@@ -616,12 +616,12 @@ describe("renderSolarSystem", () => {
   });
 });
 
-describe("renderSolarSystem south_ecliptic_pole", () => {
+describe("renderSolarSystem ecliptic_view", () => {
   const DATE = new Date("2026-06-01");
   const CENTER = 400;
 
-  function getEarthPosition(southEclipticPole) {
-    const { positions } = renderSolarSystem(DATE, "north", null, {}, southEclipticPole);
+  function getEarthPosition(eclipticView) {
+    const { positions } = renderSolarSystem(DATE, "north", null, {}, eclipticView);
     return positions.find((p) => p.name === "Earth");
   }
 
@@ -632,7 +632,7 @@ describe("renderSolarSystem south_ecliptic_pole", () => {
     expect(normal.y + flipped.y).toBeCloseTo(2 * CENTER, 3);
   });
 
-  it("default (southEclipticPole=false) places planet at CENTER - radius*sin(angle)", () => {
+  it("default (eclipticView=false) places planet at CENTER - radius*sin(angle)", () => {
     const earth = PLANETS.find((p) => p.name === "Earth");
     const angle = calculatePlanetPosition(earth, DATE);
     const radius = auToRadius(earth.au);

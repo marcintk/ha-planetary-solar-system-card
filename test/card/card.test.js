@@ -19,22 +19,22 @@ describe("SolarViewCard", () => {
     expect(card._config).toEqual({ title: "test" });
   });
 
-  it("south_ecliptic_pole defaults to false when not set", () => {
+  it("ecliptic_view defaults to false when not set", () => {
     const card = document.createElement("ha-planetary-solar-system-card-test");
     card.setConfig({});
-    expect(card._southEclipticPole).toBe(false);
+    expect(card._eclipticView).toBe(false);
   });
 
-  it("south_ecliptic_pole is true when config.south_ecliptic_pole is true", () => {
+  it("ecliptic_view is true when config.ecliptic_view is true", () => {
     const card = document.createElement("ha-planetary-solar-system-card-test");
-    card.setConfig({ south_ecliptic_pole: true });
-    expect(card._southEclipticPole).toBe(true);
+    card.setConfig({ ecliptic_view: true });
+    expect(card._eclipticView).toBe(true);
   });
 
-  it("south_ecliptic_pole coerces non-boolean truthy to false", () => {
+  it("ecliptic_view coerces non-boolean truthy to false", () => {
     const card = document.createElement("ha-planetary-solar-system-card-test");
-    card.setConfig({ south_ecliptic_pole: 1 });
-    expect(card._southEclipticPole).toBe(false);
+    card.setConfig({ ecliptic_view: 1 });
+    expect(card._eclipticView).toBe(false);
   });
 
   it("getCardSize returns 6", () => {

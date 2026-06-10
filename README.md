@@ -56,7 +56,7 @@ default_zoom: 2
 | `periodic_zoom_change` | boolean | `false`   | Cycle zoom levels on each refresh tick                      |
 | `periodic_zoom_max`    | number  | `4`       | Maximum zoom level for auto-cycle (2–4)                     |
 | `colors`               | object  | see below | Color overrides (see Colors)                                |
-| `south_ecliptic_pole`  | boolean | `false`   | View from the south ecliptic pole (orbits appear clockwise) |
+| `ecliptic_view`        | boolean | `false`   | View from the south ecliptic pole (orbits appear clockwise) |
 
 ### Colors
 

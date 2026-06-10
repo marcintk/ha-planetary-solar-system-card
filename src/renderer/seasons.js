@@ -4,7 +4,7 @@ const DEFAULT_SEASON_LINE_COLOR = "rgba(255, 255, 255, 0.25)";
 const DEFAULT_SEASON_LABEL_COLOR = "rgba(255, 255, 255, 0.5)";
 const SEASON_FONT_SIZE = 20;
 
-export function renderSeasonOverlay(svg, hemisphere, colors = {}, eclipticSign = -1) {
+export function renderSeasonOverlay(svg, hemisphere, colors = {}, eclipticViewDirection = -1) {
   const lineColor = colors.seasonLine ?? DEFAULT_SEASON_LINE_COLOR;
   const labelColor = colors.seasonLabel ?? DEFAULT_SEASON_LABEL_COLOR;
 
@@ -64,19 +64,19 @@ export function renderSeasonOverlay(svg, hemisphere, colors = {}, eclipticSign =
 
     // Top-half arcs (0–90° and 90–180°) render text upside-down because the
     // default arc sweeps right-to-left in SVG space. Reverse them so textPath
-    // flows left-to-right for readable labels. When the view is flipped (eclipticSign=1)
+    // flows left-to-right for readable labels. When the view is flipped (eclipticViewDirection=1)
     // the visual top/bottom halves swap, so invert the flag.
     const naturallyTopHalf =
       season.startAngle >= 0 && season.endAngle <= 180 && season.startAngle < 180;
-    const isTopHalf = eclipticSign === -1 ? naturallyTopHalf : !naturallyTopHalf;
+    const isTopHalf = eclipticViewDirection === -1 ? naturallyTopHalf : !naturallyTopHalf;
     // Use a smaller radius for top-half labels so they appear visually
     // at the same distance from Neptune's orbit as bottom-half labels
     const arcRadius = isTopHalf ? labelRadius - 12 : labelRadius;
 
     const x1 = CENTER + arcRadius * Math.cos(startRad);
-    const y1 = CENTER + eclipticSign * arcRadius * Math.sin(startRad);
+    const y1 = CENTER + eclipticViewDirection * arcRadius * Math.sin(startRad);
     const x2 = CENTER + arcRadius * Math.cos(endRad);
-    const y2 = CENTER + eclipticSign * arcRadius * Math.sin(endRad);
+    const y2 = CENTER + eclipticViewDirection * arcRadius * Math.sin(endRad);
 
     const arcPath = createSvgElement("path", {
       id: pathId,

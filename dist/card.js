@@ -208,17 +208,20 @@ function expandBounds(bounds, x, y, margin) {
   bounds.maxY = Math.max(bounds.maxY, y + margin);
 }
 
-const ORBIT_COLOR$1 = "rgba(255, 255, 255, 0.12)";
-const LABEL_COLOR$1 = "rgba(255, 255, 255, 0.5)";
+const ORBIT_COLOR = "rgba(255, 255, 255, 0.12)";
+const AU_LABEL_COLOR = "rgba(255, 255, 255, 0.5)";
+const DEFAULT_LABEL_COLOR$1 = "#ffffff";
 
-function renderOrbit(svg, radius, auLabel) {
+function renderOrbit(svg, radius, auLabel, colors = {}) {
+  const orbitColor = colors.orbit ?? ORBIT_COLOR;
+
   svg.appendChild(
     createSvgElement("circle", {
       cx: CENTER,
       cy: CENTER,
       r: radius,
       fill: "none",
-      stroke: ORBIT_COLOR$1,
+      stroke: orbitColor,
       "stroke-width": 1,
       "stroke-dasharray": "5, 5",
     })
@@ -229,7 +232,7 @@ function renderOrbit(svg, radius, auLabel) {
   const offset = 3;
   const horizontalOffset = 3;
   const labelAttrs = {
-    fill: LABEL_COLOR$1,
+    fill: AU_LABEL_COLOR,
     "font-size": "9",
     "font-family": "sans-serif",
     "text-anchor": "start",
@@ -254,7 +257,9 @@ function renderOrbit(svg, radius, auLabel) {
   ).textContent = `${Number(auLabel).toFixed(1)} AU`;
 }
 
-function renderBody(svg, x, y, body, showLabel = true) {
+function renderBody(svg, x, y, body, showLabel = true, colors = {}) {
+  const labelColor = colors.label ?? DEFAULT_LABEL_COLOR$1;
+
   svg.appendChild(
     createSvgElement("circle", {
       cx: x,
@@ -269,7 +274,7 @@ function renderBody(svg, x, y, body, showLabel = true) {
       createSvgElement("text", {
         x: x,
         y: y - body.size - 6,
-        fill: "#ffffff",
+        fill: labelColor,
         "font-size": "11",
         "font-family": "sans-serif",
         "text-anchor": "middle",
@@ -311,8 +316,9 @@ function renderSaturnRings(svg, x, y, body, _renderSize) {
   );
 }
 
-const ORBIT_COLOR = "rgba(255, 255, 255, 0.12)";
+const DEFAULT_ORBIT_COLOR = "rgba(255, 255, 255, 0.12)";
 const TAIL_COLOR = "rgba(136, 204, 255, 0.5)";
+const DEFAULT_LABEL_COLOR = "#ffffff";
 
 /**
  * Compute the visual ellipse parameters in pixel space for a comet.
@@ -342,7 +348,8 @@ function computeCometVisualEllipse(comet) {
  * Render a comet's orbit as an SVG ellipse in pixel space.
  * The ellipse is offset so the Sun (at CENTER) sits at one focus.
  */
-function renderCometOrbit(svg, comet) {
+function renderCometOrbit(svg, comet, colors = {}) {
+  const orbitColor = colors.orbit ?? DEFAULT_ORBIT_COLOR;
   const { aPx, bPx, cPx, rotationDeg } = computeCometVisualEllipse(comet);
 
   svg.appendChild(
@@ -352,7 +359,7 @@ function renderCometOrbit(svg, comet) {
       rx: aPx,
       ry: bPx,
       fill: "none",
-      stroke: ORBIT_COLOR,
+      stroke: orbitColor,
       "stroke-width": 1,
       "stroke-dasharray": "4, 8",
       transform: `rotate(${-rotationDeg}, ${CENTER}, ${CENTER}) translate(${-cPx}, 0)`,
@@ -364,7 +371,8 @@ function renderCometOrbit(svg, comet) {
  * Render the comet body and its anti-sunward tail.
  * The tail always points directly away from the Sun.
  */
-function renderCometBody(svg, x, y, comet, sunX, sunY, dynamicTailLength) {
+function renderCometBody(svg, x, y, comet, sunX, sunY, dynamicTailLength, colors = {}) {
+  const labelColor = colors.label ?? DEFAULT_LABEL_COLOR;
   // Direction away from the Sun
   const dx = x - sunX;
   const dy = y - sunY;
@@ -406,7 +414,7 @@ function renderCometBody(svg, x, y, comet, sunX, sunY, dynamicTailLength) {
     createSvgElement("text", {
       x: x,
       y: y - comet.size - 6,
-      fill: "#ffffff",
+      fill: labelColor,
       "font-size": "11",
       "font-family": "sans-serif",
       "text-anchor": "middle",
@@ -755,7 +763,8 @@ function renderVisibilityCone(
   observerAngle,
   halfAngleDeg,
   clipId,
-  fillColor
+  fillColor,
+  eclipticViewDirection = -1
 ) {
   const D = VIEW_SIZE;
   const HALF_ANGLE = (halfAngleDeg * Math.PI) / 180;
@@ -765,9 +774,9 @@ function renderVisibilityCone(
   const leftAngle = observerAngle + HALF_ANGLE;
   const rightAngle = observerAngle - HALF_ANGLE;
   const leftX = anchorX + D * Math.cos(leftAngle);
-  const leftY = anchorY - D * Math.sin(leftAngle);
+  const leftY = anchorY + eclipticViewDirection * D * Math.sin(leftAngle);
   const rightX = anchorX + D * Math.cos(rightAngle);
-  const rightY = anchorY - D * Math.sin(rightAngle);
+  const rightY = anchorY + eclipticViewDirection * D * Math.sin(rightAngle);
 
   // SVG path: MoveTo apex, LineTo left edge, Arc to right edge, ClosePath
   const pathD = `M ${anchorX} ${anchorY} L ${leftX} ${leftY} A ${D} ${D} 0 ${largeArcFlag} 1 ${rightX} ${rightY} Z`;
@@ -790,7 +799,14 @@ function renderVisibilityCone(
   );
 }
 
-function renderDayNightSplit(svg, earthRadius, date, earthBodySize, locationData) {
+function renderDayNightSplit(
+  svg,
+  earthRadius,
+  date,
+  earthBodySize,
+  locationData,
+  eclipticViewDirection = -1
+) {
   const earth = PLANETS.find((p) => p.name === "Earth");
   const earthAngle = calculatePlanetPosition(earth, date);
   const observerAngle = calculateObserverAngle(
@@ -807,9 +823,9 @@ function renderDayNightSplit(svg, earthRadius, date, earthBodySize, locationData
 
   // Anchor point at Earth's surface
   const earthOrbitalX = CENTER + earthRadius * earthDirX;
-  const earthOrbitalY = CENTER - earthRadius * earthDirY;
+  const earthOrbitalY = CENTER + eclipticViewDirection * earthRadius * earthDirY;
   const anchorX = earthOrbitalX + earthBodySize * obsDirX;
-  const anchorY = earthOrbitalY - earthBodySize * obsDirY;
+  const anchorY = earthOrbitalY + eclipticViewDirection * earthBodySize * obsDirY;
 
   // Filled cone — colour determined by which twilight phase the solar elevation falls in.
   // Half-angle = 90° − elevationDeg expands the cone below the horizon during twilight.
@@ -826,7 +842,16 @@ function renderDayNightSplit(svg, earthRadius, date, earthBodySize, locationData
   else if (elevationDeg >= -18) coneColor = CONE_ASTRONOMICAL;
   else coneColor = CONE_NIGHT;
   const halfAngle = elevationDeg >= 0 || elevationDeg < -18 ? 90 : 90 - elevationDeg;
-  renderVisibilityCone(svg, anchorX, anchorY, observerAngle, halfAngle, "sky-clip", coneColor);
+  renderVisibilityCone(
+    svg,
+    anchorX,
+    anchorY,
+    observerAngle,
+    halfAngle,
+    "sky-clip",
+    coneColor,
+    eclipticViewDirection
+  );
 
   // Shared constants for horizon and zenith lines
   const CLIP_R = MAX_RADIUS + 30;
@@ -845,7 +870,7 @@ function renderDayNightSplit(svg, earthRadius, date, earthBodySize, locationData
       anchorX,
       anchorY,
       Math.cos(leftAngle),
-      -Math.sin(leftAngle),
+      eclipticViewDirection * Math.sin(leftAngle),
       CENTER,
       CENTER,
       CLIP_R
@@ -855,7 +880,7 @@ function renderDayNightSplit(svg, earthRadius, date, earthBodySize, locationData
       anchorX,
       anchorY,
       Math.cos(rightAngle),
-      -Math.sin(rightAngle),
+      eclipticViewDirection * Math.sin(rightAngle),
       CENTER,
       CENTER,
       CLIP_R
@@ -864,9 +889,9 @@ function renderDayNightSplit(svg, earthRadius, date, earthBodySize, locationData
     createSvgElement("line", {
       ...lineStyle,
       x1: anchorX + leftD * Math.cos(leftAngle),
-      y1: anchorY - leftD * Math.sin(leftAngle),
+      y1: anchorY + eclipticViewDirection * leftD * Math.sin(leftAngle),
       x2: anchorX + rightD * Math.cos(rightAngle),
-      y2: anchorY - rightD * Math.sin(rightAngle),
+      y2: anchorY + eclipticViewDirection * rightD * Math.sin(rightAngle),
     })
   );
 
@@ -876,7 +901,7 @@ function renderDayNightSplit(svg, earthRadius, date, earthBodySize, locationData
       anchorX,
       anchorY,
       Math.cos(observerAngle),
-      -Math.sin(observerAngle),
+      eclipticViewDirection * Math.sin(observerAngle),
       CENTER,
       CENTER,
       CLIP_R
@@ -887,14 +912,21 @@ function renderDayNightSplit(svg, earthRadius, date, earthBodySize, locationData
       x1: anchorX,
       y1: anchorY,
       x2: anchorX + zenithD * Math.cos(observerAngle),
-      y2: anchorY - zenithD * Math.sin(observerAngle),
+      y2: anchorY + eclipticViewDirection * zenithD * Math.sin(observerAngle),
     })
   );
 }
 
-function renderObserverNeedle(svg, earthX, earthY, observerAngle, earthSize) {
+function renderObserverNeedle(
+  svg,
+  earthX,
+  earthY,
+  observerAngle,
+  earthSize,
+  eclipticViewDirection = -1
+) {
   const tipX = earthX + earthSize * Math.cos(observerAngle);
-  const tipY = earthY - earthSize * Math.sin(observerAngle);
+  const tipY = earthY + eclipticViewDirection * earthSize * Math.sin(observerAngle);
 
   svg.appendChild(
     createSvgElement("line", {
@@ -919,11 +951,14 @@ function renderObserverNeedle(svg, earthX, earthY, observerAngle, earthSize) {
   );
 }
 
-const SEASON_LINE_COLOR = "rgba(255, 255, 255, 0.25)";
-const SEASON_LABEL_COLOR = "rgba(255, 255, 255, 0.5)";
+const DEFAULT_SEASON_LINE_COLOR = "rgba(255, 255, 255, 0.25)";
+const DEFAULT_SEASON_LABEL_COLOR = "rgba(255, 255, 255, 0.5)";
 const SEASON_FONT_SIZE = 20;
 
-function renderSeasonOverlay(svg, hemisphere) {
+function renderSeasonOverlay(svg, hemisphere, colors = {}, eclipticViewDirection = -1) {
+  const lineColor = colors.seasonLine ?? DEFAULT_SEASON_LINE_COLOR;
+  const labelColor = colors.seasonLabel ?? DEFAULT_SEASON_LABEL_COLOR;
+
   // Dotted dividing lines through the Sun
   svg.appendChild(
     createSvgElement("line", {
@@ -931,7 +966,7 @@ function renderSeasonOverlay(svg, hemisphere) {
       y1: CENTER,
       x2: VIEW_SIZE,
       y2: CENTER,
-      stroke: SEASON_LINE_COLOR,
+      stroke: lineColor,
       "stroke-width": 1,
       "stroke-dasharray": "4, 6",
     })
@@ -942,7 +977,7 @@ function renderSeasonOverlay(svg, hemisphere) {
       y1: 0,
       x2: CENTER,
       y2: VIEW_SIZE,
-      stroke: SEASON_LINE_COLOR,
+      stroke: lineColor,
       "stroke-width": 1,
       "stroke-dasharray": "4, 6",
     })
@@ -980,16 +1015,19 @@ function renderSeasonOverlay(svg, hemisphere) {
 
     // Top-half arcs (0–90° and 90–180°) render text upside-down because the
     // default arc sweeps right-to-left in SVG space. Reverse them so textPath
-    // flows left-to-right for readable labels.
-    const isTopHalf = season.startAngle >= 0 && season.endAngle <= 180 && season.startAngle < 180;
+    // flows left-to-right for readable labels. When the view is flipped (eclipticViewDirection=1)
+    // the visual top/bottom halves swap, so invert the flag.
+    const naturallyTopHalf =
+      season.startAngle >= 0 && season.endAngle <= 180 && season.startAngle < 180;
+    const isTopHalf = eclipticViewDirection === -1 ? naturallyTopHalf : !naturallyTopHalf;
     // Use a smaller radius for top-half labels so they appear visually
     // at the same distance from Neptune's orbit as bottom-half labels
     const arcRadius = isTopHalf ? labelRadius - 12 : labelRadius;
 
     const x1 = CENTER + arcRadius * Math.cos(startRad);
-    const y1 = CENTER - arcRadius * Math.sin(startRad);
+    const y1 = CENTER + eclipticViewDirection * arcRadius * Math.sin(startRad);
     const x2 = CENTER + arcRadius * Math.cos(endRad);
-    const y2 = CENTER - arcRadius * Math.sin(endRad);
+    const y2 = CENTER + eclipticViewDirection * arcRadius * Math.sin(endRad);
 
     const arcPath = createSvgElement("path", {
       id: pathId,
@@ -1001,7 +1039,7 @@ function renderSeasonOverlay(svg, hemisphere) {
     defs.appendChild(arcPath);
 
     const text = createSvgElement("text", {
-      fill: SEASON_LABEL_COLOR,
+      fill: labelColor,
       "font-size": SEASON_FONT_SIZE,
       "font-family": "sans-serif",
     });
@@ -1021,9 +1059,20 @@ function renderSeasonOverlay(svg, hemisphere) {
  * @param {Date} date - date to calculate positions for
  * @param {string} [hemisphere="north"] - "north" or "south" for season labels
  * @param {{ lat: number, lon: number, timezone: string } | null} [locationData] - observer location from HA config
+ * @param {{ background?: string, orbit?: string, label?: string, seasonLine?: string, seasonLabel?: string }} [colors] - optional color overrides
  * @returns {{ svg: SVGElement, bounds: { minX: number, minY: number, maxX: number, maxY: number } }}
  */
-function renderSolarSystem(date, hemisphere = "north", locationData = null) {
+function renderSolarSystem(
+  date,
+  hemisphere = "north",
+  locationData = null,
+  colors = {},
+  eclipticView = false
+) {
+  const eclipticViewDirection = eclipticView ? 1 : -1;
+  const orbitColor = colors.orbit ?? ORBIT_COLOR;
+  const labelColor = colors.label ?? "#ffffff";
+
   const svg = createSvgElement("svg", {
     viewBox: `0 0 ${VIEW_SIZE} ${VIEW_SIZE}`,
     width: "100%",
@@ -1037,22 +1086,22 @@ function renderSolarSystem(date, hemisphere = "north", locationData = null) {
   // Day/night split (rendered first, behind everything)
   const earth = PLANETS.find((p) => p.name === "Earth");
   const earthRadius = auToRadius(1.0);
-  renderDayNightSplit(svg, earthRadius, date, earth.size, locationData);
+  renderDayNightSplit(svg, earthRadius, date, earth.size, locationData, eclipticViewDirection);
 
   // Season quadrant overlay (after day/night, before orbits)
-  renderSeasonOverlay(svg, hemisphere);
+  renderSeasonOverlay(svg, hemisphere, colors, eclipticViewDirection);
 
   // Draw orbits (planets then comets, so all orbits are behind bodies)
   for (const planet of PLANETS) {
     const radius = auToRadius(planet.au);
-    renderOrbit(svg, radius, planet.au);
+    renderOrbit(svg, radius, planet.au, colors);
   }
   for (const comet of COMETS) {
-    renderCometOrbit(svg, comet);
+    renderCometOrbit(svg, comet, colors);
   }
 
   // Sun at center
-  renderBody(svg, CENTER, CENTER, SUN, false);
+  renderBody(svg, CENTER, CENTER, SUN, false, colors);
   expandBounds(bounds, CENTER, CENTER, SUN.size);
 
   // Draw planets
@@ -1060,13 +1109,13 @@ function renderSolarSystem(date, hemisphere = "north", locationData = null) {
     const angle = calculatePlanetPosition(planet, date);
     const radius = auToRadius(planet.au);
     const x = CENTER + radius * Math.cos(angle);
-    const y = CENTER - radius * Math.sin(angle);
+    const y = CENTER + eclipticViewDirection * radius * Math.sin(angle);
     positions.push({ name: planet.name, x, y, color: planet.color });
     if (planet.name === "Saturn") {
       // Shrink Saturn's body to make room for top-down circular ring
       const saturnRenderSize = Math.round(planet.size / 2);
       const saturnOverride = { ...planet, size: saturnRenderSize };
-      renderBody(svg, x, y, saturnOverride, false);
+      renderBody(svg, x, y, saturnOverride, false, colors);
       expandBounds(bounds, x, y, saturnOverride.size + 20);
       renderSaturnRings(svg, x, y, planet);
       // Draw label after rings so it paints on top
@@ -1074,7 +1123,7 @@ function renderSolarSystem(date, hemisphere = "north", locationData = null) {
         createSvgElement("text", {
           x: x,
           y: y - saturnRenderSize - 16,
-          fill: "#ffffff",
+          fill: labelColor,
           "font-size": "11",
           "font-family": "sans-serif",
           "text-anchor": "middle",
@@ -1083,7 +1132,7 @@ function renderSolarSystem(date, hemisphere = "north", locationData = null) {
       // Total footprint: ring outer edge = ringRadius + strokeWidth/2 = (planet.size - 2) + 2 = planet.size
       expandBounds(bounds, x, y, planet.size);
     } else {
-      renderBody(svg, x, y, planet);
+      renderBody(svg, x, y, planet, true, colors);
       // Account for body size + label height (~17px above body)
       expandBounds(bounds, x, y, planet.size + 17);
     }
@@ -1095,12 +1144,12 @@ function renderSolarSystem(date, hemisphere = "north", locationData = null) {
     const { aPx, ePx } = computeCometVisualEllipse(comet);
     const rPx = (aPx * (1 - ePx * ePx)) / (1 + ePx * Math.cos(trueAnomaly));
     const cx = CENTER + rPx * Math.cos(angle);
-    const cy = CENTER - rPx * Math.sin(angle);
+    const cy = CENTER + eclipticViewDirection * rPx * Math.sin(angle);
     // Tail scales inversely with distance from Sun
     const perihelion = comet.semiMajorAxis * (1 - comet.eccentricity);
     const tailScale = Math.min(1, perihelion / radius);
     const dynamicTail = comet.tailLength * tailScale;
-    renderCometBody(svg, cx, cy, comet, CENTER, CENTER, dynamicTail);
+    renderCometBody(svg, cx, cy, comet, CENTER, CENTER, dynamicTail, colors);
     positions.push({ name: comet.name, x: cx, y: cy, color: comet.color });
     expandBounds(bounds, cx, cy, comet.size + dynamicTail);
   }
@@ -1109,12 +1158,12 @@ function renderSolarSystem(date, hemisphere = "north", locationData = null) {
   const earthAngle = calculatePlanetPosition(earth, date);
   const earthPixelRadius = auToRadius(earth.au);
   const earthX = CENTER + earthPixelRadius * Math.cos(earthAngle);
-  const earthY = CENTER - earthPixelRadius * Math.sin(earthAngle);
+  const earthY = CENTER + eclipticViewDirection * earthPixelRadius * Math.sin(earthAngle);
 
   const moonAngle = calculateMoonPosition(date);
   const moonPixelOffset = 22; // pixels from Earth
   const moonX = earthX + moonPixelOffset * Math.cos(moonAngle);
-  const moonY = earthY - moonPixelOffset * Math.sin(moonAngle);
+  const moonY = earthY + eclipticViewDirection * moonPixelOffset * Math.sin(moonAngle);
   positions.push({ name: MOON.name, x: moonX, y: moonY, color: MOON.color, offscreen: false });
 
   // Moon orbit (dotted circle centered on Earth)
@@ -1124,13 +1173,13 @@ function renderSolarSystem(date, hemisphere = "north", locationData = null) {
       cy: earthY,
       r: moonPixelOffset,
       fill: "none",
-      stroke: ORBIT_COLOR$1,
+      stroke: orbitColor,
       "stroke-width": 0.5,
       "stroke-dasharray": "2, 3",
     })
   );
 
-  renderBody(svg, moonX, moonY, MOON, false);
+  renderBody(svg, moonX, moonY, MOON, false, colors);
   expandBounds(bounds, moonX, moonY, MOON.size + 17);
 
   // Observer needle on Earth (tip at surface)
@@ -1140,7 +1189,7 @@ function renderSolarSystem(date, hemisphere = "north", locationData = null) {
     locationData?.timezone,
     locationData?.lon
   );
-  renderObserverNeedle(svg, earthX, earthY, observerAngle, earth.size);
+  renderObserverNeedle(svg, earthX, earthY, observerAngle, earth.size, eclipticViewDirection);
 
   // Moon phase indicator (rendered last so it appears on top)
   renderMoonPhaseIndicator(svg, date, hemisphere);
@@ -1306,9 +1355,10 @@ function renderOffscreenMarkers(positions, viewState) {
 const CARD_STYLES = `
   :host {
     display: block;
+    background: #090909;
   }
   .card {
-    background: transparent;
+    background: #090909;
     border-radius: 0px;
     padding: 0px;
     color: #ffffff;
@@ -1329,7 +1379,7 @@ const CARD_STYLES = `
     left: 0;
     right: 0;
     background: rgba(42, 42, 42, 0.3);
-    font-size: 9px;
+    font-size: 10px;
     color: rgba(255, 255, 255, 0.85);
     display: flex;
     justify-content: space-between;
@@ -1363,6 +1413,7 @@ const CARD_STYLES = `
     align-items: center;
     gap: 4px;
     margin-top: 2px;
+    position: relative;
   }
   .nav button {
     background: rgba(42, 42, 42, 0.3);
@@ -1414,9 +1465,10 @@ const CARD_STYLES = `
   .card-version {
     font-size: 9px;
     color: rgba(255, 255, 255, 0.3);
-    margin-left: 4px;
     user-select: none;
     font-family: sans-serif;
+    position: absolute;
+    right: 0;
   }
 `;
 
@@ -1650,6 +1702,12 @@ class ZoomAnimator {
   }
 }
 
+const DEFAULT_COLORS = {
+  background: "#090909",
+  orbit: "rgba(255, 255, 255, 0.12)",
+  label: "#ffffff",
+};
+
 class SolarViewCard extends HTMLElement {
   constructor() {
     super();
@@ -1663,6 +1721,7 @@ class SolarViewCard extends HTMLElement {
     this._timezone = null;
     this._locationName = null;
     this._autoUpdateTimer = null; // Auto-update timer
+    this._colors = { ...DEFAULT_COLORS };
   }
 
   // ---------------------------------------------------------------------------
@@ -1719,6 +1778,14 @@ class SolarViewCard extends HTMLElement {
     this._periodicZoomMax =
       Number.isInteger(rawMax) && rawMax >= 2 && rawMax <= MAX_ZOOM ? rawMax : MAX_ZOOM;
     this._zoomAnimate = config.zoom_animate !== false;
+
+    this._colors = {
+      background: config.colors?.background ?? DEFAULT_COLORS.background,
+      orbit: config.colors?.orbit ?? DEFAULT_COLORS.orbit,
+      label: config.colors?.label ?? DEFAULT_COLORS.label,
+    };
+
+    this._eclipticView = config.ecliptic_view === true;
 
     // Recreate timer if already connected
     if (this._autoUpdateTimer != null) {
@@ -1864,8 +1931,17 @@ class SolarViewCard extends HTMLElement {
       this._viewState.zoomLevel
     );
 
+    this.style.background = this._colors.background;
+    this.shadowRoot.querySelector(".card").style.background = this._colors.background;
+
     const container = this.shadowRoot.getElementById("solar-view");
-    const { svg, positions } = renderSolarSystem(this._currentDate, this._hemisphere, locationData);
+    const { svg, positions } = renderSolarSystem(
+      this._currentDate,
+      this._hemisphere,
+      locationData,
+      this._colors,
+      this._eclipticView
+    );
     this._positions = positions;
     container.appendChild(svg);
 
@@ -1936,6 +2012,11 @@ class SolarViewCard extends HTMLElement {
       periodic_zoom_max: 4,
       refresh_mins: 1,
       zoom_animate: true,
+      colors: {
+        background: DEFAULT_COLORS.background,
+        orbit: DEFAULT_COLORS.orbit,
+        label: DEFAULT_COLORS.label,
+      },
     };
   }
 }

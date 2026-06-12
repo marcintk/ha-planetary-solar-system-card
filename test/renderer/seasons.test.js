@@ -139,6 +139,32 @@ describe("renderSeasonOverlay fixed label radius", () => {
   });
 });
 
+describe("renderSeasonOverlay south_ecliptic_pole", () => {
+  function getArcPaths(svg) {
+    return Array.from(svg.querySelectorAll("defs path")).map((p) => p.getAttribute("d"));
+  }
+
+  it("flipped arc paths differ from normal arc paths", () => {
+    const svgNormal = createSvg();
+    renderSeasonOverlay(svgNormal, "north", {}, -1);
+    const normal = getArcPaths(svgNormal);
+
+    const svgFlipped = createSvg();
+    renderSeasonOverlay(svgFlipped, "north", {}, 1);
+    const flipped = getArcPaths(svgFlipped);
+
+    expect(normal.length).toBe(flipped.length);
+    const anyDiffers = normal.some((p, i) => p !== flipped[i]);
+    expect(anyDiffers).toBe(true);
+  });
+
+  it("still renders 4 season labels when flipped", () => {
+    const svg = createSvg();
+    renderSeasonOverlay(svg, "north", {}, 1);
+    expect(svg.querySelectorAll("textPath").length).toBe(4);
+  });
+});
+
 describe("getCurrentSeason", () => {
   it("northern hemisphere returns correct season for each quarter", () => {
     expect(getCurrentSeason(new Date("2025-03-15"), "north")).toBe("Spring");

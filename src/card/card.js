@@ -87,6 +87,8 @@ export class SolarViewCard extends HTMLElement {
       label: config.colors?.label ?? DEFAULT_COLORS.label,
     };
 
+    this._eclipticView = config.ecliptic_view === true;
+
     // Recreate timer if already connected
     if (this._autoUpdateTimer != null) {
       this._startAutoUpdateTimer();
@@ -231,6 +233,7 @@ export class SolarViewCard extends HTMLElement {
       this._viewState.zoomLevel
     );
 
+    this.style.background = this._colors.background;
     this.shadowRoot.querySelector(".card").style.background = this._colors.background;
 
     const container = this.shadowRoot.getElementById("solar-view");
@@ -238,7 +241,8 @@ export class SolarViewCard extends HTMLElement {
       this._currentDate,
       this._hemisphere,
       locationData,
-      this._colors
+      this._colors,
+      this._eclipticView
     );
     this._positions = positions;
     container.appendChild(svg);

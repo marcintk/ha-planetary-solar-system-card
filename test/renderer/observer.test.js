@@ -167,6 +167,45 @@ describe("renderObserverNeedle", () => {
     expect(dot.getAttribute("cx")).toBe(line.getAttribute("x2"));
     expect(dot.getAttribute("cy")).toBe(line.getAttribute("y2"));
   });
+
+  it("eclipticViewDirection=1 mirrors tip Y around earthY compared to eclipticViewDirection=-1", () => {
+    const earthY = 400;
+    const angle = Math.PI / 4;
+    const size = 20;
+
+    const svgNormal = createSvg();
+    renderObserverNeedle(svgNormal, 400, earthY, angle, size, -1);
+    const lineNormal = svgNormal.querySelector("line");
+
+    const svgFlipped = createSvg();
+    renderObserverNeedle(svgFlipped, 400, earthY, angle, size, 1);
+    const lineFlipped = svgFlipped.querySelector("line");
+
+    const y1 = Number(lineNormal.getAttribute("y2"));
+    const y2 = Number(lineFlipped.getAttribute("y2"));
+    expect(y1 + y2).toBeCloseTo(2 * earthY, 5);
+    expect(lineNormal.getAttribute("x2")).toBe(lineFlipped.getAttribute("x2"));
+  });
+});
+
+describe("renderDayNightSplit flip_view", () => {
+  it("eclipticViewDirection=1 mirrors anchor Y around CENTER compared to eclipticViewDirection=-1", () => {
+    const earth = PLANETS.find((p) => p.name === "Earth");
+    const date = new Date("2025-06-15T06:00:00Z");
+
+    const svgNormal = createSvg();
+    renderDayNightSplit(svgNormal, 200, date, earth.size, null, -1);
+    const pathNormal = svgNormal.querySelector("clipPath path");
+
+    const svgFlipped = createSvg();
+    renderDayNightSplit(svgFlipped, 200, date, earth.size, null, 1);
+    const pathFlipped = svgFlipped.querySelector("clipPath path");
+
+    // Anchor Y is the first pair of numbers in the path "M anchorX anchorY ..."
+    const anchorYNormal = Number(pathNormal.getAttribute("d").match(/[-\d.]+/g)[1]);
+    const anchorYFlipped = Number(pathFlipped.getAttribute("d").match(/[-\d.]+/g)[1]);
+    expect(anchorYNormal + anchorYFlipped).toBeCloseTo(2 * CENTER, 1);
+  });
 });
 
 describe("rayCircleDistance", () => {

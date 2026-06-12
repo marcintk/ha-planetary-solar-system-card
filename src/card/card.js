@@ -233,6 +233,7 @@ export class SolarViewCard extends HTMLElement {
       this._viewState.zoomLevel
     );
 
+    this.style.background = this._colors.background;
     this.shadowRoot.querySelector(".card").style.background = this._colors.background;
 
     const container = this.shadowRoot.getElementById("solar-view");

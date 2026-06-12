@@ -1355,6 +1355,7 @@ function renderOffscreenMarkers(positions, viewState) {
 const CARD_STYLES = `
   :host {
     display: block;
+    background: #090909;
   }
   .card {
     background: #090909;
@@ -1930,6 +1931,7 @@ class SolarViewCard extends HTMLElement {
       this._viewState.zoomLevel
     );
 
+    this.style.background = this._colors.background;
     this.shadowRoot.querySelector(".card").style.background = this._colors.background;
 
     const container = this.shadowRoot.getElementById("solar-view");

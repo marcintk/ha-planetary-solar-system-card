@@ -1,6 +1,7 @@
 export const CARD_STYLES = `
   :host {
     display: block;
+    background: #090909;
   }
   .card {
     background: #090909;

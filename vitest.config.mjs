@@ -1,6 +1,7 @@
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
+  define: { __CARD_VERSION__: '"test"' },
   test: {
     environment: "jsdom",
     coverage: {

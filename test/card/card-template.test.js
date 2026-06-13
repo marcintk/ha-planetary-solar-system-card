@@ -165,10 +165,10 @@ describe("buildCardHtml", () => {
     expect(spans[1].textContent).toMatch(/^Next: .+ \(\d{2}:\d{2}\)$/);
   });
 
-  it("displays a version badge starting with 'v'", () => {
+  it("displays a version badge with the injected build version", () => {
     const root = parse(buildCardHtml("", "26-03-07 12:00", 1));
     const badge = root.querySelector(".card-version");
     expect(badge).not.toBeNull();
-    expect(badge.textContent).toMatch(/^v\d+\.\d+\.\d+$/);
+    expect(badge.textContent).toBe("vtest");
   });
 });

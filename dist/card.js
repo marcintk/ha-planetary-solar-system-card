@@ -1,3 +1,6 @@
+/* ha-planetary-solar-system-card v1.0.0 */
+const __CARD_VERSION__ = '1.0.0';
+
 // Orbital elements for comets at J2000 epoch
 // Sources: JPL Small-Body Database
 const COMETS = [
@@ -1472,8 +1475,6 @@ const CARD_STYLES = `
   }
 `;
 
-const CARD_VERSION = "1.0.0";
-
 /**
  * Build the status bar HTML fragment.
  *
@@ -1537,7 +1538,7 @@ function buildCardHtml(statusBarHtml, formattedDate, zoomLevel) {
           <span class="zoom-level">${zoomLevel}</span>
           <button data-action="zoom-in">+</button>
         </span>
-        <span class="card-version">v${CARD_VERSION}</span>
+        <span class="card-version">v${__CARD_VERSION__}</span>
       </div>
     </div>
   `;

@@ -1,6 +1,6 @@
 {
   "name": "ha-planetary-solar-system-card",
-  "version": "2.0.9",
+  "version": "2.0.10",
   "description": "Home Assistant custom Lovelace card displaying a planetary solar system visualization",
   "type": "module",
   "scripts": {

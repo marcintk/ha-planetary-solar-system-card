@@ -7,6 +7,7 @@ const SEASON_FONT_SIZE = 20;
 export function renderSeasonOverlay(svg, hemisphere, colors = {}, eclipticViewDirection = -1) {
   const lineColor = colors.seasonLine ?? DEFAULT_SEASON_LINE_COLOR;
   const labelColor = colors.seasonLabel ?? DEFAULT_SEASON_LABEL_COLOR;
+  const isEcliptic = eclipticViewDirection === 1;
 
   // Dotted dividing lines through the Sun
   svg.appendChild(
@@ -32,55 +33,63 @@ export function renderSeasonOverlay(svg, hemisphere, colors = {}, eclipticViewDi
     })
   );
 
-  // Season labels curved along Neptune's orbit
-  // Quadrant mapping (Northern Hemisphere):
-  //   bottom-left = Spring, bottom-right = Summer,
-  //   top-right = Autumn, top-left = Winter
-  const northSeasons = [
-    { name: "Winter", startAngle: 90, endAngle: 180 }, // top-left
-    { name: "Autumn", startAngle: 0, endAngle: 90 }, // top-right
-    { name: "Summer", startAngle: 270, endAngle: 360 }, // bottom-right
-    { name: "Spring", startAngle: 180, endAngle: 270 }, // bottom-left
+  // Season labels curved along Neptune's orbit.
+  //
+  // Arc positions are FIXED (same SVG geometry regardless of view direction).
+  // Only the season name assigned to each quadrant changes when ecliptic view
+  // is active, because looking from the south pole swaps which seasons appear
+  // in the visual top vs. bottom half.
+  //
+  // Fixed quadrant slots [A=top-left, B=top-right, C=bottom-right, D=bottom-left]:
+  //
+  //   North normal:   A=Winter  B=Autumn  C=Summer  D=Spring
+  //   North ecliptic: A=Spring  B=Summer  C=Autumn  D=Winter
+  //   South normal:   A=Summer  B=Spring  C=Winter  D=Autumn
+  //   South ecliptic: A=Autumn  B=Winter  C=Spring  D=Summer
+  const NAME_SLOTS = {
+    north: {
+      normal: ["Winter", "Autumn", "Summer", "Spring"],
+      ecliptic: ["Spring", "Summer", "Autumn", "Winter"],
+    },
+    south: {
+      normal: ["Summer", "Spring", "Winter", "Autumn"],
+      ecliptic: ["Autumn", "Winter", "Spring", "Summer"],
+    },
+  };
+
+  const hem = hemisphere === "south" ? "south" : "north";
+  const [nameA, nameB, nameC, nameD] = NAME_SLOTS[hem][isEcliptic ? "ecliptic" : "normal"];
+
+  // Arc geometry: always uses standard math orientation (y = CENTER - r·sin(θ)).
+  // isTopHalf drives two things: arc sweep direction (CW vs CCW) for readable text,
+  // and a -12 radius trim that compensates for how SVG renders text above a CW arc
+  // (glyphs extend outward) vs above a CCW arc (glyphs extend inward).
+  const arcDefs = [
+    { name: nameA, startAngle: 90, endAngle: 180, isTopHalf: true }, // A: top-left
+    { name: nameB, startAngle: 0, endAngle: 90, isTopHalf: true }, // B: top-right
+    { name: nameC, startAngle: 270, endAngle: 360, isTopHalf: false }, // C: bottom-right
+    { name: nameD, startAngle: 180, endAngle: 270, isTopHalf: false }, // D: bottom-left
   ];
 
-  const southSeasons = [
-    { name: "Summer", startAngle: 90, endAngle: 180 },
-    { name: "Spring", startAngle: 0, endAngle: 90 },
-    { name: "Winter", startAngle: 270, endAngle: 360 },
-    { name: "Autumn", startAngle: 180, endAngle: 270 },
-  ];
-
-  const seasons = hemisphere === "south" ? southSeasons : northSeasons;
   const labelRadius = MAX_RADIUS + 20;
-
   const defs =
     svg.querySelector("defs") || svg.insertBefore(createSvgElement("defs", {}), svg.firstChild);
 
-  seasons.forEach((season, i) => {
+  arcDefs.forEach((season, i) => {
     const pathId = `season-arc-${i}`;
-
     const startRad = (season.startAngle * Math.PI) / 180;
     const endRad = (season.endAngle * Math.PI) / 180;
 
-    // Top-half arcs (0–90° and 90–180°) render text upside-down because the
-    // default arc sweeps right-to-left in SVG space. Reverse them so textPath
-    // flows left-to-right for readable labels. When the view is flipped (eclipticViewDirection=1)
-    // the visual top/bottom halves swap, so invert the flag.
-    const naturallyTopHalf =
-      season.startAngle >= 0 && season.endAngle <= 180 && season.startAngle < 180;
-    const isTopHalf = eclipticViewDirection === -1 ? naturallyTopHalf : !naturallyTopHalf;
-    // Use a smaller radius for top-half labels so they appear visually
-    // at the same distance from Neptune's orbit as bottom-half labels
-    const arcRadius = isTopHalf ? labelRadius - 12 : labelRadius;
+    const arcRadius = season.isTopHalf ? labelRadius - 12 : labelRadius;
 
     const x1 = CENTER + arcRadius * Math.cos(startRad);
-    const y1 = CENTER + eclipticViewDirection * arcRadius * Math.sin(startRad);
+    const y1 = CENTER - arcRadius * Math.sin(startRad);
     const x2 = CENTER + arcRadius * Math.cos(endRad);
-    const y2 = CENTER + eclipticViewDirection * arcRadius * Math.sin(endRad);
+    const y2 = CENTER - arcRadius * Math.sin(endRad);
 
     const arcPath = createSvgElement("path", {
       id: pathId,
-      d: isTopHalf
+      d: season.isTopHalf
         ? `M ${x2} ${y2} A ${arcRadius} ${arcRadius} 0 0 1 ${x1} ${y1}`
         : `M ${x1} ${y1} A ${arcRadius} ${arcRadius} 0 0 0 ${x2} ${y2}`,
       fill: "none",

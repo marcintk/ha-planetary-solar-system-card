@@ -134,17 +134,20 @@ describe("renderSeasonOverlay fixed label radius", () => {
     expect(extractRadius(svg)).toBe(expectedRadius);
   });
 
-  it("does not accept a viewState parameter", () => {
+  it("first two parameters have no defaults (colors and eclipticViewDirection are optional)", () => {
     expect(renderSeasonOverlay.length).toBe(2);
   });
 });
 
-describe("renderSeasonOverlay south_ecliptic_pole", () => {
+describe("renderSeasonOverlay ecliptic view", () => {
   function getArcPaths(svg) {
     return Array.from(svg.querySelectorAll("defs path")).map((p) => p.getAttribute("d"));
   }
+  function getLabels(svg) {
+    return Array.from(svg.querySelectorAll("textPath")).map((tp) => tp.textContent);
+  }
 
-  it("flipped arc paths differ from normal arc paths", () => {
+  it("arc geometry is identical in normal and ecliptic view (only names change)", () => {
     const svgNormal = createSvg();
     renderSeasonOverlay(svgNormal, "north", {}, -1);
     const normal = getArcPaths(svgNormal);
@@ -153,12 +156,22 @@ describe("renderSeasonOverlay south_ecliptic_pole", () => {
     renderSeasonOverlay(svgFlipped, "north", {}, 1);
     const flipped = getArcPaths(svgFlipped);
 
-    expect(normal.length).toBe(flipped.length);
-    const anyDiffers = normal.some((p, i) => p !== flipped[i]);
-    expect(anyDiffers).toBe(true);
+    expect(flipped).toEqual(normal);
   });
 
-  it("still renders 4 season labels when flipped", () => {
+  it("north ecliptic: top↔bottom names swap so Spring/Summer move to top", () => {
+    const svg = createSvg();
+    renderSeasonOverlay(svg, "north", {}, 1);
+    expect(getLabels(svg)).toEqual(["Spring", "Summer", "Autumn", "Winter"]);
+  });
+
+  it("south ecliptic: top↔bottom names swap so Autumn/Winter move to top", () => {
+    const svg = createSvg();
+    renderSeasonOverlay(svg, "south", {}, 1);
+    expect(getLabels(svg)).toEqual(["Autumn", "Winter", "Spring", "Summer"]);
+  });
+
+  it("still renders 4 season labels when in ecliptic view", () => {
     const svg = createSvg();
     renderSeasonOverlay(svg, "north", {}, 1);
     expect(svg.querySelectorAll("textPath").length).toBe(4);

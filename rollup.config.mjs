@@ -1,8 +1,7 @@
-import { readFileSync } from "fs";
 import nodeResolve from "@rollup/plugin-node-resolve";
 import terser from "@rollup/plugin-terser";
 
-const { version } = JSON.parse(readFileSync("./package.json", "utf-8"));
+const version = process.env.VERSION ?? "0.0.0-dev";
 
 export default {
   input: "src/index.js",

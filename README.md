@@ -81,4 +81,4 @@ colors:
 
 ## Development
 
-See [CLAUDE.md](CLAUDE.md) for build commands and design invariants.
+See [CLAUDE.md](CLAUDE.md) for build commands, design invariants, and release instructions.

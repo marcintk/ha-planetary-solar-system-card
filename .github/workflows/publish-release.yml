@@ -1,21 +1,40 @@
 name: Publish Release
 
 on:
-  workflow_dispatch:
-    inputs:
-      version:
-        description: "Version number (e.g. 1.0.1)"
-        required: true
+  push:
+    tags:
+      - 'v*.*.*'
 
 permissions:
   contents: write
-  pull-requests: write
 
 jobs:
   release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Validate tag is strictly greater than previous release
+        run: |
+          CURR="${GITHUB_REF_NAME#v}"
+          PREV=$(git tag --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | grep -v "^${GITHUB_REF_NAME}$" | head -1)
+          if [ -z "$PREV" ]; then
+            echo "No previous release tag found — first release, proceeding."
+            exit 0
+          fi
+          PREV="${PREV#v}"
+          if [ "$PREV" = "$CURR" ]; then
+            echo "Error: v$CURR already exists as a release tag."
+            exit 1
+          fi
+          LOWER=$(printf '%s\n%s\n' "$PREV" "$CURR" | sort -V | head -1)
+          if [ "$LOWER" != "$PREV" ]; then
+            echo "Error: v$CURR is not greater than previous release v$PREV"
+            exit 1
+          fi
+          echo "Tag v$CURR is valid (previous release: v$PREV)"
 
       - uses: actions/setup-node@v5
         with:
@@ -23,34 +42,20 @@ jobs:
           cache: npm
 
       - run: npm ci
+      - run: npm test
 
-      - name: Bump version in package.json
-        run: npm pkg set version="${{ github.event.inputs.version }}"
+      - name: Derive version from tag
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
 
-      - run: npm run build:prod
-
-      - name: Create release branch, tag, and open PR
+      - name: Build production bundle
+        run: npm run build:prod
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          BRANCH="release/v${{ github.event.inputs.version }}"
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git checkout -b "$BRANCH"
-          git add package.json dist/card.js
-          git commit -m "chore: bump version to ${{ github.event.inputs.version }}"
-          git push origin "$BRANCH"
-          git tag "v${{ github.event.inputs.version }}"
-          git push origin "v${{ github.event.inputs.version }}"
-          gh pr create \
-            --title "chore: bump version to ${{ github.event.inputs.version }}" \
-            --body "Automated version bump for release v${{ github.event.inputs.version }}." \
-            --base main \
-            --head "$BRANCH"
+          VERSION: ${{ steps.version.outputs.version }}
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
         with:
-          tag_name: "v${{ github.event.inputs.version }}"
+          tag_name: ${{ github.ref_name }}
           files: dist/card.js
           generate_release_notes: true

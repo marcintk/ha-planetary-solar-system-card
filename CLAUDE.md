@@ -32,6 +32,20 @@ Durable visual/UX constraints. Preserve unless the user explicitly changes them.
 
 ## Releasing
 
-Trigger the **Release** workflow in GitHub Actions with a version number (e.g. `1.0.1`). It builds,
-tags, and attaches `dist/card.js` to the GitHub Release automatically. HACS users get the update on
-the next store refresh.
+Push a semver tag — the release workflow fires automatically:
+
+```bash
+git tag v2.0.11
+git push origin v2.0.11
+```
+
+The workflow validates the tag is strictly greater than the previous release, runs `npm test`,
+builds `dist/card.js` with the version injected from the tag, and publishes a GitHub Release with
+`dist/card.js` as an asset that HACS downloads.
+
+`package.json` version is a permanent `0.0.0-dev` placeholder and is never changed. The tag is the
+single source of truth for the version. Always run `gh release list --limit 5` before tagging to
+confirm the current latest and increment from there.
+
+`dist/` is not committed to git — it is built by CI on every release and attached as a GitHub
+Release asset.

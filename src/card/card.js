@@ -87,7 +87,7 @@ export class SolarViewCard extends HTMLElement {
       label: config.colors?.label ?? DEFAULT_COLORS.label,
     };
 
-    this._eclipticView = config.ecliptic_view === true;
+    this._eclipticView = config.ecliptic_view === "south";
 
     // Recreate timer if already connected
     if (this._autoUpdateTimer != null) {

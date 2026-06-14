@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   release:
@@ -28,17 +29,24 @@ jobs:
 
       - run: npm run build:prod
 
-      - name: Tag and publish release
+      - name: Create release branch, tag, and open PR
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          BRANCH="release/v${{ github.event.inputs.version }}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
           git add package.json dist/card.js
           git commit -m "chore: bump version to ${{ github.event.inputs.version }}"
-          git push origin HEAD:main
+          git push origin "$BRANCH"
           git tag "v${{ github.event.inputs.version }}"
           git push origin "v${{ github.event.inputs.version }}"
+          gh pr create \
+            --title "chore: bump version to ${{ github.event.inputs.version }}" \
+            --body "Automated version bump for release v${{ github.event.inputs.version }}." \
+            --base main \
+            --head "$BRANCH"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3

@@ -5,8 +5,8 @@ const DEFAULT_SEASON_LABEL_COLOR = "rgba(255, 255, 255, 0.5)";
 const SEASON_FONT_SIZE = 20;
 
 export function renderSeasonOverlay(svg, hemisphere, colors = {}, eclipticViewDirection = -1) {
-  const lineColor = colors.seasonLine ?? DEFAULT_SEASON_LINE_COLOR;
-  const labelColor = colors.seasonLabel ?? DEFAULT_SEASON_LABEL_COLOR;
+  const lineColor = colors.season_line ?? DEFAULT_SEASON_LINE_COLOR;
+  const labelColor = colors.season_label ?? DEFAULT_SEASON_LABEL_COLOR;
   const isEcliptic = eclipticViewDirection === 1;
 
   // Dotted dividing lines through the Sun

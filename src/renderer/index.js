@@ -17,7 +17,7 @@ import { auToRadius, CENTER, createSvgElement, expandBounds, VIEW_SIZE } from ".
  * @param {Date} date - date to calculate positions for
  * @param {string} [hemisphere="north"] - "north" or "south" for season labels
  * @param {{ lat: number, lon: number, timezone: string } | null} [locationData] - observer location from HA config
- * @param {{ background?: string, orbit?: string, label?: string, seasonLine?: string, seasonLabel?: string }} [colors] - optional color overrides
+ * @param {{ background?: string, orbit?: string, label?: string, season_line?: string, season_label?: string }} [colors] - optional color overrides
  * @returns {{ svg: SVGElement, bounds: { minX: number, minY: number, maxX: number, maxY: number } }}
  */
 export function renderSolarSystem(

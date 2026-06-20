@@ -884,16 +884,51 @@ describe("SolarViewCard", () => {
       card.remove();
     });
 
-    it("does not re-render when showing a different date", () => {
+    it("syncs to current time on visibilitychange when in live mode", () => {
       vi.useFakeTimers({ now: new Date("2026-02-15T10:00:00") });
       const card = document.createElement("ha-planetary-solar-system-card-test");
       document.body.appendChild(card);
-      // Navigate to a past date
-      card._currentDate = new Date("2026-01-01T10:00:00");
-      card._render();
+      // Simulate time passing while tab was hidden (timer throttled)
+      vi.setSystemTime(new Date("2026-02-15T10:45:00"));
+      // Card still shows stale time — timer never fired
+      expect(card._formatDate(card._currentDate)).toContain("10:00");
+      // Tab becomes visible
+      Object.defineProperty(document, "hidden", { value: false, configurable: true });
+      document.dispatchEvent(new Event("visibilitychange"));
+      // Card should now show current time
+      expect(card._formatDate(card._currentDate)).toContain("10:45");
+      card.remove();
+    });
+
+    it("does not sync on visibilitychange when user has navigated away", () => {
+      vi.useFakeTimers({ now: new Date("2026-02-15T10:00:00") });
+      const card = document.createElement("ha-planetary-solar-system-card-test");
+      document.body.appendChild(card);
+      card._navigate(-45 * 86400000); // user went to a past date
+      vi.setSystemTime(new Date("2026-02-15T10:45:00"));
+      Object.defineProperty(document, "hidden", { value: false, configurable: true });
+      document.dispatchEvent(new Event("visibilitychange"));
+      // Should still show the navigated-to date
+      expect(card._formatDate(card._currentDate)).not.toContain("26-02-15");
+      card.remove();
+    });
+
+    it("removes visibilitychange listener on disconnectedCallback", () => {
+      const card = createAndMount();
+      expect(card._onVisibilityChange).not.toBeNull();
+      card.remove();
+      expect(card._onVisibilityChange).toBeNull();
+    });
+
+    it("does not re-render when user has navigated to a different date", () => {
+      vi.useFakeTimers({ now: new Date("2026-02-15T10:00:00") });
+      const card = document.createElement("ha-planetary-solar-system-card-test");
+      document.body.appendChild(card);
+      // Navigate backwards 45 days via the proper navigation path, which sets _isLiveMode=false
+      card._navigate(-45 * 86400000);
       vi.advanceTimersByTime(60000);
-      // Should still show the past date
-      expect(card._formatDate(card._currentDate)).toContain("26-01-01");
+      // Should still show the navigated-to date, not auto-advance to today
+      expect(card._formatDate(card._currentDate)).not.toContain("26-02-15");
       card.remove();
     });
   });

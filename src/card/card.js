@@ -15,6 +15,7 @@ export class SolarViewCard extends HTMLElement {
     super();
     this.attachShadow({ mode: "open" });
     this._currentDate = new Date();
+    this._isLiveMode = true; // false when user has navigated away from today
     this._viewState = null; // initialized on first render
     this._defaultZoomLevel = DEFAULT_ZOOM_LEVEL;
     this._hemisphere = "north"; // Hemisphere for season labels (default: north)
@@ -98,21 +99,27 @@ export class SolarViewCard extends HTMLElement {
   connectedCallback() {
     this._render();
     this._startAutoUpdateTimer();
+    this._onVisibilityChange = () => {
+      if (!document.hidden && this._isLiveMode) {
+        this._currentDate = new Date();
+        this._render();
+      }
+    };
+    document.addEventListener("visibilitychange", this._onVisibilityChange);
   }
 
   disconnectedCallback() {
     clearInterval(this._autoUpdateTimer);
     this._autoUpdateTimer = null;
+    document.removeEventListener("visibilitychange", this._onVisibilityChange);
+    this._onVisibilityChange = null;
   }
 
   _startAutoUpdateTimer() {
     clearInterval(this._autoUpdateTimer);
     const interval = this._refreshMs || 60000;
     this._autoUpdateTimer = setInterval(() => {
-      if (
-        this._formatDate(this._currentDate).slice(0, 10) ===
-        this._formatDate(new Date()).slice(0, 10)
-      ) {
+      if (this._isLiveMode) {
         this._currentDate = new Date();
         this._render();
       }
@@ -141,11 +148,13 @@ export class SolarViewCard extends HTMLElement {
   }
 
   _navigate(deltaMs) {
+    this._isLiveMode = false;
     this._currentDate = new Date(this._currentDate.getTime() + deltaMs);
     this._render();
   }
 
   _goToday() {
+    this._isLiveMode = true;
     this._currentDate = new Date();
     this._render();
   }

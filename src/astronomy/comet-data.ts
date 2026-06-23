@@ -1,6 +1,8 @@
+import type { Comet } from "../types.js";
+
 // Orbital elements for comets at J2000 epoch
 // Sources: JPL Small-Body Database
-export const COMETS = [
+export const COMETS: Comet[] = [
   {
     name: "Halley",
     semiMajorAxis: 17.834,

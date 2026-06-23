@@ -1,6 +1,7 @@
 import { calculatePlanetPosition } from "../astronomy/orbital-mechanics.js";
 import { PLANETS } from "../astronomy/planet-data.js";
 import { computeSolarElevationDeg, getLocalTimeInZone } from "../astronomy/solar-position.js";
+import type { LocationData, Planet } from "../types.js";
 import { CENTER, createSvgElement, MAX_RADIUS, VIEW_SIZE } from "./svg-utils.js";
 
 const NEEDLE_COLOR = "rgba(255, 255, 255, 0.7)";
@@ -25,7 +26,16 @@ export const CONE_NIGHT = "rgba(255, 255, 255, 0.01)"; // Sun below -18°
  * intersection with a circle centred at (cx,cy) with radius R.
  * Returns the positive root, or `minLen` if no positive intersection exists.
  */
-export function rayCircleDistance(ax, ay, dx, dy, cx, cy, R, minLen = 20) {
+export function rayCircleDistance(
+  ax: number,
+  ay: number,
+  dx: number,
+  dy: number,
+  cx: number,
+  cy: number,
+  R: number,
+  minLen = 20
+): number {
   const ox = ax - cx;
   const oy = ay - cy;
   const a = dx * dx + dy * dy;
@@ -37,7 +47,7 @@ export function rayCircleDistance(ax, ay, dx, dy, cx, cy, R, minLen = 20) {
   return t > 0 ? t : minLen;
 }
 
-export function calculateSolarElevationDeg(observerAngle, earthAngle) {
+export function calculateSolarElevationDeg(observerAngle: number, earthAngle: number): number {
   const dirToSun = earthAngle + Math.PI;
   const diff = Math.atan2(Math.sin(observerAngle - dirToSun), Math.cos(observerAngle - dirToSun));
   return (Math.PI / 2 - Math.abs(diff)) * (180 / Math.PI);
@@ -54,8 +64,13 @@ export function calculateSolarElevationDeg(observerAngle, earthAngle) {
  * @param {number} [longitude] - optional observer longitude in degrees; when provided, uses true solar time instead of civil timezone
  * @returns {number} observer angle in radians
  */
-export function calculateObserverAngle(earthOrbitalAngle, date, timezone, longitude) {
-  let fractionalHours;
+export function calculateObserverAngle(
+  earthOrbitalAngle: number,
+  date: Date,
+  timezone?: string,
+  longitude?: number
+): number {
+  let fractionalHours: number;
   if (longitude != null) {
     // True solar time: UTC hours + longitude offset (15° per hour)
     const utcHour = date.getUTCHours() + date.getUTCMinutes() / 60 + date.getUTCSeconds() / 3600;
@@ -71,15 +86,15 @@ export function calculateObserverAngle(earthOrbitalAngle, date, timezone, longit
 }
 
 function renderVisibilityCone(
-  svg,
-  anchorX,
-  anchorY,
-  observerAngle,
-  halfAngleDeg,
-  clipId,
-  fillColor,
+  svg: SVGElement,
+  anchorX: number,
+  anchorY: number,
+  observerAngle: number,
+  halfAngleDeg: number,
+  clipId: string,
+  fillColor: string,
   eclipticViewDirection = -1
-) {
+): void {
   const D = VIEW_SIZE;
   const HALF_ANGLE = (halfAngleDeg * Math.PI) / 180;
   /* v8 ignore next */
@@ -114,14 +129,14 @@ function renderVisibilityCone(
 }
 
 export function renderDayNightSplit(
-  svg,
-  earthRadius,
-  date,
-  earthBodySize,
-  locationData,
+  svg: SVGElement,
+  earthRadius: number,
+  date: Date,
+  earthBodySize: number,
+  locationData: LocationData | null,
   eclipticViewDirection = -1
-) {
-  const earth = PLANETS.find((p) => p.name === "Earth");
+): void {
+  const earth = PLANETS.find((p) => p.name === "Earth") as Planet;
   const earthAngle = calculatePlanetPosition(earth, date);
   const observerAngle = calculateObserverAngle(
     earthAngle,
@@ -149,7 +164,7 @@ export function renderDayNightSplit(
     locationData && locationData.lat != null
       ? computeSolarElevationDeg(locationData.lat, locationData.lon, date)
       : calculateSolarElevationDeg(observerAngle, earthAngle);
-  let coneColor;
+  let coneColor: string;
   if (elevationDeg >= 0) coneColor = CONE_DAY;
   else if (elevationDeg >= -6) coneColor = CONE_CIVIL;
   else if (elevationDeg >= -12) coneColor = CONE_NAUTICAL;
@@ -232,13 +247,13 @@ export function renderDayNightSplit(
 }
 
 export function renderObserverNeedle(
-  svg,
-  earthX,
-  earthY,
-  observerAngle,
-  earthSize,
+  svg: SVGElement,
+  earthX: number,
+  earthY: number,
+  observerAngle: number,
+  earthSize: number,
   eclipticViewDirection = -1
-) {
+): void {
   const tipX = earthX + earthSize * Math.cos(observerAngle);
   const tipY = earthY + eclipticViewDirection * earthSize * Math.sin(observerAngle);
 

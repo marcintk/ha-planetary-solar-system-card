@@ -1,13 +1,14 @@
+import type { Comet, CometPosition, Planet } from "../types.js";
 import { MOON } from "./planet-data.js";
 
 // J2000 epoch: January 1, 2000 12:00 TT
 const J2000 = Date.UTC(2000, 0, 1, 12, 0, 0);
 
-function daysSinceJ2000(date) {
+function daysSinceJ2000(date: Date): number {
   return (date.getTime() - J2000) / 86400000;
 }
 
-export function degreesToRadians(deg) {
+export function degreesToRadians(deg: number): number {
   return (deg * Math.PI) / 180;
 }
 
@@ -15,7 +16,7 @@ export function degreesToRadians(deg) {
  * Calculate a planet's angular position (radians) for a given date.
  * Uses simplified circular orbit model.
  */
-export function calculatePlanetPosition(planet, date) {
+export function calculatePlanetPosition(planet: Planet, date: Date): number {
   const days = daysSinceJ2000(date);
   const meanMotion = (2 * Math.PI) / planet.periodDays;
   const angle = degreesToRadians(planet.meanLongitudeJ2000) + meanMotion * days;
@@ -27,7 +28,7 @@ export function calculatePlanetPosition(planet, date) {
  * Calculate the Moon's angular position relative to Earth for a given date.
  * Returns absolute angle (not relative to Earth).
  */
-export function calculateMoonPosition(date) {
+export function calculateMoonPosition(date: Date): number {
   const days = daysSinceJ2000(date);
   const meanMotion = (2 * Math.PI) / MOON.periodDays;
   const angle = degreesToRadians(MOON.meanLongitudeJ2000) + meanMotion * days;
@@ -38,7 +39,7 @@ export function calculateMoonPosition(date) {
  * Solve Kepler's equation M = E - e*sin(E) for eccentric anomaly E.
  * Uses Newton-Raphson iteration.
  */
-export function solveKeplerEquation(M, e) {
+export function solveKeplerEquation(M: number, e: number): number {
   let E = M;
   for (let i = 0; i < 10; i++) {
     const dE = (E - e * Math.sin(E) - M) / (1 - e * Math.cos(E));
@@ -52,7 +53,7 @@ export function solveKeplerEquation(M, e) {
  * Uses full elliptical orbit model with Kepler's equation.
  * Returns { angle (radians), radius (AU), trueAnomaly (radians) }.
  */
-export function calculateCometPosition(comet, date) {
+export function calculateCometPosition(comet: Comet, date: Date): CometPosition {
   const days = daysSinceJ2000(date);
 
   // Mean anomaly at date

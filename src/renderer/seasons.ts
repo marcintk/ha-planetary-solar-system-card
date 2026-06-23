@@ -1,10 +1,16 @@
+import type { Colors, Hemisphere } from "../types.js";
 import { CENTER, createSvgElement, MAX_RADIUS, VIEW_SIZE } from "./svg-utils.js";
 
 const DEFAULT_SEASON_LINE_COLOR = "rgba(255, 255, 255, 0.25)";
 const DEFAULT_SEASON_LABEL_COLOR = "rgba(255, 255, 255, 0.5)";
 const SEASON_FONT_SIZE = 20;
 
-export function renderSeasonOverlay(svg, hemisphere, colors = {}, eclipticViewDirection = -1) {
+export function renderSeasonOverlay(
+  svg: SVGElement,
+  hemisphere: Hemisphere,
+  colors: Colors = {},
+  eclipticViewDirection = -1
+): void {
   const lineColor = colors.season_line ?? DEFAULT_SEASON_LINE_COLOR;
   const labelColor = colors.season_label ?? DEFAULT_SEASON_LABEL_COLOR;
   const isEcliptic = eclipticViewDirection === 1;
@@ -134,8 +140,8 @@ const OPPOSITE_SEASON = {
   Winter: "Summer",
 };
 
-export function getCurrentSeason(date, hemisphere) {
+export function getCurrentSeason(date: Date, hemisphere: Hemisphere): string {
   const month = date.getMonth();
-  const season = SEASON_BY_MONTH_NORTH[month];
+  const season = SEASON_BY_MONTH_NORTH[month] as keyof typeof OPPOSITE_SEASON;
   return hemisphere === "south" ? OPPOSITE_SEASON[season] : season;
 }

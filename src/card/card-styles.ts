@@ -1,4 +1,6 @@
-export const CARD_STYLES = `
+import { css } from "lit";
+
+export const cardStyles = css`
   :host {
     display: block;
     background: #090909;

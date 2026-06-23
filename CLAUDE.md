@@ -27,7 +27,7 @@ Durable visual/UX constraints. Preserve unless the user explicitly changes them.
 - **Always work on a branch** — never commit directly to `main`. Create a descriptive branch
   (`git checkout -b feature/...` or `fix/...`), push it, and open a PR.
 - **Every feature or fix needs a test file** — new source modules must have a corresponding
-  `test/<path>.test.js`. Tests live in the same directory structure under `test/` as the source
+  `test/<path>.test.ts`. Tests live in the same directory structure under `test/` as the source
   under `src/`.
 
 ## Releasing
@@ -49,3 +49,15 @@ confirm the current latest and increment from there.
 
 `dist/` is not committed to git — it is built by CI on every release and attached as a GitHub
 Release asset.
+
+## Known Issues & Gaps
+
+Active issues and open gaps. Update when starting or completing significant work. Status: `open` ·
+`in-progress` · `done`
+
+| Status      | Area      | Description                                                     |
+| ----------- | --------- | --------------------------------------------------------------- |
+| in-progress | migration | Phase 1: JS → TypeScript (branch: feature/typescript-migration) |
+| open        | migration | Phase 2: TypeScript → Lit (depends on Phase 1 merge)            |
+
+See [TODO.md](./TODO.md) for the full itemised checklist.

@@ -6,7 +6,7 @@ export default defineConfig({
     environment: "jsdom",
     coverage: {
       provider: "v8",
-      include: ["src/**/*.js"],
+      include: ["src/**/*.ts"],
       reporter: ["text", "html", "json-summary", "json"],
       reportsDirectory: "coverage",
       thresholds: {

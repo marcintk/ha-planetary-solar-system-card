@@ -5,7 +5,9 @@
  * @param {string} timezone - IANA timezone string (e.g. "America/Chicago")
  * @returns {{ hours: number, minutes: number }}
  */
-export function getLocalTimeInZone(date, timezone) {
+import type { LocalTime, NextTransition } from "../types.js";
+
+export function getLocalTimeInZone(date: Date, timezone: string): LocalTime {
   try {
     const parts = new Intl.DateTimeFormat("en-US", {
       timeZone: timezone,
@@ -15,9 +17,9 @@ export function getLocalTimeInZone(date, timezone) {
     }).formatToParts(date);
     const hourPart = parts.find((p) => p.type === "hour");
     const minutePart = parts.find((p) => p.type === "minute");
-    let hours = Number(hourPart.value);
+    let hours = Number(hourPart?.value);
     if (hours === 24) hours = 0; // some engines return 24 for midnight
-    return { hours, minutes: Number(minutePart.value) };
+    return { hours, minutes: Number(minutePart?.value) };
   } catch {
     return { hours: date.getUTCHours(), minutes: date.getUTCMinutes() };
   }
@@ -40,7 +42,7 @@ export function getLocalTimeInZone(date, timezone) {
  * @param {Date} date
  * @returns {number} solar altitude in degrees
  */
-export function computeSolarElevationDeg(lat, lon, date) {
+export function computeSolarElevationDeg(lat: number, lon: number, date: Date): number {
   // Day of year (1 = Jan 1)
   const startOfYear = Date.UTC(date.getUTCFullYear(), 0, 0);
   const dayOfYear = Math.floor((date.getTime() - startOfYear) / 86400000);
@@ -68,7 +70,7 @@ export function computeSolarElevationDeg(lat, lon, date) {
  * @param {number} elevDeg
  * @returns {string}
  */
-export function getSkyMode(elevDeg) {
+export function getSkyMode(elevDeg: number): string {
   if (elevDeg >= 0) return "Day";
   if (elevDeg >= -6) return "Civil Twilight";
   if (elevDeg >= -12) return "Nautical Twilight";
@@ -86,16 +88,20 @@ export function getSkyMode(elevDeg) {
  * @param {Date} date - start time
  * @returns {{ time: Date, toMode: string } | null}
  */
-export function computeNextTransitionTime(lat, lon, date) {
+export function computeNextTransitionTime(
+  lat: number,
+  lon: number,
+  date: Date
+): NextTransition | null {
   const MS_PER_MIN = 60000;
   const MAX_MINS = 24 * 60;
 
   const startElev = computeSolarElevationDeg(lat, lon, date);
   const currentMode = getSkyMode(startElev);
 
-  let bracketLoMs = null;
-  let bracketHiMs = null;
-  let toMode = null;
+  let bracketLoMs: number | null = null;
+  let bracketHiMs: number | null = null;
+  let toMode: string | null = null;
 
   // Minute-by-minute scan
   for (let m = 1; m <= MAX_MINS; m++) {
@@ -110,7 +116,7 @@ export function computeNextTransitionTime(lat, lon, date) {
     }
   }
 
-  if (bracketLoMs === null) return null;
+  if (bracketLoMs === null || bracketHiMs === null || toMode === null) return null;
 
   // Binary-search refinement within the bracket
   for (let i = 0; i < 10; i++) {

@@ -3,8 +3,8 @@ import { ViewState } from "../../src/card/card-view-state.js";
 import { ZoomAnimator } from "../../src/card/zoom-animator.js";
 
 describe("ZoomAnimator", () => {
-  let rafCallbacks;
-  let rafId;
+  let rafCallbacks: { id: number; cb: (ts: number) => void }[];
+  let rafId: number;
 
   beforeEach(() => {
     rafCallbacks = [];

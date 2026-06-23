@@ -1,3 +1,4 @@
+import type { PanZoomState, ViewPosition } from "../types.js";
 import { createSvgElement } from "./svg-utils.js";
 
 const MARKER_SIZE = 8;
@@ -9,7 +10,17 @@ const MARKER_GROUP_ID = "offscreen-markers";
  * Compute the intersection of a ray from (cx, cy) to (px, py) with a rectangle.
  * Returns { x, y } on the rectangle edge, inset by margin.
  */
-function edgeIntersection(cx, cy, px, py, left, top, right, bottom, margin) {
+function edgeIntersection(
+  cx: number,
+  cy: number,
+  px: number,
+  py: number,
+  left: number,
+  top: number,
+  right: number,
+  bottom: number,
+  margin: number
+): { x: number; y: number } {
   const dx = px - cx;
   const dy = py - cy;
 
@@ -57,7 +68,13 @@ function edgeIntersection(cx, cy, px, py, left, top, right, bottom, margin) {
 /**
  * Create a triangle polygon pointing from (ix, iy) toward (px, py).
  */
-function createTriangle(ix, iy, px, py, color) {
+function createTriangle(
+  ix: number,
+  iy: number,
+  px: number,
+  py: number,
+  color: string
+): SVGPolygonElement {
   const angle = Math.atan2(py - iy, px - ix);
   const h = (MARKER_SIZE * Math.sqrt(3)) / 2;
   // Triangle tip points toward the planet
@@ -80,10 +97,19 @@ function createTriangle(ix, iy, px, py, color) {
 /**
  * Create a text label for a planet name near the marker.
  */
-function createLabel(ix, iy, px, py, name, color, left, right) {
+function createLabel(
+  ix: number,
+  iy: number,
+  px: number,
+  py: number,
+  name: string,
+  color: string,
+  left: number,
+  right: number
+): SVGTextElement {
   const text = createSvgElement("text", {});
   text.setAttribute("fill", color);
-  text.setAttribute("font-size", LABEL_FONT_SIZE);
+  text.setAttribute("font-size", String(LABEL_FONT_SIZE));
   text.setAttribute("font-family", "sans-serif");
   text.textContent = name;
 
@@ -101,8 +127,8 @@ function createLabel(ix, iy, px, py, name, color, left, right) {
     text.setAttribute("text-anchor", "end");
   }
 
-  text.setAttribute("x", lx);
-  text.setAttribute("y", ly + LABEL_FONT_SIZE / 3);
+  text.setAttribute("x", String(lx));
+  text.setAttribute("y", String(ly + LABEL_FONT_SIZE / 3));
   return text;
 }
 
@@ -112,7 +138,10 @@ function createLabel(ix, iy, px, py, name, color, left, right) {
  * @param {object} viewState - ViewState instance with centerX, centerY, width, height
  * @returns {SVGGElement} A <g> group containing all markers
  */
-export function renderOffscreenMarkers(positions, viewState) {
+export function renderOffscreenMarkers(
+  positions: ViewPosition[],
+  viewState: PanZoomState
+): SVGGElement {
   const group = createSvgElement("g", { id: MARKER_GROUP_ID });
 
   if (!positions || !viewState) return group;

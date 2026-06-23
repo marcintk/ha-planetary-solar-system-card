@@ -1,10 +1,16 @@
+import type { CelestialBody, Colors } from "../types.js";
 import { CENTER, createSvgElement } from "./svg-utils.js";
 
 export const ORBIT_COLOR = "rgba(255, 255, 255, 0.12)";
 const AU_LABEL_COLOR = "rgba(255, 255, 255, 0.5)";
 const DEFAULT_LABEL_COLOR = "#ffffff";
 
-export function renderOrbit(svg, radius, auLabel, colors = {}) {
+export function renderOrbit(
+  svg: SVGElement,
+  radius: number,
+  auLabel: number,
+  colors: Colors = {}
+): void {
   const orbitColor = colors.orbit ?? ORBIT_COLOR;
 
   svg.appendChild(
@@ -49,7 +55,14 @@ export function renderOrbit(svg, radius, auLabel, colors = {}) {
   ).textContent = `${Number(auLabel).toFixed(1)} AU`;
 }
 
-export function renderBody(svg, x, y, body, showLabel = true, colors = {}) {
+export function renderBody(
+  svg: SVGElement,
+  x: number,
+  y: number,
+  body: CelestialBody,
+  showLabel = true,
+  colors: Colors = {}
+): void {
   const labelColor = colors.label ?? DEFAULT_LABEL_COLOR;
 
   svg.appendChild(
@@ -75,7 +88,13 @@ export function renderBody(svg, x, y, body, showLabel = true, colors = {}) {
   }
 }
 
-export function renderSaturnRings(svg, x, y, body, _renderSize) {
+export function renderSaturnRings(
+  svg: SVGElement,
+  x: number,
+  y: number,
+  body: CelestialBody,
+  _renderSize: number
+): void {
   const hex = body.color;
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);

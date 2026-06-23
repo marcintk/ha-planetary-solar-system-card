@@ -1,4 +1,5 @@
 import { getMoonPhase } from "../astronomy/moon-phase.js";
+import type { Hemisphere } from "../types.js";
 import { createSvgElement } from "./svg-utils.js";
 
 const INDICATOR_RADIUS = 30;
@@ -15,7 +16,11 @@ const LABEL_FONT_SIZE = "14";
  * @param {Date} date
  * @param {string} hemisphere - "north" or "south"
  */
-export function renderMoonPhaseIndicator(svg, date, hemisphere) {
+export function renderMoonPhaseIndicator(
+  svg: SVGElement,
+  date: Date,
+  hemisphere: Hemisphere
+): void {
   const { phase, phaseName, illumination } = getMoonPhase(date);
 
   const g = createSvgElement("g", { class: "moon-phase-indicator" });
@@ -56,7 +61,7 @@ export function renderMoonPhaseIndicator(svg, date, hemisphere) {
     // Semicircle: always sweeps from top to bottom on the lit side.
     const semiSweep = litOnRight ? 1 : 0;
     // Terminator ellipse sweep depends on whether bulge goes toward lit side
-    let terminatorSweep;
+    let terminatorSweep: number;
     if (litOnRight) {
       terminatorSweep = bulgeRight ? 1 : 0;
     } else {

@@ -1,4 +1,6 @@
-export const SUN = {
+import type { CelestialBody, MoonData, Planet } from "../types.js";
+
+export const SUN: CelestialBody = {
   name: "Sun",
   color: "#ffd700",
   size: 16,
@@ -6,7 +8,7 @@ export const SUN = {
 
 // Mean longitudes at J2000 epoch (degrees) and orbital periods (days)
 // Sources: NASA planetary fact sheets
-export const PLANETS = [
+export const PLANETS: Planet[] = [
   {
     name: "Mercury",
     au: 0.39,
@@ -73,7 +75,7 @@ export const PLANETS = [
   },
 ];
 
-export const MOON = {
+export const MOON: MoonData = {
   name: "Moon",
   auFromEarth: 0.00257,
   periodDays: 27.32,

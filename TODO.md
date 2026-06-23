@@ -128,4 +128,4 @@ skipped
 - [x] `npx tsc --noEmit` passes with zero errors
 - [x] `npm run check` (Biome) passes
 - [x] `npm run build` produces `dist/card.js` (with Lit bundled)
-- [ ] Manual browser test: card renders correctly, nav buttons work, zoom works, drag works
+- [x] Manual browser test: card renders correctly, nav buttons work, zoom works, drag works

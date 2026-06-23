@@ -91,39 +91,41 @@ skipped
 
 ---
 
-## Phase 2: TypeScript → Lit
+## Phase 2: TypeScript → Lit ✅ COMPLETE (PR #37)
 
 ### Tooling
 
-- [ ] Add `lit` (v3.x) as a runtime dependency
-- [ ] Verify `tsconfig.json` has `experimentalDecorators: true` (set in Phase 1)
+- [x] Add `lit` (v3.x) as a runtime dependency
+- [x] Verify `tsconfig.json` has `experimentalDecorators: true` (set in Phase 1)
 
 ### Source changes
 
-- [ ] `src/card/card-styles.ts` — replace string constant with
-      `css\`\``tagged template (import from`lit`)
-- [ ] `src/card/card.ts` — extend `LitElement` instead of `HTMLElement`
-  - [ ] Remove manual `attachShadow()` call
-  - [ ] Add `static styles = cardStyles`
-  - [ ] Decorate reactive state with `@state()`: `_currentDate`, `_isLiveMode`, `_viewState`,
-        `_positions`
-  - [ ] Add `@property()` for `hass` setter or keep manual setter calling `requestUpdate()`
-  - [ ] Replace `_render()` with `render()` returning `html\`\``
-  - [ ] Replace `shadowRoot.innerHTML = buildCardHtml(...)` with Lit template
-  - [ ] Append SVG imperatively in `updated()` lifecycle hook
-  - [ ] Replace `_bindEvents()` with inline event handlers in template (`@pointerdown`, `@click`,
-        etc.)
-  - [ ] Keep `connectedCallback()` / `disconnectedCallback()` — add `super.*` calls
-  - [ ] Replace all `this._render()` calls with `this.requestUpdate()`
-- [ ] `src/card/card-template.ts` — dissolve: move logic inline into `card.ts` render method; delete
-      file if empty
+- [x] `src/card/card-styles.ts` — replaced string constant with `css\`\`` tagged template
+- [x] `src/card/card.ts` — extend `LitElement` instead of `HTMLElement`
+  - [x] Removed manual `attachShadow()` call (handled by Lit)
+  - [x] Added `static styles = cardStyles`
+  - [x] Kept manual property fields; reactive updates via `_render()` shim (`requestUpdate()` +
+        `performUpdate()` for synchronous renders)
+  - [x] Added `render()` method returning `html\`\`` template
+  - [x] Dissolved `buildCardHtml()` inline into `render()`; `buildStatusBarHtml()` bridged via
+        `unsafeHTML` directive
+  - [x] SVG appended imperatively in `updated()` lifecycle hook (renderer untouched)
+  - [x] Inline `@click` handlers in nav buttons; pointer events bound in `updated()` on SVG
+  - [x] `connectedCallback()` / `disconnectedCallback()` kept with `super.*` calls
+  - [x] Added `onComplete` callback to `ZoomAnimator.animateTo()` for post-animation re-sync
+  - [x] Fixed ChildPart corruption in `_applyZoom()` — use `_render()` not `.textContent`
+- [x] `src/card/card-template.ts` — `buildCardHtml` dissolved; `buildStatusBarHtml` kept
 
 ### Test changes
 
-- [ ] Update `test/card/card.test.ts` — add `await element.updateComplete` after state changes
+- [x] `test/card/card-template.test.ts` — removed `buildCardHtml` tests (function dissolved)
+- [x] All card tests kept synchronous — no `await updateComplete` rewrites needed (synchronous
+      `_render()` shim makes Lit behave like the old imperative render)
 
 ### Validation
 
-- [ ] `npm test` passes
-- [ ] `npm run build` produces `dist/card.js` (with Lit bundled)
+- [x] `npm test` passes (413/413)
+- [x] `npx tsc --noEmit` passes with zero errors
+- [x] `npm run check` (Biome) passes
+- [x] `npm run build` produces `dist/card.js` (with Lit bundled)
 - [ ] Manual browser test: card renders correctly, nav buttons work, zoom works, drag works

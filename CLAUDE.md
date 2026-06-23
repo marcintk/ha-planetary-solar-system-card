@@ -55,9 +55,9 @@ Release asset.
 Active issues and open gaps. Update when starting or completing significant work. Status: `open` ·
 `in-progress` · `done`
 
-| Status      | Area      | Description                                                     |
-| ----------- | --------- | --------------------------------------------------------------- |
-| in-progress | migration | Phase 1: JS → TypeScript (branch: feature/typescript-migration) |
-| open        | migration | Phase 2: TypeScript → Lit (depends on Phase 1 merge)            |
+| Status      | Area      | Description                                                       |
+| ----------- | --------- | ----------------------------------------------------------------- |
+| in-progress | migration | Phase 1: JS → TypeScript (branch: feature/typescript-migration)   |
+| in-progress | migration | Phase 2: TypeScript → Lit (PR #37, branch: feature/lit-migration) |
 
 See [TODO.md](./TODO.md) for the full itemised checklist.

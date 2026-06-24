@@ -5,6 +5,7 @@ import {
   calculatePlanetPosition,
 } from "../astronomy/orbital-mechanics.js";
 import { MOON, PLANETS, SUN } from "../astronomy/planet-data.js";
+import type { Bounds, Colors, Hemisphere, LocationData, Planet, ViewPosition } from "../types.js";
 import { ORBIT_COLOR, renderBody, renderOrbit, renderSaturnRings } from "./bodies.js";
 import { computeCometVisualEllipse, renderCometBody, renderCometOrbit } from "./comets.js";
 import { renderMoonPhaseIndicator } from "./moon-phase.js";
@@ -21,12 +22,12 @@ import { auToRadius, CENTER, createSvgElement, expandBounds, VIEW_SIZE } from ".
  * @returns {{ svg: SVGElement, bounds: { minX: number, minY: number, maxX: number, maxY: number } }}
  */
 export function renderSolarSystem(
-  date,
-  hemisphere = "north",
-  locationData = null,
-  colors = {},
+  date: Date,
+  hemisphere: Hemisphere = "north",
+  locationData: LocationData | null = null,
+  colors: Colors = {},
   eclipticView = false
-) {
+): { svg: SVGSVGElement; bounds: Bounds; positions: ViewPosition[] } {
   const eclipticViewDirection = eclipticView ? 1 : -1;
   const orbitColor = colors.orbit ?? ORBIT_COLOR;
   const labelColor = colors.label ?? "#ffffff";
@@ -39,10 +40,10 @@ export function renderSolarSystem(
   });
 
   const bounds = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
-  const positions = [];
+  const positions: ViewPosition[] = [];
 
   // Day/night split (rendered first, behind everything)
-  const earth = PLANETS.find((p) => p.name === "Earth");
+  const earth = PLANETS.find((p) => p.name === "Earth") as Planet;
   const earthRadius = auToRadius(1.0);
   renderDayNightSplit(svg, earthRadius, date, earth.size, locationData, eclipticViewDirection);
 

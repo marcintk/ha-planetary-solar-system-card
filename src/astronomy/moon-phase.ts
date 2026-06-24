@@ -28,7 +28,9 @@ const PHASE_NAMES = [
  *   - phaseName: one of 8 discrete phase names
  *   - illumination: 0–1 fraction of visible disc illuminated
  */
-export function getMoonPhase(date) {
+import type { MoonPhase } from "../types.js";
+
+export function getMoonPhase(date: Date): MoonPhase {
   const daysSinceEpoch = (date.getTime() - NEW_MOON_EPOCH) / 86400000;
   const phase =
     (((daysSinceEpoch % SYNODIC_MONTH) + SYNODIC_MONTH) % SYNODIC_MONTH) / SYNODIC_MONTH;

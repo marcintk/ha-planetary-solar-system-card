@@ -738,6 +738,33 @@ describe("SolarViewCard", () => {
       expect(() => card._updateOffscreenMarkers()).not.toThrow();
       card.remove();
     });
+
+    it("_advanceZoom is a no-op when _viewState is null", () => {
+      const card = document.createElement("ha-planetary-solar-system-card-test");
+      expect(() => card._advanceZoom()).not.toThrow();
+    });
+
+    it("_zoomIn is a no-op when _viewState is null", () => {
+      const card = document.createElement("ha-planetary-solar-system-card-test");
+      expect(() => card._zoomIn()).not.toThrow();
+    });
+
+    it("_zoomOut is a no-op when _viewState is null", () => {
+      const card = document.createElement("ha-planetary-solar-system-card-test");
+      expect(() => card._zoomOut()).not.toThrow();
+    });
+
+    it("disconnectedCallback is safe before connectedCallback", () => {
+      const card = document.createElement("ha-planetary-solar-system-card-test");
+      expect(() => card.disconnectedCallback()).not.toThrow();
+    });
+
+    it("_updateViewBox skips setAttribute when #solar-view has no SVG child", () => {
+      const card = createAndMount();
+      card.shadowRoot.querySelector("#solar-view").innerHTML = "";
+      expect(() => card._updateViewBox()).not.toThrow();
+      card.remove();
+    });
   });
 
   describe("southern hemisphere", () => {

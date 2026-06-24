@@ -11,7 +11,14 @@ import { computeCometVisualEllipse, renderCometBody, renderCometOrbit } from "./
 import { renderMoonPhaseIndicator } from "./moon-phase.js";
 import { calculateObserverAngle, renderDayNightSplit, renderObserverNeedle } from "./observer.js";
 import { renderSeasonOverlay } from "./seasons.js";
-import { auToRadius, CENTER, createSvgElement, expandBounds, VIEW_SIZE } from "./svg-utils.js";
+import {
+  auToRadius,
+  CENTER,
+  createSvgElement,
+  DEFAULT_LABEL_COLOR,
+  expandBounds,
+  VIEW_SIZE,
+} from "./svg-utils.js";
 
 /**
  * Renders the solar system SVG and returns it with bounding box metadata.
@@ -30,7 +37,7 @@ export function renderSolarSystem(
 ): { svg: SVGSVGElement; bounds: Bounds; positions: ViewPosition[] } {
   const eclipticViewDirection = eclipticView ? 1 : -1;
   const orbitColor = colors.orbit ?? ORBIT_COLOR;
-  const labelColor = colors.label ?? "#ffffff";
+  const labelColor = colors.label ?? DEFAULT_LABEL_COLOR;
 
   const svg = createSvgElement("svg", {
     viewBox: `0 0 ${VIEW_SIZE} ${VIEW_SIZE}`,

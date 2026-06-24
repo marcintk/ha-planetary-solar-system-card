@@ -1,9 +1,8 @@
 import type { Colors, Comet, CometVisualEllipse } from "../types.js";
-import { auToRadius, CENTER, createSvgElement } from "./svg-utils.js";
+import { ORBIT_COLOR } from "./bodies.js";
+import { auToRadius, CENTER, createSvgElement, DEFAULT_LABEL_COLOR } from "./svg-utils.js";
 
-const DEFAULT_ORBIT_COLOR = "rgba(255, 255, 255, 0.12)";
 const TAIL_COLOR = "rgba(136, 204, 255, 0.5)";
-const DEFAULT_LABEL_COLOR = "#ffffff";
 
 /**
  * Compute the visual ellipse parameters in pixel space for a comet.
@@ -34,7 +33,7 @@ export function computeCometVisualEllipse(comet: Comet): CometVisualEllipse {
  * The ellipse is offset so the Sun (at CENTER) sits at one focus.
  */
 export function renderCometOrbit(svg: SVGElement, comet: Comet, colors: Colors = {}): void {
-  const orbitColor = colors.orbit ?? DEFAULT_ORBIT_COLOR;
+  const orbitColor = colors.orbit ?? ORBIT_COLOR;
   const { aPx, bPx, cPx, rotationDeg } = computeCometVisualEllipse(comet);
 
   svg.appendChild(

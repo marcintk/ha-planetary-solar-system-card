@@ -75,6 +75,11 @@ export class SolarViewCard extends LitElement {
   get _isDragging(): boolean {
     return this._viewState?.isDragging ?? false;
   }
+  get _locationData(): LocationData | null {
+    return this._lat != null && this._lon != null
+      ? { lat: this._lat, lon: this._lon, timezone: this._timezone ?? "UTC" }
+      : null;
+  }
   get _viewCenterX(): number | null {
     return this._viewState?.centerX ?? null;
   }
@@ -166,12 +171,11 @@ export class SolarViewCard extends LitElement {
       this._hemisphere = this._lat < 0 ? "south" : "north";
     }
 
-    const locationData: LocationData | null =
-      this._lat != null && this._lon != null
-        ? { lat: this._lat, lon: this._lon, timezone: this._timezone ?? "UTC" }
-        : null;
-
-    const statusBarHtml = buildStatusBarHtml(locationData, this._locationName, this._currentDate);
+    const statusBarHtml = buildStatusBarHtml(
+      this._locationData,
+      this._locationName,
+      this._currentDate
+    );
     const zoomLevel = this._viewState?.zoomLevel ?? this._defaultZoomLevel;
     /* v8 ignore next */
     const background = this._colors.background ?? "";
@@ -212,11 +216,6 @@ export class SolarViewCard extends LitElement {
       this._zoomAnimator = new ZoomAnimator(this._viewState, () => this._updateViewBox());
     }
 
-    const locationData: LocationData | null =
-      this._lat != null && this._lon != null
-        ? { lat: this._lat, lon: this._lon, timezone: this._timezone ?? "UTC" }
-        : null;
-
     const container = (this.shadowRoot as ShadowRoot).getElementById("solar-view");
     /* v8 ignore next */
     if (container) {
@@ -224,7 +223,7 @@ export class SolarViewCard extends LitElement {
       const { svg, positions } = renderSolarSystem(
         this._currentDate,
         this._hemisphere,
-        locationData,
+        this._locationData,
         this._colors,
         this._eclipticView
       );

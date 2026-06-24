@@ -16,8 +16,7 @@ export class ViewState {
   centerY: number;
   zoomLevel: ZoomLevel;
   isDragging: boolean;
-  private _width: number;
-  private _height: number;
+  private _size: number;
   private _dragStartX: number;
   private _dragStartY: number;
   private _dragStartCenterX: number;
@@ -27,8 +26,7 @@ export class ViewState {
     this.centerX = FULL_SYSTEM_SIZE / 2;
     this.centerY = FULL_SYSTEM_SIZE / 2;
     this.zoomLevel = defaultZoomLevel;
-    this._width = ZOOM_LEVELS[defaultZoomLevel];
-    this._height = ZOOM_LEVELS[defaultZoomLevel];
+    this._size = ZOOM_LEVELS[defaultZoomLevel];
     this.isDragging = false;
     this._dragStartX = 0;
     this._dragStartY = 0;
@@ -36,26 +34,26 @@ export class ViewState {
     this._dragStartCenterY = 0;
   }
 
+  // ponytail: viewport is always square (aspect-ratio: 1 in CSS + ZOOM_LEVELS are uniform)
   get width(): number {
-    return this._width;
+    return this._size;
   }
   get height(): number {
-    return this._height;
+    return this._size;
   }
 
   /** Returns the SVG viewBox string for the current pan/zoom state. */
   get viewBox(): string {
-    const minX = this.centerX - this._width / 2;
-    const minY = this.centerY - this._height / 2;
-    return `${minX} ${minY} ${this._width} ${this._height}`;
+    const minX = this.centerX - this._size / 2;
+    const minY = this.centerY - this._size / 2;
+    return `${minX} ${minY} ${this._size} ${this._size}`;
   }
 
   /** Zoom in one discrete level. Returns true if zoom changed. */
   zoomIn(): boolean {
     if (this.zoomLevel >= MAX_ZOOM) return false;
     this.zoomLevel = (this.zoomLevel + 1) as ZoomLevel;
-    this._width = ZOOM_LEVELS[this.zoomLevel];
-    this._height = ZOOM_LEVELS[this.zoomLevel];
+    this._size = ZOOM_LEVELS[this.zoomLevel];
     return true;
   }
 
@@ -63,8 +61,7 @@ export class ViewState {
   zoomOut(): boolean {
     if (this.zoomLevel <= MIN_ZOOM) return false;
     this.zoomLevel = (this.zoomLevel - 1) as ZoomLevel;
-    this._width = ZOOM_LEVELS[this.zoomLevel];
-    this._height = ZOOM_LEVELS[this.zoomLevel];
+    this._size = ZOOM_LEVELS[this.zoomLevel];
     return true;
   }
 
@@ -72,14 +69,12 @@ export class ViewState {
   setZoomLevel(level: number): void {
     const clamped = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, level)) as ZoomLevel;
     this.zoomLevel = clamped;
-    this._width = ZOOM_LEVELS[clamped];
-    this._height = ZOOM_LEVELS[clamped];
+    this._size = ZOOM_LEVELS[clamped];
   }
 
-  /** Set viewport dimensions directly (for animation frames) without changing zoomLevel. */
-  setViewport(width: number, height: number): void {
-    this._width = width;
-    this._height = height;
+  /** Set viewport size directly (for animation frames) without changing zoomLevel. */
+  setViewport(size: number, _ignored: number): void {
+    this._size = size;
   }
 
   startDrag(clientX: number, clientY: number): void {
@@ -95,10 +90,9 @@ export class ViewState {
     if (!this.isDragging) return;
     const dx = clientX - this._dragStartX;
     const dy = clientY - this._dragStartY;
-    const scaleX = this._width / svgRect.width;
-    const scaleY = this._height / svgRect.height;
-    this.centerX = this._dragStartCenterX - dx * scaleX;
-    this.centerY = this._dragStartCenterY - dy * scaleY;
+    const scale = this._size / svgRect.width;
+    this.centerX = this._dragStartCenterX - dx * scale;
+    this.centerY = this._dragStartCenterY - dy * scale;
   }
 
   endDrag(): void {

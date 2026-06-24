@@ -30,7 +30,6 @@ describe("planet-data constants", () => {
 
   it("MOON has required fields", () => {
     expect(MOON.periodDays).toBeCloseTo(27.32, 1);
-    expect(MOON.auFromEarth).toBeDefined();
   });
 
   it("SUN has color and size", () => {

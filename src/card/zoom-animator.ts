@@ -16,7 +16,7 @@ export class ZoomAnimator {
   private _targetWidth: number;
   private _targetHeight: number;
   private _targetLevel: ZoomLevel;
-  private _startTime: number;
+  private _startTime: number | null;
 
   constructor(viewState: ViewState, onFrame: () => void) {
     this._viewState = viewState;
@@ -27,7 +27,7 @@ export class ZoomAnimator {
     this._targetWidth = 0;
     this._targetHeight = 0;
     this._targetLevel = 1;
-    this._startTime = -1;
+    this._startTime = null;
   }
 
   get isAnimating(): boolean {
@@ -47,10 +47,10 @@ export class ZoomAnimator {
     this._targetWidth = ZOOM_LEVELS[targetLevel];
     this._targetHeight = ZOOM_LEVELS[targetLevel];
     this._targetLevel = targetLevel;
-    this._startTime = -1;
+    this._startTime = null;
 
     const step = (timestamp: number) => {
-      if (this._startTime < 0) this._startTime = timestamp;
+      if (this._startTime === null) this._startTime = timestamp;
       const elapsed = timestamp - this._startTime;
       const t = Math.min(elapsed / ZOOM_ANIMATE_DURATION_MS, 1);
       const eased = easeInOutCubic(t);

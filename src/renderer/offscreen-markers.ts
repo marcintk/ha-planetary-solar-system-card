@@ -4,7 +4,7 @@ import { createSvgElement } from "./svg-utils.js";
 const MARKER_SIZE = 8;
 const EDGE_MARGIN = 10;
 const LABEL_FONT_SIZE = 9;
-const MARKER_GROUP_ID = "offscreen-markers";
+export const MARKER_GROUP_ID = "offscreen-markers";
 
 /**
  * Compute the intersection of a ray from (cx, cy) to (px, py) with a rectangle.
@@ -183,5 +183,3 @@ export function renderOffscreenMarkers(
 
   return group;
 }
-
-export { MARKER_GROUP_ID };

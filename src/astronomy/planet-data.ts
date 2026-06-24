@@ -77,7 +77,6 @@ export const PLANETS: Planet[] = [
 
 export const MOON: MoonData = {
   name: "Moon",
-  auFromEarth: 0.00257,
   periodDays: 27.32,
   color: "#cccccc",
   size: 5,

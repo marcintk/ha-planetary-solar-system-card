@@ -13,7 +13,6 @@ export interface Planet extends CelestialBody {
 }
 
 export interface MoonData extends CelestialBody {
-  auFromEarth: number;
   periodDays: number;
   meanLongitudeJ2000: number;
 }

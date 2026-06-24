@@ -1,9 +1,8 @@
 import type { CelestialBody, Colors } from "../types.js";
-import { CENTER, createSvgElement } from "./svg-utils.js";
+import { CENTER, createSvgElement, DEFAULT_LABEL_COLOR } from "./svg-utils.js";
 
 export const ORBIT_COLOR = "rgba(255, 255, 255, 0.12)";
 const AU_LABEL_COLOR = "rgba(255, 255, 255, 0.5)";
-const DEFAULT_LABEL_COLOR = "#ffffff";
 
 export function renderOrbit(
   svg: SVGElement,

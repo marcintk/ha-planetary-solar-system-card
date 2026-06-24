@@ -2,6 +2,7 @@ import { PLANETS } from "../astronomy/planet-data.js";
 import type { Bounds } from "../types.js";
 
 export const SVG_NS = "http://www.w3.org/2000/svg";
+export const DEFAULT_LABEL_COLOR = "#ffffff";
 export const VIEW_SIZE = 800;
 export const CENTER = VIEW_SIZE / 2;
 export const MIN_RADIUS = 40;

@@ -4,6 +4,7 @@
   "description": "Home Assistant custom Lovelace card displaying a planetary solar system visualization",
   "type": "module",
   "scripts": {
+    "prepare": "git config core.hooksPath .githooks",
     "build": "rollup -c",
     "build:prod": "NODE_ENV=production rollup -c",
     "test": "vitest run",

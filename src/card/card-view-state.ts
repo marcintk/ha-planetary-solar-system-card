@@ -1,6 +1,6 @@
+import { VIEW_SIZE } from "../renderer/svg-utils.js";
 import type { ZoomLevel } from "../types.js";
 
-export const FULL_SYSTEM_SIZE = 800;
 export const DEFAULT_ZOOM_LEVEL: ZoomLevel = 1;
 export const MIN_ZOOM: ZoomLevel = 1;
 export const MAX_ZOOM: ZoomLevel = 4;
@@ -23,8 +23,8 @@ export class ViewState {
   private _dragStartCenterY: number;
 
   constructor(defaultZoomLevel: ZoomLevel = DEFAULT_ZOOM_LEVEL) {
-    this.centerX = FULL_SYSTEM_SIZE / 2;
-    this.centerY = FULL_SYSTEM_SIZE / 2;
+    this.centerX = VIEW_SIZE / 2;
+    this.centerY = VIEW_SIZE / 2;
     this.zoomLevel = defaultZoomLevel;
     this._size = ZOOM_LEVELS[defaultZoomLevel];
     this.isDragging = false;
@@ -73,7 +73,7 @@ export class ViewState {
   }
 
   /** Set viewport size directly (for animation frames) without changing zoomLevel. */
-  setViewport(size: number, _ignored: number): void {
+  setViewport(size: number): void {
     this._size = size;
   }
 

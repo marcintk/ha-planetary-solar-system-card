@@ -168,11 +168,11 @@ describe("renderSaturnRings", () => {
     expect(inner.getAttribute("stroke-width")).toBe("6");
   });
 
-  it("ring stroke color is derived from Saturn's hex color with 0.6 alpha", () => {
+  it("ring stroke color matches Saturn's body color with 0.6 opacity", () => {
     const svg = createSvg();
     renderSaturnRings(svg, 200, 300, saturn, saturn.size / 2);
     const [outer] = svg.querySelectorAll("circle");
-    // Saturn color #e0c080 → rgb(224, 192, 128)
-    expect(outer.getAttribute("stroke")).toBe("rgba(224, 192, 128, 0.6)");
+    expect(outer.getAttribute("stroke")).toBe(saturn.color);
+    expect(outer.getAttribute("opacity")).toBe("0.6");
   });
 });

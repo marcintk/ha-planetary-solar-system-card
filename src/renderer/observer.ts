@@ -13,15 +13,6 @@ export const CONE_ASTRONOMICAL = "rgba(80, 100, 200, 0.04)"; // Astronomical twi
 export const CONE_NIGHT = "rgba(255, 255, 255, 0.01)"; // Sun below -18°
 
 /**
- * Compute the Sun's elevation angle in degrees from the observer's horizon.
- * Positive = Sun above horizon (day), negative = Sun below horizon (night).
- * Uses atan2 to correctly handle 2π wrap-around.
- * @param {number} observerAngle - observer zenith direction (radians)
- * @param {number} earthAngle - Earth's orbital angle from Sun (radians)
- * @returns {number} solar elevation in degrees, range [-90, 90]
- */
-
-/**
  * Compute the distance from point (ax,ay) along direction (dx,dy) to the
  * intersection with a circle centred at (cx,cy) with radius R.
  * Returns the positive root, or `minLen` if no positive intersection exists.

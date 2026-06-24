@@ -404,8 +404,7 @@ describe("renderSolarSystem", () => {
 
     const svg = container.querySelector("svg");
     // Saturn's rings are two stroke-only circles with Saturn's ring color (no dasharray)
-    const ringColor = "rgba(224, 192, 128, 0.6)";
-    const ringCircles = svg.querySelectorAll(`circle[stroke="${ringColor}"]`);
+    const ringCircles = svg.querySelectorAll('circle[stroke="#e0c080"][opacity="0.6"]');
     expect(ringCircles.length).toBe(2);
 
     const outerRing = ringCircles[0];
@@ -446,8 +445,7 @@ describe("renderSolarSystem", () => {
     const allElements = Array.from(svg.children);
 
     // Find Saturn's ring circles by ring color
-    const ringColor = "rgba(224, 192, 128, 0.6)";
-    const rings = svg.querySelectorAll(`circle[stroke="${ringColor}"]`);
+    const rings = svg.querySelectorAll('circle[stroke="#e0c080"][opacity="0.6"]');
     expect(rings.length).toBe(2);
 
     // Find Saturn's label text
@@ -472,8 +470,7 @@ describe("renderSolarSystem", () => {
     const saturnBody = svg.querySelector('circle[fill="#e0c080"]');
     expect(saturnBody).not.toBeNull();
 
-    const ringColor = "rgba(224, 192, 128, 0.6)";
-    const rings = svg.querySelectorAll(`circle[stroke="${ringColor}"]`);
+    const rings = svg.querySelectorAll('circle[stroke="#e0c080"][opacity="0.6"]');
     expect(rings.length).toBe(2);
 
     for (const ring of rings) {
@@ -488,8 +485,7 @@ describe("renderSolarSystem", () => {
 
     const svg = container.querySelector("svg");
     // Only Saturn should have ring-colored circles
-    const ringColor = "rgba(224, 192, 128, 0.6)";
-    const ringCircles = svg.querySelectorAll(`circle[stroke="${ringColor}"]`);
+    const ringCircles = svg.querySelectorAll('circle[stroke="#e0c080"][opacity="0.6"]');
     expect(ringCircles.length).toBe(2); // Only Saturn's dual rings
     // Ellipses are comet orbits only
     const cometEllipses2 = svg.querySelectorAll('ellipse[stroke-dasharray="4, 8"]');

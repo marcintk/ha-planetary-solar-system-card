@@ -94,12 +94,6 @@ export function renderSaturnRings(
   body: CelestialBody,
   _renderSize: number
 ): void {
-  const hex = body.color;
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  const ringColor = `rgba(${r}, ${g}, ${b}, 0.6)`;
-
   // Outer ring (r=23, stroke-width=2): outer edge 24px, inner edge 22px
   svg.appendChild(
     createSvgElement("circle", {
@@ -107,8 +101,9 @@ export function renderSaturnRings(
       cy: y,
       r: 23,
       fill: "none",
-      stroke: ringColor,
+      stroke: body.color,
       "stroke-width": 2,
+      opacity: 0.6,
     })
   );
 
@@ -120,8 +115,9 @@ export function renderSaturnRings(
       cy: y,
       r: 18,
       fill: "none",
-      stroke: ringColor,
+      stroke: body.color,
       "stroke-width": 6,
+      opacity: 0.6,
     })
   );
 }

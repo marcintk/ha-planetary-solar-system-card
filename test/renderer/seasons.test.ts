@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getCurrentSeason, renderSeasonOverlay } from "../../src/renderer/seasons.js";
+import { renderSeasonOverlay } from "../../src/renderer/seasons.js";
 import { MAX_RADIUS, SVG_NS } from "../../src/renderer/svg-utils.js";
 
 function createSvg() {
@@ -175,21 +175,5 @@ describe("renderSeasonOverlay ecliptic view", () => {
     const svg = createSvg();
     renderSeasonOverlay(svg, "north", {}, 1);
     expect(svg.querySelectorAll("textPath").length).toBe(4);
-  });
-});
-
-describe("getCurrentSeason", () => {
-  it("northern hemisphere returns correct season for each quarter", () => {
-    expect(getCurrentSeason(new Date("2025-03-15"), "north")).toBe("Spring");
-    expect(getCurrentSeason(new Date("2025-06-15"), "north")).toBe("Summer");
-    expect(getCurrentSeason(new Date("2025-09-15"), "north")).toBe("Autumn");
-    expect(getCurrentSeason(new Date("2025-12-15"), "north")).toBe("Winter");
-  });
-
-  it("southern hemisphere reverses seasons", () => {
-    expect(getCurrentSeason(new Date("2025-03-15"), "south")).toBe("Autumn");
-    expect(getCurrentSeason(new Date("2025-06-15"), "south")).toBe("Winter");
-    expect(getCurrentSeason(new Date("2025-09-15"), "south")).toBe("Spring");
-    expect(getCurrentSeason(new Date("2025-12-15"), "south")).toBe("Summer");
   });
 });

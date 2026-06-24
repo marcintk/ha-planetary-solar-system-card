@@ -416,11 +416,7 @@ export class SolarViewCard extends LitElement {
       periodic_zoom_max: 4,
       refresh_mins: 1,
       zoom_animate: true,
-      colors: {
-        background: DEFAULT_COLORS.background,
-        orbit: DEFAULT_COLORS.orbit,
-        label: DEFAULT_COLORS.label,
-      },
+      colors: { ...DEFAULT_COLORS },
     };
   }
 }

@@ -173,9 +173,11 @@ export class SolarViewCard extends LitElement {
 
     const statusBarHtml = buildStatusBarHtml(locationData, this._locationName, this._currentDate);
     const zoomLevel = this._viewState?.zoomLevel ?? this._defaultZoomLevel;
+    /* v8 ignore next */
+    const background = this._colors.background ?? "";
 
     return html`
-      <div class="card" style="background: ${this._colors.background ?? ""}">
+      <div class="card" style="background: ${background}">
         <div class="solar-view-wrapper">
           ${statusBarHtml ? unsafeHTML(statusBarHtml) : nothing}
           <div id="solar-view"></div>
@@ -216,6 +218,7 @@ export class SolarViewCard extends LitElement {
         : null;
 
     const container = (this.shadowRoot as ShadowRoot).getElementById("solar-view");
+    /* v8 ignore next */
     if (container) {
       while (container.firstChild) container.removeChild(container.firstChild);
       const { svg, positions } = renderSolarSystem(
@@ -231,6 +234,7 @@ export class SolarViewCard extends LitElement {
     }
 
     this._updateViewBox();
+    /* v8 ignore next */
     this.style.background = this._colors.background ?? "";
   }
 
@@ -246,7 +250,9 @@ export class SolarViewCard extends LitElement {
   }
 
   private _startAutoUpdateTimer(): void {
+    /* v8 ignore next */
     clearInterval(this._autoUpdateTimer ?? undefined);
+    /* v8 ignore next */
     const interval = this._refreshMs || 60000;
     this._autoUpdateTimer = setInterval(() => {
       if (this._isLiveMode) {

@@ -1,17 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_ZOOM_LEVEL,
-  FULL_SYSTEM_SIZE,
   MAX_ZOOM,
   MIN_ZOOM,
   ViewState,
 } from "../../src/card/card-view-state.js";
+import { VIEW_SIZE } from "../../src/renderer/svg-utils.js";
 
 describe("ViewState constructor", () => {
   it("initializes to center of the full system", () => {
     const vs = new ViewState();
-    expect(vs.centerX).toBe(FULL_SYSTEM_SIZE / 2);
-    expect(vs.centerY).toBe(FULL_SYSTEM_SIZE / 2);
+    expect(vs.centerX).toBe(VIEW_SIZE / 2);
+    expect(vs.centerY).toBe(VIEW_SIZE / 2);
   });
 
   it("uses DEFAULT_ZOOM_LEVEL by default", () => {
@@ -149,7 +149,7 @@ describe("ViewState setZoomLevel", () => {
 describe("ViewState setViewport", () => {
   it("sets width and height without changing zoomLevel", () => {
     const vs = new ViewState(1);
-    vs.setViewport(500, 500);
+    vs.setViewport(500);
     expect(vs.width).toBe(500);
     expect(vs.height).toBe(500);
     expect(vs.zoomLevel).toBe(1);
@@ -157,7 +157,7 @@ describe("ViewState setViewport", () => {
 
   it("allows non-standard intermediate values", () => {
     const vs = new ViewState(2);
-    vs.setViewport(700, 700);
+    vs.setViewport(700);
     expect(vs.width).toBe(700);
     expect(vs.height).toBe(700);
     expect(vs.zoomLevel).toBe(2);
@@ -165,7 +165,7 @@ describe("ViewState setViewport", () => {
 
   it("viewBox reflects updated viewport", () => {
     const vs = new ViewState(1);
-    vs.setViewport(600, 600);
+    vs.setViewport(600);
     const [, , w, h] = vs.viewBox.split(" ").map(Number);
     expect(w).toBe(600);
     expect(h).toBe(600);

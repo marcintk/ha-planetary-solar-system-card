@@ -1,5 +1,4 @@
-import { html, LitElement, nothing } from "lit";
-import { unsafeHTML } from "lit/directives/unsafe-html.js";
+import { html, LitElement } from "lit";
 import { renderSolarSystem } from "../renderer/index.js";
 import { MARKER_GROUP_ID, renderOffscreenMarkers } from "../renderer/offscreen-markers.js";
 import type {
@@ -12,7 +11,7 @@ import type {
   ZoomLevel,
 } from "../types.js";
 import { cardStyles } from "./card-styles.js";
-import { buildStatusBarHtml } from "./card-template.js";
+import { buildStatusBar } from "./card-template.js";
 import { DEFAULT_ZOOM_LEVEL, MAX_ZOOM, MIN_ZOOM, ViewState } from "./card-view-state.js";
 import { ZoomAnimator } from "./zoom-animator.js";
 
@@ -171,11 +170,7 @@ export class SolarViewCard extends LitElement {
       this._hemisphere = this._lat < 0 ? "south" : "north";
     }
 
-    const statusBarHtml = buildStatusBarHtml(
-      this._locationData,
-      this._locationName,
-      this._currentDate
-    );
+    const statusBar = buildStatusBar(this._locationData, this._locationName, this._currentDate);
     const zoomLevel = this._viewState?.zoomLevel ?? this._defaultZoomLevel;
     /* v8 ignore next */
     const background = this._colors.background ?? "";
@@ -183,7 +178,7 @@ export class SolarViewCard extends LitElement {
     return html`
       <div class="card" style="background: ${background}">
         <div class="solar-view-wrapper">
-          ${statusBarHtml ? unsafeHTML(statusBarHtml) : nothing}
+          ${statusBar}
           <div id="solar-view"></div>
         </div>
         <div class="nav">
@@ -252,7 +247,7 @@ export class SolarViewCard extends LitElement {
     /* v8 ignore next */
     clearInterval(this._autoUpdateTimer ?? undefined);
     /* v8 ignore next */
-    const interval = this._refreshMs || 60000;
+    const interval = this._refreshMs;
     this._autoUpdateTimer = setInterval(() => {
       if (this._isLiveMode) {
         this._currentDate = new Date();
@@ -267,11 +262,10 @@ export class SolarViewCard extends LitElement {
   private _advanceZoom(): void {
     if (!this._viewState) return;
     const prevWidth = this._viewState.width;
-    const prevHeight = this._viewState.height;
     const next =
       this._viewState.zoomLevel >= this._periodicZoomMax ? MIN_ZOOM : this._viewState.zoomLevel + 1;
     this._viewState.setZoomLevel(next);
-    this._applyZoom(prevWidth, prevHeight);
+    this._applyZoom(prevWidth);
   }
 
   private _formatDate(date: Date): string {
@@ -298,24 +292,20 @@ export class SolarViewCard extends LitElement {
   private _zoomIn(): void {
     if (!this._viewState) return;
     const prevWidth = this._viewState.width;
-    const prevHeight = this._viewState.height;
-    if (this._viewState.zoomIn()) this._applyZoom(prevWidth, prevHeight);
+    if (this._viewState.zoomIn()) this._applyZoom(prevWidth);
   }
 
   private _zoomOut(): void {
     if (!this._viewState) return;
     const prevWidth = this._viewState.width;
-    const prevHeight = this._viewState.height;
-    if (this._viewState.zoomOut()) this._applyZoom(prevWidth, prevHeight);
+    if (this._viewState.zoomOut()) this._applyZoom(prevWidth);
   }
 
-  private _applyZoom(fromWidth: number, fromHeight: number): void {
+  private _applyZoom(fromWidth: number): void {
     if (!this._viewState) return;
     if (this._zoomAnimate && this._zoomAnimator && fromWidth != null) {
       this._render();
-      this._zoomAnimator.animateTo(this._viewState.zoomLevel, fromWidth, fromHeight, () =>
-        this._render()
-      );
+      this._zoomAnimator.animateTo(this._viewState.zoomLevel, fromWidth, () => this._render());
     } else {
       this._render();
     }

@@ -32,9 +32,8 @@ describe("ZoomAnimator", () => {
   // Helper: simulates what the card does — snapshot width, change zoom, animate from old width
   function simulateZoomTo(vs, animator, targetLevel) {
     const prevWidth = vs.width;
-    const prevHeight = vs.height;
     vs.setZoomLevel(targetLevel);
-    animator.animateTo(targetLevel, prevWidth, prevHeight);
+    animator.animateTo(targetLevel, prevWidth);
   }
 
   it("isAnimating is false initially", () => {
@@ -113,9 +112,8 @@ describe("ZoomAnimator", () => {
 
     // Now interrupt: animate from current midWidth to level 3 (480)
     const curWidth = vs.width;
-    const curHeight = vs.height;
     vs.setZoomLevel(3);
-    animator.animateTo(3, curWidth, curHeight);
+    animator.animateTo(3, curWidth);
 
     // First frame of new animation
     flushFrame(2000);
@@ -131,7 +129,7 @@ describe("ZoomAnimator", () => {
     const animator = new ZoomAnimator(vs, () => {});
     // Calling animateTo without explicit dimensions exercises the
     // `fromWidth != null ? fromWidth : this._viewState.width` null fallback.
-    animator.animateTo(3, null, null);
+    animator.animateTo(3, null);
     expect(animator.isAnimating).toBe(true);
 
     // Complete the animation — should reach zoom-level 3 (480)

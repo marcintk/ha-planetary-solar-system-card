@@ -12,9 +12,7 @@ export class ZoomAnimator {
   private _onFrame: () => void;
   private _animationId: number | null;
   private _startWidth: number;
-  private _startHeight: number;
   private _targetWidth: number;
-  private _targetHeight: number;
   private _targetLevel: ZoomLevel;
   private _startTime: number | null;
 
@@ -23,9 +21,7 @@ export class ZoomAnimator {
     this._onFrame = onFrame;
     this._animationId = null;
     this._startWidth = 0;
-    this._startHeight = 0;
     this._targetWidth = 0;
-    this._targetHeight = 0;
     this._targetLevel = 1;
     this._startTime = null;
   }
@@ -34,18 +30,11 @@ export class ZoomAnimator {
     return this._animationId !== null;
   }
 
-  animateTo(
-    targetLevel: ZoomLevel,
-    fromWidth: number | null,
-    fromHeight: number | null,
-    onComplete?: () => void
-  ): void {
+  animateTo(targetLevel: ZoomLevel, fromWidth: number | null, onComplete?: () => void): void {
     this.cancel();
 
     this._startWidth = fromWidth != null ? fromWidth : this._viewState.width;
-    this._startHeight = fromHeight != null ? fromHeight : this._viewState.height;
     this._targetWidth = ZOOM_LEVELS[targetLevel];
-    this._targetHeight = ZOOM_LEVELS[targetLevel];
     this._targetLevel = targetLevel;
     this._startTime = null;
 
@@ -56,9 +45,8 @@ export class ZoomAnimator {
       const eased = easeInOutCubic(t);
 
       const w = this._startWidth + (this._targetWidth - this._startWidth) * eased;
-      const h = this._startHeight + (this._targetHeight - this._startHeight) * eased;
 
-      this._viewState.setViewport(w, h);
+      this._viewState.setViewport(w);
       this._onFrame();
 
       if (t < 1) {

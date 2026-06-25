@@ -13,6 +13,7 @@ npm run build:prod     # minified production build
 npm test               # run tests
 npm run test:watch     # run tests in watch mode
 npm run test:coverage  # run tests with coverage report
+npm run typecheck      # tsc --noEmit (type check only)
 npm run check          # biome lint + format (auto-fix)
 npm run format:md      # prettier for markdown files
 ```

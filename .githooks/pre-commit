@@ -3,3 +3,4 @@ set -e
 npm run check:fix
 npm run format:md
 git add -u
+npm run typecheck

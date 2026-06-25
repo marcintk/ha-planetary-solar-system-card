@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'v*.*.*'
+      - 'v*.*.*-*'
 
 permissions:
   contents: write
@@ -16,7 +17,17 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Detect pre-release
+        id: prerelease
+        run: |
+          if [[ "${GITHUB_REF_NAME}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+- ]]; then
+            echo "is_prerelease=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_prerelease=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Validate tag is strictly greater than previous release
+        if: steps.prerelease.outputs.is_prerelease == 'false'
         run: |
           CURR="${GITHUB_REF_NAME#v}"
           PREV=$(git tag --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | grep -v "^${GITHUB_REF_NAME}$" | head -1)
@@ -59,3 +70,4 @@ jobs:
           tag_name: ${{ github.ref_name }}
           files: dist/card.js
           generate_release_notes: true
+          prerelease: ${{ steps.prerelease.outputs.is_prerelease }}

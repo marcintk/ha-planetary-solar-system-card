@@ -82,7 +82,7 @@ describe("ZoomAnimator", () => {
     flushFrame(2000);
 
     expect(vs.width).toBe(640);
-    expect(vs.height).toBe(640);
+    expect(vs.width).toBe(640);
     expect(vs.zoomLevel).toBe(2);
     expect(animator.isAnimating).toBe(false);
   });

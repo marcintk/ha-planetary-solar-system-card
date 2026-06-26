@@ -71,19 +71,10 @@ export class SolarViewCard extends LitElement {
   // ---------------------------------------------------------------------------
   // Proxy getters
   // ---------------------------------------------------------------------------
-  get _isDragging(): boolean {
-    return this._viewState?.isDragging ?? false;
-  }
   get _locationData(): LocationData | null {
     return this._lat != null && this._lon != null
       ? { lat: this._lat, lon: this._lon, timezone: this._timezone ?? "UTC" }
       : null;
-  }
-  get _viewCenterX(): number | null {
-    return this._viewState?.centerX ?? null;
-  }
-  get _viewCenterY(): number | null {
-    return this._viewState?.centerY ?? null;
   }
   get _zoomLevel(): ZoomLevel | null {
     return this._viewState?.zoomLevel ?? null;

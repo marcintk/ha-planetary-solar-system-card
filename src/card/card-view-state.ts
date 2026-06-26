@@ -38,9 +38,6 @@ export class ViewState {
   get width(): number {
     return this._size;
   }
-  get height(): number {
-    return this._size;
-  }
 
   /** Returns the SVG viewBox string for the current pan/zoom state. */
   get viewBox(): string {

@@ -130,13 +130,13 @@ describe("renderSaturnRings", () => {
 
   it("appends exactly two ring circles", () => {
     const svg = createSvg();
-    renderSaturnRings(svg, 200, 300, saturn, saturn.size / 2);
+    renderSaturnRings(svg, 200, 300, saturn);
     expect(svg.querySelectorAll("circle").length).toBe(2);
   });
 
   it("ring circles have fill: none (stroke-only)", () => {
     const svg = createSvg();
-    renderSaturnRings(svg, 200, 300, saturn, saturn.size / 2);
+    renderSaturnRings(svg, 200, 300, saturn);
     for (const circle of svg.querySelectorAll("circle")) {
       expect(circle.getAttribute("fill")).toBe("none");
     }
@@ -144,7 +144,7 @@ describe("renderSaturnRings", () => {
 
   it("ring circles are centered on the given x, y", () => {
     const svg = createSvg();
-    renderSaturnRings(svg, 200, 300, saturn, saturn.size / 2);
+    renderSaturnRings(svg, 200, 300, saturn);
     for (const circle of svg.querySelectorAll("circle")) {
       expect(circle.getAttribute("cx")).toBe("200");
       expect(circle.getAttribute("cy")).toBe("300");
@@ -153,7 +153,7 @@ describe("renderSaturnRings", () => {
 
   it("outer ring has r=23 and stroke-width=2", () => {
     const svg = createSvg();
-    renderSaturnRings(svg, 200, 300, saturn, saturn.size / 2);
+    renderSaturnRings(svg, 200, 300, saturn);
     const [outer] = svg.querySelectorAll("circle");
     expect(outer.getAttribute("r")).toBe("23");
     expect(outer.getAttribute("stroke-width")).toBe("2");
@@ -161,7 +161,7 @@ describe("renderSaturnRings", () => {
 
   it("inner ring has r=18 and stroke-width=6", () => {
     const svg = createSvg();
-    renderSaturnRings(svg, 200, 300, saturn, saturn.size / 2);
+    renderSaturnRings(svg, 200, 300, saturn);
     const rings = svg.querySelectorAll("circle");
     const inner = rings[1];
     expect(inner.getAttribute("r")).toBe("18");
@@ -170,7 +170,7 @@ describe("renderSaturnRings", () => {
 
   it("ring stroke color matches Saturn's body color with 0.6 opacity", () => {
     const svg = createSvg();
-    renderSaturnRings(svg, 200, 300, saturn, saturn.size / 2);
+    renderSaturnRings(svg, 200, 300, saturn);
     const [outer] = svg.querySelectorAll("circle");
     expect(outer.getAttribute("stroke")).toBe(saturn.color);
     expect(outer.getAttribute("opacity")).toBe("0.6");

@@ -89,8 +89,7 @@ export function renderSaturnRings(
   svg: SVGElement,
   x: number,
   y: number,
-  body: CelestialBody,
-  _renderSize: number
+  body: CelestialBody
 ): void {
   // Outer ring (r=23, stroke-width=2): outer edge 24px, inner edge 22px
   svg.appendChild(

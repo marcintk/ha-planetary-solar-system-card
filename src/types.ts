@@ -60,7 +60,6 @@ export interface PanZoomState {
   centerX: number;
   centerY: number;
   width: number;
-  height: number;
 }
 
 // Computed/return types

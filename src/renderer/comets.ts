@@ -80,7 +80,7 @@ export function renderCometBody(
   const ny = dy / dist;
 
   // Tail end point (away from Sun)
-  const tailLen = dynamicTailLength ?? comet.tailLength ?? 30;
+  const tailLen = dynamicTailLength ?? comet.tailLength;
   const tx = x + nx * tailLen;
   const ty = y + ny * tailLen;
 

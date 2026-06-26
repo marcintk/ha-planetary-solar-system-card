@@ -15,12 +15,11 @@ export const BODY_LABEL_ATTRS: Record<string, string | number> = {
 
 // Log-scale orbit radii so inner planets aren't squished.
 // Maps AU → pixel radius from center, leaving margin for labels.
+const _logMinAU = Math.log(PLANETS[0].au);
+const _logMaxAU = Math.log(PLANETS[PLANETS.length - 1].au);
+
 export function auToRadius(au: number): number {
-  const minAU = PLANETS[0].au;
-  const maxAU = PLANETS[PLANETS.length - 1].au;
-  const logMin = Math.log(minAU);
-  const logMax = Math.log(maxAU);
-  const t = (Math.log(au) - logMin) / (logMax - logMin);
+  const t = (Math.log(au) - _logMinAU) / (_logMaxAU - _logMinAU);
   return MIN_RADIUS + t * (MAX_RADIUS - MIN_RADIUS);
 }
 

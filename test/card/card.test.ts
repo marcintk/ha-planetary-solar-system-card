@@ -688,9 +688,6 @@ describe("SolarViewCard", () => {
     it("return safe defaults when _viewState is null", () => {
       const card = document.createElement("ha-planetary-solar-system-card-test");
       // Card created but never mounted — _viewState is null
-      expect(card._isDragging).toBe(false);
-      expect(card._viewCenterX).toBeNull();
-      expect(card._viewCenterY).toBeNull();
       expect(card._zoomLevel).toBeNull();
     });
   });
@@ -756,9 +753,9 @@ describe("SolarViewCard", () => {
     it("pointermove before pointerdown is a no-op", () => {
       const card = createAndMount();
       const svg = card.shadowRoot.querySelector("#solar-view svg");
-      const centerBefore = card._viewCenterX;
+      const centerBefore = card._viewState.centerX;
       svg.dispatchEvent(new PointerEvent("pointermove", { clientX: 300, clientY: 300 }));
-      expect(card._viewCenterX).toBe(centerBefore);
+      expect(card._viewState.centerX).toBe(centerBefore);
       card.remove();
     });
 
@@ -768,7 +765,7 @@ describe("SolarViewCard", () => {
       svg.releasePointerCapture = () => {};
       // Should not throw and dragging flag stays false
       svg.dispatchEvent(new PointerEvent("pointerup", { clientX: 300, clientY: 300 }));
-      expect(card._isDragging).toBe(false);
+      expect(card._viewState.isDragging).toBe(false);
       card.remove();
     });
   });
@@ -801,7 +798,7 @@ describe("SolarViewCard", () => {
       svg.setPointerCapture = () => {};
       svg.releasePointerCapture = () => {};
       svg.dispatchEvent(downEvent);
-      expect(card._isDragging).toBe(true);
+      expect(card._viewState.isDragging).toBe(true);
 
       // Simulate pointerup — should end drag
       const upEvent = new PointerEvent("pointerup", {
@@ -810,7 +807,7 @@ describe("SolarViewCard", () => {
         pointerId: 1,
       });
       svg.dispatchEvent(upEvent);
-      expect(card._isDragging).toBe(false);
+      expect(card._viewState.isDragging).toBe(false);
       card.remove();
     });
 
@@ -822,7 +819,7 @@ describe("SolarViewCard", () => {
       // Mock getBoundingClientRect
       svg.getBoundingClientRect = () => ({ width: 400, height: 400, x: 0, y: 0, top: 0, left: 0 });
 
-      const centerBefore = { x: card._viewCenterX, y: card._viewCenterY };
+      const centerBefore = { x: card._viewState.centerX, y: card._viewState.centerY };
 
       svg.dispatchEvent(
         new PointerEvent("pointerdown", { clientX: 200, clientY: 200, pointerId: 1 })
@@ -832,7 +829,7 @@ describe("SolarViewCard", () => {
       );
 
       // Dragging right should decrease centerX (content moves right)
-      expect(card._viewCenterX).toBeLessThan(centerBefore.x);
+      expect(card._viewState.centerX).toBeLessThan(centerBefore.x);
 
       svg.dispatchEvent(
         new PointerEvent("pointerup", { clientX: 250, clientY: 200, pointerId: 1 })

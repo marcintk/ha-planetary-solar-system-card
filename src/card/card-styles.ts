@@ -6,7 +6,6 @@ export const cardStyles = css`
     background: #090909;
   }
   .card {
-    background: #090909;
     border-radius: 0px;
     padding: 0px;
     color: #ffffff;

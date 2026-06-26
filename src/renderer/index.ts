@@ -72,7 +72,7 @@ export function renderSolarSystem(
       const saturnRenderSize = Math.round(planet.size / 2);
       const saturnOverride = { ...planet, size: saturnRenderSize };
       renderBody(svg, x, y, saturnOverride, false, colors);
-      renderSaturnRings(svg, x, y, planet, saturnRenderSize);
+      renderSaturnRings(svg, x, y, planet);
       // Draw label after rings so it paints on top
       svg.appendChild(
         createSvgElement("text", {

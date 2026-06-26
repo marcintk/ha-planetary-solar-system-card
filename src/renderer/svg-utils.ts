@@ -1,5 +1,4 @@
 import { PLANETS } from "../astronomy/planet-data.js";
-import type { Bounds } from "../types.js";
 
 export const SVG_NS = "http://www.w3.org/2000/svg";
 export const DEFAULT_LABEL_COLOR = "#ffffff";
@@ -7,6 +6,12 @@ export const VIEW_SIZE = 800;
 export const CENTER = VIEW_SIZE / 2;
 export const MIN_RADIUS = 40;
 export const MAX_RADIUS = 360;
+
+export const BODY_LABEL_ATTRS: Record<string, string | number> = {
+  "font-size": "11",
+  "font-family": "sans-serif",
+  "text-anchor": "middle",
+};
 
 // Log-scale orbit radii so inner planets aren't squished.
 // Maps AU → pixel radius from center, leaving margin for labels.
@@ -28,11 +33,4 @@ export function createSvgElement<K extends keyof SVGElementTagNameMap>(
     el.setAttribute(k, String(v));
   }
   return el as SVGElementTagNameMap[K];
-}
-
-export function expandBounds(bounds: Bounds, x: number, y: number, margin: number): void {
-  bounds.minX = Math.min(bounds.minX, x - margin);
-  bounds.minY = Math.min(bounds.minY, y - margin);
-  bounds.maxX = Math.max(bounds.maxX, x + margin);
-  bounds.maxY = Math.max(bounds.maxY, y + margin);
 }

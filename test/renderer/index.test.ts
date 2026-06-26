@@ -13,9 +13,9 @@ import {
 import { auToRadius } from "../../src/renderer/svg-utils.js";
 
 function renderInto(container, date) {
-  const { svg, bounds } = renderSolarSystem(date);
+  const { svg } = renderSolarSystem(date);
   container.appendChild(svg);
-  return { svg, bounds };
+  return svg;
 }
 
 // Returns the normalised dot product of the two edge vectors of a cone clip path.

@@ -4,7 +4,6 @@ import {
   auToRadius,
   CENTER,
   createSvgElement,
-  expandBounds,
   MAX_RADIUS,
   MIN_RADIUS,
   SVG_NS,
@@ -72,48 +71,5 @@ describe("auToRadius", () => {
     const jupiterRadius = auToRadius(5.2);
     // Jupiter should be noticeably past the midpoint (> 50% of MAX_RADIUS)
     expect(jupiterRadius).toBeGreaterThan(MIN_RADIUS + (MAX_RADIUS - MIN_RADIUS) * 0.4);
-  });
-});
-
-describe("expandBounds", () => {
-  function freshBounds() {
-    return { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
-  }
-
-  it("sets bounds to point ± margin on the first call", () => {
-    const b = freshBounds();
-    expandBounds(b, 100, 200, 10);
-    expect(b.minX).toBe(90);
-    expect(b.minY).toBe(190);
-    expect(b.maxX).toBe(110);
-    expect(b.maxY).toBe(210);
-  });
-
-  it("expands bounds when a new point exceeds the current box", () => {
-    const b = freshBounds();
-    expandBounds(b, 100, 100, 5);
-    expandBounds(b, 200, 50, 5); // x is further right
-    expect(b.maxX).toBe(205);
-    expect(b.minY).toBe(45);
-  });
-
-  it("does not shrink bounds for a point already inside", () => {
-    const b = freshBounds();
-    expandBounds(b, 100, 100, 50); // sets bounds [50,150] x [50,150]
-    expandBounds(b, 100, 100, 10); // smaller margin, same center — should not shrink
-    expect(b.minX).toBe(50);
-    expect(b.maxX).toBe(150);
-  });
-
-  it("accumulates correctly across multiple planets", () => {
-    const b = freshBounds();
-    expandBounds(b, 400, 0, 5); // top
-    expandBounds(b, 400, 800, 5); // bottom
-    expandBounds(b, 0, 400, 5); // left
-    expandBounds(b, 800, 400, 5); // right
-    expect(b.minX).toBe(-5);
-    expect(b.maxX).toBe(805);
-    expect(b.minY).toBe(-5);
-    expect(b.maxY).toBe(805);
   });
 });

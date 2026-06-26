@@ -303,7 +303,7 @@ export class SolarViewCard extends LitElement {
 
   private _applyZoom(fromWidth: number): void {
     if (!this._viewState) return;
-    if (this._zoomAnimate && this._zoomAnimator && fromWidth != null) {
+    if (this._zoomAnimate && this._zoomAnimator) {
       this._render();
       this._zoomAnimator.animateTo(this._viewState.zoomLevel, fromWidth, () => this._render());
     } else {

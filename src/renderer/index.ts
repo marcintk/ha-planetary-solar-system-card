@@ -5,7 +5,7 @@ import {
   calculatePlanetPosition,
 } from "../astronomy/orbital-mechanics.js";
 import { MOON, PLANETS, SUN } from "../astronomy/planet-data.js";
-import type { Bounds, Colors, Hemisphere, LocationData, Planet, ViewPosition } from "../types.js";
+import type { Colors, Hemisphere, LocationData, Planet, ViewPosition } from "../types.js";
 import { ORBIT_COLOR, renderBody, renderOrbit, renderSaturnRings } from "./bodies.js";
 import { computeCometVisualEllipse, renderCometBody, renderCometOrbit } from "./comets.js";
 import { renderMoonPhaseIndicator } from "./moon-phase.js";
@@ -13,28 +13,20 @@ import { calculateObserverAngle, renderDayNightSplit, renderObserverNeedle } fro
 import { renderSeasonOverlay } from "./seasons.js";
 import {
   auToRadius,
+  BODY_LABEL_ATTRS,
   CENTER,
   createSvgElement,
   DEFAULT_LABEL_COLOR,
-  expandBounds,
   VIEW_SIZE,
 } from "./svg-utils.js";
 
-/**
- * Renders the solar system SVG and returns it with bounding box metadata.
- * @param {Date} date - date to calculate positions for
- * @param {string} [hemisphere="north"] - "north" or "south" for season labels
- * @param {{ lat: number, lon: number, timezone: string } | null} [locationData] - observer location from HA config
- * @param {{ background?: string, orbit?: string, label?: string, season_line?: string, season_label?: string }} [colors] - optional color overrides
- * @returns {{ svg: SVGElement, bounds: { minX: number, minY: number, maxX: number, maxY: number } }}
- */
 export function renderSolarSystem(
   date: Date,
   hemisphere: Hemisphere = "north",
   locationData: LocationData | null = null,
   colors: Colors = {},
   eclipticView = false
-): { svg: SVGSVGElement; bounds: Bounds; positions: ViewPosition[] } {
+): { svg: SVGSVGElement; positions: ViewPosition[] } {
   const eclipticViewDirection = eclipticView ? 1 : -1;
   const orbitColor = colors.orbit ?? ORBIT_COLOR;
   const labelColor = colors.label ?? DEFAULT_LABEL_COLOR;
@@ -46,7 +38,6 @@ export function renderSolarSystem(
     style: "background: transparent; display: block;",
   });
 
-  const bounds = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
   const positions: ViewPosition[] = [];
 
   // Day/night split (rendered first, behind everything)
@@ -68,7 +59,6 @@ export function renderSolarSystem(
 
   // Sun at center
   renderBody(svg, CENTER, CENTER, SUN, false, colors);
-  expandBounds(bounds, CENTER, CENTER, SUN.size);
 
   // Draw planets
   for (const planet of PLANETS) {
@@ -82,7 +72,6 @@ export function renderSolarSystem(
       const saturnRenderSize = Math.round(planet.size / 2);
       const saturnOverride = { ...planet, size: saturnRenderSize };
       renderBody(svg, x, y, saturnOverride, false, colors);
-      expandBounds(bounds, x, y, saturnOverride.size + 20);
       renderSaturnRings(svg, x, y, planet, saturnRenderSize);
       // Draw label after rings so it paints on top
       svg.appendChild(
@@ -90,17 +79,11 @@ export function renderSolarSystem(
           x: x,
           y: y - saturnRenderSize - 16,
           fill: labelColor,
-          "font-size": "11",
-          "font-family": "sans-serif",
-          "text-anchor": "middle",
+          ...BODY_LABEL_ATTRS,
         })
       ).textContent = planet.name;
-      // Total footprint: ring outer edge = ringRadius + strokeWidth/2 = (planet.size - 2) + 2 = planet.size
-      expandBounds(bounds, x, y, planet.size);
     } else {
       renderBody(svg, x, y, planet, true, colors);
-      // Account for body size + label height (~17px above body)
-      expandBounds(bounds, x, y, planet.size + 17);
     }
   }
 
@@ -117,7 +100,6 @@ export function renderSolarSystem(
     const dynamicTail = comet.tailLength * tailScale;
     renderCometBody(svg, cx, cy, comet, CENTER, CENTER, dynamicTail, colors);
     positions.push({ name: comet.name, x: cx, y: cy, color: comet.color });
-    expandBounds(bounds, cx, cy, comet.size + dynamicTail);
   }
 
   // Draw Moon near Earth
@@ -146,7 +128,6 @@ export function renderSolarSystem(
   );
 
   renderBody(svg, moonX, moonY, MOON, false, colors);
-  expandBounds(bounds, moonX, moonY, MOON.size + 17);
 
   // Observer needle on Earth (tip at surface)
   const observerAngle = calculateObserverAngle(
@@ -160,5 +141,5 @@ export function renderSolarSystem(
   // Moon phase indicator (rendered last so it appears on top)
   renderMoonPhaseIndicator(svg, date, hemisphere);
 
-  return { svg, bounds, positions };
+  return { svg, positions };
 }

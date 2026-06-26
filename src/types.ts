@@ -56,13 +56,6 @@ export interface ViewPosition {
   offscreen?: boolean;
 }
 
-export interface Bounds {
-  minX: number;
-  minY: number;
-  maxX: number;
-  maxY: number;
-}
-
 export interface PanZoomState {
   centerX: number;
   centerY: number;

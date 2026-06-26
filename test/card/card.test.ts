@@ -1,6 +1,5 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { SolarViewCard } from "../../src/card/card.js";
-import { renderSolarSystem } from "../../src/renderer/index.js";
 
 beforeAll(() => {
   if (!customElements.get("ha-planetary-solar-system-card-test")) {
@@ -83,31 +82,6 @@ describe("SolarViewCard", () => {
     const parts = getSvgViewBox(card).split(" ").map(Number);
     return { minX: parts[0], minY: parts[1], width: parts[2], height: parts[3] };
   }
-
-  describe("renderSolarSystem returns { svg, bounds }", () => {
-    it("returns an object with svg and bounds", () => {
-      const result = renderSolarSystem(new Date(2025, 0, 1));
-      expect(result).toHaveProperty("svg");
-      expect(result).toHaveProperty("bounds");
-      expect(result.svg.tagName).toBe("svg");
-    });
-
-    it("bounds has minX, minY, maxX, maxY as finite numbers", () => {
-      const { bounds } = renderSolarSystem(new Date(2025, 0, 1));
-      expect(bounds.minX).toBeLessThan(bounds.maxX);
-      expect(bounds.minY).toBeLessThan(bounds.maxY);
-      expect(Number.isFinite(bounds.minX)).toBe(true);
-      expect(Number.isFinite(bounds.maxY)).toBe(true);
-    });
-
-    it("bounds encompasses Sun at center (400, 400)", () => {
-      const { bounds } = renderSolarSystem(new Date(2025, 0, 1));
-      expect(bounds.minX).toBeLessThan(400);
-      expect(bounds.maxX).toBeGreaterThan(400);
-      expect(bounds.minY).toBeLessThan(400);
-      expect(bounds.maxY).toBeGreaterThan(400);
-    });
-  });
 
   describe("auto-fit viewBox", () => {
     it("sets a viewBox on the SVG on first render", () => {

@@ -1,3 +1,3 @@
-import { cardBundle } from "ha-shared/rollup.base.mjs";
+import { cardBundle } from "ha-card-shared/rollup.base.mjs";
 
 export default cardBundle();

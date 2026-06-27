@@ -1,0 +1,22 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`buildStatusBar > rendered structure snapshots > full status bar with Next transition 1`] = `
+"<!----><div class="status-bar">
+    <span><!--?-->London | <!--?-->Day (<!--?-->32°)</span>
+    <!--?--><span>Next: <!--?-->Civil Twilight (<!--?-->17:25)</span>
+  </div>"
+`;
+
+exports[`buildStatusBar > rendered structure snapshots > null location name (empty before pipe) 1`] = `
+"<!----><div class="status-bar">
+    <span><!--?--> | <!--?-->Day (<!--?-->89°)</span>
+    <!--?--><span>Next: <!--?-->Civil Twilight (<!--?-->18:00)</span>
+  </div>"
+`;
+
+exports[`buildStatusBar > rendered structure snapshots > single span (polar night, no transition) 1`] = `
+"<!----><div class="status-bar">
+    <span><!--?-->Arctic | <!--?-->Night (<!--?-->-22°)</span>
+    <!--?-->
+  </div>"
+`;

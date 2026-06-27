@@ -1,8 +1,4 @@
-@node_modules/ha-shared/CLAUDE-SHARED.md
-
-@package.json
-
-@TODO.md
+@node_modules/ha-shared/CLAUDE-SHARED.md @package.json @TODO.md
 
 # ha-planetary-solar-system-card
 

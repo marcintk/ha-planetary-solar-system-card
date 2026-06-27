@@ -1,22 +1,5 @@
 version: 2
-registries:
-  github-packages-npm:
-    type: npm-registry
-    url: https://npm.pkg.github.com
-    token: ${{secrets.GITHUB_TOKEN}}
-    replaces-base: false
 updates:
-  - package-ecosystem: npm
-    directory: /
-    registries:
-      - github-packages-npm
-    schedule:
-      interval: weekly
-    ignore:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-patch", "version-update:semver-minor", "version-update:semver-major"]
-    allow:
-      - dependency-name: ha-card-shared
   - package-ecosystem: github-actions
     directory: /
     schedule:

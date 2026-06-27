@@ -1,5 +1,5 @@
 {
-  "extends": "ha-shared/tsconfig.base.json",
+  "extends": "ha-card-shared/tsconfig.base.json",
   "compilerOptions": {
     "target": "ES2022",
     "lib": ["ES2022", "DOM"],

@@ -26,6 +26,7 @@
     "lovelace",
     "solar-system"
   ],
+  "prettier": "ha-card-shared/prettier.config.json",
   "license": "ISC",
   "devDependencies": {
     "@biomejs/biome": "^2.4.16",
@@ -33,7 +34,7 @@
     "@rollup/plugin-terser": "^1.0.0",
     "@rollup/plugin-typescript": "^12.3.0",
     "@vitest/coverage-v8": "^4.1.8",
-    "ha-shared": "github:marcintk/ha-shared",
+    "ha-card-shared": "github:marcintk/ha-card-shared#v1.0.0",
     "jsdom": "^28.0.0",
     "prettier": "^3.8.1",
     "rollup": "^4.57.1",

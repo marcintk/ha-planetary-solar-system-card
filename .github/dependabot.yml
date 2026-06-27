@@ -8,4 +8,13 @@ updates:
       - dependency-name: "*"
         update-types: ["version-update:semver-patch", "version-update:semver-minor", "version-update:semver-major"]
     allow:
-      - dependency-name: ha-shared
+      - dependency-name: ha-card-shared
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-patch", "version-update:semver-minor", "version-update:semver-major"]
+    allow:
+      - dependency-name: marcintk/ha-card-shared

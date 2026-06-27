@@ -1,2 +1,2 @@
 #!/bin/sh
-exec node_modules/ha-shared/.githooks/pre-commit
+exec node_modules/ha-card-shared/.githooks/pre-commit

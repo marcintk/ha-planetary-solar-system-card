@@ -5,51 +5,10 @@ on:
     branches: ["main"]
   workflow_dispatch:
 
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: pages
-  cancel-in-progress: false
-
 jobs:
   deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 24.x
-          cache: npm
-
-      - run: npm ci
-
-      - name: Set version from latest git tag
-        run: |
-          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-          npm pkg set version="${LATEST_TAG#v}"
-
-      - run: npm run build:prod
-
-      - name: Stage Pages artifact
-        run: |
-          mkdir -p _site
-          cp docs/index.html _site/index.html
-          cp dist/card.js _site/card.js
-
-      - uses: actions/configure-pages@v5
-
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: _site
-
-      - id: deployment
-        uses: actions/deploy-pages@v4
+    uses: marcintk/ha-shared/.github/workflows/deploy-demo-page.yml@main
+    permissions:
+      contents: read
+      pages: write
+      id-token: write

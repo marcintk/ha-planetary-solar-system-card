@@ -1,6 +1,2 @@
 #!/bin/sh
-set -e
-npm run check:fix
-npm run format:md
-git add -u
-npm run typecheck
+exec node_modules/ha-shared/.githooks/pre-commit

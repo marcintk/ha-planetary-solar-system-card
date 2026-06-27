@@ -82,7 +82,7 @@ describe("ZoomAnimator", () => {
     flushFrame(2000);
 
     expect(vs.width).toBe(640);
-    expect(vs.height).toBe(640);
+    expect(vs.width).toBe(640);
     expect(vs.zoomLevel).toBe(2);
     expect(animator.isAnimating).toBe(false);
   });
@@ -122,20 +122,6 @@ describe("ZoomAnimator", () => {
     // Should be between midWidth and 480
     expect(newMidWidth).toBeLessThan(midWidth);
     expect(newMidWidth).toBeGreaterThan(480);
-  });
-
-  it("uses viewState dimensions when fromWidth/fromHeight are omitted", () => {
-    const vs = new ViewState(2); // width = 640
-    const animator = new ZoomAnimator(vs, () => {});
-    // Calling animateTo without explicit dimensions exercises the
-    // `fromWidth != null ? fromWidth : this._viewState.width` null fallback.
-    animator.animateTo(3, null);
-    expect(animator.isAnimating).toBe(true);
-
-    // Complete the animation — should reach zoom-level 3 (480)
-    flushFrame(0);
-    flushFrame(2000);
-    expect(vs.width).toBe(480);
   });
 
   it("animation preserves centerX and centerY", () => {

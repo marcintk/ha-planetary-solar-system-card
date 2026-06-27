@@ -1,5 +1,5 @@
 import type { CelestialBody, Colors } from "../types.js";
-import { CENTER, createSvgElement, DEFAULT_LABEL_COLOR } from "./svg-utils.js";
+import { BODY_LABEL_ATTRS, CENTER, createSvgElement, DEFAULT_LABEL_COLOR } from "./svg-utils.js";
 
 export const ORBIT_COLOR = "rgba(255, 255, 255, 0.12)";
 const AU_LABEL_COLOR = "rgba(255, 255, 255, 0.5)";
@@ -79,9 +79,7 @@ export function renderBody(
         x: x,
         y: y - body.size - 6,
         fill: labelColor,
-        "font-size": "11",
-        "font-family": "sans-serif",
-        "text-anchor": "middle",
+        ...BODY_LABEL_ATTRS,
       })
     ).textContent = body.name;
   }
@@ -91,8 +89,7 @@ export function renderSaturnRings(
   svg: SVGElement,
   x: number,
   y: number,
-  body: CelestialBody,
-  _renderSize: number
+  body: CelestialBody
 ): void {
   // Outer ring (r=23, stroke-width=2): outer edge 24px, inner edge 22px
   svg.appendChild(

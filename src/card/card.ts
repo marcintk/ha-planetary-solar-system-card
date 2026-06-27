@@ -71,19 +71,10 @@ export class SolarViewCard extends LitElement {
   // ---------------------------------------------------------------------------
   // Proxy getters
   // ---------------------------------------------------------------------------
-  get _isDragging(): boolean {
-    return this._viewState?.isDragging ?? false;
-  }
   get _locationData(): LocationData | null {
     return this._lat != null && this._lon != null
       ? { lat: this._lat, lon: this._lon, timezone: this._timezone ?? "UTC" }
       : null;
-  }
-  get _viewCenterX(): number | null {
-    return this._viewState?.centerX ?? null;
-  }
-  get _viewCenterY(): number | null {
-    return this._viewState?.centerY ?? null;
   }
   get _zoomLevel(): ZoomLevel | null {
     return this._viewState?.zoomLevel ?? null;
@@ -303,7 +294,7 @@ export class SolarViewCard extends LitElement {
 
   private _applyZoom(fromWidth: number): void {
     if (!this._viewState) return;
-    if (this._zoomAnimate && this._zoomAnimator && fromWidth != null) {
+    if (this._zoomAnimate && this._zoomAnimator) {
       this._render();
       this._zoomAnimator.animateTo(this._viewState.zoomLevel, fromWidth, () => this._render());
     } else {

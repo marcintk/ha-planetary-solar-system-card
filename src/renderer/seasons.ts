@@ -63,8 +63,7 @@ export function renderSeasonOverlay(
     },
   };
 
-  const hem = hemisphere === "south" ? "south" : "north";
-  const [nameA, nameB, nameC, nameD] = NAME_SLOTS[hem][isEcliptic ? "ecliptic" : "normal"];
+  const [nameA, nameB, nameC, nameD] = NAME_SLOTS[hemisphere][isEcliptic ? "ecliptic" : "normal"];
 
   // Arc geometry: always uses standard math orientation (y = CENTER - r·sin(θ)).
   // isTopHalf drives two things: arc sweep direction (CW vs CCW) for readable text,

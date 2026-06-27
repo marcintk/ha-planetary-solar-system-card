@@ -334,21 +334,6 @@ describe("renderCometBody", () => {
     const circle = svg.querySelector("circle");
     expect(circle).not.toBeNull();
   });
-
-  it("uses default tail length when comet has no tailLength", () => {
-    const noTailComet = { ...halley, tailLength: undefined };
-    delete noTailComet.tailLength;
-    const svg = createSvg();
-    renderCometBody(svg, bodyX, bodyY, noTailComet, sunX, sunY);
-
-    const line = svg.querySelector("line");
-    const x2 = Number(line.getAttribute("x2"));
-    const y2 = Number(line.getAttribute("y2"));
-    const tailDX = x2 - bodyX;
-    const tailDY = y2 - bodyY;
-    const tailLen = Math.sqrt(tailDX * tailDX + tailDY * tailDY);
-    expect(tailLen).toBeCloseTo(30, 1); // default tailLength
-  });
 });
 
 describe("comets in renderSolarSystem integration", () => {

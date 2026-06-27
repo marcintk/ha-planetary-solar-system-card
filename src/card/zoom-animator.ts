@@ -30,10 +30,10 @@ export class ZoomAnimator {
     return this._animationId !== null;
   }
 
-  animateTo(targetLevel: ZoomLevel, fromWidth: number | null, onComplete?: () => void): void {
+  animateTo(targetLevel: ZoomLevel, fromWidth: number, onComplete?: () => void): void {
     this.cancel();
 
-    this._startWidth = fromWidth != null ? fromWidth : this._viewState.width;
+    this._startWidth = fromWidth;
     this._targetWidth = ZOOM_LEVELS[targetLevel];
     this._targetLevel = targetLevel;
     this._startTime = null;

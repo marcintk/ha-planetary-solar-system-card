@@ -1,6 +1,12 @@
 import type { Colors, Comet, CometVisualEllipse } from "../types.js";
 import { ORBIT_COLOR } from "./bodies.js";
-import { auToRadius, CENTER, createSvgElement, DEFAULT_LABEL_COLOR } from "./svg-utils.js";
+import {
+  auToRadius,
+  BODY_LABEL_ATTRS,
+  CENTER,
+  createSvgElement,
+  DEFAULT_LABEL_COLOR,
+} from "./svg-utils.js";
 
 const TAIL_COLOR = "rgba(136, 204, 255, 0.5)";
 
@@ -62,7 +68,7 @@ export function renderCometBody(
   comet: Comet,
   sunX: number,
   sunY: number,
-  dynamicTailLength: number,
+  dynamicTailLength?: number,
   colors: Colors = {}
 ): void {
   const labelColor = colors.label ?? DEFAULT_LABEL_COLOR;
@@ -74,7 +80,7 @@ export function renderCometBody(
   const ny = dy / dist;
 
   // Tail end point (away from Sun)
-  const tailLen = dynamicTailLength ?? comet.tailLength ?? 30;
+  const tailLen = dynamicTailLength ?? comet.tailLength;
   const tx = x + nx * tailLen;
   const ty = y + ny * tailLen;
 
@@ -108,9 +114,7 @@ export function renderCometBody(
       x: x,
       y: y - comet.size - 6,
       fill: labelColor,
-      "font-size": "11",
-      "font-family": "sans-serif",
-      "text-anchor": "middle",
+      ...BODY_LABEL_ATTRS,
     })
   ).textContent = comet.name;
 }

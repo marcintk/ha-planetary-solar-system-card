@@ -23,7 +23,7 @@ describe("ViewState constructor", () => {
     const vs = new ViewState(3);
     expect(vs.zoomLevel).toBe(3);
     expect(vs.width).toBe(480);
-    expect(vs.height).toBe(480);
+    expect(vs.width).toBe(480);
   });
 
   it("starts with isDragging false", () => {
@@ -73,7 +73,7 @@ describe("ViewState zoom", () => {
     expect(changed).toBe(true);
     expect(vs.zoomLevel).toBe(2);
     expect(vs.width).toBe(640);
-    expect(vs.height).toBe(640);
+    expect(vs.width).toBe(640);
   });
 
   it("zoomOut decrements zoom level and increases viewport size", () => {
@@ -82,7 +82,7 @@ describe("ViewState zoom", () => {
     expect(changed).toBe(true);
     expect(vs.zoomLevel).toBe(1);
     expect(vs.width).toBe(800);
-    expect(vs.height).toBe(800);
+    expect(vs.width).toBe(800);
   });
 
   it("zoomIn returns false and does not exceed MAX_ZOOM", () => {
@@ -121,7 +121,7 @@ describe("ViewState setZoomLevel", () => {
     vs.setZoomLevel(3);
     expect(vs.zoomLevel).toBe(3);
     expect(vs.width).toBe(480);
-    expect(vs.height).toBe(480);
+    expect(vs.width).toBe(480);
   });
 
   it("clamps level above MAX_ZOOM to MAX_ZOOM", () => {
@@ -151,7 +151,7 @@ describe("ViewState setViewport", () => {
     const vs = new ViewState(1);
     vs.setViewport(500);
     expect(vs.width).toBe(500);
-    expect(vs.height).toBe(500);
+    expect(vs.width).toBe(500);
     expect(vs.zoomLevel).toBe(1);
   });
 
@@ -159,7 +159,7 @@ describe("ViewState setViewport", () => {
     const vs = new ViewState(2);
     vs.setViewport(700);
     expect(vs.width).toBe(700);
-    expect(vs.height).toBe(700);
+    expect(vs.width).toBe(700);
     expect(vs.zoomLevel).toBe(2);
   });
 

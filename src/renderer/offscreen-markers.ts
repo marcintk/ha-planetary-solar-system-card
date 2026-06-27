@@ -147,7 +147,7 @@ export function renderOffscreenMarkers(
   if (!positions || !viewState) return group;
 
   const w = viewState.width;
-  const h = viewState.height;
+  const h = viewState.width;
   const left = viewState.centerX - w / 2;
   const top = viewState.centerY - h / 2;
   const right = left + w;

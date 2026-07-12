@@ -1,7 +1,7 @@
 import { calculatePlanetPosition } from "../astronomy/orbital-mechanics.js";
-import { PLANETS } from "../astronomy/planet-data.js";
+import { EARTH } from "../astronomy/planet-data.js";
 import { computeSolarElevationDeg, getLocalTimeInZone } from "../astronomy/solar-position.js";
-import type { LocationData, Planet } from "../types.js";
+import type { LocationData } from "../types.js";
 import { CENTER, createSvgElement, MAX_RADIUS, VIEW_SIZE } from "./svg-utils.js";
 
 const NEEDLE_COLOR = "color-mix(in srgb, currentColor 70%, transparent)";
@@ -127,8 +127,7 @@ export function renderDayNightSplit(
   locationData: LocationData | null,
   eclipticViewDirection = -1
 ): void {
-  const earth = PLANETS.find((p) => p.name === "Earth") as Planet;
-  const earthAngle = calculatePlanetPosition(earth, date);
+  const earthAngle = calculatePlanetPosition(EARTH, date);
   const observerAngle = calculateObserverAngle(
     earthAngle,
     date,

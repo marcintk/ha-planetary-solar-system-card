@@ -144,8 +144,6 @@ export function renderOffscreenMarkers(
 ): SVGGElement {
   const group = createSvgElement("g", { id: MARKER_GROUP_ID });
 
-  if (!positions || !viewState) return group;
-
   const w = viewState.width;
   const h = viewState.width;
   const left = viewState.centerX - w / 2;

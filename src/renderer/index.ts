@@ -4,8 +4,8 @@ import {
   calculateMoonPosition,
   calculatePlanetPosition,
 } from "../astronomy/orbital-mechanics.js";
-import { MOON, PLANETS, SUN } from "../astronomy/planet-data.js";
-import type { Colors, Hemisphere, LocationData, Planet, ViewPosition } from "../types.js";
+import { EARTH, MOON, PLANETS, SUN } from "../astronomy/planet-data.js";
+import type { Colors, Hemisphere, LocationData, ViewPosition } from "../types.js";
 import { ORBIT_COLOR, renderBody, renderOrbit, renderSaturnRings } from "./bodies.js";
 import { computeCometVisualEllipse, renderCometBody, renderCometOrbit } from "./comets.js";
 import { renderMoonPhaseIndicator } from "./moon-phase.js";
@@ -41,9 +41,8 @@ export function renderSolarSystem(
   const positions: ViewPosition[] = [];
 
   // Day/night split (rendered first, behind everything)
-  const earth = PLANETS.find((p) => p.name === "Earth") as Planet;
   const earthRadius = auToRadius(1.0);
-  renderDayNightSplit(svg, earthRadius, date, earth.size, locationData, eclipticViewDirection);
+  renderDayNightSplit(svg, earthRadius, date, EARTH.size, locationData, eclipticViewDirection);
 
   // Season quadrant overlay (after day/night, before orbits)
   renderSeasonOverlay(svg, hemisphere, colors, eclipticViewDirection);
@@ -78,7 +77,7 @@ export function renderSolarSystem(
         createSvgElement("text", {
           x: x,
           y: y - saturnRenderSize - 16,
-          fill: labelColor,
+          style: `fill: ${labelColor}`,
           ...BODY_LABEL_ATTRS,
         })
       ).textContent = planet.name;
@@ -103,8 +102,8 @@ export function renderSolarSystem(
   }
 
   // Draw Moon near Earth
-  const earthAngle = calculatePlanetPosition(earth, date);
-  const earthPixelRadius = auToRadius(earth.au);
+  const earthAngle = calculatePlanetPosition(EARTH, date);
+  const earthPixelRadius = auToRadius(EARTH.au);
   const earthX = CENTER + earthPixelRadius * Math.cos(earthAngle);
   const earthY = CENTER + eclipticViewDirection * earthPixelRadius * Math.sin(earthAngle);
 
@@ -136,7 +135,7 @@ export function renderSolarSystem(
     locationData?.timezone,
     locationData?.lon
   );
-  renderObserverNeedle(svg, earthX, earthY, observerAngle, earth.size, eclipticViewDirection);
+  renderObserverNeedle(svg, earthX, earthY, observerAngle, EARTH.size, eclipticViewDirection);
 
   // Moon phase indicator (rendered last so it appears on top)
   renderMoonPhaseIndicator(svg, date, hemisphere);

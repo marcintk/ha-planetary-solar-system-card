@@ -111,11 +111,7 @@ export class SolarViewCard extends LitElement {
       Number.isInteger(rawMax) && rawMax >= 2 && rawMax <= MAX_ZOOM ? rawMax : MAX_ZOOM;
     this._zoomAnimate = config.zoom_animate !== false;
 
-    this._colors = {
-      background: config.colors?.background,
-      orbit: config.colors?.orbit,
-      label: config.colors?.label,
-    };
+    this._colors = config.colors ?? {};
 
     this._eclipticView = config.ecliptic_view === "south";
 

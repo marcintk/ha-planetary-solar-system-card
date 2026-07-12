@@ -317,7 +317,9 @@ describe("renderDayNightSplit horizon and zenith lines", () => {
 
     const lines = svg.querySelectorAll('line[stroke-dasharray="4, 4"]');
     for (const line of lines) {
-      expect(line.getAttribute("stroke")).toBe("rgba(255, 255, 255, 0.3)");
+      expect(line.getAttribute("style")).toBe(
+        "stroke: color-mix(in srgb, currentColor 30%, transparent)"
+      );
       expect(line.getAttribute("stroke-width")).toBe("1");
     }
   });

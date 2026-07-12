@@ -3,17 +3,19 @@ import { css } from "lit";
 export const cardStyles = css`
   :host {
     display: block;
-    background: var(--ha-card-background, var(--card-background-color, var(--primary-background-color, #090909)));
+    color-scheme: light dark;
+    background: var(--ha-card-background, var(--card-background-color, var(--primary-background-color, Canvas)));
+    color: var(--primary-text-color, CanvasText);
   }
   .card {
     border-radius: 0px;
     padding: 0px;
-    color: #ffffff;
+    color: inherit;
     font-family: sans-serif;
   }
   .date {
     font-size: 11px;
-    color: rgba(255, 255, 255, 0.6);
+    color: var(--secondary-text-color, color-mix(in srgb, currentColor 60%, transparent));
     margin: 2px 2px;
   }
   .solar-view-wrapper {
@@ -25,15 +27,14 @@ export const cardStyles = css`
     top: 0;
     left: 0;
     right: 0;
-    background: rgba(42, 42, 42, 0.3);
+    background: color-mix(in srgb, currentColor 15%, transparent);
     font-size: 10px;
-    color: rgba(255, 255, 255, 0.85);
+    color: inherit;
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: 3px 8px;
     pointer-events: none;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
     font-family: sans-serif;
     z-index: 1;
   }
@@ -63,9 +64,9 @@ export const cardStyles = css`
     position: relative;
   }
   .nav button {
-    background: rgba(42, 42, 42, 0.3);
-    color: rgba(255, 255, 255, 0.8);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: color-mix(in srgb, currentColor 15%, transparent);
+    color: inherit;
+    border: 1px solid var(--divider-color, color-mix(in srgb, currentColor 15%, transparent));
     border-radius: 6px;
     height: 18px;
     line-height: 18px;
@@ -77,7 +78,7 @@ export const cardStyles = css`
     box-sizing: border-box;
   }
   .nav button:hover {
-    background: #3a3a3a;
+    background: var(--secondary-background-color, color-mix(in srgb, currentColor 20%, transparent));
   }
   .btn-group {
     display: flex;
@@ -96,10 +97,10 @@ export const cardStyles = css`
     width: 8px;
   }
   .zoom-level {
-    background: #2a2a2a;
-    color: rgba(255, 255, 255, 0.8);
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    background: color-mix(in srgb, currentColor 15%, transparent);
+    color: inherit;
+    border-top: 1px solid var(--divider-color, color-mix(in srgb, currentColor 15%, transparent));
+    border-bottom: 1px solid var(--divider-color, color-mix(in srgb, currentColor 15%, transparent));
     height: 18px;
     line-height: 18px;
     padding: 0 4px;
@@ -111,7 +112,7 @@ export const cardStyles = css`
   }
   .card-version {
     font-size: 9px;
-    color: rgba(255, 255, 255, 0.3);
+    color: var(--secondary-text-color, color-mix(in srgb, currentColor 30%, transparent));
     user-select: none;
     font-family: sans-serif;
     position: absolute;

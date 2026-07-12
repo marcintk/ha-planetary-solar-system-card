@@ -54,10 +54,7 @@ describe("SolarViewCard", () => {
       periodic_zoom_max: 4,
       refresh_mins: 1,
       zoom_animate: true,
-      colors: {
-        orbit: "rgba(255, 255, 255, 0.12)",
-        label: "#ffffff",
-      },
+      colors: {},
     });
   });
 

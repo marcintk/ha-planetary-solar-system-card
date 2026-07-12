@@ -121,7 +121,7 @@ export function renderSolarSystem(
       cy: earthY,
       r: moonPixelOffset,
       fill: "none",
-      stroke: orbitColor,
+      style: `stroke: ${orbitColor}`,
       "stroke-width": 0.5,
       "stroke-dasharray": "2, 3",
     })

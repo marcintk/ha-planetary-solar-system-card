@@ -4,7 +4,7 @@ import { computeSolarElevationDeg, getLocalTimeInZone } from "../astronomy/solar
 import type { LocationData, Planet } from "../types.js";
 import { CENTER, createSvgElement, MAX_RADIUS, VIEW_SIZE } from "./svg-utils.js";
 
-const NEEDLE_COLOR = "rgba(255, 255, 255, 0.7)";
+const NEEDLE_COLOR = "color-mix(in srgb, currentColor 70%, transparent)";
 
 export const CONE_DAY = "rgba(255, 255, 255, 0.1)"; // Sun above horizon
 export const CONE_CIVIL = "rgba(255, 220, 160, 0.08)"; // Civil twilight:        0° to -6°
@@ -177,7 +177,7 @@ export function renderDayNightSplit(
   const CLIP_R = MAX_RADIUS + 30;
   const EXTRA = 8;
   const lineStyle = {
-    stroke: "rgba(255, 255, 255, 0.3)",
+    style: "stroke: color-mix(in srgb, currentColor 30%, transparent)",
     "stroke-width": 1,
     "stroke-dasharray": "4, 4",
   };
@@ -254,7 +254,7 @@ export function renderObserverNeedle(
       y1: earthY,
       x2: tipX,
       y2: tipY,
-      stroke: NEEDLE_COLOR,
+      style: `stroke: ${NEEDLE_COLOR}`,
       "stroke-width": 2,
       "stroke-linecap": "round",
     })
@@ -266,7 +266,7 @@ export function renderObserverNeedle(
       cx: tipX,
       cy: tipY,
       r: 2,
-      fill: NEEDLE_COLOR,
+      style: `fill: ${NEEDLE_COLOR}`,
     })
   );
 }

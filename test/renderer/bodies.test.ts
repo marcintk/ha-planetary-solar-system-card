@@ -30,7 +30,7 @@ describe("renderOrbit", () => {
     renderOrbit(svg, 200, 1.0);
 
     const orbit = svg.querySelector('circle[stroke-dasharray="5, 5"]');
-    expect(orbit.getAttribute("stroke")).toBe(ORBIT_COLOR);
+    expect(orbit.getAttribute("style")).toBe(`stroke: ${ORBIT_COLOR}`);
   });
 
   it("appends two AU text labels (top and bottom)", () => {

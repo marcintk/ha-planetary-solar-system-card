@@ -65,13 +65,13 @@ By default the card inherits the HA theme background via `--ha-card-background` 
 `--card-background-color`, then `--primary-background-color`). Set `colors.background` to override.
 Every color value accepts any valid CSS color string (`#rrggbb`, `rgba(…)`, named colors).
 
-| Key                   | Default                           | Description                          |
-| --------------------- | --------------------------------- | ------------------------------------ |
-| `colors.background`   | HA theme (`--ha-card-background`) | Card background                      |
-| `colors.orbit`        | `rgba(255, 255, 255, 0.12)`       | Orbit ring and moon-orbit stroke     |
-| `colors.label`        | `#ffffff`                         | Planet and comet name labels         |
-| `colors.season_line`  | `rgba(255, 255, 255, 0.25)`       | Season quadrant divider lines        |
-| `colors.season_label` | `rgba(255, 255, 255, 0.5)`        | Season name labels (curved arc text) |
+| Key                   | Default                            | Description                          |
+| --------------------- | ---------------------------------- | ------------------------------------ |
+| `colors.background`   | HA theme (`--ha-card-background`)  | Card background                      |
+| `colors.orbit`        | 12% of theme text color (adaptive) | Orbit ring and moon-orbit stroke     |
+| `colors.label`        | theme text color (adaptive)        | Planet and comet name labels         |
+| `colors.season_line`  | 25% of theme text color (adaptive) | Season quadrant divider lines        |
+| `colors.season_label` | 50% of theme text color (adaptive) | Season name labels (curved arc text) |
 
 ```yaml
 type: custom:ha-planetary-solar-system-card

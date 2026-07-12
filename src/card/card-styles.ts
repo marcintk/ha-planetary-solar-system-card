@@ -3,7 +3,7 @@ import { css } from "lit";
 export const cardStyles = css`
   :host {
     display: block;
-    background: #090909;
+    background: var(--ha-card-background, var(--card-background-color, var(--primary-background-color, #090909)));
   }
   .card {
     border-radius: 0px;

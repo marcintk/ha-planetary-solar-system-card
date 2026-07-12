@@ -329,9 +329,11 @@ describe("renderSolarSystem", () => {
       const container = document.createElement("div");
       renderInto(container, date);
       const svg = container.querySelector("svg");
-      const horizonLine = svg.querySelector('line[stroke="rgba(255, 255, 255, 0.3)"]');
+      const horizonLine = svg.querySelector('line[stroke-dasharray="4, 4"]');
       expect(horizonLine).not.toBeNull();
-      expect(horizonLine.getAttribute("stroke-dasharray")).toBe("4, 4");
+      expect(horizonLine.getAttribute("style")).toBe(
+        "stroke: color-mix(in srgb, currentColor 30%, transparent)"
+      );
     }
   });
 
@@ -503,7 +505,7 @@ describe("renderSolarSystem", () => {
     expect(moonOrbit).not.toBeNull();
     expect(moonOrbit.getAttribute("r")).toBe("22");
     expect(moonOrbit.getAttribute("stroke-width")).toBe("0.5");
-    expect(moonOrbit.getAttribute("stroke")).toBe("rgba(255, 255, 255, 0.12)");
+    expect(moonOrbit.getAttribute("style")).toContain("color-mix(in srgb, currentColor 12%");
     expect(moonOrbit.getAttribute("fill")).toBe("none");
 
     // Should be centered at Earth's position
@@ -553,7 +555,7 @@ describe("renderSolarSystem", () => {
     renderInto(container, new Date("2026-02-14T15:00:00"));
 
     const svg = container.querySelector("svg");
-    const needle = svg.querySelector('line[stroke="rgba(255, 255, 255, 0.7)"]');
+    const needle = svg.querySelector('line[stroke-width="2"][style*="color-mix"]');
     expect(needle).not.toBeNull();
     expect(needle.getAttribute("stroke-width")).toBe("2");
   });
@@ -565,7 +567,7 @@ describe("renderSolarSystem", () => {
     renderInto(container, date);
 
     const svg = container.querySelector("svg");
-    const needle = svg.querySelector('line[stroke="rgba(255, 255, 255, 0.7)"]');
+    const needle = svg.querySelector('line[stroke-width="2"][style*="color-mix"]');
     const x1 = Number(needle.getAttribute("x1"));
     const y1 = Number(needle.getAttribute("y1"));
     const x2 = Number(needle.getAttribute("x2"));
@@ -594,7 +596,9 @@ describe("renderSolarSystem", () => {
 
     const svg = container.querySelector("svg");
     // Find the small dot at the needle tip (r=2, needle color)
-    const dots = svg.querySelectorAll('circle[fill="rgba(255, 255, 255, 0.7)"]');
+    const dots = Array.from(svg.querySelectorAll("circle[r='2']")).filter((el) =>
+      el.getAttribute("style")?.includes("color-mix")
+    );
     expect(dots.length).toBe(1);
     expect(dots[0].getAttribute("r")).toBe("2");
   });

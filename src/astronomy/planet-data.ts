@@ -75,6 +75,8 @@ export const PLANETS: Planet[] = [
   },
 ];
 
+export const EARTH: Planet = PLANETS[2];
+
 export const MOON: MoonData = {
   name: "Moon",
   periodDays: 27.32,

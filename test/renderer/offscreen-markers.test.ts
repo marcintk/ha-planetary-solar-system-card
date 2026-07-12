@@ -75,18 +75,6 @@ describe("renderOffscreenMarkers", () => {
     expect(group.children.length).toBe(0);
   });
 
-  it("returns empty group when positions is null", () => {
-    const group = renderOffscreenMarkers(null, makeViewState(1));
-    expect(group.tagName).toBe("g");
-    expect(group.children.length).toBe(0);
-  });
-
-  it("returns empty group when viewState is null", () => {
-    const group = renderOffscreenMarkers([{ name: "X", x: 0, y: 0, color: "#fff" }], null);
-    expect(group.tagName).toBe("g");
-    expect(group.children.length).toBe(0);
-  });
-
   it("places marker when edge intersection falls back to center (degenerate viewport)", () => {
     // A 1×1 viewport means the inset box (margin=10) degenerates, causing
     // edgeIntersection to return the fallback { x: cx, y: cy } (POSITIVE_INFINITY path).

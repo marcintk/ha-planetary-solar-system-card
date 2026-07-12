@@ -1,8 +1,8 @@
 import type { CelestialBody, Colors } from "../types.js";
 import { BODY_LABEL_ATTRS, CENTER, createSvgElement, DEFAULT_LABEL_COLOR } from "./svg-utils.js";
 
-export const ORBIT_COLOR = "rgba(255, 255, 255, 0.12)";
-const AU_LABEL_COLOR = "rgba(255, 255, 255, 0.5)";
+export const ORBIT_COLOR = "color-mix(in srgb, currentColor 12%, transparent)";
+const AU_LABEL_COLOR = "color-mix(in srgb, currentColor 50%, transparent)";
 
 export function renderOrbit(
   svg: SVGElement,
@@ -18,7 +18,7 @@ export function renderOrbit(
       cy: CENTER,
       r: radius,
       fill: "none",
-      stroke: orbitColor,
+      style: `stroke: ${orbitColor}`,
       "stroke-width": 1,
       "stroke-dasharray": "5, 5",
     })
@@ -29,7 +29,7 @@ export function renderOrbit(
   const offset = 3;
   const horizontalOffset = 3;
   const labelAttrs = {
-    fill: AU_LABEL_COLOR,
+    style: `fill: ${AU_LABEL_COLOR}`,
     "font-size": "9",
     "font-family": "sans-serif",
     "text-anchor": "start",
@@ -78,7 +78,7 @@ export function renderBody(
       createSvgElement("text", {
         x: x,
         y: y - body.size - 6,
-        fill: labelColor,
+        style: `fill: ${labelColor}`,
         ...BODY_LABEL_ATTRS,
       })
     ).textContent = body.name;

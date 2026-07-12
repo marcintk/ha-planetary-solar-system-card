@@ -1,8 +1,8 @@
 import type { Colors, Hemisphere } from "../types.js";
 import { CENTER, createSvgElement, MAX_RADIUS, VIEW_SIZE } from "./svg-utils.js";
 
-const DEFAULT_SEASON_LINE_COLOR = "rgba(255, 255, 255, 0.25)";
-const DEFAULT_SEASON_LABEL_COLOR = "rgba(255, 255, 255, 0.5)";
+const DEFAULT_SEASON_LINE_COLOR = "color-mix(in srgb, currentColor 25%, transparent)";
+const DEFAULT_SEASON_LABEL_COLOR = "color-mix(in srgb, currentColor 50%, transparent)";
 const SEASON_FONT_SIZE = 20;
 
 export function renderSeasonOverlay(
@@ -22,7 +22,7 @@ export function renderSeasonOverlay(
       y1: CENTER,
       x2: VIEW_SIZE,
       y2: CENTER,
-      stroke: lineColor,
+      style: `stroke: ${lineColor}`,
       "stroke-width": 1,
       "stroke-dasharray": "4, 6",
     })
@@ -33,7 +33,7 @@ export function renderSeasonOverlay(
       y1: 0,
       x2: CENTER,
       y2: VIEW_SIZE,
-      stroke: lineColor,
+      style: `stroke: ${lineColor}`,
       "stroke-width": 1,
       "stroke-dasharray": "4, 6",
     })
@@ -102,7 +102,7 @@ export function renderSeasonOverlay(
     defs.appendChild(arcPath);
 
     const text = createSvgElement("text", {
-      fill: labelColor,
+      style: `fill: ${labelColor}`,
       "font-size": SEASON_FONT_SIZE,
       "font-family": "sans-serif",
     });

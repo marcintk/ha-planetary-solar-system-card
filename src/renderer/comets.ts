@@ -49,7 +49,7 @@ export function renderCometOrbit(svg: SVGElement, comet: Comet, colors: Colors =
       rx: aPx,
       ry: bPx,
       fill: "none",
-      stroke: orbitColor,
+      style: `stroke: ${orbitColor}`,
       "stroke-width": 1,
       "stroke-dasharray": "4, 8",
       transform: `rotate(${-rotationDeg}, ${CENTER}, ${CENTER}) translate(${-cPx}, 0)`,
@@ -113,7 +113,7 @@ export function renderCometBody(
     createSvgElement("text", {
       x: x,
       y: y - comet.size - 6,
-      fill: labelColor,
+      style: `fill: ${labelColor}`,
       ...BODY_LABEL_ATTRS,
     })
   ).textContent = comet.name;

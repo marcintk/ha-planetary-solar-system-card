@@ -11,7 +11,7 @@ describe("renderSeasonOverlay", () => {
     const svg = createSvg();
     renderSeasonOverlay(svg, "north");
 
-    const lines = svg.querySelectorAll('line[stroke="rgba(255, 255, 255, 0.25)"]');
+    const lines = svg.querySelectorAll('line[stroke-dasharray="4, 6"]');
     expect(lines.length).toBe(2);
   });
 
@@ -19,7 +19,7 @@ describe("renderSeasonOverlay", () => {
     const svg = createSvg();
     renderSeasonOverlay(svg, "north");
 
-    const lines = Array.from(svg.querySelectorAll('line[stroke="rgba(255, 255, 255, 0.25)"]'));
+    const lines = Array.from(svg.querySelectorAll('line[stroke-dasharray="4, 6"]'));
     const horizontal = lines.find(
       (l) => l.getAttribute("y1") === "400" && l.getAttribute("y2") === "400"
     );

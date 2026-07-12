@@ -12,10 +12,7 @@ export interface Planet extends CelestialBody {
   meanLongitudeJ2000: number;
 }
 
-export interface MoonData extends CelestialBody {
-  periodDays: number;
-  meanLongitudeJ2000: number;
-}
+export type MoonData = Omit<Planet, "au">;
 
 export interface Comet {
   name: string;

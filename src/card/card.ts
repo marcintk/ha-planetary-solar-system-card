@@ -15,11 +15,6 @@ import { buildStatusBar } from "./card-template.js";
 import { DEFAULT_ZOOM_LEVEL, MAX_ZOOM, MIN_ZOOM, ViewState } from "./card-view-state.js";
 import { ZoomAnimator } from "./zoom-animator.js";
 
-const DEFAULT_COLORS: Colors = {
-  orbit: "rgba(255, 255, 255, 0.12)",
-  label: "#ffffff",
-};
-
 export class SolarViewCard extends LitElement {
   static styles = cardStyles;
 
@@ -57,7 +52,7 @@ export class SolarViewCard extends LitElement {
     this._timezone = null;
     this._locationName = null;
     this._autoUpdateTimer = null;
-    this._colors = { ...DEFAULT_COLORS };
+    this._colors = {};
     this._refreshMs = 60000;
     this._periodicZoomChange = false;
     this._periodicZoomMax = MAX_ZOOM;
@@ -116,11 +111,7 @@ export class SolarViewCard extends LitElement {
       Number.isInteger(rawMax) && rawMax >= 2 && rawMax <= MAX_ZOOM ? rawMax : MAX_ZOOM;
     this._zoomAnimate = config.zoom_animate !== false;
 
-    this._colors = {
-      background: config.colors?.background ?? DEFAULT_COLORS.background,
-      orbit: config.colors?.orbit ?? DEFAULT_COLORS.orbit,
-      label: config.colors?.label ?? DEFAULT_COLORS.label,
-    };
+    this._colors = config.colors ?? {};
 
     this._eclipticView = config.ecliptic_view === "south";
 
@@ -406,7 +397,7 @@ export class SolarViewCard extends LitElement {
       periodic_zoom_max: 4,
       refresh_mins: 1,
       zoom_animate: true,
-      colors: { ...DEFAULT_COLORS },
+      colors: {},
     };
   }
 }

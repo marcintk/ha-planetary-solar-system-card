@@ -16,7 +16,6 @@ import { DEFAULT_ZOOM_LEVEL, MAX_ZOOM, MIN_ZOOM, ViewState } from "./card-view-s
 import { ZoomAnimator } from "./zoom-animator.js";
 
 const DEFAULT_COLORS: Colors = {
-  background: "#090909",
   orbit: "rgba(255, 255, 255, 0.12)",
   label: "#ffffff",
 };

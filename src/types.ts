@@ -110,4 +110,5 @@ export interface CardConfig {
   zoom_animate?: boolean;
   colors?: Colors;
   ecliptic_view?: string;
+  show_version?: boolean;
 }

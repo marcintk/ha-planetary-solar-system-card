@@ -58,6 +58,7 @@ default_zoom: 2
 | `periodic_zoom_max`    | number                 | `4`       | Maximum zoom level for auto-cycle (2–4)                                                    |
 | `colors`               | object                 | see below | Color overrides (see Colors)                                                               |
 | `ecliptic_view`        | `"north"` \| `"south"` | `"north"` | Viewing pole: `"north"` = counter-clockwise orbits (default); `"south"` = clockwise orbits |
+| `show_version`         | boolean                | `false`   | Show card version number in the bottom-right corner of the nav bar                         |
 
 ### Colors
 

@@ -116,7 +116,7 @@ export const cardStyles = css`
     user-select: none;
     font-family: sans-serif;
     position: absolute;
-    right: 0;
-    bottom: 0;
+    right: 6px;
+    bottom: 4px;
   }
 `;

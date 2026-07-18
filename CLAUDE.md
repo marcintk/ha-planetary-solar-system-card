@@ -18,9 +18,8 @@ Durable visual/UX constraints. Preserve unless the user explicitly changes them.
 Active issues and open gaps. Update when starting or completing significant work. Status: `open` ·
 `in-progress` · `done`
 
-| Status | Area      | Description                                   |
-| ------ | --------- | --------------------------------------------- |
-| done   | migration | Phase 1: JS → TypeScript (merged via PR #37)  |
-| done   | migration | Phase 2: TypeScript → Lit (merged via PR #37) |
+| Status | Area     | Description                              |
+| ------ | -------- | ---------------------------------------- |
+| open   | renderer | Moon sometimes renders at Venus position |
 
-See [TODO.md](./TODO.md) for the full itemised checklist.
+See [TODO.md](./TODO.md) for the full backlog.

@@ -86,11 +86,6 @@ export interface NextTransition {
   toMode: string;
 }
 
-export interface LocalTime {
-  hours: number;
-  minutes: number;
-}
-
 // Home Assistant types
 
 export interface HASSConfig {

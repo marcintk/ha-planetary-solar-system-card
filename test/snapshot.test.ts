@@ -1,21 +1,13 @@
+import { snapHtml } from "ha-card-shared/test-utils";
 import { render, type TemplateResult } from "lit";
 import { describe, expect, it } from "vitest";
 import { cardStyles } from "../src/card/card-styles.js";
 import { buildStatusBar } from "../src/card/card-template.js";
 
-function renderToDOM(result: TemplateResult): HTMLElement {
+function doc(result: TemplateResult): string {
   const div = document.createElement("div");
   render(result, div);
-  return div;
-}
-
-// Lit injects comment markers like <!--?lit$013215205$--> and binding ids
-// whose numbers change between module loads. Strip the ids so the snapshot
-// is stable across runs while still capturing structure, classes, and text.
-function doc(result: TemplateResult): string {
-  return renderToDOM(result)
-    .innerHTML.replace(/<!--\?lit\$\d+\$-->/g, "<!--?-->")
-    .replace(/lit\$\d+\$/g, "lit$$$$");
+  return snapHtml(div.innerHTML);
 }
 
 describe("cardStyles", () => {

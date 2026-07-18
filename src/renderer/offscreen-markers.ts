@@ -145,11 +145,10 @@ export function renderOffscreenMarkers(
   const group = createSvgElement("g", { id: MARKER_GROUP_ID });
 
   const w = viewState.width;
-  const h = viewState.width;
   const left = viewState.centerX - w / 2;
-  const top = viewState.centerY - h / 2;
+  const top = viewState.centerY - w / 2;
   const right = left + w;
-  const bottom = top + h;
+  const bottom = top + w;
 
   for (const pos of positions) {
     // Skip bodies that opt out of offscreen markers (e.g. Moon)

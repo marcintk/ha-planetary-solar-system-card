@@ -1,4 +1,4 @@
-import { html, LitElement } from "lit";
+import { html, LitElement, nothing } from "lit";
 import { renderSolarSystem } from "../renderer/index.js";
 import { MARKER_GROUP_ID, renderOffscreenMarkers } from "../renderer/offscreen-markers.js";
 import type {
@@ -180,7 +180,7 @@ export class SolarViewCard extends LitElement {
             <span class="zoom-level">${zoomLevel}</span>
             <button data-action="zoom-in" @click=${this._onNavClick}>+</button>
           </span>
-          <span class="card-version">v${__CARD_VERSION__}</span>
+          ${this._config?.show_version ? html`<span class="card-version">v${__CARD_VERSION__}</span>` : nothing}
         </div>
       </div>
     `;

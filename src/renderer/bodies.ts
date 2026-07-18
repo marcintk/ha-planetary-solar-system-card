@@ -26,8 +26,7 @@ export function renderOrbit(
 
   // AU labels on the vertical axis — mirrored above and below center
   // Offset right of the season dividing line to avoid overlap
-  const offset = 3;
-  const horizontalOffset = 3;
+  const LABEL_OFFSET = 3;
   const labelAttrs = {
     style: `fill: ${AU_LABEL_COLOR}`,
     "font-size": "9",
@@ -38,8 +37,8 @@ export function renderOrbit(
   // Top label
   svg.appendChild(
     createSvgElement("text", {
-      x: CENTER + horizontalOffset,
-      y: CENTER - radius - offset,
+      x: CENTER + LABEL_OFFSET,
+      y: CENTER - radius - LABEL_OFFSET,
       ...labelAttrs,
     })
   ).textContent = `${Number(auLabel).toFixed(1)} AU`;
@@ -47,8 +46,8 @@ export function renderOrbit(
   // Bottom label
   svg.appendChild(
     createSvgElement("text", {
-      x: CENTER + horizontalOffset,
-      y: CENTER + radius + offset + 6,
+      x: CENTER + LABEL_OFFSET,
+      y: CENTER + radius + LABEL_OFFSET + 6,
       ...labelAttrs,
     })
   ).textContent = `${Number(auLabel).toFixed(1)} AU`;

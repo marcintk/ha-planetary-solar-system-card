@@ -229,6 +229,32 @@ describe("SolarViewCard", () => {
     });
   });
 
+  describe("version display", () => {
+    it("hides version by default", () => {
+      const card = createAndMount();
+      expect(card.shadowRoot.querySelector(".card-version")).toBeNull();
+      card.remove();
+    });
+
+    it("shows version when show_version is true", () => {
+      const card = createAndMount();
+      card.setConfig({ show_version: true });
+      card._render();
+      const el = card.shadowRoot.querySelector(".card-version");
+      expect(el).toBeTruthy();
+      expect(el.textContent).toMatch(/^v/);
+      card.remove();
+    });
+
+    it("hides version when show_version is false", () => {
+      const card = createAndMount();
+      card.setConfig({ show_version: false });
+      card._render();
+      expect(card.shadowRoot.querySelector(".card-version")).toBeNull();
+      card.remove();
+    });
+  });
+
   describe("day navigation", () => {
     it("day-back rewinds by 1 day", () => {
       const card = createAndMount();

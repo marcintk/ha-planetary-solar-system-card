@@ -118,6 +118,7 @@ exports[`cardStyles > matches snapshot 1`] = `
     font-family: sans-serif;
     position: absolute;
     right: 0;
+    bottom: 0;
   }
 "
 `;

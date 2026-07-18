@@ -117,5 +117,6 @@ export const cardStyles = css`
     font-family: sans-serif;
     position: absolute;
     right: 0;
+    bottom: 0;
   }
 `;

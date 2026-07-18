@@ -5,9 +5,12 @@
  * @param {string} timezone - IANA timezone string (e.g. "America/Chicago")
  * @returns {{ hours: number, minutes: number }}
  */
-import type { LocalTime, NextTransition } from "../types.js";
+import type { NextTransition } from "../types.js";
 
-export function getLocalTimeInZone(date: Date, timezone: string): LocalTime {
+export function getLocalTimeInZone(
+  date: Date,
+  timezone: string
+): { hours: number; minutes: number } {
   try {
     const parts = new Intl.DateTimeFormat("en-US", {
       timeZone: timezone,

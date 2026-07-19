@@ -19,7 +19,8 @@
     "typecheck": "tsc --noEmit",
     "check:ci": "tsc --noEmit && biome check src/ test/ && prettier --check \"**/*.md\"",
     "format:md": "prettier --write \"**/*.md\"",
-    "format:md:check": "prettier --check \"**/*.md\""
+    "format:md:check": "prettier --check \"**/*.md\"",
+    "postinstall": "ln -sf ../node_modules/ha-card-shared/.claude/settings.json .claude/settings.json"
   },
   "keywords": [
     "home-assistant",

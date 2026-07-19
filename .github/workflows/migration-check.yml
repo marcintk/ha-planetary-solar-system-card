@@ -1,0 +1,14 @@
+name: Migration Check
+
+on:
+  schedule:
+    - cron: "0 6 * * 1" # weekly, Monday 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    uses: marcintk/ha-card-shared/.github/workflows/shared-migration-check.yml@v1.4.0

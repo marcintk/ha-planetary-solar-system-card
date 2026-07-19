@@ -8,6 +8,6 @@ on:
 
 jobs:
   release:
-    uses: marcintk/ha-card-shared/.github/workflows/shared-publish-release.yml@v1.2.0
+    uses: marcintk/ha-card-shared/.github/workflows/shared-publish-release.yml@v1.4.0
     permissions:
       contents: write

@@ -1,4 +1,4 @@
-@node_modules/ha-card-shared/CLAUDE-SHARED.md @package.json @TODO.md
+@node_modules/ha-card-shared/CLAUDE-SHARED.md @package.json
 
 # ha-planetary-solar-system-card
 
@@ -13,13 +13,13 @@ Durable visual/UX constraints. Preserve unless the user explicitly changes them.
 - Dark slate theme matching Home Assistant dark mode colors
 - Buttons to move back/forward (by 1 day, 1 month) plus a "back to today" button
 
-## Known Issues & Gaps
+## Architecture Notes
 
-Active issues and open gaps. Update when starting or completing significant work. Status: `open` ·
-`in-progress` · `done`
-
-| Status | Area     | Description                              |
-| ------ | -------- | ---------------------------------------- |
-| open   | renderer | Moon sometimes renders at Venus position |
-
-See [TODO.md](./TODO.md) for the full backlog.
+- **SVG imperative rebuild**: solar system renders as raw SVG DOM inside `updated()` — `#solar-view`
+  is fully cleared and repopulated each update, not managed by Lit templates. Don't try to patch
+  individual SVG elements reactively.
+- **Synchronous render**: `_render()` calls `requestUpdate()` + `performUpdate()` back-to-back to
+  force a synchronous Lit flush. Lit's default async microtask schedule breaks synchronous tests and
+  delays the first frame in HA.
+- **Positions from renderer**: `renderSolarSystem()` returns `{ svg, positions }` — `positions` are
+  screen coordinates used for SVG hit-testing (click targets), not a rendering side-effect.

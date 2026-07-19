@@ -1,0 +1,2 @@
+#!/bin/sh
+exec node_modules/ha-card-shared/.githooks/pre-push

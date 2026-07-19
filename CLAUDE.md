@@ -1,4 +1,4 @@
-@node_modules/ha-card-shared/CLAUDE-SHARED.md @package.json @TODO.md
+@node_modules/ha-card-shared/CLAUDE-SHARED.md @package.json
 
 # ha-planetary-solar-system-card
 
@@ -21,5 +21,3 @@ Active issues and open gaps. Update when starting or completing significant work
 | Status | Area     | Description                              |
 | ------ | -------- | ---------------------------------------- |
 | open   | renderer | Moon sometimes renders at Venus position |
-
-See [TODO.md](./TODO.md) for the full backlog.

@@ -1,1 +1,17 @@
-../node_modules/ha-card-shared/.claude/settings.json
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "missing=\"\"; [ -f ~/.claude/.ponytail-active ] || missing=\"ponytail \"; grep -q caveman ~/.claude/settings.json 2>/dev/null || missing=\"${missing}caveman \"; [ -n \"$missing\" ] && echo \"⚠️  Missing required plugins: ${missing}— install per ha-card-shared README\" || true",
+            "timeout": 5,
+            "statusMessage": "ha-card-shared: checking required plugins"
+          }
+        ]
+      }
+    ]
+  }
+}

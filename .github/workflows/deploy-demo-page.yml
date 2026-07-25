@@ -7,7 +7,7 @@ on:
 
 jobs:
   deploy:
-    uses: marcintk/ha-card-shared/.github/workflows/shared-deploy-demo-page.yml@v1.4.0
+    uses: marcintk/ha-card-shared/.github/workflows/shared-deploy-demo-page.yml@v1.4.1
     permissions:
       contents: read
       pages: write

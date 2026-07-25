@@ -36,7 +36,7 @@
     "@vitest/coverage-v8": "^4.1.10",
     "ha-card-shared": "github:marcintk/ha-card-shared#v1.4.0",
     "jsdom": "^29.1.1",
-    "prettier": "^3.9.5",
+    "prettier": "^3.9.6",
     "rollup": "^4.57.1",
     "tslib": "^2.8.1",
     "typescript": "^6.0.3",

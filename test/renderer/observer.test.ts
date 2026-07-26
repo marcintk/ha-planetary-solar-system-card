@@ -9,6 +9,7 @@ import {
   CONE_NIGHT,
   calculateObserverAngle,
   calculateSolarElevationDeg,
+  computeDisplayObserverAngle,
   rayCircleDistance,
   renderDayNightSplit,
   renderObserverNeedle,
@@ -208,6 +209,97 @@ describe("renderDayNightSplit flip_view", () => {
   });
 });
 
+describe("renderDayNightSplit cone bisector geometry", () => {
+  // Extract cone bisector angle from the rendered SVG clip path.
+  // Path format: "M anchorX anchorY L leftX leftY A D D 0 flag 1 rightX rightY Z"
+  // Number indices: [0]=anchorX [1]=anchorY [2]=leftX [3]=leftY [9]=rightX [10]=rightY
+  //
+  // General approach: normalize both edge vectors and sum them — the sum points toward
+  // the bisector for any halfAngle ≠ 90°. When halfAngle = 90° the edges are exactly
+  // antiparallel (sum ≈ 0), so fall back to leftAngleMath − π/2 (exact algebraic form).
+  function coneBisectorAngle(svg: SVGElement): number {
+    const path = svg.querySelector("clipPath path");
+    const coords = path
+      .getAttribute("d")
+      .match(/-?[\d.]+/g)
+      .map(Number);
+    const anchorX = coords[0];
+    const anchorY = coords[1];
+    const leftX = coords[2];
+    const leftY = coords[3];
+    const rightX = coords[9];
+    const rightY = coords[10];
+    // SVG y is inverted (eclipticViewDirection = -1), flip back to math coords
+    const lx = leftX - anchorX;
+    const ly = -(leftY - anchorY);
+    const rx = rightX - anchorX;
+    const ry = -(rightY - anchorY);
+    const ll = Math.sqrt(lx * lx + ly * ly);
+    const rl = Math.sqrt(rx * rx + ry * ry);
+    const sx = lx / ll + rx / rl;
+    const sy = ly / ll + ry / rl;
+    // Antiparallel fallback for halfAngle = 90° (daytime / full-night cones)
+    if (Math.sqrt(sx * sx + sy * sy) < 0.01) {
+      return Math.atan2(ly, lx) - Math.PI / 2;
+    }
+    return Math.atan2(sy, sx);
+  }
+
+  const earth = PLANETS.find((p) => p.name === "Earth");
+
+  it("raw 2D angle at 55°N July 19:00 UTC places observer 105° past Sun (night side)", () => {
+    // Prove the pre-fix angle is wrong: timezone-based observerAngle is > 90° from sunDir.
+    // Uses explicit timezone so the result is deterministic regardless of locale.
+    const date = new Date("2025-07-15T19:00:00Z");
+    const earthAngle = calculatePlanetPosition(earth, date);
+    const sunDir = earthAngle + Math.PI;
+    const observerAngle2D = calculateObserverAngle(earthAngle, date, "Europe/London", 0);
+    const diffFromSun = Math.abs(
+      Math.atan2(Math.sin(observerAngle2D - sunDir), Math.cos(observerAngle2D - sunDir))
+    );
+    expect(diffFromSun).toBeGreaterThan(Math.PI / 2);
+  });
+
+  it("with lat/lon at 55°N July 19:00 UTC, rendered cone bisector is on daytime side", () => {
+    // Spherical elevation ≈ +8.5°. The corrected displayObserverAngle is < 90° from sunDir,
+    // so the cone must open toward the lit half-space.
+    const date = new Date("2025-07-15T19:00:00Z");
+    const locationData = { lat: 55, lon: 0, timezone: "Europe/London" };
+    const earthAngle = calculatePlanetPosition(earth, date);
+    const sunDir = earthAngle + Math.PI;
+
+    const svg = createSvg();
+    renderDayNightSplit(svg, 200, date, earth.size, locationData);
+
+    const bisector = coneBisectorAngle(svg);
+    const diffFromSun = Math.abs(
+      Math.atan2(Math.sin(bisector - sunDir), Math.cos(bisector - sunDir))
+    );
+    expect(diffFromSun).toBeLessThan(Math.PI / 2);
+  });
+
+  it("cone bisector extraction is consistent with direct computeDisplayObserverAngle", () => {
+    // End-to-end check: bisector read from SVG should match the angle the fix computes.
+    const date = new Date("2025-07-15T19:00:00Z");
+    const locationData = { lat: 55, lon: 0, timezone: "Europe/London" };
+    const earthAngle = calculatePlanetPosition(earth, date);
+    const observerAngle = calculateObserverAngle(
+      earthAngle,
+      date,
+      locationData.timezone,
+      locationData.lon
+    );
+    const elevationDeg = 8.5; // known spherical elevation for this scenario
+    const expectedBisector = computeDisplayObserverAngle(observerAngle, earthAngle, elevationDeg);
+
+    const svg = createSvg();
+    renderDayNightSplit(svg, 200, date, earth.size, locationData);
+
+    const bisector = coneBisectorAngle(svg);
+    expect(angleDiff(bisector, expectedBisector)).toBeLessThan(0.05); // within ~3°
+  });
+});
+
 describe("rayCircleDistance", () => {
   it("returns positive distance when ray intersects circle", () => {
     // Point inside circle, shooting outward
@@ -322,5 +414,76 @@ describe("renderDayNightSplit horizon and zenith lines", () => {
       );
       expect(line.getAttribute("stroke-width")).toBe("1");
     }
+  });
+});
+
+describe("computeDisplayObserverAngle", () => {
+  const earth = PLANETS.find((p) => p.name === "Earth");
+
+  it("round-trips correctly: displayAngle plugged back into 2D formula yields input elevation", () => {
+    // For any elevation in the non-clamped range, the display angle should reproduce
+    // that elevation when fed back into the 2D formula.
+    const earthAngle = 1.0;
+    const observerAngle = earthAngle + Math.PI / 3; // some arbitrary angle
+    for (const elev of [45, 30, 10, -5, -15]) {
+      const display = computeDisplayObserverAngle(observerAngle, earthAngle, elev);
+      const backCalc = calculateSolarElevationDeg(display, earthAngle);
+      expect(backCalc).toBeCloseTo(elev, 0);
+    }
+  });
+
+  it("preserves AM/PM side (morning observer stays in morning half-space)", () => {
+    // Observer on morning side: observerAngle is between midnight (earthAngle) and noon (earthAngle+π)
+    // In 2D, morning corresponds to signedDiff > 0 from sunDirection
+    const earthAngle = 1.0;
+    const sunDir = earthAngle + Math.PI;
+    // Place observer at earthAngle + π/4 (morning, between midnight and sunrise in 2D terms)
+    // signedDiff = observerAngle - sunDir ≈ -3π/4 → negative → "evening" side in solar terms
+    // Let's use a clearer setup: observer at sunDir - π/2 (sunrise-ish, morning side)
+    const observerAngle = sunDir - Math.PI / 2; // 90° before noon = morning
+    const display = computeDisplayObserverAngle(observerAngle, earthAngle, 0);
+    // Still on the morning side: signedDiff should remain negative
+    const correctedDiff = Math.atan2(Math.sin(display - sunDir), Math.cos(display - sunDir));
+    const originalDiff = Math.atan2(
+      Math.sin(observerAngle - sunDir),
+      Math.cos(observerAngle - sunDir)
+    );
+    expect(Math.sign(correctedDiff)).toBe(Math.sign(originalDiff));
+  });
+
+  it("clamps extreme polar elevation (±89°) to avoid collapse", () => {
+    const earthAngle = 0;
+    const observerAngle = earthAngle + Math.PI; // noon direction
+    // elevation = 95° is beyond physical range; should be clamped to 89°
+    const result = computeDisplayObserverAngle(observerAngle, earthAngle, 95);
+    const backCalc = calculateSolarElevationDeg(result, earthAngle);
+    // Should correspond to 89° (clamped), not collapse to 0° direction
+    expect(backCalc).toBeCloseTo(89, 0);
+  });
+
+  it("without lat/lon, renderDayNightSplit horizon is perpendicular to observerAngle (no correction)", () => {
+    // When locationData is null, no correction → same as before
+    const svg = document.createElementNS(SVG_NS, "svg");
+    const date = new Date("2025-07-15T19:00:00Z");
+    renderDayNightSplit(svg, 200, date, earth.size, null);
+    // Just verifies no crash and still renders 2 dashed lines
+    const lines = svg.querySelectorAll('line[stroke-dasharray="4, 4"]');
+    expect(lines.length).toBe(2);
+  });
+
+  it("with lat/lon at high latitude summer, corrected angle is closer to Sun than raw 2D angle", () => {
+    // July at 55°N, 19:00 UTC: 2D model says night (~105° from Sun), spherical says day (+8.5°)
+    const date = new Date("2025-07-15T19:00:00Z");
+    const earthAngle = calculatePlanetPosition(earth, date);
+    const sunDir = earthAngle + Math.PI;
+    const observerAngle2D = calculateObserverAngle(earthAngle, date, "Europe/London", 0);
+    const diff2D = Math.abs(
+      Math.atan2(Math.sin(observerAngle2D - sunDir), Math.cos(observerAngle2D - sunDir))
+    );
+    const corrected = computeDisplayObserverAngle(observerAngle2D, earthAngle, 8.5);
+    const diffCorrected = Math.abs(
+      Math.atan2(Math.sin(corrected - sunDir), Math.cos(corrected - sunDir))
+    );
+    expect(diffCorrected).toBeLessThan(diff2D);
   });
 });

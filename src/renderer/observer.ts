@@ -44,6 +44,23 @@ export function calculateSolarElevationDeg(observerAngle: number, earthAngle: nu
   return (Math.PI / 2 - Math.abs(diff)) * (180 / Math.PI);
 }
 
+// Inverts 2D elevation formula using accurate spherical elev; preserves AM/PM sign; clamps ±89° for polar extremes.
+export function computeDisplayObserverAngle(
+  observerAngle: number,
+  earthAngle: number,
+  elevationDeg: number
+): number {
+  const sunDirection = earthAngle + Math.PI;
+  const signedDiff = Math.atan2(
+    Math.sin(observerAngle - sunDirection),
+    Math.cos(observerAngle - sunDirection)
+  );
+  const sign = signedDiff >= 0 ? 1 : -1;
+  const clampedElev = Math.max(-89, Math.min(89, elevationDeg));
+  const correctedDiff = sign * (Math.PI / 2 - (clampedElev * Math.PI) / 180);
+  return sunDirection + correctedDiff;
+}
+
 /**
  * Compute the observer's zenith direction in the ecliptic plane.
  * Combines Earth's orbital angle with Earth's rotation based on local time.
@@ -154,6 +171,17 @@ export function renderDayNightSplit(
     locationData && locationData.lat != null
       ? computeSolarElevationDeg(locationData.lat, locationData.lon, date)
       : calculateSolarElevationDeg(observerAngle, earthAngle);
+
+  // When lat/lon is available, derive a display angle from the accurate elevation.
+  // The 2D orbital model assumes 12h day/night; at high latitudes this diverges
+  // significantly from true sunrise/sunset. The corrected angle aligns the cone
+  // direction, horizon, and zenith with the real sky. The needle keeps the
+  // time-based observerAngle so it continues showing Earth's rotation.
+  const displayObserverAngle =
+    locationData?.lat != null
+      ? computeDisplayObserverAngle(observerAngle, earthAngle, elevationDeg)
+      : observerAngle;
+
   let coneColor: string;
   if (elevationDeg >= 0) coneColor = CONE_DAY;
   else if (elevationDeg >= -6) coneColor = CONE_CIVIL;
@@ -165,7 +193,7 @@ export function renderDayNightSplit(
     svg,
     anchorX,
     anchorY,
-    observerAngle,
+    displayObserverAngle,
     halfAngle,
     "sky-clip",
     coneColor,
@@ -182,8 +210,8 @@ export function renderDayNightSplit(
   };
 
   // Horizon line — each arm extends to the cone clip circle edge + margin
-  const leftAngle = observerAngle + Math.PI / 2;
-  const rightAngle = observerAngle - Math.PI / 2;
+  const leftAngle = displayObserverAngle + Math.PI / 2;
+  const rightAngle = displayObserverAngle - Math.PI / 2;
   const leftD =
     rayCircleDistance(
       anchorX,
@@ -219,8 +247,8 @@ export function renderDayNightSplit(
     rayCircleDistance(
       anchorX,
       anchorY,
-      Math.cos(observerAngle),
-      eclipticViewDirection * Math.sin(observerAngle),
+      Math.cos(displayObserverAngle),
+      eclipticViewDirection * Math.sin(displayObserverAngle),
       CENTER,
       CENTER,
       CLIP_R
@@ -230,8 +258,8 @@ export function renderDayNightSplit(
       ...lineStyle,
       x1: anchorX,
       y1: anchorY,
-      x2: anchorX + zenithD * Math.cos(observerAngle),
-      y2: anchorY + eclipticViewDirection * zenithD * Math.sin(observerAngle),
+      x2: anchorX + zenithD * Math.cos(displayObserverAngle),
+      y2: anchorY + eclipticViewDirection * zenithD * Math.sin(displayObserverAngle),
     })
   );
 }

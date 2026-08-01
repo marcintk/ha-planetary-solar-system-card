@@ -1,6 +1,6 @@
 # Planetary Solar System Card
 
-[![HACS](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://hacs.xyz)
+[![HACS](https://img.shields.io/badge/HACS-Default-41BDF5.svg)](https://hacs.xyz)
 [![GitHub Release](https://img.shields.io/github/release/marcintk/ha-planetary-solar-system-card.svg)](https://github.com/marcintk/ha-planetary-solar-system-card/releases)
 [![License](https://img.shields.io/github/license/marcintk/ha-planetary-solar-system-card.svg)](https://github.com/marcintk/ha-planetary-solar-system-card/blob/main/LICENSE)
 ![Maintenance](https://img.shields.io/maintenance/yes/2026)
@@ -21,12 +21,9 @@ Sun. Navigate time, zoom, and pan interactively.
 
 ### Via HACS (recommended)
 
-1. In HACS → Frontend → click the three-dot menu → **Custom repositories**
-   - Repository: `https://github.com/marcintk/ha-planetary-solar-system-card` (exact URL)
-   - Category: **Dashboard**
-2. Search **Planetary Solar System Card** → Install
-3. Reload your browser
-4. Add the card to your dashboard (see Configuration below)
+1. In HACS → Frontend → search **Planetary Solar System Card** → Install
+2. Reload your browser
+3. Add the card to your dashboard (see Configuration below)
 
 ### Manual
 

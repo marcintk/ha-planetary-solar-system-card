@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { calculatePlanetPosition } from "../../src/astronomy/orbital-mechanics.js";
 import { PLANETS } from "../../src/astronomy/planet-data.js";
+import { computeSolarElevationDeg } from "../../src/astronomy/solar-position.js";
 import {
   CONE_ASTRONOMICAL,
   CONE_CIVIL,
@@ -485,5 +486,35 @@ describe("computeDisplayObserverAngle", () => {
       Math.atan2(Math.sin(corrected - sunDir), Math.cos(corrected - sunDir))
     );
     expect(diffCorrected).toBeLessThan(diff2D);
+  });
+
+  it("stays continuous across midnight — no large jump between consecutive 10-min samples", () => {
+    // Regression test for the sign-flip discontinuity at the atan2 ±π branch (astronomical
+    // midnight): correctedDiff's sign flips there while its magnitude stays the same,
+    // producing a jump of ~2*(π/2 - elevRad) — largest when elevation is deep negative (night).
+    const lat = 40;
+    const lon = -97;
+    const timezone = "America/Chicago";
+    const start = new Date("2025-01-15T00:00:00Z"); // window crosses local midnight
+
+    let prevDisplay: number | null = null;
+    let maxJumpDeg = 0;
+
+    for (let m = 0; m < 24 * 60; m += 10) {
+      const date = new Date(start.getTime() + m * 60000);
+      const earthAngle = calculatePlanetPosition(earth, date);
+      const observerAngle = calculateObserverAngle(earthAngle, date, timezone, lon);
+      const elevationDeg = computeSolarElevationDeg(lat, lon, date);
+      const display = computeDisplayObserverAngle(observerAngle, earthAngle, elevationDeg);
+
+      if (prevDisplay !== null) {
+        const jumpDeg = (angleDiff(display, prevDisplay) * 180) / Math.PI;
+        maxJumpDeg = Math.max(maxJumpDeg, jumpDeg);
+      }
+      prevDisplay = display;
+    }
+
+    // Sun's apparent motion is ~360°/24h ≈ 1.5° per 10-min step; allow generous margin.
+    expect(maxJumpDeg).toBeLessThan(5);
   });
 });

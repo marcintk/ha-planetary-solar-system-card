@@ -175,6 +175,7 @@ describe("SolarViewCard", () => {
       const buttons = card.shadowRoot.querySelectorAll(".nav button");
       const actions = Array.from(buttons).map((el) => el.dataset.action);
       expect(actions).toEqual([
+        "replay",
         "month-back",
         "day-back",
         "hour-back",
@@ -195,9 +196,10 @@ describe("SolarViewCard", () => {
       // First group: nav buttons
       const navGroup = btnGroups[0];
       const navButtons = navGroup.querySelectorAll("button");
-      expect(navButtons.length).toBe(7);
-      expect(navButtons[0].dataset.action).toBe("month-back");
-      expect(navButtons[6].dataset.action).toBe("month-forward");
+      expect(navButtons.length).toBe(8);
+      expect(navButtons[0].dataset.action).toBe("replay");
+      expect(navButtons[1].dataset.action).toBe("month-back");
+      expect(navButtons[7].dataset.action).toBe("month-forward");
       // Second group: zoom buttons
       const zoomGroup = btnGroups[1];
       const zoomButtons = zoomGroup.querySelectorAll("button");
@@ -404,6 +406,103 @@ describe("SolarViewCard", () => {
         expect(btn.textContent).toBe(expected);
       }
       card.remove();
+    });
+  });
+
+  describe("replay 24h", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    const timeNavActions = [
+      "month-back",
+      "day-back",
+      "hour-back",
+      "today",
+      "hour-forward",
+      "day-forward",
+      "month-forward",
+    ];
+
+    it("replay button uses a circular arrow glyph", () => {
+      const card = createAndMount();
+      const btn = card.shadowRoot.querySelector('button[data-action="replay"]');
+      expect(btn.textContent).toBe("↺");
+      card.remove();
+    });
+
+    it("clicking replay jumps to 24h before now and exits live mode", () => {
+      vi.useFakeTimers({ now: new Date("2026-02-15T12:00:00Z") });
+      const card = createAndMount();
+      clickButton(card, "replay");
+      expect(card._currentDate.toISOString()).toBe(new Date("2026-02-14T12:00:00Z").toISOString());
+      expect(card._isLiveMode).toBe(false);
+      card.remove();
+    });
+
+    it("steps forward in 10-minute increments", () => {
+      vi.useFakeTimers({ now: new Date("2026-02-15T12:00:00Z") });
+      const card = createAndMount();
+      clickButton(card, "replay");
+      vi.advanceTimersByTime(208); // one interval tick
+      expect(card._currentDate.toISOString()).toBe(new Date("2026-02-14T12:10:00Z").toISOString());
+      card.remove();
+    });
+
+    it("disables time-navigation buttons while replaying, re-enables when done", () => {
+      vi.useFakeTimers({ now: new Date("2026-02-15T12:00:00Z") });
+      const card = createAndMount();
+      clickButton(card, "replay");
+      for (const action of timeNavActions) {
+        const btn = card.shadowRoot.querySelector(`button[data-action="${action}"]`);
+        expect(btn.disabled).toBe(true);
+      }
+      expect(card.shadowRoot.querySelector('button[data-action="zoom-in"]').disabled).toBe(false);
+      expect(card.shadowRoot.querySelector('button[data-action="replay"]').disabled).toBe(false);
+
+      vi.advanceTimersByTime(208 * 144);
+      for (const action of timeNavActions) {
+        const btn = card.shadowRoot.querySelector(`button[data-action="${action}"]`);
+        expect(btn.disabled).toBe(false);
+      }
+      card.remove();
+    });
+
+    it("completes within 30 seconds of wall-clock time and lands on now with live mode resumed", () => {
+      const now = new Date("2026-02-15T12:00:00Z");
+      vi.useFakeTimers({ now });
+      const card = createAndMount();
+      clickButton(card, "replay");
+      vi.advanceTimersByTime(30000); // upper bound on real time this may take
+      expect(card._isReplaying).toBe(false);
+      expect(card._isLiveMode).toBe(true);
+      // Finishes before the 30s mark, so the virtual clock (and _currentDate) has
+      // advanced by less than the full 30000ms window.
+      expect(card._currentDate.getTime()).toBeGreaterThanOrEqual(now.getTime());
+      expect(card._currentDate.getTime()).toBeLessThan(now.getTime() + 30000);
+      card.remove();
+    });
+
+    it("clicking replay again cancels it mid-flight", () => {
+      vi.useFakeTimers({ now: new Date("2026-02-15T12:00:00Z") });
+      const card = createAndMount();
+      clickButton(card, "replay");
+      vi.advanceTimersByTime(208 * 5);
+      const midDate = card._currentDate.toISOString();
+      clickButton(card, "replay"); // second click cancels
+      expect(card._isReplaying).toBe(false);
+      vi.advanceTimersByTime(208 * 50);
+      expect(card._currentDate.toISOString()).toBe(midDate);
+      card.remove();
+    });
+
+    it("cleans up the replay timer on disconnect", () => {
+      vi.useFakeTimers({ now: new Date("2026-02-15T12:00:00Z") });
+      const card = createAndMount();
+      clickButton(card, "replay");
+      expect(card._replayTimer).not.toBeNull();
+      card.remove();
+      expect(card._replayTimer).toBeNull();
     });
   });
 

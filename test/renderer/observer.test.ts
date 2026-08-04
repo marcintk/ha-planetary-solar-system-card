@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { calculatePlanetPosition } from "../../src/astronomy/orbital-mechanics.js";
 import { PLANETS } from "../../src/astronomy/planet-data.js";
-import { computeSolarElevationDeg } from "../../src/astronomy/solar-position.js";
+import { computeZenithAngleFromSun } from "../../src/astronomy/solar-position.js";
 import {
   CONE_ASTRONOMICAL,
   CONE_CIVIL,
@@ -10,7 +10,6 @@ import {
   CONE_NIGHT,
   calculateObserverAngle,
   calculateSolarElevationDeg,
-  computeDisplayObserverAngle,
   rayCircleDistance,
   renderDayNightSplit,
   renderObserverNeedle,
@@ -279,19 +278,13 @@ describe("renderDayNightSplit cone bisector geometry", () => {
     expect(diffFromSun).toBeLessThan(Math.PI / 2);
   });
 
-  it("cone bisector extraction is consistent with direct computeDisplayObserverAngle", () => {
+  it("cone bisector extraction is consistent with direct azimuth-based angle", () => {
     // End-to-end check: bisector read from SVG should match the angle the fix computes.
     const date = new Date("2025-07-15T19:00:00Z");
     const locationData = { lat: 55, lon: 0, timezone: "Europe/London" };
     const earthAngle = calculatePlanetPosition(earth, date);
-    const observerAngle = calculateObserverAngle(
-      earthAngle,
-      date,
-      locationData.timezone,
-      locationData.lon
-    );
-    const elevationDeg = 8.5; // known spherical elevation for this scenario
-    const expectedBisector = computeDisplayObserverAngle(observerAngle, earthAngle, elevationDeg);
+    const expectedBisector =
+      earthAngle + Math.PI + computeZenithAngleFromSun(locationData.lat, locationData.lon, date);
 
     const svg = createSvg();
     renderDayNightSplit(svg, 200, date, earth.size, locationData);
@@ -418,48 +411,39 @@ describe("renderDayNightSplit horizon and zenith lines", () => {
   });
 });
 
-describe("computeDisplayObserverAngle", () => {
+describe("computeZenithAngleFromSun", () => {
   const earth = PLANETS.find((p) => p.name === "Earth");
 
-  it("round-trips correctly: displayAngle plugged back into 2D formula yields input elevation", () => {
-    // For any elevation in the non-clamped range, the display angle should reproduce
-    // that elevation when fed back into the 2D formula.
-    const earthAngle = 1.0;
-    const observerAngle = earthAngle + Math.PI / 3; // some arbitrary angle
-    for (const elev of [45, 30, 10, -5, -15]) {
-      const display = computeDisplayObserverAngle(observerAngle, earthAngle, elev);
-      const backCalc = calculateSolarElevationDeg(display, earthAngle);
-      expect(backCalc).toBeCloseTo(elev, 0);
-    }
+  it("at local solar noon (equator), zenith points almost exactly at the Sun", () => {
+    const date = new Date("2025-03-20T12:00:00Z"); // equinox, equator, lon=0 → local noon
+    const angle = computeZenithAngleFromSun(0, 0, date);
+    expect(Math.abs(angle)).toBeLessThan(0.02);
   });
 
-  it("preserves AM/PM side (morning observer stays in morning half-space)", () => {
-    // Observer on morning side: observerAngle is between midnight (earthAngle) and noon (earthAngle+π)
-    // In 2D, morning corresponds to signedDiff > 0 from sunDirection
-    const earthAngle = 1.0;
+  it("at local solar midnight (equator), zenith points almost exactly away from the Sun", () => {
+    const date = new Date("2025-03-20T00:00:00Z");
+    const angle = computeZenithAngleFromSun(0, 0, date);
+    expect(angleDiff(angle, Math.PI)).toBeLessThan(0.02);
+  });
+
+  it("with lat/lon at high latitude summer, angle stays within 90° of Sun (day), unlike raw 2D angle", () => {
+    // July at 55°N, 19:00 UTC: 2D model says night (~105° from Sun), spherical says day (+9.4°)
+    const date = new Date("2025-07-15T19:00:00Z");
+    const earthAngle = calculatePlanetPosition(earth, date);
     const sunDir = earthAngle + Math.PI;
-    // Place observer at earthAngle + π/4 (morning, between midnight and sunrise in 2D terms)
-    // signedDiff = observerAngle - sunDir ≈ -3π/4 → negative → "evening" side in solar terms
-    // Let's use a clearer setup: observer at sunDir - π/2 (sunrise-ish, morning side)
-    const observerAngle = sunDir - Math.PI / 2; // 90° before noon = morning
-    const display = computeDisplayObserverAngle(observerAngle, earthAngle, 0);
-    // Still on the morning side: signedDiff should remain negative
-    const correctedDiff = Math.atan2(Math.sin(display - sunDir), Math.cos(display - sunDir));
-    const originalDiff = Math.atan2(
-      Math.sin(observerAngle - sunDir),
-      Math.cos(observerAngle - sunDir)
+    const observerAngle2D = calculateObserverAngle(earthAngle, date, "Europe/London", 0);
+    const diff2D = Math.abs(
+      Math.atan2(Math.sin(observerAngle2D - sunDir), Math.cos(observerAngle2D - sunDir))
     );
-    expect(Math.sign(correctedDiff)).toBe(Math.sign(originalDiff));
-  });
 
-  it("clamps extreme polar elevation (±89°) to avoid collapse", () => {
-    const earthAngle = 0;
-    const observerAngle = earthAngle + Math.PI; // noon direction
-    // elevation = 95° is beyond physical range; should be clamped to 89°
-    const result = computeDisplayObserverAngle(observerAngle, earthAngle, 95);
-    const backCalc = calculateSolarElevationDeg(result, earthAngle);
-    // Should correspond to 89° (clamped), not collapse to 0° direction
-    expect(backCalc).toBeCloseTo(89, 0);
+    const angle = computeZenithAngleFromSun(55, 0, date);
+    expect(Math.abs(angle)).toBeLessThan(Math.PI / 2); // agrees with positive elevation: day side
+
+    const corrected = earthAngle + Math.PI + angle;
+    const diffCorrected = Math.abs(
+      Math.atan2(Math.sin(corrected - sunDir), Math.cos(corrected - sunDir))
+    );
+    expect(diffCorrected).toBeLessThan(diff2D);
   });
 
   it("without lat/lon, renderDayNightSplit horizon is perpendicular to observerAngle (no correction)", () => {
@@ -472,49 +456,33 @@ describe("computeDisplayObserverAngle", () => {
     expect(lines.length).toBe(2);
   });
 
-  it("with lat/lon at high latitude summer, corrected angle is closer to Sun than raw 2D angle", () => {
-    // July at 55°N, 19:00 UTC: 2D model says night (~105° from Sun), spherical says day (+8.5°)
-    const date = new Date("2025-07-15T19:00:00Z");
-    const earthAngle = calculatePlanetPosition(earth, date);
-    const sunDir = earthAngle + Math.PI;
-    const observerAngle2D = calculateObserverAngle(earthAngle, date, "Europe/London", 0);
-    const diff2D = Math.abs(
-      Math.atan2(Math.sin(observerAngle2D - sunDir), Math.cos(observerAngle2D - sunDir))
-    );
-    const corrected = computeDisplayObserverAngle(observerAngle2D, earthAngle, 8.5);
-    const diffCorrected = Math.abs(
-      Math.atan2(Math.sin(corrected - sunDir), Math.cos(corrected - sunDir))
-    );
-    expect(diffCorrected).toBeLessThan(diff2D);
-  });
-
-  it("stays continuous across midnight — no large jump between consecutive 10-min samples", () => {
-    // Regression test for the sign-flip discontinuity at the atan2 ±π branch (astronomical
-    // midnight): correctedDiff's sign flips there while its magnitude stays the same,
-    // producing a jump of ~2*(π/2 - elevRad) — largest when elevation is deep negative (night).
+  it("stays continuous across midnight — no large jump between consecutive 1-min samples", () => {
+    // Regression test for #78: the old inversion (magnitude from accurate elevation, sign
+    // reattached from the approximate 2D model) flipped sign at the atan2 ±π branch
+    // (astronomical midnight) while magnitude stayed the same, producing a jump of
+    // ~2*(π/2 - elevRad) — largest when elevation is deep negative (night). Projecting the
+    // true 3D zenith vector is continuous through that point by construction, since magnitude
+    // and direction now come from the same self-consistent physical model.
     const lat = 40;
     const lon = -97;
-    const timezone = "America/Chicago";
     const start = new Date("2025-01-15T00:00:00Z"); // window crosses local midnight
 
-    let prevDisplay: number | null = null;
+    let prevAngle: number | null = null;
     let maxJumpDeg = 0;
 
-    for (let m = 0; m < 24 * 60; m += 10) {
+    for (let m = 0; m < 24 * 60; m += 1) {
       const date = new Date(start.getTime() + m * 60000);
-      const earthAngle = calculatePlanetPosition(earth, date);
-      const observerAngle = calculateObserverAngle(earthAngle, date, timezone, lon);
-      const elevationDeg = computeSolarElevationDeg(lat, lon, date);
-      const display = computeDisplayObserverAngle(observerAngle, earthAngle, elevationDeg);
+      const angle = computeZenithAngleFromSun(lat, lon, date);
 
-      if (prevDisplay !== null) {
-        const jumpDeg = (angleDiff(display, prevDisplay) * 180) / Math.PI;
+      if (prevAngle !== null) {
+        const jumpDeg = (angleDiff(angle, prevAngle) * 180) / Math.PI;
         maxJumpDeg = Math.max(maxJumpDeg, jumpDeg);
       }
-      prevDisplay = display;
+      prevAngle = angle;
     }
 
-    // Sun's apparent motion is ~360°/24h ≈ 1.5° per 10-min step; allow generous margin.
-    expect(maxJumpDeg).toBeLessThan(5);
+    // Real azimuthal rate peaks near culmination (measured ~0.43°/min at this lat/season),
+    // well below the ~0.25°/min naive average but nowhere near the old bug's 122° jump.
+    expect(maxJumpDeg).toBeLessThan(2);
   });
 });

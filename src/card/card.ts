@@ -16,9 +16,9 @@ import { DEFAULT_ZOOM_LEVEL, MAX_ZOOM, MIN_ZOOM, ViewState } from "./card-view-s
 import { ZoomAnimator } from "./zoom-animator.js";
 
 const REPLAY_WINDOW_MS = 24 * 60 * 60 * 1000;
-const REPLAY_STEP_MS = 10 * 60 * 1000;
+const REPLAY_STEP_MS = 20 * 60 * 1000;
 const REPLAY_STEPS = REPLAY_WINDOW_MS / REPLAY_STEP_MS;
-const REPLAY_MAX_DURATION_MS = 30000;
+const REPLAY_MAX_DURATION_MS = 15000;
 const REPLAY_INTERVAL_MS = Math.floor(REPLAY_MAX_DURATION_MS / REPLAY_STEPS);
 
 export class SolarViewCard extends LitElement {
@@ -176,7 +176,6 @@ export class SolarViewCard extends LitElement {
         </div>
         <div class="nav">
           <span class="btn-group">
-            <button data-action="replay" title="Replay last 24h" @click=${this._onNavClick}>↺</button>
             <button data-action="month-back" ?disabled=${this._isReplaying} @click=${this._onNavClick}>⋘</button>
             <button data-action="day-back" ?disabled=${this._isReplaying} @click=${this._onNavClick}>«</button>
             <button data-action="hour-back" ?disabled=${this._isReplaying} @click=${this._onNavClick}>‹</button>
@@ -184,6 +183,7 @@ export class SolarViewCard extends LitElement {
             <button data-action="hour-forward" ?disabled=${this._isReplaying} @click=${this._onNavClick}>›</button>
             <button data-action="day-forward" ?disabled=${this._isReplaying} @click=${this._onNavClick}>»</button>
             <button data-action="month-forward" ?disabled=${this._isReplaying} @click=${this._onNavClick}>⋙</button>
+            <button data-action="replay" title="Replay last 24h" @click=${this._onNavClick}>↺</button>
           </span>
           <span class="nav-spacer"></span>
           <span class="date">${this._formatDate(this._currentDate)}</span>

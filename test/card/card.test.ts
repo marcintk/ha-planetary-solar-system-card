@@ -175,7 +175,6 @@ describe("SolarViewCard", () => {
       const buttons = card.shadowRoot.querySelectorAll(".nav button");
       const actions = Array.from(buttons).map((el) => el.dataset.action);
       expect(actions).toEqual([
-        "replay",
         "month-back",
         "day-back",
         "hour-back",
@@ -183,6 +182,7 @@ describe("SolarViewCard", () => {
         "hour-forward",
         "day-forward",
         "month-forward",
+        "replay",
         "zoom-out",
         "zoom-in",
       ]);
@@ -197,9 +197,8 @@ describe("SolarViewCard", () => {
       const navGroup = btnGroups[0];
       const navButtons = navGroup.querySelectorAll("button");
       expect(navButtons.length).toBe(8);
-      expect(navButtons[0].dataset.action).toBe("replay");
-      expect(navButtons[1].dataset.action).toBe("month-back");
-      expect(navButtons[7].dataset.action).toBe("month-forward");
+      expect(navButtons[0].dataset.action).toBe("month-back");
+      expect(navButtons[7].dataset.action).toBe("replay");
       // Second group: zoom buttons
       const zoomGroup = btnGroups[1];
       const zoomButtons = zoomGroup.querySelectorAll("button");
@@ -440,12 +439,12 @@ describe("SolarViewCard", () => {
       card.remove();
     });
 
-    it("steps forward in 10-minute increments", () => {
+    it("steps forward in 20-minute increments", () => {
       vi.useFakeTimers({ now: new Date("2026-02-15T12:00:00Z") });
       const card = createAndMount();
       clickButton(card, "replay");
       vi.advanceTimersByTime(208); // one interval tick
-      expect(card._currentDate.toISOString()).toBe(new Date("2026-02-14T12:10:00Z").toISOString());
+      expect(card._currentDate.toISOString()).toBe(new Date("2026-02-14T12:20:00Z").toISOString());
       card.remove();
     });
 
@@ -460,7 +459,7 @@ describe("SolarViewCard", () => {
       expect(card.shadowRoot.querySelector('button[data-action="zoom-in"]').disabled).toBe(false);
       expect(card.shadowRoot.querySelector('button[data-action="replay"]').disabled).toBe(false);
 
-      vi.advanceTimersByTime(208 * 144);
+      vi.advanceTimersByTime(208 * 72);
       for (const action of timeNavActions) {
         const btn = card.shadowRoot.querySelector(`button[data-action="${action}"]`);
         expect(btn.disabled).toBe(false);
@@ -468,18 +467,18 @@ describe("SolarViewCard", () => {
       card.remove();
     });
 
-    it("completes within 30 seconds of wall-clock time and lands on now with live mode resumed", () => {
+    it("completes within 15 seconds of wall-clock time and lands on now with live mode resumed", () => {
       const now = new Date("2026-02-15T12:00:00Z");
       vi.useFakeTimers({ now });
       const card = createAndMount();
       clickButton(card, "replay");
-      vi.advanceTimersByTime(30000); // upper bound on real time this may take
+      vi.advanceTimersByTime(15000); // upper bound on real time this may take
       expect(card._isReplaying).toBe(false);
       expect(card._isLiveMode).toBe(true);
-      // Finishes before the 30s mark, so the virtual clock (and _currentDate) has
-      // advanced by less than the full 30000ms window.
+      // Finishes before the 15s mark, so the virtual clock (and _currentDate) has
+      // advanced by less than the full 15000ms window.
       expect(card._currentDate.getTime()).toBeGreaterThanOrEqual(now.getTime());
-      expect(card._currentDate.getTime()).toBeLessThan(now.getTime() + 30000);
+      expect(card._currentDate.getTime()).toBeLessThan(now.getTime() + 15000);
       card.remove();
     });
 

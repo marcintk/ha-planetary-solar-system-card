@@ -11,6 +11,9 @@
 Home Assistant custom Lovelace card showing all 8 planets, Moon and comet Halley aligned around the
 Sun. Navigate time, zoom, and pan interactively.
 
+Have an idea or found a bug?
+[Open a GitHub issue](https://github.com/marcintk/ha-planetary-solar-system-card/issues/new).
+
 ## Preview
 
 [**→ Try the interactive demo**](https://marcintk.github.io/ha-planetary-solar-system-card/)
@@ -56,6 +59,7 @@ default_zoom: 2
 | `colors`               | object                 | see below | Color overrides (see Colors)                                                               |
 | `ecliptic_view`        | `"north"` \| `"south"` | `"north"` | Viewing pole: `"north"` = counter-clockwise orbits (default); `"south"` = clockwise orbits |
 | `show_version`         | boolean                | `false`   | Show card version number in the bottom-right corner of the nav bar                         |
+| `debug`                | boolean                | `false`   | Opt in to try in-progress/beta features — currently: replay button (↺, replays last 6h)    |
 
 ### Colors
 
@@ -78,6 +82,19 @@ colors:
   orbit: "rgba(100, 200, 255, 0.2)"
   label: "#e0e0ff"
 ```
+
+### Horizon Twilight Zones
+
+The visibility cone at Earth's orbit shades by how far the Sun is below your local horizon, using
+the standard astronomical twilight definitions:
+
+| Zone                  | Sun elevation | Meaning                                                          |
+| --------------------- | ------------- | ---------------------------------------------------------------- |
+| Day                   | ≥ 0°          | Sun is up                                                        |
+| Civil twilight        | 0° to -6°     | Bright enough for outdoor activity without lights                |
+| Nautical twilight     | -6° to -12°   | Horizon still visible at sea; too dark for most outdoor activity |
+| Astronomical twilight | -12° to -18°  | Sky background glow, faint stars washed out                      |
+| Night                 | < -18°        | Full dark; the Sun no longer lights the sky                      |
 
 ## Development
 

@@ -107,12 +107,18 @@ describe("cone color constants", () => {
     expect(colors.size).toBe(5);
   });
 
-  it("CONE_DAY is brightest (highest alpha)", () => {
-    const extractAlpha = (c) => Number(c.match(/[\d.]+(?=\))/)[0]);
-    expect(extractAlpha(CONE_DAY)).toBeGreaterThan(extractAlpha(CONE_CIVIL));
-    expect(extractAlpha(CONE_CIVIL)).toBeGreaterThan(extractAlpha(CONE_NAUTICAL));
-    expect(extractAlpha(CONE_NAUTICAL)).toBeGreaterThan(extractAlpha(CONE_ASTRONOMICAL));
-    expect(extractAlpha(CONE_ASTRONOMICAL)).toBeGreaterThan(extractAlpha(CONE_NIGHT));
+  it("cone colors darken from day (white) to night (black)", () => {
+    // Day-family zones are white-based (pop on dark theme, fade on light theme);
+    // night-family zones are black-based (pop on light theme, fade on dark theme).
+    // The RGB sum should fall monotonically across the elevation bands.
+    const rgbSum = (c) => {
+      const [, r, g, b] = c.match(/rgba\((\d+), (\d+), (\d+)/).map(Number);
+      return r + g + b;
+    };
+    expect(rgbSum(CONE_DAY)).toBeGreaterThan(rgbSum(CONE_CIVIL));
+    expect(rgbSum(CONE_CIVIL)).toBeGreaterThan(rgbSum(CONE_NAUTICAL));
+    expect(rgbSum(CONE_NAUTICAL)).toBeGreaterThan(rgbSum(CONE_ASTRONOMICAL));
+    expect(rgbSum(CONE_ASTRONOMICAL)).toBeGreaterThan(rgbSum(CONE_NIGHT));
   });
 });
 

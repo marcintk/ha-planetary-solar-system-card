@@ -1,6 +1,10 @@
 import { calculatePlanetPosition } from "../astronomy/orbital-mechanics.js";
 import { EARTH } from "../astronomy/planet-data.js";
-import { computeSolarElevationDeg, getLocalTimeInZone } from "../astronomy/solar-position.js";
+import {
+  computeSolarElevationDeg,
+  computeZenithAngleFromSun,
+  getLocalTimeInZone,
+} from "../astronomy/solar-position.js";
 import type { LocationData } from "../types.js";
 import { CENTER, createSvgElement, MAX_RADIUS, VIEW_SIZE } from "./svg-utils.js";
 
@@ -42,23 +46,6 @@ export function calculateSolarElevationDeg(observerAngle: number, earthAngle: nu
   const dirToSun = earthAngle + Math.PI;
   const diff = Math.atan2(Math.sin(observerAngle - dirToSun), Math.cos(observerAngle - dirToSun));
   return (Math.PI / 2 - Math.abs(diff)) * (180 / Math.PI);
-}
-
-// Inverts 2D elevation formula using accurate spherical elev; preserves AM/PM sign; clamps ±89° for polar extremes.
-export function computeDisplayObserverAngle(
-  observerAngle: number,
-  earthAngle: number,
-  elevationDeg: number
-): number {
-  const sunDirection = earthAngle + Math.PI;
-  const signedDiff = Math.atan2(
-    Math.sin(observerAngle - sunDirection),
-    Math.cos(observerAngle - sunDirection)
-  );
-  const sign = signedDiff >= 0 ? 1 : -1;
-  const clampedElev = Math.max(-89, Math.min(89, elevationDeg));
-  const correctedDiff = sign * (Math.PI / 2 - (clampedElev * Math.PI) / 180);
-  return sunDirection + correctedDiff;
 }
 
 /**
@@ -172,14 +159,16 @@ export function renderDayNightSplit(
       ? computeSolarElevationDeg(locationData.lat, locationData.lon, date)
       : calculateSolarElevationDeg(observerAngle, earthAngle);
 
-  // When lat/lon is available, derive a display angle from the accurate elevation.
-  // The 2D orbital model assumes 12h day/night; at high latitudes this diverges
-  // significantly from true sunrise/sunset. The corrected angle aligns the cone
-  // direction, horizon, and zenith with the real sky. The needle keeps the
-  // time-based observerAngle so it continues showing Earth's rotation.
+  // When lat/lon is available, derive a display angle from the observer's true zenith
+  // direction, projected onto the ecliptic plane. The 2D orbital model assumes 12h
+  // day/night; at high latitudes this diverges significantly from true sunrise/sunset.
+  // The projection is continuous through both solar noon and midnight by construction,
+  // unlike inverting elevation with a sign borrowed from the approximate 2D model (which
+  // jumped at midnight — see #78). The needle keeps the time-based observerAngle so it
+  // continues showing Earth's rotation.
   const displayObserverAngle =
-    locationData?.lat != null
-      ? computeDisplayObserverAngle(observerAngle, earthAngle, elevationDeg)
+    locationData && locationData.lat != null
+      ? earthAngle + Math.PI + computeZenithAngleFromSun(locationData.lat, locationData.lon, date)
       : observerAngle;
 
   let coneColor: string;

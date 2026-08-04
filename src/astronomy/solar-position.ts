@@ -28,6 +28,28 @@ export function getLocalTimeInZone(
   }
 }
 
+const OBLIQUITY_DEG = 23.45;
+const OBLIQUITY_RAD = (OBLIQUITY_DEG * Math.PI) / 180;
+
+/**
+ * Day-of-year and local solar hour angle shared by computeSolarElevationDeg and
+ * computeZenithAngleFromSun. localSolarHour uses UTC + longitude offset (1 hour per
+ * 15° longitude), independent of civil timezone — true solar time.
+ */
+function computeSolarTimeParams(
+  lon: number,
+  date: Date
+): { dayOfYear: number; hourAngleRad: number } {
+  const startOfYear = Date.UTC(date.getUTCFullYear(), 0, 0);
+  const dayOfYear = Math.floor((date.getTime() - startOfYear) / 86400000);
+
+  const utcHour = date.getUTCHours() + date.getUTCMinutes() / 60 + date.getUTCSeconds() / 3600;
+  const localSolarHour = (((utcHour + lon / 15) % 24) + 24) % 24;
+  const hourAngleRad = ((localSolarHour - 12) * 15 * Math.PI) / 180;
+
+  return { dayOfYear, hourAngleRad };
+}
+
 /**
  * Compute the Sun's true altitude above the observer's horizon using spherical
  * astronomy. Returns degrees in [-90, 90].
@@ -37,28 +59,17 @@ export function getLocalTimeInZone(
  *   H  = 15° × (localSolarHour - 12)                    ← hour angle
  *   sin(alt) = sin(lat)×sin(δ) + cos(lat)×cos(δ)×cos(H)
  *
- * localSolarHour uses UTC + longitude offset (1 hour per 15° longitude),
- * which is independent of civil timezone and gives true solar time.
- *
  * @param {number} lat - observer latitude in degrees
  * @param {number} lon - observer longitude in degrees (positive east)
  * @param {Date} date
  * @returns {number} solar altitude in degrees
  */
 export function computeSolarElevationDeg(lat: number, lon: number, date: Date): number {
-  // Day of year (1 = Jan 1)
-  const startOfYear = Date.UTC(date.getUTCFullYear(), 0, 0);
-  const dayOfYear = Math.floor((date.getTime() - startOfYear) / 86400000);
+  const { dayOfYear, hourAngleRad } = computeSolarTimeParams(lon, date);
 
   // Solar declination in radians
-  const declRad = (-23.45 * Math.cos(((2 * Math.PI) / 365) * (dayOfYear + 10)) * Math.PI) / 180;
-
-  // Local solar hour: UTC fractional hours + longitude offset (15°/hr)
-  const utcHour = date.getUTCHours() + date.getUTCMinutes() / 60 + date.getUTCSeconds() / 3600;
-  const localSolarHour = (((utcHour + lon / 15) % 24) + 24) % 24;
-
-  // Hour angle in radians (positive in afternoon)
-  const hourAngleRad = ((localSolarHour - 12) * 15 * Math.PI) / 180;
+  const declRad =
+    (-OBLIQUITY_DEG * Math.cos(((2 * Math.PI) / 365) * (dayOfYear + 10)) * Math.PI) / 180;
 
   const latRad = (lat * Math.PI) / 180;
   const sinAlt =
@@ -66,6 +77,67 @@ export function computeSolarElevationDeg(lat: number, lon: number, date: Date): 
     Math.cos(latRad) * Math.cos(declRad) * Math.cos(hourAngleRad);
 
   return (Math.asin(Math.max(-1, Math.min(1, sinAlt))) * 180) / Math.PI;
+}
+
+/**
+ * Compute the observer's true zenith direction, projected onto the ecliptic plane and
+ * expressed as an angle relative to the Earth→Sun direction (0 = zenith points straight at
+ * the Sun, ±π = zenith points straight away).
+ *
+ * This replaces the earlier approach of inverting the (idealized, tent-shaped) 2D elevation
+ * formula and reattaching a sign borrowed from the approximate orbital model — that inversion
+ * is two-valued whenever true elevation at 2D-midnight isn't exactly -90°, which is almost
+ * always, producing a real jump every night (#78).
+ *
+ * Instead this builds the observer's zenith as a 3D unit vector in an equatorial frame whose
+ * X-axis is defined as the sun's current meridian (so the existing hour-angle is directly
+ * usable, no separate sidereal-time calculation needed), rotates it into ecliptic coordinates
+ * via the standard obliquity rotation, and reads off the angle of its ecliptic-plane
+ * projection relative to the (known, calendar-approximate) ecliptic longitude of the Sun.
+ * Because both the magnitude (elevation) and direction (this angle) now come from the same
+ * self-consistent physical model, they agree exactly at the noon/midnight boundaries instead
+ * of disagreeing there — eliminating the structural discontinuity.
+ *
+ * ponytail: near the Arctic/Antarctic Circle, right at the moment the sun grazes the horizon
+ * at solstice, the projected zenith vector's in-plane component shrinks toward zero and the
+ * angle becomes geometrically ill-defined (like a compass at the magnetic pole) — a brief,
+ * rare visual glitch there, not a daily one. Add hysteresis (carry the previous frame's angle)
+ * if this specific case ever needs smoothing.
+ *
+ * @param {number} lat - observer latitude in degrees
+ * @param {number} lon - observer longitude in degrees (positive east)
+ * @param {Date} date
+ * @returns {number} angle in radians, (-π, π], relative to the Earth→Sun direction
+ */
+export function computeZenithAngleFromSun(lat: number, lon: number, date: Date): number {
+  const { dayOfYear, hourAngleRad } = computeSolarTimeParams(lon, date);
+
+  // Ecliptic longitude of the Sun, calendar-approximate, phase-matched to the declination
+  // formula above (theta=0 -> winter solstice, theta=π -> summer solstice).
+  const theta = ((2 * Math.PI) / 365) * (dayOfYear + 10);
+  const lambdaSun = theta - Math.PI / 2;
+  const raSun = Math.atan2(Math.cos(OBLIQUITY_RAD) * Math.sin(lambdaSun), Math.cos(lambdaSun));
+
+  const latRad = (lat * Math.PI) / 180;
+
+  // Zenith in an equatorial frame whose X-axis points at the Sun's current meridian.
+  const zxCustom = Math.cos(latRad) * Math.cos(hourAngleRad);
+  const zyCustom = Math.cos(latRad) * Math.sin(hourAngleRad);
+  const zzCustom = Math.sin(latRad);
+
+  // Rotate into the standard equatorial frame (X-axis at the vernal equinox).
+  const zxStd = zxCustom * Math.cos(raSun) - zyCustom * Math.sin(raSun);
+  const zyStd = zxCustom * Math.sin(raSun) + zyCustom * Math.cos(raSun);
+
+  // Rotate into the ecliptic frame (obliquity rotation about the shared X-axis).
+  const zxEcl = zxStd;
+  const zyEcl = zyStd * Math.cos(OBLIQUITY_RAD) + zzCustom * Math.sin(OBLIQUITY_RAD);
+
+  const zenithEclipticLon = Math.atan2(zyEcl, zxEcl);
+  return Math.atan2(
+    Math.sin(zenithEclipticLon - lambdaSun),
+    Math.cos(zenithEclipticLon - lambdaSun)
+  );
 }
 
 /**

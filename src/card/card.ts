@@ -15,6 +15,12 @@ import { buildStatusBar } from "./card-template.js";
 import { DEFAULT_ZOOM_LEVEL, MAX_ZOOM, MIN_ZOOM, ViewState } from "./card-view-state.js";
 import { ZoomAnimator } from "./zoom-animator.js";
 
+const REPLAY_WINDOW_MS = 24 * 60 * 60 * 1000;
+const REPLAY_STEP_MS = 20 * 60 * 1000;
+const REPLAY_STEPS = REPLAY_WINDOW_MS / REPLAY_STEP_MS;
+const REPLAY_MAX_DURATION_MS = 15000;
+const REPLAY_INTERVAL_MS = Math.floor(REPLAY_MAX_DURATION_MS / REPLAY_STEPS);
+
 export class SolarViewCard extends LitElement {
   static styles = cardStyles;
 
@@ -29,6 +35,8 @@ export class SolarViewCard extends LitElement {
   private _timezone: string | null;
   private _locationName: string | null;
   private _autoUpdateTimer: number | null;
+  private _replayTimer: number | null;
+  private _isReplaying: boolean;
   private _colors: Colors;
   private _refreshMs: number;
   private _periodicZoomChange: boolean;
@@ -52,6 +60,8 @@ export class SolarViewCard extends LitElement {
     this._timezone = null;
     this._locationName = null;
     this._autoUpdateTimer = null;
+    this._replayTimer = null;
+    this._isReplaying = false;
     this._colors = {};
     this._refreshMs = 60000;
     this._periodicZoomChange = false;
@@ -140,6 +150,8 @@ export class SolarViewCard extends LitElement {
     super.disconnectedCallback();
     clearInterval(this._autoUpdateTimer ?? undefined);
     this._autoUpdateTimer = null;
+    clearInterval(this._replayTimer ?? undefined);
+    this._replayTimer = null;
     if (this._onVisibilityChange) {
       document.removeEventListener("visibilitychange", this._onVisibilityChange);
     }
@@ -164,13 +176,14 @@ export class SolarViewCard extends LitElement {
         </div>
         <div class="nav">
           <span class="btn-group">
-            <button data-action="month-back" @click=${this._onNavClick}>⋘</button>
-            <button data-action="day-back" @click=${this._onNavClick}>«</button>
-            <button data-action="hour-back" @click=${this._onNavClick}>‹</button>
-            <button data-action="today" @click=${this._onNavClick}>Now</button>
-            <button data-action="hour-forward" @click=${this._onNavClick}>›</button>
-            <button data-action="day-forward" @click=${this._onNavClick}>»</button>
-            <button data-action="month-forward" @click=${this._onNavClick}>⋙</button>
+            <button data-action="month-back" ?disabled=${this._isReplaying} @click=${this._onNavClick}>⋘</button>
+            <button data-action="day-back" ?disabled=${this._isReplaying} @click=${this._onNavClick}>«</button>
+            <button data-action="hour-back" ?disabled=${this._isReplaying} @click=${this._onNavClick}>‹</button>
+            <button data-action="today" ?disabled=${this._isReplaying} @click=${this._onNavClick}>Now</button>
+            <button data-action="hour-forward" ?disabled=${this._isReplaying} @click=${this._onNavClick}>›</button>
+            <button data-action="day-forward" ?disabled=${this._isReplaying} @click=${this._onNavClick}>»</button>
+            <button data-action="month-forward" ?disabled=${this._isReplaying} @click=${this._onNavClick}>⋙</button>
+            <button data-action="replay" title="Replay last 24h" @click=${this._onNavClick}>↺</button>
           </span>
           <span class="nav-spacer"></span>
           <span class="date">${this._formatDate(this._currentDate)}</span>
@@ -270,6 +283,51 @@ export class SolarViewCard extends LitElement {
     this._render();
   }
 
+  private _toggleReplay(): void {
+    if (this._replayTimer !== null) {
+      this._cancelReplay();
+    } else {
+      this._startReplay();
+    }
+  }
+
+  private _startReplay(): void {
+    this._isLiveMode = false;
+    this._isReplaying = true;
+    const startTime = Date.now() - REPLAY_WINDOW_MS;
+    let step = 0;
+    this._currentDate = new Date(startTime);
+    this._render();
+
+    this._replayTimer = setInterval(() => {
+      step++;
+      if (step >= REPLAY_STEPS) {
+        this._finishReplay();
+        return;
+      }
+      this._currentDate = new Date(startTime + step * REPLAY_STEP_MS);
+      this._render();
+    }, REPLAY_INTERVAL_MS) as unknown as number;
+  }
+
+  private _finishReplay(): void {
+    /* v8 ignore next */
+    clearInterval(this._replayTimer ?? undefined);
+    this._replayTimer = null;
+    this._isReplaying = false;
+    this._isLiveMode = true;
+    this._currentDate = new Date();
+    this._render();
+  }
+
+  private _cancelReplay(): void {
+    /* v8 ignore next */
+    clearInterval(this._replayTimer ?? undefined);
+    this._replayTimer = null;
+    this._isReplaying = false;
+    this._render();
+  }
+
   private _zoomIn(): void {
     if (!this._viewState) return;
     const prevWidth = this._viewState.width;
@@ -348,6 +406,9 @@ export class SolarViewCard extends LitElement {
 
   private _handleNavAction(action: string | undefined): void {
     switch (action) {
+      case "replay":
+        this._toggleReplay();
+        break;
       case "zoom-out":
         this._zoomOut();
         break;

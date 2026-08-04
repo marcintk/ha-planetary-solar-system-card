@@ -482,6 +482,24 @@ describe("SolarViewCard", () => {
       card.remove();
     });
 
+    it("replays the 24h ending at the currently displayed date, not real now", () => {
+      // Real "now" is Feb 15, but the user has navigated to a past date and paused there.
+      vi.useFakeTimers({ now: new Date("2026-02-15T12:00:00Z") });
+      const card = createAndMount();
+      card._currentDate = new Date("2026-01-01T06:00:00Z");
+      card._isLiveMode = false;
+      card._render();
+
+      clickButton(card, "replay");
+      expect(card._currentDate.toISOString()).toBe(new Date("2025-12-31T06:00:00Z").toISOString());
+
+      vi.advanceTimersByTime(208 * 72);
+      // Lands back exactly on the pre-replay date, not real now, and stays paused.
+      expect(card._currentDate.toISOString()).toBe(new Date("2026-01-01T06:00:00Z").toISOString());
+      expect(card._isLiveMode).toBe(false);
+      card.remove();
+    });
+
     it("clicking replay again cancels it mid-flight", () => {
       vi.useFakeTimers({ now: new Date("2026-02-15T12:00:00Z") });
       const card = createAndMount();

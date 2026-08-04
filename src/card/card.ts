@@ -292,9 +292,11 @@ export class SolarViewCard extends LitElement {
   }
 
   private _startReplay(): void {
+    const wasLiveMode = this._isLiveMode;
+    const endTime = this._currentDate.getTime();
+    const startTime = endTime - REPLAY_WINDOW_MS;
     this._isLiveMode = false;
     this._isReplaying = true;
-    const startTime = Date.now() - REPLAY_WINDOW_MS;
     let step = 0;
     this._currentDate = new Date(startTime);
     this._render();
@@ -302,7 +304,7 @@ export class SolarViewCard extends LitElement {
     this._replayTimer = setInterval(() => {
       step++;
       if (step >= REPLAY_STEPS) {
-        this._finishReplay();
+        this._finishReplay(endTime, wasLiveMode);
         return;
       }
       this._currentDate = new Date(startTime + step * REPLAY_STEP_MS);
@@ -310,13 +312,15 @@ export class SolarViewCard extends LitElement {
     }, REPLAY_INTERVAL_MS) as unknown as number;
   }
 
-  private _finishReplay(): void {
+  private _finishReplay(endTime: number, resumeLiveMode: boolean): void {
     /* v8 ignore next */
     clearInterval(this._replayTimer ?? undefined);
     this._replayTimer = null;
     this._isReplaying = false;
-    this._isLiveMode = true;
-    this._currentDate = new Date();
+    this._isLiveMode = resumeLiveMode;
+    // If replay started from live mode, land on real "now" (time passed during the
+    // animation); otherwise return exactly to the date the user had paused on.
+    this._currentDate = resumeLiveMode ? new Date() : new Date(endTime);
     this._render();
   }
 

@@ -15,10 +15,10 @@ import { buildStatusBar } from "./card-template.js";
 import { DEFAULT_ZOOM_LEVEL, MAX_ZOOM, MIN_ZOOM, ViewState } from "./card-view-state.js";
 import { ZoomAnimator } from "./zoom-animator.js";
 
-const REPLAY_WINDOW_MS = 24 * 60 * 60 * 1000;
-const REPLAY_STEP_MS = 20 * 60 * 1000;
-const REPLAY_STEPS = REPLAY_WINDOW_MS / REPLAY_STEP_MS;
-const REPLAY_MAX_DURATION_MS = 15000;
+const REPLAY_WINDOW_MS = 6 * 60 * 60 * 1000;
+const REPLAY_STEPS = 36;
+const REPLAY_STEP_MS = REPLAY_WINDOW_MS / REPLAY_STEPS;
+const REPLAY_MAX_DURATION_MS = 5000;
 const REPLAY_INTERVAL_MS = Math.floor(REPLAY_MAX_DURATION_MS / REPLAY_STEPS);
 
 export class SolarViewCard extends LitElement {
@@ -176,22 +176,26 @@ export class SolarViewCard extends LitElement {
         </div>
         <div class="nav">
           <span class="btn-group">
-            <button data-action="month-back" ?disabled=${this._isReplaying} @click=${this._onNavClick}>⋘</button>
-            <button data-action="day-back" ?disabled=${this._isReplaying} @click=${this._onNavClick}>«</button>
-            <button data-action="hour-back" ?disabled=${this._isReplaying} @click=${this._onNavClick}>‹</button>
+            <button data-action="month-back" title="Back 1 month" ?disabled=${this._isReplaying} @click=${this._onNavClick}>⋘</button>
+            <button data-action="day-back" title="Back 1 day" ?disabled=${this._isReplaying} @click=${this._onNavClick}>«</button>
+            <button data-action="hour-back" title="Back 1 hour" ?disabled=${this._isReplaying} @click=${this._onNavClick}>‹</button>
             <button data-action="today" ?disabled=${this._isReplaying} @click=${this._onNavClick}>Now</button>
-            <button data-action="hour-forward" ?disabled=${this._isReplaying} @click=${this._onNavClick}>›</button>
-            <button data-action="day-forward" ?disabled=${this._isReplaying} @click=${this._onNavClick}>»</button>
-            <button data-action="month-forward" ?disabled=${this._isReplaying} @click=${this._onNavClick}>⋙</button>
-            <button data-action="replay" title="Replay last 24h" @click=${this._onNavClick}>↺</button>
+            <button data-action="hour-forward" title="Forward 1 hour" ?disabled=${this._isReplaying} @click=${this._onNavClick}>›</button>
+            <button data-action="day-forward" title="Forward 1 day" ?disabled=${this._isReplaying} @click=${this._onNavClick}>»</button>
+            <button data-action="month-forward" title="Forward 1 month" ?disabled=${this._isReplaying} @click=${this._onNavClick}>⋙</button>
+            ${
+              this._config?.debug
+                ? html`<button data-action="replay" title="Replay last 6h" @click=${this._onNavClick}>↺</button>`
+                : nothing
+            }
           </span>
           <span class="nav-spacer"></span>
           <span class="date">${this._formatDate(this._currentDate)}</span>
           <span class="nav-spacer"></span>
           <span class="btn-group">
-            <button data-action="zoom-out" @click=${this._onNavClick}>&minus;</button>
+            <button data-action="zoom-out" title="Zoom out" @click=${this._onNavClick}>&minus;</button>
             <span class="zoom-level">${zoomLevel}</span>
-            <button data-action="zoom-in" @click=${this._onNavClick}>+</button>
+            <button data-action="zoom-in" title="Zoom in" @click=${this._onNavClick}>+</button>
           </span>
           ${this._config?.show_version ? html`<span class="card-version">v${__CARD_VERSION__}</span>` : nothing}
         </div>

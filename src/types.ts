@@ -106,4 +106,5 @@ export interface CardConfig {
   colors?: Colors;
   ecliptic_view?: string;
   show_version?: boolean;
+  debug?: boolean;
 }

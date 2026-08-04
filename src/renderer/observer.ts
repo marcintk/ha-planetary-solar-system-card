@@ -10,11 +10,14 @@ import { CENTER, createSvgElement, MAX_RADIUS, VIEW_SIZE } from "./svg-utils.js"
 
 const NEEDLE_COLOR = "color-mix(in srgb, currentColor 70%, transparent)";
 
-export const CONE_DAY = "rgba(255, 255, 255, 0.1)"; // Sun above horizon
-export const CONE_CIVIL = "rgba(255, 220, 160, 0.08)"; // Civil twilight:        0° to -6°
-export const CONE_NAUTICAL = "rgba(160, 190, 255, 0.06)"; // Nautical twilight:   -6° to -12°
-export const CONE_ASTRONOMICAL = "rgba(80, 100, 200, 0.04)"; // Astronomical twilight: -12° to -18°
-export const CONE_NIGHT = "rgba(255, 255, 255, 0.01)"; // Sun below -18°
+// White-based (day family) pops on dark theme, fades on light theme.
+// Black-based (night family) pops on light theme, fades on dark theme.
+// Alpha blending onto a matching background gives this contrast flip for free.
+export const CONE_DAY = "rgba(255, 255, 255, 0.10)"; // Sun above horizon
+export const CONE_CIVIL = "rgba(255, 220, 160, 0.09)"; // Civil twilight:        0° to -6°
+export const CONE_NAUTICAL = "rgba(128, 128, 128, 0.08)"; // Nautical twilight:  -6° to -12°
+export const CONE_ASTRONOMICAL = "rgba(20, 20, 40, 0.10)"; // Astronomical twilight: -12° to -18°
+export const CONE_NIGHT = "rgba(0, 0, 0, 0.12)"; // Sun below -18°
 
 /**
  * Compute the distance from point (ax,ay) along direction (dx,dy) to the

@@ -18,7 +18,22 @@ Have an idea or found a bug?
 
 [**→ Try the interactive demo**](https://marcintk.github.io/ha-planetary-solar-system-card/)
 
-[![Preview](https://raw.githubusercontent.com/marcintk/ha-planetary-solar-system-card/main/docs/preview.png)](https://marcintk.github.io/ha-planetary-solar-system-card/)
+| Dark                                                                                                                                                                                | Light                                                                                                                                                                                 |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [![Preview Dark](https://raw.githubusercontent.com/marcintk/ha-planetary-solar-system-card/main/docs/preview-dark.png)](https://marcintk.github.io/ha-planetary-solar-system-card/) | [![Preview Light](https://raw.githubusercontent.com/marcintk/ha-planetary-solar-system-card/main/docs/preview-light.png)](https://marcintk.github.io/ha-planetary-solar-system-card/) |
+
+### Horizon Twilight Zones
+
+The visibility cone at Earth's orbit shades by how far the Sun is below your local horizon, using
+the standard astronomical twilight definitions:
+
+| Zone                  | Sun elevation | Meaning                                                          |
+| --------------------- | ------------- | ---------------------------------------------------------------- |
+| Day                   | ≥ 0°          | Sun is up                                                        |
+| Civil twilight        | 0° to -6°     | Bright enough for outdoor activity without lights                |
+| Nautical twilight     | -6° to -12°   | Horizon still visible at sea; too dark for most outdoor activity |
+| Astronomical twilight | -12° to -18°  | Sky background glow, faint stars washed out                      |
+| Night                 | < -18°        | Full dark; the Sun no longer lights the sky                      |
 
 ## Installation
 
@@ -82,19 +97,6 @@ colors:
   orbit: "rgba(100, 200, 255, 0.2)"
   label: "#e0e0ff"
 ```
-
-### Horizon Twilight Zones
-
-The visibility cone at Earth's orbit shades by how far the Sun is below your local horizon, using
-the standard astronomical twilight definitions:
-
-| Zone                  | Sun elevation | Meaning                                                          |
-| --------------------- | ------------- | ---------------------------------------------------------------- |
-| Day                   | ≥ 0°          | Sun is up                                                        |
-| Civil twilight        | 0° to -6°     | Bright enough for outdoor activity without lights                |
-| Nautical twilight     | -6° to -12°   | Horizon still visible at sea; too dark for most outdoor activity |
-| Astronomical twilight | -12° to -18°  | Sky background glow, faint stars washed out                      |
-| Night                 | < -18°        | Full dark; the Sun no longer lights the sky                      |
 
 ## Development
 

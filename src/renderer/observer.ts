@@ -169,10 +169,12 @@ export function renderDayNightSplit(
   // unlike inverting elevation with a sign borrowed from the approximate 2D model (which
   // jumped at midnight — see #78). The needle keeps the time-based observerAngle so it
   // continues showing Earth's rotation.
-  const displayObserverAngle =
+  const zenithAngleFromSun =
     locationData && locationData.lat != null
-      ? earthAngle + Math.PI + computeZenithAngleFromSun(locationData.lat, locationData.lon, date)
-      : observerAngle;
+      ? computeZenithAngleFromSun(locationData.lat, locationData.lon, date)
+      : null;
+  const displayObserverAngle =
+    zenithAngleFromSun != null ? earthAngle + Math.PI + zenithAngleFromSun : observerAngle;
 
   let coneColor: string;
   if (elevationDeg >= 0) coneColor = CONE_DAY;
@@ -180,7 +182,20 @@ export function renderDayNightSplit(
   else if (elevationDeg >= -12) coneColor = CONE_NAUTICAL;
   else if (elevationDeg >= -18) coneColor = CONE_ASTRONOMICAL;
   else coneColor = CONE_NIGHT;
-  const halfAngle = elevationDeg >= 0 || elevationDeg < -18 ? 90 : 90 - elevationDeg;
+
+  // Twilight half-angle must expand in the SAME frame as displayObserverAngle (the cone's
+  // axis), or the two disagree away from solar noon/midnight. displayObserverAngle is built
+  // from zenithAngleFromSun, an ecliptic-PLANE PROJECTION of the true 3D zenith angle — so
+  // reuse that same projected magnitude here instead of the true unprojected (90 -
+  // elevationDeg), which was silently assumed to be interchangeable with it. Using the
+  // mismatched true-angle magnitude on a projected axis is exactly what pushed the -6/-12/-18
+  // cone edges away from the Sun's actual direction after sunset (worst at mid latitudes).
+  const halfAngle =
+    elevationDeg >= 0 || elevationDeg < -18
+      ? 90
+      : zenithAngleFromSun != null
+        ? (Math.abs(zenithAngleFromSun) * 180) / Math.PI
+        : 90 - elevationDeg;
   renderVisibilityCone(
     svg,
     anchorX,

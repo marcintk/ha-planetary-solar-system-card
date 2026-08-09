@@ -10,7 +10,7 @@ import {
   CONE_NIGHT,
   calculateObserverAngle,
 } from "../../src/renderer/observer.js";
-import { auToRadius } from "../../src/renderer/svg-utils.js";
+import { packOrbitRadii } from "../../src/renderer/orbit-packing.js";
 
 function renderInto(container, date) {
   const { svg } = renderSolarSystem(date);
@@ -74,7 +74,7 @@ describe("renderSolarSystem", () => {
     expect(sunCircle.getAttribute("cy")).toBe("400");
   });
 
-  it("renders planet labels", () => {
+  it("renders planet and Moon labels", () => {
     const container = document.createElement("div");
     renderInto(container, new Date("2026-02-14"));
 
@@ -83,7 +83,7 @@ describe("renderSolarSystem", () => {
     expect(texts).toContain("Earth");
     expect(texts).toContain("Mars");
     expect(texts).toContain("Neptune");
-    expect(texts).not.toContain("Moon");
+    expect(texts).toContain("Moon");
   });
 
   it("renders AU distance labels on vertical axis in mirrored pairs", () => {
@@ -635,7 +635,7 @@ describe("renderSolarSystem ecliptic_view", () => {
   it("default (eclipticView=false) places planet at CENTER - radius*sin(angle)", () => {
     const earth = PLANETS.find((p) => p.name === "Earth");
     const angle = calculatePlanetPosition(earth, DATE);
-    const radius = auToRadius(earth.au);
+    const radius = packOrbitRadii(PLANETS)[PLANETS.indexOf(earth)];
     const { positions } = renderSolarSystem(DATE, "north", null, {}, false);
     const pos = positions.find((p) => p.name === "Earth");
     expect(pos.y).toBeCloseTo(CENTER - radius * Math.sin(angle), 5);

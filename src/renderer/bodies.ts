@@ -3,6 +3,8 @@ import { BODY_LABEL_ATTRS, CENTER, createSvgElement, DEFAULT_LABEL_COLOR } from 
 
 export const ORBIT_COLOR = "color-mix(in srgb, currentColor 12%, transparent)";
 const AU_LABEL_COLOR = "color-mix(in srgb, currentColor 50%, transparent)";
+// Outer ring circle (r=23, stroke-width=2) -> visible edge at 24px, wider than Saturn's shrunk body.
+export const SATURN_RING_OUTER_RADIUS = 24;
 
 export function renderOrbit(
   svg: SVGElement,

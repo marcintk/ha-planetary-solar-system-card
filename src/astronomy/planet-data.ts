@@ -84,3 +84,5 @@ export const MOON: MoonData = {
   size: 5,
   meanLongitudeJ2000: 218.32,
 };
+
+export const MOON_PIXEL_OFFSET = 22; // pixels from Earth

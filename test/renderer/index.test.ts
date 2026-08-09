@@ -385,19 +385,17 @@ describe("renderSolarSystem", () => {
     const rightX = nums[9];
     const rightY = nums[10];
 
-    // Midpoint of left and right edges should be in the observer's direction from anchor
-    const midX = (leftX + rightX) / 2;
-    const midY = (leftY + rightY) / 2;
-
-    // Observer direction
-    const obsDirX = Math.cos(observerAngle);
-    const obsDirY = -Math.sin(observerAngle);
-
-    // Vector from anchor to midpoint should align with observer direction
-    const offsetX = midX - anchorX;
-    const offsetY = midY - anchorY;
-    const dot = offsetX * obsDirX + offsetY * obsDirY;
-    expect(dot).toBeGreaterThan(0);
+    // Daytime always renders a full 90 half-angle (a flat half-plane), so
+    // averaging the left/right edge points collapses to the anchor itself
+    // (cos(90 degrees) ~ 0) - numerically degenerate, sign is float noise.
+    // Check the wedge edges directly instead: each should sit exactly
+    // 90 degrees from observerAngle (eclipticViewDirection flips Y, see
+    // renderVisibilityCone in observer.ts).
+    const normalizeAngle = (a) => Math.atan2(Math.sin(a), Math.cos(a));
+    const leftAngle = Math.atan2(-(leftY - anchorY), leftX - anchorX);
+    const rightAngle = Math.atan2(-(rightY - anchorY), rightX - anchorX);
+    expect(normalizeAngle(leftAngle - observerAngle)).toBeCloseTo(Math.PI / 2, 5);
+    expect(normalizeAngle(rightAngle - observerAngle)).toBeCloseTo(-Math.PI / 2, 5);
   });
 
   it("renders Saturn with dual concentric rings", () => {

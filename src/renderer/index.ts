@@ -4,21 +4,22 @@ import {
   calculateMoonPosition,
   calculatePlanetPosition,
 } from "../astronomy/orbital-mechanics.js";
-import { EARTH, MOON, PLANETS, SUN } from "../astronomy/planet-data.js";
+import { EARTH, MOON, MOON_PIXEL_OFFSET, PLANETS, SUN } from "../astronomy/planet-data.js";
 import type { Colors, Hemisphere, LocationData, ViewPosition } from "../types.js";
-import { ORBIT_COLOR, renderBody, renderOrbit, renderSaturnRings } from "./bodies.js";
+import {
+  ORBIT_COLOR,
+  renderBody,
+  renderOrbit,
+  renderSaturnRings,
+  SATURN_RING_OUTER_RADIUS,
+} from "./bodies.js";
 import { computeCometVisualEllipse, renderCometBody, renderCometOrbit } from "./comets.js";
+import { type LabelTarget, renderDynamicLabels } from "./labels.js";
 import { renderMoonPhaseIndicator } from "./moon-phase.js";
 import { calculateObserverAngle, renderDayNightSplit, renderObserverNeedle } from "./observer.js";
+import { packOrbitRadii } from "./orbit-packing.js";
 import { renderSeasonOverlay } from "./seasons.js";
-import {
-  auToRadius,
-  BODY_LABEL_ATTRS,
-  CENTER,
-  createSvgElement,
-  DEFAULT_LABEL_COLOR,
-  VIEW_SIZE,
-} from "./svg-utils.js";
+import { CENTER, createSvgElement, DEFAULT_LABEL_COLOR, VIEW_SIZE } from "./svg-utils.js";
 
 export function renderSolarSystem(
   date: Date,
@@ -39,19 +40,27 @@ export function renderSolarSystem(
   });
 
   const positions: ViewPosition[] = [];
+  const planetLabels: LabelTarget[] = [];
+
+  // Natural log-scale AU->px radii can pack tightly enough that adjacent
+  // orbits visually touch at conjunction (e.g. Jupiter/Saturn) or crowd the
+  // Moon's orbit against Earth's neighbors (#62). Pack them with a minimum
+  // gap up front; every orbit/body position below uses this table instead
+  // of calling auToRadius directly.
+  const orbitRadii = packOrbitRadii(PLANETS);
+  const EARTH_INDEX = PLANETS.indexOf(EARTH);
 
   // Day/night split (rendered first, behind everything)
-  const earthRadius = auToRadius(1.0);
+  const earthRadius = orbitRadii[EARTH_INDEX];
   renderDayNightSplit(svg, earthRadius, date, EARTH.size, locationData, eclipticViewDirection);
 
   // Season quadrant overlay (after day/night, before orbits)
   renderSeasonOverlay(svg, hemisphere, colors, eclipticViewDirection);
 
   // Draw orbits (planets then comets, so all orbits are behind bodies)
-  for (const planet of PLANETS) {
-    const radius = auToRadius(planet.au);
-    renderOrbit(svg, radius, planet.au, colors);
-  }
+  PLANETS.forEach((planet, i) => {
+    renderOrbit(svg, orbitRadii[i], planet.au, colors);
+  });
   for (const comet of COMETS) {
     renderCometOrbit(svg, comet, colors);
   }
@@ -59,10 +68,11 @@ export function renderSolarSystem(
   // Sun at center
   renderBody(svg, CENTER, CENTER, SUN, false, colors);
 
-  // Draw planets
-  for (const planet of PLANETS) {
+  // Draw planets (labels rendered in a separate dynamic-placement pass below,
+  // once every body's position is known)
+  PLANETS.forEach((planet, i) => {
     const angle = calculatePlanetPosition(planet, date);
-    const radius = auToRadius(planet.au);
+    const radius = orbitRadii[i];
     const x = CENTER + radius * Math.cos(angle);
     const y = CENTER + eclipticViewDirection * radius * Math.sin(angle);
     positions.push({ name: planet.name, x, y, color: planet.color });
@@ -72,19 +82,12 @@ export function renderSolarSystem(
       const saturnOverride = { ...planet, size: saturnRenderSize };
       renderBody(svg, x, y, saturnOverride, false, colors);
       renderSaturnRings(svg, x, y, planet);
-      // Draw label after rings so it paints on top
-      svg.appendChild(
-        createSvgElement("text", {
-          x: x,
-          y: y - saturnRenderSize - 16,
-          style: `fill: ${labelColor}`,
-          ...BODY_LABEL_ATTRS,
-        })
-      ).textContent = planet.name;
+      planetLabels.push({ name: planet.name, x, y, radius: SATURN_RING_OUTER_RADIUS });
     } else {
-      renderBody(svg, x, y, planet, true, colors);
+      renderBody(svg, x, y, planet, false, colors);
+      planetLabels.push({ name: planet.name, x, y, radius: planet.size });
     }
-  }
+  });
 
   // Draw comets using visual ellipse for pixel positioning
   for (const comet of COMETS) {
@@ -103,22 +106,26 @@ export function renderSolarSystem(
 
   // Draw Moon near Earth
   const earthAngle = calculatePlanetPosition(EARTH, date);
-  const earthPixelRadius = auToRadius(EARTH.au);
+  const earthPixelRadius = orbitRadii[EARTH_INDEX];
   const earthX = CENTER + earthPixelRadius * Math.cos(earthAngle);
   const earthY = CENTER + eclipticViewDirection * earthPixelRadius * Math.sin(earthAngle);
 
+  // Earth's orbit-packing bubble (see orbit-packing.ts) already reserves
+  // room for the Moon's full circle on both sides, so it never needs
+  // clamping into Venus's or Mars's orbit (#62).
   const moonAngle = calculateMoonPosition(date);
-  const moonPixelOffset = 22; // pixels from Earth
-  const moonX = earthX + moonPixelOffset * Math.cos(moonAngle);
-  const moonY = earthY + eclipticViewDirection * moonPixelOffset * Math.sin(moonAngle);
+  const moonX = earthX + MOON_PIXEL_OFFSET * Math.cos(moonAngle);
+  const moonY = earthY + eclipticViewDirection * MOON_PIXEL_OFFSET * Math.sin(moonAngle);
+
   positions.push({ name: MOON.name, x: moonX, y: moonY, color: MOON.color, offscreen: false });
+  planetLabels.push({ name: MOON.name, x: moonX, y: moonY, radius: MOON.size });
 
   // Moon orbit (dotted circle centered on Earth)
   svg.appendChild(
     createSvgElement("circle", {
       cx: earthX,
       cy: earthY,
-      r: moonPixelOffset,
+      r: MOON_PIXEL_OFFSET,
       fill: "none",
       style: `stroke: ${orbitColor}`,
       "stroke-width": 0.5,
@@ -127,6 +134,17 @@ export function renderSolarSystem(
   );
 
   renderBody(svg, moonX, moonY, MOON, false, colors);
+
+  // Planet + Moon labels, placed once every body's final position is known
+  // so each label can steer away from its nearest neighbor instead of
+  // always sitting above the body (#62 follow-up). The Sun isn't in
+  // `positions` (it's never a click/offscreen target), but inner planets
+  // like Mercury still need their label to route away from it.
+  const labelObstacles: ViewPosition[] = [
+    ...positions,
+    { name: SUN.name, x: CENTER, y: CENTER, color: SUN.color },
+  ];
+  renderDynamicLabels(svg, planetLabels, labelObstacles, labelColor);
 
   // Observer needle on Earth (tip at surface)
   const observerAngle = calculateObserverAngle(

@@ -97,7 +97,3 @@ colors:
   orbit: "rgba(100, 200, 255, 0.2)"
   label: "#e0e0ff"
 ```
-
-## Development
-
-See [CLAUDE.md](CLAUDE.md) for build commands, design invariants, and release instructions.

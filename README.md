@@ -37,8 +37,9 @@ the standard astronomical twilight definitions:
 
 ### L1 Imagery
 
-Live NASA Earth/Sun thumbnails. `gallery.mode` != `"none"` shows the strip automatically (☷ toggles
-it, a thumbnail click opens full-screen); `"none"` fetches nothing.
+Live imagery from two NASA probes: [DSCOVR](https://epic.gsfc.nasa.gov/) at the Sun-Earth L1 point
+watches Earth, [SDO](https://sdo.gsfc.nasa.gov/) in Earth orbit watches the Sun. `gallery.mode`
+picks what shows (☷ toggles the strip, a thumbnail click opens full-screen):
 
 | Mode    | Strip shows                                                 |
 | ------- | ----------------------------------------------------------- |

@@ -36,6 +36,9 @@ const REPLAY_MAX_DURATION_MS = 5000;
 const REPLAY_INTERVAL_MS = Math.floor(REPLAY_MAX_DURATION_MS / REPLAY_STEPS);
 
 type ImagePanelMode = "none" | ImageSource;
+export type GalleryMode = "none" | "earth" | "sun" | "both" | "slide";
+const GALLERY_MODES: GalleryMode[] = ["none", "earth", "sun", "both", "slide"];
+const DEFAULT_GALLERY_INTERVAL_MS = 60000;
 
 export class SolarViewCard extends LitElement {
   static styles = cardStyles;
@@ -67,6 +70,10 @@ export class SolarViewCard extends LitElement {
   private _imageError: string | null;
   private _galleryOpen: boolean;
   private _galleryImages: Partial<Record<ImageSource, SourcedImage>>;
+  private _galleryMode: GalleryMode;
+  private _galleryAutoIntervalMs: number;
+  private _autoDisplayedSource: ImageSource;
+  private _autoSwitchTimer: number | null;
   _config: CardConfig | undefined;
 
   constructor() {
@@ -98,6 +105,10 @@ export class SolarViewCard extends LitElement {
     this._imageError = null;
     this._galleryOpen = false;
     this._galleryImages = {};
+    this._galleryMode = "none";
+    this._galleryAutoIntervalMs = DEFAULT_GALLERY_INTERVAL_MS;
+    this._autoDisplayedSource = "earth";
+    this._autoSwitchTimer = null;
   }
 
   // ---------------------------------------------------------------------------
@@ -153,8 +164,21 @@ export class SolarViewCard extends LitElement {
 
     this._eclipticView = config.ecliptic_view === "south";
 
+    this._galleryMode = GALLERY_MODES.includes(config.gallery?.mode as GalleryMode)
+      ? (config.gallery?.mode as GalleryMode)
+      : "none";
+    const rawInterval = Number(config.gallery?.slide_interval_secs);
+    this._galleryAutoIntervalMs =
+      Number.isFinite(rawInterval) && rawInterval >= 0.1
+        ? rawInterval * 1000
+        : DEFAULT_GALLERY_INTERVAL_MS;
+    this._galleryOpen = this._galleryMode !== "none";
+
     if (this._autoUpdateTimer != null) {
       this._startAutoUpdateTimer();
+    }
+    if (this._autoSwitchTimer != null) {
+      this._startAutoSwitchTimer();
     }
   }
 
@@ -165,6 +189,10 @@ export class SolarViewCard extends LitElement {
     // synchronous tests and delay the first frame in HA.
     this._render();
     this._startAutoUpdateTimer();
+    this._startAutoSwitchTimer();
+    if (this._galleryOpen) {
+      this._refreshGalleryImages();
+    }
     this._onVisibilityChange = () => {
       if (!document.hidden && this._isLiveMode) {
         this._currentDate = new Date();
@@ -178,6 +206,8 @@ export class SolarViewCard extends LitElement {
     super.disconnectedCallback();
     clearInterval(this._autoUpdateTimer ?? undefined);
     this._autoUpdateTimer = null;
+    clearInterval(this._autoSwitchTimer ?? undefined);
+    this._autoSwitchTimer = null;
     clearInterval(this._replayTimer ?? undefined);
     this._replayTimer = null;
     if (this._onVisibilityChange) {
@@ -222,7 +252,7 @@ export class SolarViewCard extends LitElement {
           ${
             this._galleryOpen && this._imagePanelMode === "none"
               ? html`<div class="gallery">
-                  ${GALLERY_SOURCES.map(
+                  ${this._displayGallerySources.map(
                     (source) => html`<button
                       class="gallery-thumb"
                       data-source=${source}
@@ -257,7 +287,7 @@ export class SolarViewCard extends LitElement {
             <button data-action="zoom-in" title="Zoom in" @click=${this._onNavClick}>+</button>
           </span>
           ${
-            this._config?.gallery === true
+            this._galleryMode !== "none"
               ? html`<span class="nav-spacer"></span>
                   <span class="btn-group">
                     <button
@@ -266,7 +296,7 @@ export class SolarViewCard extends LitElement {
                       class=${this._galleryOpen ? "active" : ""}
                       @click=${this._onNavClick}
                     >
-                      <span class="icon">🖼️</span>
+                      <span class="icon">▦</span>
                     </button>
                   </span>`
               : nothing
@@ -334,6 +364,21 @@ export class SolarViewCard extends LitElement {
         this._refreshGalleryImages();
       }
     }, interval) as unknown as number;
+  }
+
+  // Flips which source is shown in the "slide" gallery strip. Only relevant while
+  // gallery.mode is "slide" — otherwise cleared so no interval runs unnecessarily.
+  private _startAutoSwitchTimer(): void {
+    /* v8 ignore next */
+    clearInterval(this._autoSwitchTimer ?? undefined);
+    if (this._galleryMode !== "slide") {
+      this._autoSwitchTimer = null;
+      return;
+    }
+    this._autoSwitchTimer = setInterval(() => {
+      this._autoDisplayedSource = this._autoDisplayedSource === "earth" ? "sun" : "earth";
+      this._render();
+    }, this._galleryAutoIntervalMs) as unknown as number;
   }
 
   private _advanceZoom(): void {
@@ -606,21 +651,47 @@ export class SolarViewCard extends LitElement {
     }
   }
 
-  // Fetches all gallery thumbnails — called when the gallery is opened, and on each
-  // auto-update tick while it stays open and no full image is showing (never while both
-  // are closed, to avoid unconditional background polling of NASA's servers for every
-  // install regardless of use). Each source is still cache-guarded (1-hour TTL), so this
-  // only hits the network once the cache has expired.
+  // Sources this gallery.mode needs fetched in the background — "slide" still fetches both
+  // even though only one is displayed at a time, so flipping the displayed source never
+  // shows a stale/missing thumbnail.
+  private get _fetchGallerySources(): ImageSource[] {
+    switch (this._galleryMode) {
+      case "both":
+      case "slide":
+        return GALLERY_SOURCES;
+      case "earth":
+      case "sun":
+        return [this._galleryMode];
+      /* v8 ignore next 2 */
+      default:
+        return [];
+    }
+  }
+
+  // Sources rendered as thumbnails right now.
+  private get _displayGallerySources(): ImageSource[] {
+    return this._galleryMode === "slide" ? [this._autoDisplayedSource] : this._fetchGallerySources;
+  }
+
+  // Fetches gallery thumbnails for the active gallery.mode — called when the gallery is
+  // opened, and on each auto-update tick while it stays open and no full image is showing
+  // (never while both are closed, to avoid unconditional background polling of NASA's
+  // servers for every install regardless of use). Each source is still cache-guarded (Sun:
+  // 15-min TTL, Earth: 1-hour TTL — Sun's disk image updates far more often), so this only
+  // hits the network once the relevant cache has expired.
   private async _refreshGalleryImages(): Promise<void> {
+    const sources = this._fetchGallerySources;
     const results = await Promise.allSettled(
-      GALLERY_SOURCES.map((source) =>
-        source === "earth" ? fetchLatestEarthImageUrl() : Promise.resolve(getSunImageUrl())
+      sources.map((source) =>
+        source === "earth"
+          ? fetchLatestEarthImageUrl()
+          : Promise.resolve(getSunImageUrl(FULL_PANEL_CACHE_TTL_MS))
       )
     );
     for (let i = 0; i < results.length; i++) {
       const result = results[i];
       if (result.status === "fulfilled") {
-        this._galleryImages[GALLERY_SOURCES[i]] = result.value;
+        this._galleryImages[sources[i]] = result.value;
       }
     }
     this._render();
@@ -638,6 +709,7 @@ export class SolarViewCard extends LitElement {
       refresh_mins: 1,
       zoom_animate: true,
       colors: {},
+      gallery: { mode: "both" },
     };
   }
 }

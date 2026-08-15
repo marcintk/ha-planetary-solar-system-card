@@ -64,17 +64,18 @@ default_zoom: 2
 
 ## Configuration
 
-| Option                 | Type                   | Default   | Description                                                                                |
-| ---------------------- | ---------------------- | --------- | ------------------------------------------------------------------------------------------ |
-| `refresh_mins`         | number                 | `1`       | Auto-update interval in minutes                                                            |
-| `default_zoom`         | number                 | `1`       | Starting zoom level                                                                        |
-| `zoom_animate`         | boolean                | `true`    | Animate zoom transitions                                                                   |
-| `periodic_zoom_change` | boolean                | `false`   | Cycle zoom levels on each refresh tick                                                     |
-| `periodic_zoom_max`    | number                 | `4`       | Maximum zoom level for auto-cycle (2–4)                                                    |
-| `colors`               | object                 | see below | Color overrides (see Colors)                                                               |
-| `ecliptic_view`        | `"north"` \| `"south"` | `"north"` | Viewing pole: `"north"` = counter-clockwise orbits (default); `"south"` = clockwise orbits |
-| `show_version`         | boolean                | `false`   | Show card version number in the bottom-right corner of the nav bar                         |
-| `gallery`              | boolean                | `false`   | Show the L1 Imagery gallery button (see L1 Imagery)                                        |
+| Option                        | Type                   | Default   | Description                                                                                |
+| ----------------------------- | ---------------------- | --------- | ------------------------------------------------------------------------------------------ |
+| `refresh_mins`                | number                 | `1`       | Auto-update interval in minutes                                                            |
+| `default_zoom`                | number                 | `1`       | Starting zoom level                                                                        |
+| `zoom_animate`                | boolean                | `true`    | Animate zoom transitions                                                                   |
+| `periodic_zoom_change`        | boolean                | `false`   | Cycle zoom levels on each refresh tick                                                     |
+| `periodic_zoom_max`           | number                 | `4`       | Maximum zoom level for auto-cycle (2–4)                                                    |
+| `colors`                      | object                 | see below | Color overrides (see Colors)                                                               |
+| `ecliptic_view`               | `"north"` \| `"south"` | `"north"` | Viewing pole: `"north"` = counter-clockwise orbits (default); `"south"` = clockwise orbits |
+| `show_version`                | boolean                | `false`   | Show card version number in the bottom-right corner of the nav bar                         |
+| `gallery.mode`                | see below              | `"none"`  | L1 Imagery gallery mode (see L1 Imagery)                                                   |
+| `gallery.slide_interval_secs` | number                 | `60`      | How often `slide` mode flips the displayed thumbnail between Earth and Sun                 |
 
 ### Colors
 
@@ -100,14 +101,34 @@ colors:
 
 ### L1 Imagery
 
-Set `gallery: true` to show a nav button (🖼️) that opens a thumbnail strip with live
+Set `gallery.mode` to something other than `"none"` and the thumbnail strip with live
 [NASA SDO](https://sdo.gsfc.nasa.gov/) and [EPIC/DSCOVR](https://epic.gsfc.nasa.gov/) L1 Lagrange
-point imagery. Off by default.
+point imagery shows automatically — no click needed. A nav button (▦) lets you close and reopen the
+strip afterward. `"none"` by default (button hidden, nothing fetched).
 
-| Thumbnail | Source                 | Look                                |
-| --------- | ---------------------- | ----------------------------------- |
-| L1→EARTH  | NASA EPIC/DSCOVR       | Earth, natural color                |
-| L1→SUN    | NASA SDO HMI Continuum | Sunspots, visible-light photosphere |
+| Mode    | Strip shows                                                                       |
+| ------- | --------------------------------------------------------------------------------- |
+| `none`  | Nothing — gallery button hidden                                                   |
+| `earth` | Earth thumbnail only                                                              |
+| `sun`   | Sun thumbnail only                                                                |
+| `both`  | Earth and Sun thumbnails together                                                 |
+| `slide` | One thumbnail, flipping between Earth and Sun every `gallery.slide_interval_secs` |
+
+| Thumbnail | Source                 | Look                                | Background refresh |
+| --------- | ---------------------- | ----------------------------------- | ------------------ |
+| L1→EARTH  | NASA EPIC/DSCOVR       | Earth, natural color                | Every 1 hour       |
+| L1→SUN    | NASA SDO HMI Continuum | Sunspots, visible-light photosphere | Every 15 minutes   |
+
+Clicking any thumbnail always opens the full-screen image view (unaffected by mode). Background
+fetching for a source only happens while its thumbnail is visible in the strip, or its full-screen
+view is open — never while `gallery.mode` is `"none"` or the strip/panel is closed.
+
+```yaml
+type: custom:ha-planetary-solar-system-card
+gallery:
+  mode: slide
+  slide_interval_secs: 30
+```
 
 Some Home Assistant setups behind a strict reverse-proxy Content-Security-Policy may block requests
 to `epic.gsfc.nasa.gov` / `sdo.gsfc.nasa.gov` — not fixable from the card itself.

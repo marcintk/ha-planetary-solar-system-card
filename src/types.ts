@@ -106,5 +106,5 @@ export interface CardConfig {
   colors?: Colors;
   ecliptic_view?: string;
   show_version?: boolean;
-  gallery?: boolean;
+  gallery?: { mode?: string; slide_interval_secs?: number };
 }

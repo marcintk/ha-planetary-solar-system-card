@@ -56,6 +56,7 @@ describe("SolarViewCard", () => {
       refresh_mins: 1,
       zoom_animate: true,
       colors: {},
+      gallery: { mode: "both" },
     });
   });
 
@@ -173,7 +174,7 @@ describe("SolarViewCard", () => {
     });
 
     it("nav row buttons are in correct order", () => {
-      const card = createAndMount({ gallery: true });
+      const card = createAndMount({ gallery: { mode: "both" } });
       const buttons = card.shadowRoot.querySelectorAll(".nav button");
       const actions = Array.from(buttons).map((el) => el.dataset.action);
       expect(actions).toEqual([
@@ -193,7 +194,7 @@ describe("SolarViewCard", () => {
     });
 
     it("nav buttons are grouped in a .btn-group container", () => {
-      const card = createAndMount({ gallery: true });
+      const card = createAndMount({ gallery: { mode: "both" } });
       const btnGroups = card.shadowRoot.querySelectorAll(".btn-group");
       expect(btnGroups.length).toBe(3);
       // First group: nav buttons
@@ -1210,11 +1211,13 @@ describe("SolarViewCard", () => {
   describe("gallery", () => {
     const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
-    // gallery: true by default in this suite — its own on/off behavior is covered
-    // separately below, everything else here tests the gallery feature itself.
+    // gallery.mode: "both" by default in this suite — mode-specific behavior is covered
+    // separately below, everything else here tests the gallery feature itself. Any mode
+    // other than "none" auto-opens the strip on connect, so most tests here don't need to
+    // click the gallery button to open it — only to close/reopen it.
     function createAndMount(config) {
       const card = document.createElement("ha-planetary-solar-system-card-test");
-      card.setConfig({ gallery: true, ...config });
+      card.setConfig({ gallery: { mode: "both" }, ...config });
       document.body.appendChild(card);
       return card;
     }
@@ -1241,30 +1244,28 @@ describe("SolarViewCard", () => {
       card.remove();
     });
 
-    it("gallery button is hidden when gallery: false", () => {
+    it("gallery button is hidden when gallery.mode: none", () => {
       const card = document.createElement("ha-planetary-solar-system-card-test");
-      card.setConfig({ gallery: false });
+      card.setConfig({ gallery: { mode: "none" } });
       document.body.appendChild(card);
       expect(card.shadowRoot.querySelector('button[data-action="gallery"]')).toBeNull();
       card.remove();
     });
 
-    it("gallery button shows when gallery: true; strip closed by default", () => {
+    it("gallery button shows and strip is open by default when gallery.mode: both", () => {
       const card = createAndMount();
       expect(card.shadowRoot.querySelector('button[data-action="gallery"]')).toBeTruthy();
-      expect(card.shadowRoot.querySelector(".gallery")).toBeNull();
-      card.remove();
-    });
-
-    it("clicking the gallery button opens the strip with 2 thumbnails (EARTH, SUN)", async () => {
-      stubEarthFetch();
-      const card = createAndMount();
-      await flush();
-      clickButton(card, "gallery");
-      await flush();
       expect(
         card.shadowRoot.querySelector('button[data-action="gallery"]').classList.contains("active")
       ).toBe(true);
+      expect(card.shadowRoot.querySelector(".gallery")).toBeTruthy();
+      card.remove();
+    });
+
+    it("shows 2 thumbnails (EARTH, SUN) as soon as the card connects", async () => {
+      stubEarthFetch();
+      const card = createAndMount();
+      await flush();
       const thumbs = card.shadowRoot.querySelectorAll(".gallery-thumb");
       expect(thumbs.length).toBe(2);
       expect(Array.from(thumbs).map((t) => t.dataset.source)).toEqual(["earth", "sun"]);
@@ -1275,19 +1276,9 @@ describe("SolarViewCard", () => {
       card.remove();
     });
 
-    it("does not fetch any thumbnails until the gallery is opened", async () => {
+    it("fetches all thumbnails as soon as the card connects", async () => {
       const fetchMock = stubEarthFetch();
       const card = createAndMount();
-      await flush();
-      expect(fetchMock).not.toHaveBeenCalled();
-      card.remove();
-    });
-
-    it("fetches all thumbnails as soon as the gallery is opened", async () => {
-      const fetchMock = stubEarthFetch();
-      const card = createAndMount();
-      await flush();
-      clickButton(card, "gallery");
       await flush();
       expect(fetchMock).toHaveBeenCalled();
       const thumbs = card.shadowRoot.querySelectorAll(".gallery-thumb img");
@@ -1297,9 +1288,8 @@ describe("SolarViewCard", () => {
       card.remove();
     });
 
-    it("clicking the gallery button again closes the strip", async () => {
+    it("clicking the gallery button closes the strip; clicking again reopens it", async () => {
       const card = createAndMount();
-      clickButton(card, "gallery");
       await flush();
       expect(card.shadowRoot.querySelector(".gallery")).toBeTruthy();
       clickButton(card, "gallery");
@@ -1308,12 +1298,17 @@ describe("SolarViewCard", () => {
       expect(
         card.shadowRoot.querySelector('button[data-action="gallery"]').classList.contains("active")
       ).toBe(false);
+      clickButton(card, "gallery");
+      await flush();
+      expect(card.shadowRoot.querySelector(".gallery")).toBeTruthy();
+      expect(
+        card.shadowRoot.querySelector('button[data-action="gallery"]').classList.contains("active")
+      ).toBe(true);
       card.remove();
     });
 
     it("clicking a thumbnail shows the full image and hides the strip and solar view", async () => {
       const card = createAndMount();
-      clickButton(card, "gallery");
       await flush();
       card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"]').click();
       await flush();
@@ -1330,7 +1325,6 @@ describe("SolarViewCard", () => {
 
     it("clicking the full image restores the solar view and the strip reappears", async () => {
       const card = createAndMount();
-      clickButton(card, "gallery");
       await flush();
       card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"]').click();
       await flush();
@@ -1343,7 +1337,6 @@ describe("SolarViewCard", () => {
 
     it("clicking the gallery button while a full image is shown closes both", async () => {
       const card = createAndMount();
-      clickButton(card, "gallery");
       await flush();
       card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"]').click();
       await flush();
@@ -1358,8 +1351,8 @@ describe("SolarViewCard", () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date("2026-08-12T12:00:00Z"));
       const card = createAndMount();
+      await vi.advanceTimersByTimeAsync(0);
 
-      clickButton(card, "gallery");
       const clickSun = () =>
         card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"]').click();
 
@@ -1384,8 +1377,8 @@ describe("SolarViewCard", () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date("2026-08-12T12:00:00Z"));
       const card = createAndMount();
+      await vi.advanceTimersByTimeAsync(0);
 
-      clickButton(card, "gallery");
       const clickSun = () =>
         card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"]').click();
 
@@ -1407,7 +1400,6 @@ describe("SolarViewCard", () => {
     it("auto-update ticks refresh the open full image every 15 minutes while it stays open", async () => {
       vi.useFakeTimers();
       const card = createAndMount({ refresh_mins: 16 });
-      clickButton(card, "gallery");
       await vi.advanceTimersByTimeAsync(0);
       card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"]').click();
       await vi.advanceTimersByTimeAsync(0);
@@ -1426,7 +1418,6 @@ describe("SolarViewCard", () => {
       vi.useFakeTimers();
       const fetchMock = stubEarthFetch();
       const card = createAndMount({ refresh_mins: 16 });
-      clickButton(card, "gallery");
       await vi.advanceTimersByTimeAsync(0);
       card.shadowRoot.querySelector('.gallery-thumb[data-source="earth"]').click();
       await vi.advanceTimersByTimeAsync(0);
@@ -1442,7 +1433,6 @@ describe("SolarViewCard", () => {
     it("does not refresh the open full image before the 15-minute TTL elapses", async () => {
       vi.useFakeTimers();
       const card = createAndMount({ refresh_mins: 10 });
-      clickButton(card, "gallery");
       await vi.advanceTimersByTimeAsync(0);
       card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"]').click();
       await vi.advanceTimersByTimeAsync(0);
@@ -1459,7 +1449,6 @@ describe("SolarViewCard", () => {
     it("clicking the earth thumbnail fetches the latest EPIC image and shows it", async () => {
       stubEarthFetch();
       const card = createAndMount();
-      clickButton(card, "gallery");
       await flush();
       card.shadowRoot.querySelector('.gallery-thumb[data-source="earth"]').click();
       await flush();
@@ -1475,7 +1464,6 @@ describe("SolarViewCard", () => {
     it("falls back to the solar view with a visible error when the earth image fetch fails", async () => {
       vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 500 }));
       const card = createAndMount();
-      clickButton(card, "gallery");
       await flush();
       card.shadowRoot.querySelector('.gallery-thumb[data-source="earth"]').click();
       await flush();
@@ -1492,7 +1480,6 @@ describe("SolarViewCard", () => {
       vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 500 }));
       const card = createAndMount();
       card.hass = { config: { latitude: 41.8781, longitude: -87.6298 } };
-      clickButton(card, "gallery");
       await flush();
       card.shadowRoot.querySelector('.gallery-thumb[data-source="earth"]').click();
       await flush();
@@ -1509,7 +1496,6 @@ describe("SolarViewCard", () => {
         vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve([]) })
       );
       const card = createAndMount();
-      clickButton(card, "gallery");
       await flush();
       card.shadowRoot.querySelector('.gallery-thumb[data-source="earth"]').click();
       await flush();
@@ -1529,7 +1515,6 @@ describe("SolarViewCard", () => {
       // advanced 61x over — many overlapping fetch/render cycles under fake timers
       // leave dangling promises that can resolve after the test tears down.
       const card = createAndMount({ refresh_mins: 61 });
-      clickButton(card, "gallery");
       await vi.advanceTimersByTimeAsync(0);
       const callsAfterOpen = fetchMock.mock.calls.length;
 
@@ -1540,10 +1525,13 @@ describe("SolarViewCard", () => {
       vi.useRealTimers();
     });
 
-    it("auto-update ticks do not fetch gallery thumbnails while the gallery is closed", async () => {
+    it("auto-update ticks do not fetch gallery thumbnails once the gallery is manually closed", async () => {
       vi.useFakeTimers();
       const fetchMock = stubEarthFetch();
       const card = createAndMount({ refresh_mins: 1 });
+      await vi.advanceTimersByTimeAsync(0);
+      fetchMock.mockClear();
+      clickButton(card, "gallery"); // close
       await vi.advanceTimersByTimeAsync(6 * 60000);
       expect(fetchMock).not.toHaveBeenCalled();
 
@@ -1554,13 +1542,98 @@ describe("SolarViewCard", () => {
     it("skips a failed source's thumbnail but still populates the others", async () => {
       vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 500 }));
       const card = createAndMount();
-      clickButton(card, "gallery");
       await flush();
       const sunThumb = card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"] img');
       const earthThumb = card.shadowRoot.querySelector('.gallery-thumb[data-source="earth"] img');
       expect(sunThumb.getAttribute("src")).not.toBe("");
       expect(earthThumb.getAttribute("src")).toBe(""); // earth fetch failed, thumbnail stays empty
       card.remove();
+    });
+
+    it("gallery.mode: earth shows only the earth thumbnail and fetches only earth", async () => {
+      const fetchMock = stubEarthFetch();
+      const card = createAndMount({ gallery: { mode: "earth" } });
+      await flush();
+      const thumbs = card.shadowRoot.querySelectorAll(".gallery-thumb");
+      expect(Array.from(thumbs).map((t) => t.dataset.source)).toEqual(["earth"]);
+      expect(fetchMock).toHaveBeenCalled();
+      card.remove();
+    });
+
+    it("gallery.mode: sun shows only the sun thumbnail and never calls fetch", async () => {
+      const fetchMock = stubEarthFetch();
+      const card = createAndMount({ gallery: { mode: "sun" } });
+      await flush();
+      const thumbs = card.shadowRoot.querySelectorAll(".gallery-thumb");
+      expect(Array.from(thumbs).map((t) => t.dataset.source)).toEqual(["sun"]);
+      expect(fetchMock).not.toHaveBeenCalled();
+      card.remove();
+    });
+
+    it("gallery strip refreshes the sun thumbnail every 15 minutes, not 1 hour", async () => {
+      vi.useFakeTimers();
+      const card = createAndMount({ gallery: { mode: "sun" }, refresh_mins: 16 });
+      await vi.advanceTimersByTimeAsync(0);
+      const firstSrc = card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"] img').src;
+
+      await vi.advanceTimersByTimeAsync(16 * 60000);
+      const secondSrc = card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"] img').src;
+
+      expect(secondSrc).not.toBe(firstSrc);
+      card.remove();
+      vi.useRealTimers();
+    });
+
+    it("gallery.mode: slide shows one thumbnail, fetches both sources, and flips on its own interval", async () => {
+      vi.useFakeTimers();
+      const fetchMock = stubEarthFetch();
+      const card = createAndMount({ gallery: { mode: "slide", slide_interval_secs: 120 } });
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(fetchMock).toHaveBeenCalled(); // both sources fetched in the background
+      let thumbs = card.shadowRoot.querySelectorAll(".gallery-thumb");
+      expect(thumbs.length).toBe(1);
+      expect(thumbs[0].dataset.source).toBe("earth");
+
+      await vi.advanceTimersByTimeAsync(120 * 1000);
+      thumbs = card.shadowRoot.querySelectorAll(".gallery-thumb");
+      expect(thumbs.length).toBe(1);
+      expect(thumbs[0].dataset.source).toBe("sun");
+
+      card.remove();
+      vi.useRealTimers();
+    });
+
+    it("reconfiguring the slide interval while slide mode stays active restarts the timer", async () => {
+      vi.useFakeTimers();
+      const card = createAndMount({ gallery: { mode: "slide", slide_interval_secs: 120 } });
+      await vi.advanceTimersByTimeAsync(0);
+
+      card.setConfig({ gallery: { mode: "slide", slide_interval_secs: 180 } });
+      await vi.advanceTimersByTimeAsync(120 * 1000); // past the old interval, before the new one
+      expect(card.shadowRoot.querySelector(".gallery-thumb").dataset.source).toBe("earth");
+
+      await vi.advanceTimersByTimeAsync(60000); // now past the new 3-min interval
+      expect(card.shadowRoot.querySelector(".gallery-thumb").dataset.source).toBe("sun");
+
+      await vi.advanceTimersByTimeAsync(180 * 1000); // flips back
+      expect(card.shadowRoot.querySelector(".gallery-thumb").dataset.source).toBe("earth");
+
+      card.remove();
+      vi.useRealTimers();
+    });
+
+    it("gallery.mode: none never shows the gallery button and never fetches", async () => {
+      vi.useFakeTimers();
+      const fetchMock = stubEarthFetch();
+      const card = document.createElement("ha-planetary-solar-system-card-test");
+      card.setConfig({ gallery: { mode: "none" }, refresh_mins: 1 });
+      document.body.appendChild(card);
+      await vi.advanceTimersByTimeAsync(6 * 60000);
+      expect(card.shadowRoot.querySelector('button[data-action="gallery"]')).toBeNull();
+      expect(fetchMock).not.toHaveBeenCalled();
+      card.remove();
+      vi.useRealTimers();
     });
   });
 });

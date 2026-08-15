@@ -262,14 +262,13 @@ export class SolarViewCard extends LitElement {
                       @click=${this._onGalleryClick}
                     >
                       <img src=${this._galleryImages[source]?.url ?? ""} alt="" />
-                      ${
-                        this._galleryImages[source]
-                          ? html`<span class="gallery-age"
-                              >${formatRelativeAge(this._galleryImages[source]?.date as Date, new Date())}</span
-                            >`
-                          : nothing
-                      }
-                      <span class="gallery-label">${GALLERY_SOURCE_LABELS[source]}</span>
+                      <span class="gallery-label"
+                        >${GALLERY_SOURCE_LABELS[source]}${
+                          this._galleryImages[source]
+                            ? html` · ${formatRelativeAge(this._galleryImages[source]?.date as Date, new Date())}`
+                            : nothing
+                        }</span
+                      >
                     </button>`
                   )}
                 </div>`
@@ -305,7 +304,7 @@ export class SolarViewCard extends LitElement {
                       class=${this._galleryOpen ? "active" : ""}
                       @click=${this._onNavClick}
                     >
-                      <span class="icon">▦</span>
+                      <span class="icon">☷</span>
                     </button>
                   </span>`
               : nothing

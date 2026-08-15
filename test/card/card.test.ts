@@ -1277,13 +1277,9 @@ describe("SolarViewCard", () => {
       const thumbs = card.shadowRoot.querySelectorAll(".gallery-thumb");
       expect(thumbs.length).toBe(2);
       expect(Array.from(thumbs).map((t) => t.dataset.source)).toEqual(["earth", "sun"]);
-      expect(Array.from(thumbs).map((t) => t.querySelector(".gallery-label").textContent)).toEqual([
-        "L1→EARTH",
-        "L1→SUN",
-      ]);
-      for (const thumb of thumbs) {
-        expect(thumb.querySelector(".gallery-age").textContent).toMatch(/ago|just now/);
-      }
+      const labels = Array.from(thumbs).map((t) => t.querySelector(".gallery-label").textContent);
+      expect(labels[0]).toMatch(/^L1→EARTH · (\d+[mh] ago|just now)$/);
+      expect(labels[1]).toMatch(/^L1→SUN · (\d+[mh] ago|just now)$/);
       card.remove();
     });
 

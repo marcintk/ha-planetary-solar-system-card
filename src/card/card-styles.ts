@@ -91,7 +91,7 @@ export const cardStyles = css`
     padding: 0;
     border: 1px solid var(--divider-color, color-mix(in srgb, currentColor 15%, transparent));
     border-radius: 4px;
-    background: #000;
+    background: transparent;
     overflow: hidden;
     cursor: pointer;
   }
@@ -105,16 +105,6 @@ export const cardStyles = css`
     position: absolute;
     bottom: 1px;
     right: 2px;
-    font-size: 8px;
-    color: #fff;
-    text-shadow: 0 0 2px #000;
-    font-family: sans-serif;
-    pointer-events: none;
-  }
-  .gallery-age {
-    position: absolute;
-    top: 1px;
-    left: 2px;
     font-size: 8px;
     color: #fff;
     text-shadow: 0 0 2px #000;
@@ -172,6 +162,9 @@ export const cardStyles = css`
   }
   .btn-group button:last-child {
     border-radius: 0 6px 6px 0;
+  }
+  .btn-group button:only-child {
+    border-radius: 6px;
   }
   .nav-spacer {
     width: 8px;

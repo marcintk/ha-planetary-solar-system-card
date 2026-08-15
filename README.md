@@ -37,9 +37,8 @@ the standard astronomical twilight definitions:
 
 ### L1 Imagery
 
-Set `gallery.mode` to anything but `"none"` and a thumbnail strip with live NASA Earth/Sun imagery
-appears automatically — no click needed (nav button ▦ closes/reopens it; clicking a thumbnail opens
-its full-screen view). `"none"` fetches and collects nothing.
+Live NASA Earth/Sun thumbnails. `gallery.mode` != `"none"` shows the strip automatically (☷ toggles
+it, a thumbnail click opens full-screen); `"none"` fetches nothing.
 
 | Mode    | Strip shows                                                 |
 | ------- | ----------------------------------------------------------- |
@@ -49,17 +48,13 @@ its full-screen view). `"none"` fetches and collects nothing.
 | `both`  | Earth and Sun together                                      |
 | `slide` | One thumbnail, flipping every `gallery.slide_interval_secs` |
 
-| Thumbnail | Source                                                             | Cadence                                   |
-| --------- | ------------------------------------------------------------------ | ----------------------------------------- |
-| L1→EARTH  | [NASA EPIC](https://epic.gsfc.nasa.gov/) (DSCOVR, at Sun-Earth L1) | New frame ~1-2h; polled hourly            |
-| L1→SUN    | [NASA SDO](https://sdo.gsfc.nasa.gov/) (Earth orbit, not L1)       | New frame every 15min; polled every 15min |
+| Thumbnail | Source                                                             | We poll     | Latest image is usually                 |
+| --------- | ------------------------------------------------------------------ | ----------- | --------------------------------------- |
+| L1→EARTH  | [NASA EPIC](https://epic.gsfc.nasa.gov/) (DSCOVR, at Sun-Earth L1) | Hourly      | ~1-2 days old (EPIC processing backlog) |
+| L1→SUN    | [NASA SDO](https://sdo.gsfc.nasa.gov/) (Earth orbit, not L1)       | Every 15min | ~15-35min old                           |
 
-Every image shows its real capture time — EPIC's API returns one directly; SDO's is computed from
-its 15-minute publish grid (no extra request). Background fetching only runs while a thumbnail or
-full view is actually visible.
-
-Some HA setups behind a strict reverse-proxy CSP may block `epic.gsfc.nasa.gov` /
-`sdo.gsfc.nasa.gov` requests — not fixable from the card.
+Strict reverse-proxy CSP may block `epic.gsfc.nasa.gov` / `sdo.gsfc.nasa.gov` — not fixable
+card-side.
 
 ## Installation
 

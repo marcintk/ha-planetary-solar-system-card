@@ -1,4 +1,4 @@
-import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { SolarViewCard } from "../../src/card/card.js";
 import { clearImageCache, EPIC_BASE_URL } from "../../src/card/image-sources.js";
 
@@ -9,11 +9,16 @@ beforeAll(() => {
 });
 
 // Any mounted card with gallery.mode != "none" now fetches in the background from
-// connectedCallback, even in describes that never stub fetch — leaving a real (unstubbed)
-// network result cached in image-sources.ts's module-level cache would leak into later
-// tests that expect a clean or failing cache. Clear it after every test, not just the
-// "gallery" describe's own cards.
+// connectedCallback, even in describes that never stub fetch. Left unstubbed, that's a real
+// network call — works in CI (real internet) but not locally, and a slow one can resolve
+// after its own test ends and pollute image-sources.ts's module-level cache for a later
+// test. Default fetch to a safe rejection for every test; individual tests override it with
+// their own vi.stubGlobal("fetch", ...) when they want specific behavior.
+beforeEach(() => {
+  vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("fetch not stubbed for this test")));
+});
 afterEach(() => {
+  vi.unstubAllGlobals();
   clearImageCache();
 });
 

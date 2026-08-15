@@ -50,13 +50,6 @@ export const GALLERY_SOURCE_LABELS: Record<ImageSource, string> = {
 
 export const GALLERY_SOURCES: ImageSource[] = ["earth", "sun"];
 
-// EPIC gives a real capture timestamp per image; the SDO sun image is a fixed-filename URL
-// with no timestamp, so its date only reflects when we last checked the server for it.
-const IMAGE_DATE_VERBS: Record<ImageSource, string> = {
-  earth: "captured",
-  sun: "checked",
-};
-
 export function buildImageStatusBar(
   mode: ImageSource,
   dateText: string,
@@ -64,6 +57,6 @@ export function buildImageStatusBar(
   now: Date
 ): TemplateResult {
   return html`<div class="status-bar">
-    <span>${IMAGE_SOURCE_LABELS[mode]} · ${IMAGE_DATE_VERBS[mode]} ${dateText} (${formatRelativeAge(imageDate, now)})</span>
+    <span>${IMAGE_SOURCE_LABELS[mode]} · captured ${dateText} (${formatRelativeAge(imageDate, now)})</span>
   </div>`;
 }

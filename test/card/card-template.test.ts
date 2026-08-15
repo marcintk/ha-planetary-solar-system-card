@@ -118,12 +118,12 @@ describe("buildImageStatusBar", () => {
     );
   });
 
-  it("uses verb 'checked' for sun, since the fixed-URL image has no real capture timestamp", () => {
+  it("uses verb 'captured' for sun too, now that its URL carries a real timestamp", () => {
     const root = renderToDOM(
       buildImageStatusBar("sun", "26-08-12 11:55", new Date("2026-08-12T11:55:00Z"), now)
     );
     expect(root.querySelector(".status-bar span").textContent).toBe(
-      "SDO HMI Continuum · checked 26-08-12 11:55 (5m ago)"
+      "SDO HMI Continuum · captured 26-08-12 11:55 (5m ago)"
     );
   });
 });

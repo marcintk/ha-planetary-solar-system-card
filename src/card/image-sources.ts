@@ -9,12 +9,17 @@ export const CLICK_CACHE_TTL_MS = 120000;
 export const FULL_PANEL_CACHE_TTL_MS = 900000;
 const GALLERY_CACHE_TTL_MS = 3600000;
 
-// SDO's fixed-filename "latest" HMI Continuum (visible-light sunspot disk) JPG.
-// sdo.gsfc.nasa.gov sends no CORS header, so unlike EPIC we can't fetch a directory
-// listing to resolve a real per-image timestamp from the browser — this URL always
-// serves the newest frame under the same name, cache-busted via a query param, and
-// dated to when we last checked rather than when it was captured.
-export const SUN_IMAGE_URL = "https://sdo.gsfc.nasa.gov/assets/img/latest/latest_1024_HMIIC.jpg";
+// SDO publishes HMI Continuum (visible-light sunspot disk) quicklook frames to a dated
+// browse archive on a fixed 15-min grid (:00/:15/:30/:45 UTC), named for their real capture
+// time — but sdo.gsfc.nasa.gov sends no CORS header, so unlike EPIC's JSON API we can't fetch
+// the directory listing from the browser to confirm which slot has actually been published.
+// Instead we compute the URL: floor "now minus a publish-latency buffer" to the last 15-min
+// slot. The buffer trades a small amount of freshness for a single request with no listing
+// fetch or retry — if NASA's pipeline ever lags past it, the image 404s and the UI falls back
+// to the same "unavailable" state as any other failed source.
+export const SDO_BROWSE_BASE_URL = "https://sdo.gsfc.nasa.gov/assets/img/browse";
+const SUN_SLOT_MS = 15 * 60000;
+const SUN_PUBLISH_BUFFER_MS = 20 * 60000;
 
 export interface SourcedImage {
   url: string;
@@ -27,11 +32,25 @@ export function clearImageCache(): void {
   cache.clear();
 }
 
+function pad(n: number): string {
+  return String(n).padStart(2, "0");
+}
+
 export function getSunImageUrl(maxAgeMs = GALLERY_CACHE_TTL_MS): SourcedImage {
   const now = Date.now();
   const cached = cache.get("sun");
   if (cached && now - cached.fetchedAt < maxAgeMs) return cached.image;
-  const image = { url: `${SUN_IMAGE_URL}?t=${now}`, date: new Date(now) };
+
+  const slotMs = Math.floor((now - SUN_PUBLISH_BUFFER_MS) / SUN_SLOT_MS) * SUN_SLOT_MS;
+  const slot = new Date(slotMs);
+  const year = slot.getUTCFullYear();
+  const month = pad(slot.getUTCMonth() + 1);
+  const day = pad(slot.getUTCDate());
+  const hhmmss = `${pad(slot.getUTCHours())}${pad(slot.getUTCMinutes())}00`;
+  const image = {
+    url: `${SDO_BROWSE_BASE_URL}/${year}/${month}/${day}/${year}${month}${day}_${hhmmss}_1024_HMIIC.jpg`,
+    date: slot,
+  };
   cache.set("sun", { image, fetchedAt: now });
   return image;
 }

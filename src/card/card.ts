@@ -27,6 +27,7 @@ import {
   fetchLatestEarthImageUrl,
   getSunImageUrl,
 } from "./image-sources.js";
+import { formatRelativeAge } from "./relative-time.js";
 import { ZoomAnimator } from "./zoom-animator.js";
 
 const REPLAY_WINDOW_MS = 6 * 60 * 60 * 1000;
@@ -248,6 +249,7 @@ export class SolarViewCard extends LitElement {
             src=${this._imageUrl ?? ""}
             alt=""
             @click=${this._onImageClick}
+            @error=${this._onImageLoadError}
           />
           ${
             this._galleryOpen && this._imagePanelMode === "none"
@@ -260,6 +262,13 @@ export class SolarViewCard extends LitElement {
                       @click=${this._onGalleryClick}
                     >
                       <img src=${this._galleryImages[source]?.url ?? ""} alt="" />
+                      ${
+                        this._galleryImages[source]
+                          ? html`<span class="gallery-age"
+                              >${formatRelativeAge(this._galleryImages[source]?.date as Date, new Date())}</span
+                            >`
+                          : nothing
+                      }
                       <span class="gallery-label">${GALLERY_SOURCE_LABELS[source]}</span>
                     </button>`
                   )}
@@ -600,6 +609,18 @@ export class SolarViewCard extends LitElement {
 
   private _onImageClick(): void {
     this._setImagePanel("none");
+  }
+
+  // Earth's URL is validated by a real fetch before it's ever assigned, so this only ever
+  // fires in practice for sun: its URL is computed (not fetch-checked) from NASA's publish
+  // cadence, so it can occasionally 404 if a slot hasn't been published yet.
+  private _onImageLoadError(): void {
+    if (this._imagePanelMode === "none") return;
+    this._imageError = `${IMAGE_SOURCE_LABELS[this._imagePanelMode]} image unavailable`;
+    this._imagePanelMode = "none";
+    this._imageUrl = null;
+    this._imageDate = null;
+    this._render();
   }
 
   private async _setImagePanel(mode: ImagePanelMode): Promise<void> {

@@ -101,10 +101,9 @@ colors:
 
 ### L1 Imagery
 
-Set `gallery.mode` to something other than `"none"` and the thumbnail strip with live
-[NASA SDO](https://sdo.gsfc.nasa.gov/) and [EPIC/DSCOVR](https://epic.gsfc.nasa.gov/) L1 Lagrange
-point imagery shows automatically — no click needed. A nav button (▦) lets you close and reopen the
-strip afterward. `"none"` by default (button hidden, nothing fetched).
+Set `gallery.mode` to something other than `"none"` and the thumbnail strip with live NASA Earth and
+Sun imagery shows automatically — no click needed. A nav button (▦) lets you close and reopen the
+strip afterward. `"none"` by default (button hidden, nothing fetched, nothing ever collected).
 
 | Mode    | Strip shows                                                                       |
 | ------- | --------------------------------------------------------------------------------- |
@@ -114,14 +113,26 @@ strip afterward. `"none"` by default (button hidden, nothing fetched).
 | `both`  | Earth and Sun thumbnails together                                                 |
 | `slide` | One thumbnail, flipping between Earth and Sun every `gallery.slide_interval_secs` |
 
-| Thumbnail | Source                 | Look                                | Background refresh |
-| --------- | ---------------------- | ----------------------------------- | ------------------ |
-| L1→EARTH  | NASA EPIC/DSCOVR       | Earth, natural color                | Every 1 hour       |
-| L1→SUN    | NASA SDO HMI Continuum | Sunspots, visible-light photosphere | Every 15 minutes   |
+| Thumbnail | Source                                                                                     | Look                                |
+| --------- | ------------------------------------------------------------------------------------------ | ----------------------------------- |
+| L1→EARTH  | [NASA EPIC](https://epic.gsfc.nasa.gov/), aboard DSCOVR at the Sun-Earth L1 Lagrange point | Earth, natural color                |
+| L1→SUN    | [NASA SDO](https://sdo.gsfc.nasa.gov/), in geosynchronous Earth orbit (not actually at L1) | Sunspots, visible-light photosphere |
 
-Clicking any thumbnail always opens the full-screen image view (unaffected by mode). Background
-fetching for a source only happens while its thumbnail is visible in the strip, or its full-screen
-view is open — never while `gallery.mode` is `"none"` or the strip/panel is closed.
+Both sources publish new frames on their own schedule, independent of this card:
+
+- **EPIC/DSCOVR** posts a new Earth image roughly every 1-2 hours; the card polls for a new one once
+  an hour while a thumbnail or full view is visible.
+- **SDO HMI** posts a new Sun frame every 15 minutes on the clock (`:00`/`:15`/`:30`/`:45` UTC); the
+  card polls on the same 15-minute cadence.
+
+Every thumbnail and full-screen view shows when its image was actually captured, computed from each
+source's own timestamp — EPIC's API returns one directly; SDO's dated archive encodes it in the
+filename, which the card computes from the current time and NASA's 15-minute publish grid (no extra
+request). Background fetching for a source only happens while its thumbnail is visible in the strip,
+or its full-screen view is open — never while `gallery.mode` is `"none"` or the strip/panel is
+closed.
+
+Clicking any thumbnail always opens the full-screen image view (unaffected by mode).
 
 ```yaml
 type: custom:ha-planetary-solar-system-card

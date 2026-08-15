@@ -1273,6 +1273,9 @@ describe("SolarViewCard", () => {
         "L1→EARTH",
         "L1→SUN",
       ]);
+      for (const thumb of thumbs) {
+        expect(thumb.querySelector(".gallery-age").textContent).toMatch(/ago|just now/);
+      }
       card.remove();
     });
 
@@ -1323,6 +1326,33 @@ describe("SolarViewCard", () => {
       card.remove();
     });
 
+    it("a full-screen image load error falls back to the unavailable banner and closes the panel", async () => {
+      const card = createAndMount();
+      await flush();
+      card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"]').click();
+      await flush();
+      expect(card._imagePanelMode).toBe("sun");
+
+      card.shadowRoot.querySelector("#image-view").dispatchEvent(new Event("error"));
+      await flush();
+
+      expect(card._imagePanelMode).toBe("none");
+      expect(card.shadowRoot.querySelector(".status-bar").textContent).toContain(
+        "SDO HMI Continuum image unavailable"
+      );
+      card.remove();
+    });
+
+    it("an image load error while no panel is open is a no-op", async () => {
+      const card = createAndMount();
+      await flush();
+      card.shadowRoot.querySelector("#image-view").dispatchEvent(new Event("error"));
+      await flush();
+      expect(card._imagePanelMode).toBe("none");
+      expect(card._imageError).toBeNull();
+      card.remove();
+    });
+
     it("clicking the full image restores the solar view and the strip reappears", async () => {
       const card = createAndMount();
       await flush();
@@ -1347,7 +1377,7 @@ describe("SolarViewCard", () => {
       card.remove();
     });
 
-    it("clicking a sun thumbnail again within the short click cache reuses the same checked timestamp", async () => {
+    it("clicking a sun thumbnail again within the short click cache reuses the same slot timestamp", async () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date("2026-08-12T12:00:00Z"));
       const card = createAndMount();
@@ -1373,7 +1403,7 @@ describe("SolarViewCard", () => {
       card.remove();
     });
 
-    it("clicking a sun thumbnail again once the click cache expires fetches a fresh checked timestamp", async () => {
+    it("clicking a sun thumbnail again once the click cache expires fetches a fresh slot timestamp", async () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date("2026-08-12T12:00:00Z"));
       const card = createAndMount();
@@ -1388,7 +1418,8 @@ describe("SolarViewCard", () => {
 
       card.shadowRoot.querySelector("#image-view").click(); // back to gallery
       await vi.advanceTimersByTimeAsync(0);
-      vi.setSystemTime(new Date("2026-08-12T12:02:01Z")); // past the 2-min click cache
+      // Past both the 2-min click cache and into the next published 15-min slot.
+      vi.setSystemTime(new Date("2026-08-12T12:05:01Z"));
       clickSun();
       await vi.advanceTimersByTimeAsync(0);
       const secondSrc = card.shadowRoot.querySelector("#image-view").src;

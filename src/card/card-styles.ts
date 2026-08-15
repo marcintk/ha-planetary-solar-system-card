@@ -111,6 +111,16 @@ export const cardStyles = css`
     font-family: sans-serif;
     pointer-events: none;
   }
+  .gallery-age {
+    position: absolute;
+    top: 1px;
+    left: 2px;
+    font-size: 8px;
+    color: #fff;
+    text-shadow: 0 0 2px #000;
+    font-family: sans-serif;
+    pointer-events: none;
+  }
   .nav {
     display: flex;
     justify-content: center;

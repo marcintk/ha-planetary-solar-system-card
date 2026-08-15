@@ -1,6 +1,6 @@
 import { nothing, render } from "lit";
 import { describe, expect, it } from "vitest";
-import { buildStatusBar } from "../../src/card/card-template.js";
+import { buildImageStatusBar, buildStatusBar } from "../../src/card/card-template.js";
 
 function renderToDOM(result) {
   const div = document.createElement("div");
@@ -89,5 +89,41 @@ describe("buildStatusBar", () => {
     const spans = root.querySelectorAll(".status-bar span");
     expect(spans.length).toBe(2);
     expect(spans[1].textContent).toMatch(/^Next: .+ \(\d{2}:\d{2}\)$/);
+  });
+});
+
+describe("buildImageStatusBar", () => {
+  const now = new Date("2026-08-12T12:00:00Z");
+
+  it("labels the earth source with DSCOVR", () => {
+    const root = renderToDOM(
+      buildImageStatusBar("earth", "26-08-10 18:49", new Date("2026-08-10T18:49:00Z"), now)
+    );
+    expect(root.querySelector(".status-bar span").textContent).toContain("DSCOVR Earth");
+  });
+
+  it("labels the sun source with SDO HMI Continuum", () => {
+    const root = renderToDOM(
+      buildImageStatusBar("sun", "26-08-12 11:55", new Date("2026-08-12T11:55:00Z"), now)
+    );
+    expect(root.querySelector(".status-bar span").textContent).toContain("SDO HMI Continuum");
+  });
+
+  it("includes the absolute date text and relative age in parentheses, verb 'captured' for earth", () => {
+    const root = renderToDOM(
+      buildImageStatusBar("earth", "26-08-11 06:00", new Date("2026-08-11T06:00:00Z"), now)
+    );
+    expect(root.querySelector(".status-bar span").textContent).toBe(
+      "DSCOVR Earth · captured 26-08-11 06:00 (30h ago)"
+    );
+  });
+
+  it("uses verb 'checked' for sun, since the fixed-URL image has no real capture timestamp", () => {
+    const root = renderToDOM(
+      buildImageStatusBar("sun", "26-08-12 11:55", new Date("2026-08-12T11:55:00Z"), now)
+    );
+    expect(root.querySelector(".status-bar span").textContent).toBe(
+      "SDO HMI Continuum · checked 26-08-12 11:55 (5m ago)"
+    );
   });
 });

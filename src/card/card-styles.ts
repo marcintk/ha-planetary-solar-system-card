@@ -19,17 +19,20 @@ export const cardStyles = css`
     margin: 2px 2px;
   }
   .solar-view-wrapper {
-    overflow: hidden;
     position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
   }
   .status-bar {
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
-    background: color-mix(in srgb, currentColor 15%, transparent);
+    background: rgba(0, 0, 0, 0.55);
     font-size: 10px;
-    color: inherit;
+    color: #fff;
+    text-shadow: 0 0 2px rgba(0, 0, 0, 0.8);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -50,10 +53,63 @@ export const cardStyles = css`
     width: 100%;
     aspect-ratio: 1;
   }
+  #solar-view.hidden {
+    display: none;
+  }
   #solar-view svg {
     cursor: grab;
     user-select: none;
     touch-action: none;
+  }
+  .image-view {
+    display: none;
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: contain;
+    background: #000;
+    cursor: pointer;
+  }
+  .image-view.visible {
+    display: block;
+  }
+  .gallery {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-end;
+    gap: 2px;
+    padding: 2px;
+    box-sizing: border-box;
+  }
+  .gallery-thumb {
+    flex: 0 0 20%;
+    position: relative;
+    aspect-ratio: 1;
+    padding: 0;
+    border: 1px solid var(--divider-color, color-mix(in srgb, currentColor 15%, transparent));
+    border-radius: 4px;
+    background: #000;
+    overflow: hidden;
+    cursor: pointer;
+  }
+  .gallery-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .gallery-label {
+    position: absolute;
+    bottom: 1px;
+    right: 2px;
+    font-size: 8px;
+    color: #fff;
+    text-shadow: 0 0 2px #000;
+    font-family: sans-serif;
+    pointer-events: none;
   }
   .nav {
     display: flex;
@@ -79,6 +135,20 @@ export const cardStyles = css`
   }
   .nav button:hover {
     background: var(--secondary-background-color, color-mix(in srgb, currentColor 20%, transparent));
+  }
+  .nav button .icon {
+    filter: grayscale(1);
+    display: inline-block;
+  }
+  button[data-action="show-earth"].active {
+    background: #3b82f6;
+    border-color: #3b82f6;
+    color: #fff;
+  }
+  button[data-action="show-sun"].active {
+    background: #f97316;
+    border-color: #f97316;
+    color: #fff;
   }
   .btn-group {
     display: flex;

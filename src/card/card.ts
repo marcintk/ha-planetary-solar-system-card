@@ -11,8 +11,22 @@ import type {
   ZoomLevel,
 } from "../types.js";
 import { cardStyles } from "./card-styles.js";
-import { buildStatusBar } from "./card-template.js";
+import type { ImageSource } from "./card-template.js";
+import {
+  buildImageStatusBar,
+  buildStatusBar,
+  GALLERY_SOURCE_LABELS,
+  GALLERY_SOURCES,
+  IMAGE_SOURCE_LABELS,
+} from "./card-template.js";
 import { DEFAULT_ZOOM_LEVEL, MAX_ZOOM, MIN_ZOOM, ViewState } from "./card-view-state.js";
+import type { SourcedImage } from "./image-sources.js";
+import {
+  CLICK_CACHE_TTL_MS,
+  FULL_PANEL_CACHE_TTL_MS,
+  fetchLatestEarthImageUrl,
+  getSunImageUrl,
+} from "./image-sources.js";
 import { ZoomAnimator } from "./zoom-animator.js";
 
 const REPLAY_WINDOW_MS = 6 * 60 * 60 * 1000;
@@ -20,6 +34,8 @@ const REPLAY_STEPS = 36;
 const REPLAY_STEP_MS = REPLAY_WINDOW_MS / REPLAY_STEPS;
 const REPLAY_MAX_DURATION_MS = 5000;
 const REPLAY_INTERVAL_MS = Math.floor(REPLAY_MAX_DURATION_MS / REPLAY_STEPS);
+
+type ImagePanelMode = "none" | ImageSource;
 
 export class SolarViewCard extends LitElement {
   static styles = cardStyles;
@@ -45,6 +61,12 @@ export class SolarViewCard extends LitElement {
   private _eclipticView: boolean;
   private _positions: ViewPosition[];
   private _onVisibilityChange: (() => void) | null;
+  private _imagePanelMode: ImagePanelMode;
+  private _imageUrl: string | null;
+  private _imageDate: Date | null;
+  private _imageError: string | null;
+  private _galleryOpen: boolean;
+  private _galleryImages: Partial<Record<ImageSource, SourcedImage>>;
   _config: CardConfig | undefined;
 
   constructor() {
@@ -70,6 +92,12 @@ export class SolarViewCard extends LitElement {
     this._eclipticView = false;
     this._positions = [];
     this._onVisibilityChange = null;
+    this._imagePanelMode = "none";
+    this._imageUrl = null;
+    this._imageDate = null;
+    this._imageError = null;
+    this._galleryOpen = false;
+    this._galleryImages = {};
   }
 
   // ---------------------------------------------------------------------------
@@ -163,7 +191,18 @@ export class SolarViewCard extends LitElement {
       this._hemisphere = this._lat < 0 ? "south" : "north";
     }
 
-    const statusBar = buildStatusBar(this._locationData, this._locationName, this._currentDate);
+    const statusBar = this._imageError
+      ? html`<div class="status-bar">
+          <span>${this._imageError}</span>
+        </div>`
+      : this._imagePanelMode === "none"
+        ? buildStatusBar(this._locationData, this._locationName, this._currentDate)
+        : buildImageStatusBar(
+            this._imagePanelMode,
+            this._formatDate(this._imageDate as Date),
+            this._imageDate as Date,
+            new Date()
+          );
     const zoomLevel = this._viewState?.zoomLevel ?? this._defaultZoomLevel;
     /* v8 ignore next */
     const background = this._colors.background ?? "";
@@ -172,7 +211,31 @@ export class SolarViewCard extends LitElement {
       <div class="card" style="background: ${background}">
         <div class="solar-view-wrapper">
           ${statusBar}
-          <div id="solar-view"></div>
+          <div id="solar-view" class=${this._imagePanelMode === "none" ? "" : "hidden"}></div>
+          <img
+            id="image-view"
+            class="image-view ${this._imagePanelMode === "none" ? "" : "visible"}"
+            src=${this._imageUrl ?? ""}
+            alt=""
+            @click=${this._onImageClick}
+          />
+          ${
+            this._galleryOpen && this._imagePanelMode === "none"
+              ? html`<div class="gallery">
+                  ${GALLERY_SOURCES.map(
+                    (source) => html`<button
+                      class="gallery-thumb"
+                      data-source=${source}
+                      title=${`Show ${GALLERY_SOURCE_LABELS[source]}`}
+                      @click=${this._onGalleryClick}
+                    >
+                      <img src=${this._galleryImages[source]?.url ?? ""} alt="" />
+                      <span class="gallery-label">${GALLERY_SOURCE_LABELS[source]}</span>
+                    </button>`
+                  )}
+                </div>`
+              : nothing
+          }
         </div>
         <div class="nav">
           <span class="btn-group">
@@ -183,11 +246,7 @@ export class SolarViewCard extends LitElement {
             <button data-action="hour-forward" title="Forward 1 hour" ?disabled=${this._isReplaying} @click=${this._onNavClick}>›</button>
             <button data-action="day-forward" title="Forward 1 day" ?disabled=${this._isReplaying} @click=${this._onNavClick}>»</button>
             <button data-action="month-forward" title="Forward 1 month" ?disabled=${this._isReplaying} @click=${this._onNavClick}>⋙</button>
-            ${
-              this._config?.debug
-                ? html`<button data-action="replay" title="Replay last 6h" @click=${this._onNavClick}>↺</button>`
-                : nothing
-            }
+            <button data-action="replay" title="Replay last 6h" @click=${this._onNavClick}>↺</button>
           </span>
           <span class="nav-spacer"></span>
           <span class="date">${this._formatDate(this._currentDate)}</span>
@@ -197,6 +256,21 @@ export class SolarViewCard extends LitElement {
             <span class="zoom-level">${zoomLevel}</span>
             <button data-action="zoom-in" title="Zoom in" @click=${this._onNavClick}>+</button>
           </span>
+          ${
+            this._config?.gallery === true
+              ? html`<span class="nav-spacer"></span>
+                  <span class="btn-group">
+                    <button
+                      data-action="gallery"
+                      title="Show image gallery"
+                      class=${this._galleryOpen ? "active" : ""}
+                      @click=${this._onNavClick}
+                    >
+                      <span class="icon">🖼️</span>
+                    </button>
+                  </span>`
+              : nothing
+          }
           ${this._config?.show_version ? html`<span class="card-version">v${__CARD_VERSION__}</span>` : nothing}
         </div>
       </div>
@@ -253,6 +327,11 @@ export class SolarViewCard extends LitElement {
       }
       if (this._periodicZoomChange) {
         this._advanceZoom();
+      }
+      if (this._imagePanelMode !== "none") {
+        this._refreshOpenImage();
+      } else if (this._galleryOpen) {
+        this._refreshGalleryImages();
       }
     }, interval) as unknown as number;
   }
@@ -406,6 +485,11 @@ export class SolarViewCard extends LitElement {
     this._handleNavAction((e.currentTarget as HTMLButtonElement).dataset.action);
   }
 
+  private _onGalleryClick(e: Event): void {
+    const source = (e.currentTarget as HTMLButtonElement).dataset.source as ImageSource;
+    this._setImagePanel(source);
+  }
+
   private _bindSvgEvents(svg: SVGSVGElement): void {
     svg.addEventListener("pointerdown", (e) => this._onPointerDown(e));
     svg.addEventListener("pointermove", (e) => this._onPointerMove(e));
@@ -452,7 +536,94 @@ export class SolarViewCard extends LitElement {
       case "zoom-in":
         this._zoomIn();
         break;
+      case "gallery":
+        this._toggleGallery();
+        break;
     }
+  }
+
+  private _toggleGallery(): void {
+    this._galleryOpen = !this._galleryOpen;
+    if (!this._galleryOpen) {
+      this._setImagePanel("none");
+    } else {
+      this._imageError = null;
+      this._render();
+      this._refreshGalleryImages();
+    }
+  }
+
+  private _onImageClick(): void {
+    this._setImagePanel("none");
+  }
+
+  private async _setImagePanel(mode: ImagePanelMode): Promise<void> {
+    if (mode === "none") {
+      this._imagePanelMode = "none";
+      this._imageUrl = null;
+      this._imageDate = null;
+      this._imageError = null;
+      this._render();
+      return;
+    }
+    this._imageError = null;
+    try {
+      // Opening the full image is a click-triggered fetch: a short cache (CLICK_CACHE_TTL_MS)
+      // avoids redownloading from NASA's slow servers if you just looked at this same source
+      // moments ago. Once open, _refreshOpenImage takes over on its own (longer) cadence.
+      const { url, date } =
+        mode === "earth"
+          ? await fetchLatestEarthImageUrl(CLICK_CACHE_TTL_MS)
+          : getSunImageUrl(CLICK_CACHE_TTL_MS);
+      this._imagePanelMode = mode;
+      this._imageUrl = url;
+      this._imageDate = date;
+    } catch {
+      this._imagePanelMode = "none";
+      this._imageUrl = null;
+      this._imageDate = null;
+      this._imageError = `${IMAGE_SOURCE_LABELS[mode]} image unavailable`;
+    }
+    this._render();
+  }
+
+  // Keeps the open full-screen image fresh (15-min TTL) on each auto-update tick, for as
+  // long as it stays open. Only called while _imagePanelMode !== "none" (see the tick
+  // handler). A failed refresh is silently skipped — the panel keeps showing the last
+  // good image rather than surfacing a transient background-fetch error.
+  private async _refreshOpenImage(): Promise<void> {
+    const mode = this._imagePanelMode;
+    try {
+      const { url, date } =
+        mode === "earth"
+          ? await fetchLatestEarthImageUrl(FULL_PANEL_CACHE_TTL_MS)
+          : getSunImageUrl(FULL_PANEL_CACHE_TTL_MS);
+      this._imageUrl = url;
+      this._imageDate = date;
+      this._render();
+    } catch {
+      // Keep showing the last good image.
+    }
+  }
+
+  // Fetches all gallery thumbnails — called when the gallery is opened, and on each
+  // auto-update tick while it stays open and no full image is showing (never while both
+  // are closed, to avoid unconditional background polling of NASA's servers for every
+  // install regardless of use). Each source is still cache-guarded (1-hour TTL), so this
+  // only hits the network once the cache has expired.
+  private async _refreshGalleryImages(): Promise<void> {
+    const results = await Promise.allSettled(
+      GALLERY_SOURCES.map((source) =>
+        source === "earth" ? fetchLatestEarthImageUrl() : Promise.resolve(getSunImageUrl())
+      )
+    );
+    for (let i = 0; i < results.length; i++) {
+      const result = results[i];
+      if (result.status === "fulfilled") {
+        this._galleryImages[GALLERY_SOURCES[i]] = result.value;
+      }
+    }
+    this._render();
   }
 
   getCardSize(): number {

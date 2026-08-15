@@ -74,7 +74,7 @@ default_zoom: 2
 | `colors`               | object                 | see below | Color overrides (see Colors)                                                               |
 | `ecliptic_view`        | `"north"` \| `"south"` | `"north"` | Viewing pole: `"north"` = counter-clockwise orbits (default); `"south"` = clockwise orbits |
 | `show_version`         | boolean                | `false`   | Show card version number in the bottom-right corner of the nav bar                         |
-| `debug`                | boolean                | `false`   | Opt in to try in-progress/beta features — currently: replay button (↺, replays last 6h)    |
+| `gallery`              | boolean                | `false`   | Show the L1 Imagery gallery button (see L1 Imagery)                                        |
 
 ### Colors
 
@@ -97,3 +97,17 @@ colors:
   orbit: "rgba(100, 200, 255, 0.2)"
   label: "#e0e0ff"
 ```
+
+### L1 Imagery
+
+Set `gallery: true` to show a nav button (🖼️) that opens a thumbnail strip with live
+[NASA SDO](https://sdo.gsfc.nasa.gov/) and [EPIC/DSCOVR](https://epic.gsfc.nasa.gov/) L1 Lagrange
+point imagery. Off by default.
+
+| Thumbnail | Source                 | Look                                |
+| --------- | ---------------------- | ----------------------------------- |
+| L1→EARTH  | NASA EPIC/DSCOVR       | Earth, natural color                |
+| L1→SUN    | NASA SDO HMI Continuum | Sunspots, visible-light photosphere |
+
+Some Home Assistant setups behind a strict reverse-proxy Content-Security-Policy may block requests
+to `epic.gsfc.nasa.gov` / `sdo.gsfc.nasa.gov` — not fixable from the card itself.

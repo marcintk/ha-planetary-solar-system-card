@@ -6,6 +6,7 @@ import {
   getSkyMode,
 } from "../astronomy/solar-position.js";
 import type { LocationData } from "../types.js";
+import { formatRelativeAge } from "./relative-time.js";
 
 export function buildStatusBar(
   locationData: LocationData | null,
@@ -31,5 +32,38 @@ export function buildStatusBar(
   return html`<div class="status-bar">
     <span>${name} | ${mode} (${elevRounded}°)</span>
     ${next && formatter ? html`<span>Next: ${next.toMode} (${formatter.format(next.time)})</span>` : nothing}
+  </div>`;
+}
+
+export type ImageSource = "earth" | "sun";
+
+export const IMAGE_SOURCE_LABELS: Record<ImageSource, string> = {
+  earth: "DSCOVR Earth",
+  sun: "SDO HMI Continuum",
+};
+
+// Labels for the gallery thumbnail strip.
+export const GALLERY_SOURCE_LABELS: Record<ImageSource, string> = {
+  earth: "L1→EARTH",
+  sun: "L1→SUN",
+};
+
+export const GALLERY_SOURCES: ImageSource[] = ["earth", "sun"];
+
+// EPIC gives a real capture timestamp per image; the SDO sun image is a fixed-filename URL
+// with no timestamp, so its date only reflects when we last checked the server for it.
+const IMAGE_DATE_VERBS: Record<ImageSource, string> = {
+  earth: "captured",
+  sun: "checked",
+};
+
+export function buildImageStatusBar(
+  mode: ImageSource,
+  dateText: string,
+  imageDate: Date,
+  now: Date
+): TemplateResult {
+  return html`<div class="status-bar">
+    <span>${IMAGE_SOURCE_LABELS[mode]} · ${IMAGE_DATE_VERBS[mode]} ${dateText} (${formatRelativeAge(imageDate, now)})</span>
   </div>`;
 }

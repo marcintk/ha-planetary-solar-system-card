@@ -8,6 +8,15 @@ beforeAll(() => {
   }
 });
 
+// Any mounted card with gallery.mode != "none" now fetches in the background from
+// connectedCallback, even in describes that never stub fetch — leaving a real (unstubbed)
+// network result cached in image-sources.ts's module-level cache would leak into later
+// tests that expect a clean or failing cache. Clear it after every test, not just the
+// "gallery" describe's own cards.
+afterEach(() => {
+  clearImageCache();
+});
+
 describe("SolarViewCard", () => {
   it("should be a class", () => {
     expect(typeof SolarViewCard).toBe("function");
@@ -1234,7 +1243,6 @@ describe("SolarViewCard", () => {
     afterEach(() => {
       vi.unstubAllGlobals();
       vi.useRealTimers();
-      clearImageCache();
     });
 
     it("gallery button is hidden by default (no config)", () => {

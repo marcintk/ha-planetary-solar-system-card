@@ -20,6 +20,7 @@ import {
   IMAGE_SOURCE_LABELS,
 } from "./card-template.js";
 import { DEFAULT_ZOOM_LEVEL, MAX_ZOOM, MIN_ZOOM, ViewState } from "./card-view-state.js";
+import { DateNav } from "./date-nav.js";
 import type { SourcedImage } from "./image-sources.js";
 import {
   FETCH_TIMEOUT_MS,
@@ -29,12 +30,6 @@ import {
 } from "./image-sources.js";
 import { formatRelativeAge } from "./relative-time.js";
 import { ZoomAnimator } from "./zoom-animator.js";
-
-const REPLAY_WINDOW_MS = 6 * 60 * 60 * 1000;
-const REPLAY_STEPS = 36;
-const REPLAY_STEP_MS = REPLAY_WINDOW_MS / REPLAY_STEPS;
-const REPLAY_MAX_DURATION_MS = 5000;
-const REPLAY_INTERVAL_MS = Math.floor(REPLAY_MAX_DURATION_MS / REPLAY_STEPS);
 
 // Confirms a candidate image URL actually loads AND decodes before anything commits to
 // displaying it — so a failed or not-yet-published candidate never touches a visible <img>.
@@ -129,8 +124,7 @@ const DEFAULT_GALLERY_INTERVAL_MS = 60000;
 export class SolarViewCard extends LitElement {
   static styles = cardStyles;
 
-  private _currentDate: Date;
-  private _isLiveMode: boolean;
+  private _dateNav: DateNav;
   private _viewState: ViewState | null;
   private _zoomAnimator: ZoomAnimator | null;
   private _defaultZoomLevel: ZoomLevel;
@@ -143,8 +137,6 @@ export class SolarViewCard extends LitElement {
   private _configLon: number | null;
   private _configLocationName: string | null;
   private _autoUpdateTimer: number | null;
-  private _replayTimer: number | null;
-  private _isReplaying: boolean;
   private _colors: Colors;
   private _refreshMs: number;
   private _periodicZoomChange: boolean;
@@ -173,8 +165,7 @@ export class SolarViewCard extends LitElement {
 
   constructor() {
     super();
-    this._currentDate = new Date();
-    this._isLiveMode = true;
+    this._dateNav = new DateNav(() => this._render());
     this._viewState = null;
     this._zoomAnimator = null;
     this._defaultZoomLevel = DEFAULT_ZOOM_LEVEL;
@@ -187,8 +178,6 @@ export class SolarViewCard extends LitElement {
     this._timezone = null;
     this._locationName = null;
     this._autoUpdateTimer = null;
-    this._replayTimer = null;
-    this._isReplaying = false;
     this._colors = {};
     this._refreshMs = 60000;
     this._periodicZoomChange = false;
@@ -319,10 +308,7 @@ export class SolarViewCard extends LitElement {
       this._refreshImageSources();
     }
     this._onVisibilityChange = () => {
-      if (!document.hidden && this._isLiveMode) {
-        this._currentDate = new Date();
-        this._render();
-      }
+      if (!document.hidden) this._dateNav.tick();
     };
     document.addEventListener("visibilitychange", this._onVisibilityChange);
   }
@@ -333,8 +319,7 @@ export class SolarViewCard extends LitElement {
     this._autoUpdateTimer = null;
     clearInterval(this._autoSwitchTimer ?? undefined);
     this._autoSwitchTimer = null;
-    clearInterval(this._replayTimer ?? undefined);
-    this._replayTimer = null;
+    this._dateNav.stop();
     if (this._onVisibilityChange) {
       document.removeEventListener("visibilitychange", this._onVisibilityChange);
     }
@@ -351,7 +336,7 @@ export class SolarViewCard extends LitElement {
           <span>${this._imageError}</span>
         </div>`
       : this._imagePanelMode === "none"
-        ? buildStatusBar(this._locationData, this._effectiveLocationName, this._currentDate)
+        ? buildStatusBar(this._locationData, this._effectiveLocationName, this._dateNav.currentDate)
         : buildImageStatusBar(
             this._imagePanelMode,
             this._imageDate ? this._formatDate(this._imageDate) : "",
@@ -419,17 +404,17 @@ export class SolarViewCard extends LitElement {
         </div>
         <div class="nav">
           <span class="btn-group">
-            <button data-action="month-back" title="Back 1 month" ?disabled=${this._isReplaying} @click=${this._onNavClick}>⋘</button>
-            <button data-action="day-back" title="Back 1 day" ?disabled=${this._isReplaying} @click=${this._onNavClick}>≪</button>
-            <button data-action="hour-back" title="Back 1 hour" ?disabled=${this._isReplaying} @click=${this._onNavClick}>&lt;</button>
-            <button data-action="today" ?disabled=${this._isReplaying} @click=${this._onNavClick}>Now</button>
-            <button data-action="hour-forward" title="Forward 1 hour" ?disabled=${this._isReplaying} @click=${this._onNavClick}>&gt;</button>
-            <button data-action="day-forward" title="Forward 1 day" ?disabled=${this._isReplaying} @click=${this._onNavClick}>≫</button>
-            <button data-action="month-forward" title="Forward 1 month" ?disabled=${this._isReplaying} @click=${this._onNavClick}>⋙</button>
+            <button data-action="month-back" title="Back 1 month" ?disabled=${this._dateNav.isReplaying} @click=${this._onNavClick}>⋘</button>
+            <button data-action="day-back" title="Back 1 day" ?disabled=${this._dateNav.isReplaying} @click=${this._onNavClick}>≪</button>
+            <button data-action="hour-back" title="Back 1 hour" ?disabled=${this._dateNav.isReplaying} @click=${this._onNavClick}>&lt;</button>
+            <button data-action="today" ?disabled=${this._dateNav.isReplaying} @click=${this._onNavClick}>Now</button>
+            <button data-action="hour-forward" title="Forward 1 hour" ?disabled=${this._dateNav.isReplaying} @click=${this._onNavClick}>&gt;</button>
+            <button data-action="day-forward" title="Forward 1 day" ?disabled=${this._dateNav.isReplaying} @click=${this._onNavClick}>≫</button>
+            <button data-action="month-forward" title="Forward 1 month" ?disabled=${this._dateNav.isReplaying} @click=${this._onNavClick}>⋙</button>
             <button data-action="replay" title="Replay last 6h" @click=${this._onNavClick}>↺</button>
           </span>
           <span class="nav-spacer"></span>
-          <span class="date">${this._formatDate(this._currentDate)}</span>
+          <span class="date">${this._formatDate(this._dateNav.currentDate)}</span>
           <span class="nav-spacer"></span>
           <span class="btn-group">
             <button data-action="zoom-out" title="Zoom out" @click=${this._onNavClick}>&minus;</button>
@@ -468,7 +453,7 @@ export class SolarViewCard extends LitElement {
     if (container) {
       while (container.firstChild) container.removeChild(container.firstChild);
       const { svg, positions } = renderSolarSystem(
-        this._currentDate,
+        this._dateNav.currentDate,
         this._hemisphere,
         this._locationData,
         this._colors,
@@ -509,10 +494,7 @@ export class SolarViewCard extends LitElement {
     /* v8 ignore next */
     const interval = this._refreshMs;
     this._autoUpdateTimer = setInterval(() => {
-      if (this._isLiveMode) {
-        this._currentDate = new Date();
-        this._render();
-      }
+      this._dateNav.tick();
       if (this._periodicZoomChange) {
         this._advanceZoom();
       }
@@ -576,65 +558,13 @@ export class SolarViewCard extends LitElement {
   }
 
   private _navigate(deltaMs: number): void {
-    this._isLiveMode = false;
-    this._currentDate = new Date(this._currentDate.getTime() + deltaMs);
-    this._render();
+    this._dateNav.navigate(deltaMs);
   }
 
   private _goToday(): void {
-    this._isLiveMode = true;
-    this._currentDate = new Date();
+    // Recenter before goLive() so its render picks up the recentered viewState.
     this._viewState?.recenter();
-    this._render();
-  }
-
-  private _toggleReplay(): void {
-    if (this._replayTimer !== null) {
-      this._cancelReplay();
-    } else {
-      this._startReplay();
-    }
-  }
-
-  private _startReplay(): void {
-    const wasLiveMode = this._isLiveMode;
-    const endTime = this._currentDate.getTime();
-    const startTime = endTime - REPLAY_WINDOW_MS;
-    this._isLiveMode = false;
-    this._isReplaying = true;
-    let step = 0;
-    this._currentDate = new Date(startTime);
-    this._render();
-
-    this._replayTimer = setInterval(() => {
-      step++;
-      if (step >= REPLAY_STEPS) {
-        this._finishReplay(endTime, wasLiveMode);
-        return;
-      }
-      this._currentDate = new Date(startTime + step * REPLAY_STEP_MS);
-      this._render();
-    }, REPLAY_INTERVAL_MS) as unknown as number;
-  }
-
-  private _finishReplay(endTime: number, resumeLiveMode: boolean): void {
-    /* v8 ignore next */
-    clearInterval(this._replayTimer ?? undefined);
-    this._replayTimer = null;
-    this._isReplaying = false;
-    this._isLiveMode = resumeLiveMode;
-    // Always return to the date the user was viewing before replay started,
-    // regardless of live mode — replay should not jump the view forward.
-    this._currentDate = new Date(endTime);
-    this._render();
-  }
-
-  private _cancelReplay(): void {
-    /* v8 ignore next */
-    clearInterval(this._replayTimer ?? undefined);
-    this._replayTimer = null;
-    this._isReplaying = false;
-    this._render();
+    this._dateNav.goLive();
   }
 
   private _zoomIn(): void {
@@ -721,18 +651,14 @@ export class SolarViewCard extends LitElement {
   private _handleNavAction(action: string | undefined): void {
     switch (action) {
       case "replay":
-        this._toggleReplay();
+        this._dateNav.toggleReplay();
         break;
       case "zoom-out":
         this._zoomOut();
         break;
-      case "month-back": {
-        const d = new Date(this._currentDate);
-        d.setMonth(d.getMonth() - 1);
-        this._currentDate = d;
-        this._render();
+      case "month-back":
+        this._dateNav.navigateMonths(-1);
         break;
-      }
       case "day-back":
         this._navigate(-86400000);
         break;
@@ -748,13 +674,9 @@ export class SolarViewCard extends LitElement {
       case "day-forward":
         this._navigate(86400000);
         break;
-      case "month-forward": {
-        const d = new Date(this._currentDate);
-        d.setMonth(d.getMonth() + 1);
-        this._currentDate = d;
-        this._render();
+      case "month-forward":
+        this._dateNav.navigateMonths(1);
         break;
-      }
       case "zoom-in":
         this._zoomIn();
         break;

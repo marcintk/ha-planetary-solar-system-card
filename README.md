@@ -124,13 +124,6 @@ gallery:
 | `ecliptic_view` | `"north"` \| `"south"`            | `"north"` | Viewing pole: `"north"` = counter-clockwise orbits (default); `"south"` = clockwise orbits                                         |
 | `show_version`  | boolean                           | `false`   | Show card version number centered in the top status bar (hidden when the status bar itself is hidden, e.g. no location configured) |
 
-### Features
-
-| Option     | Type   | Default   | Description                                |
-| ---------- | ------ | --------- | ------------------------------------------ |
-| `gallery`  | object | see below | Live Imagery gallery options (see Gallery) |
-| `location` | object | see below | Location override (see Location)           |
-
 ### Colors
 
 | Key                                 | Default                            | Description                                            |
@@ -148,12 +141,16 @@ gallery:
 
 ### Gallery
 
+`gallery` (object, unset by default) — Live Imagery gallery options:
+
 | Key                           | Type   | Default  | Description                                                                                   |
 | ----------------------------- | ------ | -------- | --------------------------------------------------------------------------------------------- |
 | `gallery.mode`                | string | `"none"` | `"none"` \| `"earth"` \| `"sun"` \| `"both"` \| `"slide"` — see [Live Imagery](#live-imagery) |
 | `gallery.slide_interval_secs` | number | `60`     | How often `slide` mode flips the displayed thumbnail                                          |
 
 ### Location
+
+`location` (object, unset by default) — overrides HA's configured location:
 
 | Key                  | Type                 | Default   | Description                                                                                                  |
 | -------------------- | -------------------- | --------- | ------------------------------------------------------------------------------------------------------------ |

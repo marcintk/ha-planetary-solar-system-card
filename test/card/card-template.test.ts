@@ -95,26 +95,26 @@ describe("buildStatusBar", () => {
 describe("buildImageStatusBar", () => {
   const now = new Date("2026-08-12T12:00:00Z");
 
-  it("labels the earth source with DSCOVR", () => {
+  it("labels the earth source with L1→EARTH · DSCOVR, matching the gallery thumbnail", () => {
     const root = renderToDOM(
       buildImageStatusBar("earth", "26-08-10 18:49", new Date("2026-08-10T18:49:00Z"), now, true)
     );
-    expect(root.querySelector(".status-bar span").textContent).toContain("DSCOVR Earth");
+    expect(root.querySelector(".status-bar span").textContent).toContain("L1→EARTH · DSCOVR");
   });
 
-  it("labels the sun source with SDO HMI Continuum", () => {
+  it("labels the sun source with GEO→SUN · SDO HMI, matching the gallery thumbnail", () => {
     const root = renderToDOM(
       buildImageStatusBar("sun", "26-08-12 11:55", new Date("2026-08-12T11:55:00Z"), now, true)
     );
-    expect(root.querySelector(".status-bar span").textContent).toContain("SDO HMI Continuum");
+    expect(root.querySelector(".status-bar span").textContent).toContain("GEO→SUN · SDO HMI");
   });
 
-  it("includes the absolute date text and relative age in parentheses, verb 'captured' for earth", () => {
+  it("includes the absolute date text and relative age, verb 'captured' for earth", () => {
     const root = renderToDOM(
       buildImageStatusBar("earth", "26-08-11 06:00", new Date("2026-08-11T06:00:00Z"), now, true)
     );
     expect(root.querySelector(".status-bar span").textContent).toBe(
-      "DSCOVR Earth · captured 26-08-11 06:00 (30h ago)"
+      "L1→EARTH · DSCOVR · captured 26-08-11 06:00 · 30h ago"
     );
   });
 
@@ -123,7 +123,7 @@ describe("buildImageStatusBar", () => {
       buildImageStatusBar("sun", "26-08-12 11:55", new Date("2026-08-12T11:55:00Z"), now, true)
     );
     expect(root.querySelector(".status-bar span").textContent).toBe(
-      "SDO HMI Continuum · captured 26-08-12 11:55 (5m ago)"
+      "GEO→SUN · SDO HMI · captured 26-08-12 11:55 · 5m ago"
     );
   });
 
@@ -131,6 +131,6 @@ describe("buildImageStatusBar", () => {
     const root = renderToDOM(
       buildImageStatusBar("sun", "26-08-12 11:55", new Date("2026-08-12T11:55:00Z"), now, false)
     );
-    expect(root.querySelector(".status-bar span").textContent).toBe("SDO HMI Continuum · loading…");
+    expect(root.querySelector(".status-bar span").textContent).toBe("GEO→SUN · SDO HMI · loading…");
   });
 });

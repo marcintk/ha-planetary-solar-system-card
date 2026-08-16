@@ -1364,7 +1364,7 @@ describe("SolarViewCard", () => {
       await flush();
       expect(card._imagePanelMode).toBe("sun");
       expect(card.shadowRoot.querySelector(".status-bar").textContent).toContain(
-        "SDO HMI Continuum"
+        "GEO→SUN · SDO HMI"
       );
       const img = card.shadowRoot.querySelector("#image-view");
       expect(img.classList.contains("visible")).toBe(true);
@@ -1613,7 +1613,9 @@ describe("SolarViewCard", () => {
       expect(img.src).toBe(
         `${EPIC_BASE_URL}/archive/natural/2026/08/10/jpg/epic_1b_20260810234950.jpg`
       );
-      expect(card.shadowRoot.querySelector(".status-bar").textContent).toContain("DSCOVR Earth");
+      expect(card.shadowRoot.querySelector(".status-bar").textContent).toContain(
+        "L1→EARTH · DSCOVR"
+      );
       card.remove();
     });
 

@@ -156,6 +156,8 @@ export const cardStyles = css`
   }
   .btn-group {
     display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
     gap: 0;
   }
   .btn-group button {

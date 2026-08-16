@@ -3,7 +3,6 @@
 exports[`buildStatusBar snapshots > full status bar with Next transition 1`] = `
 "<!----><div class="status-bar">
     <span><!--?-->London | <!--?-->Day (<!--?-->32°)</span>
-    <!--?-->
     <!--?--><span>Next: <!--?-->Civil Twilight (<!--?-->17:25)</span>
   </div>"
 `;
@@ -11,7 +10,6 @@ exports[`buildStatusBar snapshots > full status bar with Next transition 1`] = `
 exports[`buildStatusBar snapshots > null location name (empty before pipe) 1`] = `
 "<!----><div class="status-bar">
     <span><!--?--> | <!--?-->Day (<!--?-->89°)</span>
-    <!--?-->
     <!--?--><span>Next: <!--?-->Civil Twilight (<!--?-->18:00)</span>
   </div>"
 `;
@@ -19,7 +17,6 @@ exports[`buildStatusBar snapshots > null location name (empty before pipe) 1`] =
 exports[`buildStatusBar snapshots > single span (polar night, no transition) 1`] = `
 "<!----><div class="status-bar">
     <span><!--?-->Arctic | <!--?-->Night (<!--?-->-22°)</span>
-    <!--?-->
     <!--?-->
   </div>"
 `;
@@ -239,9 +236,9 @@ exports[`cardStyles > matches snapshot 1`] = `
     user-select: none;
     font-family: sans-serif;
     position: absolute;
-    left: 50%;
+    right: 8px;
     top: 50%;
-    transform: translate(-50%, -50%);
+    transform: translateY(-50%);
   }
 "
 `;

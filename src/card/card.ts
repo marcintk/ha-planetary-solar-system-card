@@ -169,18 +169,19 @@ export class SolarViewCard extends LitElement {
       this._hemisphere = lat < 0 ? "south" : "north";
     }
 
-    const statusBar = this._gallery.error
+    const gallery = this._gallery.viewModel();
+    const statusBar = gallery.error
       ? html`<div class="status-bar">
-          <span>${this._gallery.error}</span>
+          <span>${gallery.error}</span>
         </div>`
-      : this._gallery.panelMode === "none"
+      : gallery.panelSource === "none"
         ? buildStatusBar(this._locationData, this._effectiveLocationName, this._dateNav.currentDate)
         : buildImageStatusBar(
-            this._gallery.panelMode,
-            this._gallery.imageDate ? this._formatDate(this._gallery.imageDate) : "",
-            this._gallery.imageDate ?? new Date(),
+            gallery.panelSource,
+            gallery.imageDate ? this._formatDate(gallery.imageDate) : "",
+            gallery.imageDate ?? new Date(),
             new Date(),
-            this._gallery.imageLoaded
+            gallery.imageLoaded
           );
     const zoomLevel = this._zoom.displayZoomLevel;
     const theme = resolveTheme(this._theme, this._colors.background);
@@ -191,45 +192,38 @@ export class SolarViewCard extends LitElement {
           ${statusBar}
           <div
             id="solar-view"
-            class=${this._gallery.panelMode === "none" ? "" : "hidden"}
+            class=${gallery.panelSource === "none" ? "" : "hidden"}
             style=${this._heightStyle || nothing}
           ></div>
           <img
             id="image-view"
-            class="image-view ${this._gallery.panelMode === "none" ? "" : "visible"}"
+            class="image-view ${gallery.panelSource === "none" ? "" : "visible"}"
             style=${this._heightStyle || nothing}
-            src=${this._gallery.imageUrl ?? nothing}
+            src=${gallery.imageUrl ?? nothing}
             alt=""
             @click=${this._onImageClick}
             @load=${this._onImageLoad}
             @error=${this._onImageLoadError}
           />
           ${
-            this._gallery.isOpen && this._gallery.panelMode === "none"
+            gallery.showStrip
               ? html`<div class="gallery">
-                  ${this._gallery.displaySources.map(
-                    (source) => html`<button
+                  ${gallery.thumbnails.map(
+                    ({ source, url, date }) => html`<button
                       class="gallery-thumb"
                       data-source=${source}
                       title=${`Show ${GALLERY_SOURCE_LABELS[source]}`}
                       @click=${this._onGalleryClick}
                     >
                       <img
-                        src=${this._gallery.images[source]?.url ?? nothing}
+                        src=${url ?? nothing}
                         alt=""
                         @error=${source === "sun" ? this._onSunThumbError : undefined}
                       />
                       <div class="gallery-info">
                         <span class="gallery-label">${GALLERY_SOURCE_LABELS[source]}</span>
                         <span class="gallery-age"
-                          >${
-                            this._gallery.images[source]
-                              ? formatRelativeAge(
-                                  this._gallery.images[source]?.date as Date,
-                                  new Date()
-                                )
-                              : "loading…"
-                          }</span
+                          >${date ? formatRelativeAge(date, new Date()) : "loading…"}</span
                         >
                       </div>
                     </button>`
@@ -258,13 +252,13 @@ export class SolarViewCard extends LitElement {
             <button data-action="zoom-in" title="Zoom in" @click=${this._onNavClick}>+</button>
           </span>
           ${
-            this._gallery.mode !== "none"
+            gallery.navButtonVisible
               ? html`<span class="nav-spacer"></span>
                   <span class="btn-group">
                     <button
                       data-action="gallery"
                       title="Show image gallery"
-                      class=${this._gallery.isOpen ? "active" : ""}
+                      class=${gallery.navButtonActive ? "active" : ""}
                       @click=${this._onNavClick}
                     >
                       <span class="icon">☷</span>

@@ -100,6 +100,9 @@ default_zoom: 2
 | `show_version`                | boolean                                 | `false`   | Show card version number in the bottom-right corner of the nav bar                                                            |
 | `gallery.mode`                | see below                               | `"none"`  | Live Imagery gallery mode (see Live Imagery)                                                                                  |
 | `gallery.slide_interval_secs` | number                                  | `60`      | How often `slide` mode flips the displayed thumbnail between Earth and Sun                                                    |
+| `location.latitude`           | number (-90 to 90)                      | HA config | Overrides HA's latitude for hemisphere/season/twilight math. Requires `location.longitude` too, else ignored                  |
+| `location.longitude`          | number (-180 to 180)                    | HA config | Overrides HA's longitude. Requires `location.latitude` too, else ignored                                                      |
+| `location.name`               | string                                  | HA config | Overrides the location label shown in the status bar                                                                          |
 
 ### Colors
 

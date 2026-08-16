@@ -117,12 +117,12 @@ gallery:
 
 ### Appearance
 
-| Option          | Type                              | Default   | Description                                                                                                                        |
-| --------------- | --------------------------------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `theme`         | `"auto"` \| `"dark"` \| `"light"` | `"auto"`  | `"auto"` follows the HA theme. `"dark"`/`"light"` forces a built-in background/text pair regardless of the installed theme         |
-| `colors`        | object                            | see below | Color overrides (see Colors)                                                                                                       |
-| `ecliptic_view` | `"north"` \| `"south"`            | `"north"` | Viewing pole: `"north"` = counter-clockwise orbits (default); `"south"` = clockwise orbits                                         |
-| `show_version`  | boolean                           | `false`   | Show card version number centered in the top status bar (hidden when the status bar itself is hidden, e.g. no location configured) |
+| Option          | Type                              | Default   | Description                                                                                                                |
+| --------------- | --------------------------------- | --------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `theme`         | `"auto"` \| `"dark"` \| `"light"` | `"auto"`  | `"auto"` follows the HA theme. `"dark"`/`"light"` forces a built-in background/text pair regardless of the installed theme |
+| `colors`        | object                            | see below | Color overrides (see Colors)                                                                                               |
+| `ecliptic_view` | `"north"` \| `"south"`            | `"north"` | Viewing pole: `"north"` = counter-clockwise orbits (default); `"south"` = clockwise orbits                                 |
+| `show_version`  | boolean                           | `false`   | Show card version number centered in the top status bar                                                                    |
 
 ### Colors
 

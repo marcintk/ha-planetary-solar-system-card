@@ -14,14 +14,27 @@ const NEEDLE_COLOR = "color-mix(in srgb, currentColor 70%, transparent)";
 // distinct — and readable — against both a light and a dark HA theme background.
 // CONE_DAY mixes currentColor rather than a fixed rgba (same trick as NEEDLE_COLOR/
 // ORBIT_COLOR below) so it auto-inverts: dark tint on light theme, light tint on dark
-// theme — a fixed white was invisible on a light card background. The twilight/night
-// bands below use enough alpha and a hue shift (warm → cool → violet → indigo) to stay
-// legible on dark card backgrounds too.
+// theme — a fixed white was invisible on a light card background.
+//
+// The twilight/night bands need to keep their own hue (warm → cool → violet → indigo)
+// rather than just following currentColor like CONE_DAY — but a fixed rgba tuned to read
+// as a distinct tint on a dark background all but disappears on a light one: alpha-blending
+// a dark, saturated color into white crushes it down to a barely-there pale gray (little
+// hue left to perceive), while the exact same blend into a dark background reads as a
+// clear, saturated cast (the hue survives). A small currentColor mix folded into each hue
+// before the transparency step fixes this the same self-adapting way CONE_DAY does: on
+// light theme currentColor is dark ink, pulling the tint toward black and restoring
+// contrast against white; on dark theme currentColor is light, which the outer alpha step
+// still keeps subtle enough not to wash out the existing dark-theme look.
 export const CONE_DAY = "color-mix(in srgb, currentColor 8%, transparent)"; // Sun above horizon
-export const CONE_CIVIL = "rgba(255, 220, 160, 0.09)"; // Civil twilight:        0° to -6°
-export const CONE_NAUTICAL = "rgba(90, 130, 180, 0.12)"; // Nautical twilight:  -6° to -12°
-export const CONE_ASTRONOMICAL = "rgba(70, 50, 130, 0.18)"; // Astronomical twilight: -12° to -18°
-export const CONE_NIGHT = "rgba(30, 20, 60, 0.22)"; // Sun below -18°
+export const CONE_CIVIL =
+  "color-mix(in srgb, color-mix(in srgb, rgb(255, 220, 160) 85%, currentColor 15%) 13%, transparent)"; // Civil twilight:        0° to -6°
+export const CONE_NAUTICAL =
+  "color-mix(in srgb, color-mix(in srgb, rgb(90, 130, 180) 85%, currentColor 15%) 17%, transparent)"; // Nautical twilight:  -6° to -12°
+export const CONE_ASTRONOMICAL =
+  "color-mix(in srgb, color-mix(in srgb, rgb(70, 50, 130) 85%, currentColor 15%) 24%, transparent)"; // Astronomical twilight: -12° to -18°
+export const CONE_NIGHT =
+  "color-mix(in srgb, color-mix(in srgb, rgb(30, 20, 60) 85%, currentColor 15%) 30%, transparent)"; // Sun below -18°
 
 /**
  * Compute the distance from point (ax,ay) along direction (dx,dy) to the

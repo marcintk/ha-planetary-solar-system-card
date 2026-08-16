@@ -129,19 +129,16 @@ location:
 
 ### Colors
 
-| Key                   | Default                           | Description                          |
-| --------------------- | --------------------------------- | ------------------------------------ |
-| `colors.background`   | HA theme (`--ha-card-background`) | Card background                      |
-| `colors.season_line`  | 25% of theme text color           | Season quadrant divider lines        |
-| `colors.season_label` | 50% of theme text color           | Season name labels (curved arc text) |
-
-| Key                                 | Default                     | Description                          |
-| ----------------------------------- | --------------------------- | ------------------------------------ |
-| `colors.cone_day`                   | 8% of theme text color      | Sun above horizon                    |
-| `colors.cone_twilight_civil`        | `rgba(255, 220, 160, 0.09)` | Civil twilight (0° to -6°)           |
-| `colors.cone_twilight_nautical`     | `rgba(90, 130, 180, 0.12)`  | Nautical twilight (-6° to -12°)      |
-| `colors.cone_twilight_astronomical` | `rgba(70, 50, 130, 0.18)`   | Astronomical twilight (-12° to -18°) |
-| `colors.cone_night`                 | `rgba(30, 20, 60, 0.22)`    | Night (Sun below -18°)               |
+| Key                                 | Default                           | Description                          |
+| ----------------------------------- | --------------------------------- | ------------------------------------ |
+| `colors.background`                 | HA theme (`--ha-card-background`) | Card background                      |
+| `colors.season_line`                | 25% of theme text color           | Season quadrant divider lines        |
+| `colors.season_label`               | 50% of theme text color           | Season name labels (curved arc text) |
+| `colors.cone_day`                   | 8% of theme text color            | Visibility cone — Sun above horizon  |
+| `colors.cone_twilight_civil`        | `rgba(255, 220, 160, 0.09)`       | Civil twilight (0° to -6°)           |
+| `colors.cone_twilight_nautical`     | `rgba(90, 130, 180, 0.12)`        | Nautical twilight (-6° to -12°)      |
+| `colors.cone_twilight_astronomical` | `rgba(70, 50, 130, 0.18)`         | Astronomical twilight (-12° to -18°) |
+| `colors.cone_night`                 | `rgba(30, 20, 60, 0.22)`          | Night (Sun below -18°)               |
 
 ### Gallery
 

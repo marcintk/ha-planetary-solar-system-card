@@ -237,7 +237,7 @@ export class SolarViewCard extends LitElement {
             <button data-action="replay" title="Replay last 6h" @click=${this._onNavClick}>↺</button>
           </span>
           <span class="nav-spacer"></span>
-          <span class="date">${this._formatDate(this._dateNav.currentDate)}</span>
+          <span class="date">${formatDate(this._dateNav.currentDate)}</span>
           <span class="nav-spacer"></span>
           <span class="btn-group">
             <button data-action="zoom-out" title="Zoom out" @click=${this._onNavClick}>&minus;</button>
@@ -315,10 +315,6 @@ export class SolarViewCard extends LitElement {
       this._zoom.tick();
       this._gallery.tick();
     }, interval) as unknown as number;
-  }
-
-  private _formatDate(date: Date): string {
-    return formatDate(date);
   }
 
   private _navigate(deltaMs: number): void {

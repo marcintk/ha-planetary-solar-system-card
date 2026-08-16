@@ -1,5 +1,6 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { SolarViewCard } from "../../src/card/card.js";
+import { formatDate } from "../../src/card/card-template.js";
 import { clearImageCache, EPIC_BASE_URL, getSunImageUrl } from "../../src/card/image-sources.js";
 
 beforeAll(() => {
@@ -896,13 +897,13 @@ describe("SolarViewCard", () => {
       card.setConfig({ refresh_mins: 2 });
       card._dateNav.currentDate = new Date("2026-02-15T10:00:00");
       document.body.appendChild(card);
-      const dateBefore = card._formatDate(card._dateNav.currentDate);
+      const dateBefore = formatDate(card._dateNav.currentDate);
       // At 60s nothing should have changed yet (interval is 120s)
       vi.advanceTimersByTime(60000);
-      expect(card._formatDate(card._dateNav.currentDate)).toBe(dateBefore);
+      expect(formatDate(card._dateNav.currentDate)).toBe(dateBefore);
       // At 120s the timer should fire
       vi.advanceTimersByTime(60000);
-      expect(card._formatDate(card._dateNav.currentDate)).toContain("26-02-15");
+      expect(formatDate(card._dateNav.currentDate)).toContain("26-02-15");
       card.remove();
     });
 
@@ -1080,12 +1081,6 @@ describe("SolarViewCard", () => {
       expect(text).toMatch(/^\d{2}-\d{2}-\d{2} \d{2}:\d{2}$/);
       card.remove();
     });
-
-    it("_formatDate includes hours and minutes", () => {
-      const card = document.createElement("ha-planetary-solar-system-card-test");
-      const date = new Date("2026-02-15T21:05:00");
-      expect(card._formatDate(date)).toBe("26-02-15 21:05");
-    });
   });
 
   describe("proxy getters before first render", () => {
@@ -1260,7 +1255,7 @@ describe("SolarViewCard", () => {
       document.body.appendChild(card);
       vi.advanceTimersByTime(60000);
       // Date should have been updated to "now" (still Feb 15)
-      expect(card._formatDate(card._dateNav.currentDate)).toContain("26-02-15");
+      expect(formatDate(card._dateNav.currentDate)).toContain("26-02-15");
       card.remove();
     });
 
@@ -1271,12 +1266,12 @@ describe("SolarViewCard", () => {
       // Simulate time passing while tab was hidden (timer throttled)
       vi.setSystemTime(new Date("2026-02-15T10:45:00"));
       // Card still shows stale time — timer never fired
-      expect(card._formatDate(card._dateNav.currentDate)).toContain("10:00");
+      expect(formatDate(card._dateNav.currentDate)).toContain("10:00");
       // Tab becomes visible
       Object.defineProperty(document, "hidden", { value: false, configurable: true });
       document.dispatchEvent(new Event("visibilitychange"));
       // Card should now show current time
-      expect(card._formatDate(card._dateNav.currentDate)).toContain("10:45");
+      expect(formatDate(card._dateNav.currentDate)).toContain("10:45");
       card.remove();
     });
 
@@ -1289,7 +1284,7 @@ describe("SolarViewCard", () => {
       Object.defineProperty(document, "hidden", { value: false, configurable: true });
       document.dispatchEvent(new Event("visibilitychange"));
       // Should still show the navigated-to date
-      expect(card._formatDate(card._dateNav.currentDate)).not.toContain("26-02-15");
+      expect(formatDate(card._dateNav.currentDate)).not.toContain("26-02-15");
       card.remove();
     });
 
@@ -1300,7 +1295,7 @@ describe("SolarViewCard", () => {
       vi.setSystemTime(new Date("2026-02-15T10:45:00"));
       Object.defineProperty(document, "hidden", { value: true, configurable: true });
       document.dispatchEvent(new Event("visibilitychange"));
-      expect(card._formatDate(card._dateNav.currentDate)).toContain("10:00");
+      expect(formatDate(card._dateNav.currentDate)).toContain("10:00");
       Object.defineProperty(document, "hidden", { value: false, configurable: true });
       card.remove();
     });
@@ -1320,7 +1315,7 @@ describe("SolarViewCard", () => {
       card._navigate(-45 * 86400000);
       vi.advanceTimersByTime(60000);
       // Should still show the navigated-to date, not auto-advance to today
-      expect(card._formatDate(card._dateNav.currentDate)).not.toContain("26-02-15");
+      expect(formatDate(card._dateNav.currentDate)).not.toContain("26-02-15");
       card.remove();
     });
   });

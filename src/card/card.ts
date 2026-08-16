@@ -12,7 +12,7 @@ import type {
 import { cardStyles } from "./card-styles.js";
 import type { ImageSource } from "./card-template.js";
 import { buildImageStatusBar, buildStatusBar, GALLERY_SOURCE_LABELS } from "./card-template.js";
-import { DEFAULT_ZOOM_LEVEL, MAX_ZOOM, MIN_ZOOM, ViewState } from "./card-view-state.js";
+import { DEFAULT_ZOOM_LEVEL, MAX_ZOOM, MIN_ZOOM } from "./card-view-state.js";
 import { DateNav } from "./date-nav.js";
 import type { GalleryMode } from "./gallery-controller.js";
 import {
@@ -21,7 +21,7 @@ import {
   GalleryController,
 } from "./gallery-controller.js";
 import { formatRelativeAge } from "./relative-time.js";
-import { ZoomAnimator } from "./zoom-animator.js";
+import { ZoomController } from "./zoom-controller.js";
 
 export type { GalleryMode };
 
@@ -89,9 +89,7 @@ export class SolarViewCard extends LitElement {
   static styles = cardStyles;
 
   private _dateNav: DateNav;
-  private _viewState: ViewState | null;
-  private _zoomAnimator: ZoomAnimator | null;
-  private _defaultZoomLevel: ZoomLevel;
+  private _zoom: ZoomController;
   private _hemisphere: Hemisphere;
   private _hassLocation: HassLocation;
   private _locationOverride: LocationOverride | null;
@@ -99,9 +97,6 @@ export class SolarViewCard extends LitElement {
   private _autoUpdateTimer: number | null;
   private _colors: Colors;
   private _refreshMs: number;
-  private _periodicZoomChange: boolean;
-  private _periodicZoomMax: number;
-  private _zoomAnimate: boolean;
   private _eclipticView: boolean;
   private _theme: "auto" | "dark" | "light";
   private get _themePalette(): { background: string; color: string } | null {
@@ -116,9 +111,10 @@ export class SolarViewCard extends LitElement {
   constructor() {
     super();
     this._dateNav = new DateNav(() => this._render());
-    this._viewState = null;
-    this._zoomAnimator = null;
-    this._defaultZoomLevel = DEFAULT_ZOOM_LEVEL;
+    this._zoom = new ZoomController(
+      () => this._render(),
+      () => this._updateViewBox()
+    );
     this._hemisphere = "north";
     this._hassLocation = { lat: null, lon: null, timezone: null, name: null };
     this._locationOverride = null;
@@ -126,9 +122,6 @@ export class SolarViewCard extends LitElement {
     this._autoUpdateTimer = null;
     this._colors = {};
     this._refreshMs = 60000;
-    this._periodicZoomChange = false;
-    this._periodicZoomMax = MAX_ZOOM;
-    this._zoomAnimate = false;
     this._eclipticView = false;
     this._theme = "auto";
     this._heightStyle = "";
@@ -151,7 +144,7 @@ export class SolarViewCard extends LitElement {
     return this._locationNameOverride ?? this._hassLocation.name;
   }
   get _zoomLevel(): ZoomLevel | null {
-    return this._viewState?.zoomLevel ?? null;
+    return this._zoom.zoomLevel;
   }
 
   set hass(hass: HASSConfig) {
@@ -175,7 +168,7 @@ export class SolarViewCard extends LitElement {
 
   setConfig(config: CardConfig): void {
     this._config = config;
-    this._defaultZoomLevel =
+    const defaultZoomLevel =
       config.default_zoom == null ||
       config.default_zoom < MIN_ZOOM ||
       config.default_zoom > MAX_ZOOM
@@ -185,11 +178,12 @@ export class SolarViewCard extends LitElement {
     const rawRefresh = Number(config.refresh_mins);
     this._refreshMs = Number.isFinite(rawRefresh) && rawRefresh >= 0.1 ? rawRefresh * 60000 : 60000;
 
-    this._periodicZoomChange = config.periodic_zoom_change === true;
+    const periodicZoomChange = config.periodic_zoom_change === true;
     const rawMax = Number(config.periodic_zoom_max);
-    this._periodicZoomMax =
+    const periodicZoomMax =
       Number.isInteger(rawMax) && rawMax >= 2 && rawMax <= MAX_ZOOM ? rawMax : MAX_ZOOM;
-    this._zoomAnimate = config.zoom_animate !== false;
+    const zoomAnimate = config.zoom_animate !== false;
+    this._zoom.configure(defaultZoomLevel, periodicZoomChange, periodicZoomMax, zoomAnimate);
 
     this._colors = config.colors ?? {};
     this._theme = config.theme === "dark" || config.theme === "light" ? config.theme : "auto";
@@ -269,7 +263,7 @@ export class SolarViewCard extends LitElement {
             new Date(),
             this._gallery.imageLoaded
           );
-    const zoomLevel = this._viewState?.zoomLevel ?? this._defaultZoomLevel;
+    const zoomLevel = this._zoom.displayZoomLevel;
     /* v8 ignore next */
     const background = this._colors.background ?? this._themePalette?.background ?? "";
     const color = this._themePalette?.color ?? "";
@@ -368,10 +362,7 @@ export class SolarViewCard extends LitElement {
   }
 
   updated(): void {
-    if (!this._viewState) {
-      this._viewState = new ViewState(this._defaultZoomLevel);
-      this._zoomAnimator = new ZoomAnimator(this._viewState, () => this._updateViewBox());
-    }
+    this._zoom.ensureInitialized();
 
     const container = (this.shadowRoot as ShadowRoot).getElementById("solar-view");
     /* v8 ignore next */
@@ -420,20 +411,9 @@ export class SolarViewCard extends LitElement {
     const interval = this._refreshMs;
     this._autoUpdateTimer = setInterval(() => {
       this._dateNav.tick();
-      if (this._periodicZoomChange) {
-        this._advanceZoom();
-      }
+      this._zoom.tick();
       this._gallery.tick();
     }, interval) as unknown as number;
-  }
-
-  private _advanceZoom(): void {
-    if (!this._viewState) return;
-    const prevWidth = this._viewState.width;
-    const next =
-      this._viewState.zoomLevel >= this._periodicZoomMax ? MIN_ZOOM : this._viewState.zoomLevel + 1;
-    this._viewState.setZoomLevel(next);
-    this._applyZoom(prevWidth);
   }
 
   private _formatDate(date: Date): string {
@@ -451,59 +431,37 @@ export class SolarViewCard extends LitElement {
 
   private _goToday(): void {
     // Recenter before goLive() so its render picks up the recentered viewState.
-    this._viewState?.recenter();
+    this._zoom.recenter();
     this._dateNav.goLive();
   }
 
-  private _zoomIn(): void {
-    if (!this._viewState) return;
-    const prevWidth = this._viewState.width;
-    if (this._viewState.zoomIn()) this._applyZoom(prevWidth);
-  }
-
-  private _zoomOut(): void {
-    if (!this._viewState) return;
-    const prevWidth = this._viewState.width;
-    if (this._viewState.zoomOut()) this._applyZoom(prevWidth);
-  }
-
-  private _applyZoom(fromWidth: number): void {
-    if (!this._viewState) return;
-    if (this._zoomAnimate && this._zoomAnimator) {
-      this._render();
-      this._zoomAnimator.animateTo(this._viewState.zoomLevel, fromWidth, () => this._render());
-    } else {
-      this._render();
-    }
-  }
-
   private _updateViewBox(): void {
-    if (!this._viewState) return;
+    const panZoomState = this._zoom.panZoomState;
+    if (!panZoomState) return;
     const svg = (this.shadowRoot as ShadowRoot).querySelector(
       "#solar-view svg"
     ) as SVGSVGElement | null;
-    if (svg) svg.setAttribute("viewBox", this._viewState.viewBox);
-    this._updateMarkers?.(this._viewState);
+    if (svg) svg.setAttribute("viewBox", this._zoom.viewBox as string);
+    this._updateMarkers?.(panZoomState);
   }
 
   private _onPointerDown(e: PointerEvent): void {
     const svg = e.currentTarget as SVGSVGElement;
     svg.setPointerCapture(e.pointerId);
-    this._viewState?.startDrag(e.clientX, e.clientY);
+    this._zoom.startDrag(e.clientX, e.clientY);
     svg.style.cursor = "grabbing";
   }
 
   private _onPointerMove(e: PointerEvent): void {
-    if (!this._viewState?.isDragging) return;
+    if (!this._zoom.isDragging) return;
     const svg = e.currentTarget as SVGSVGElement;
     const rect = svg.getBoundingClientRect();
-    this._viewState.updateDrag(e.clientX, e.clientY, rect);
-    this._updateViewBox();
+    this._zoom.updateDrag(e.clientX, e.clientY, rect);
   }
 
   private _onPointerUp(e: PointerEvent): void {
-    if (!this._viewState?.isDragging) return;
-    this._viewState.endDrag();
+    if (!this._zoom.isDragging) return;
+    this._zoom.endDrag();
     const svg = e.currentTarget as SVGSVGElement;
     svg.releasePointerCapture(e.pointerId);
     svg.style.cursor = "grab";
@@ -530,7 +488,7 @@ export class SolarViewCard extends LitElement {
         this._dateNav.toggleReplay();
         break;
       case "zoom-out":
-        this._zoomOut();
+        this._zoom.zoomOut();
         break;
       case "month-back":
         this._dateNav.navigateMonths(-1);
@@ -554,7 +512,7 @@ export class SolarViewCard extends LitElement {
         this._dateNav.navigateMonths(1);
         break;
       case "zoom-in":
-        this._zoomIn();
+        this._zoom.zoomIn();
         break;
       case "gallery":
         this._gallery.toggle();

@@ -815,8 +815,8 @@ describe("SolarViewCard", () => {
     it("Today button recenters the sun after panning", () => {
       const card = createAndMount();
       const centered = parseViewBox(card);
-      card._viewState.centerX += 150;
-      card._viewState.centerY -= 75;
+      card._zoom.panZoomState.centerX += 150;
+      card._zoom.panZoomState.centerY -= 75;
       clickButton(card, "today");
       const after = parseViewBox(card);
       expect(after.minX).toBe(centered.minX);
@@ -922,13 +922,13 @@ describe("SolarViewCard", () => {
     it("defaults to false when not set", () => {
       const card = document.createElement("ha-planetary-solar-system-card-test");
       card.setConfig({});
-      expect(card._periodicZoomChange).toBe(false);
+      expect(card._zoom.periodicZoomChange).toBe(false);
     });
 
     it("is true when configured as true", () => {
       const card = document.createElement("ha-planetary-solar-system-card-test");
       card.setConfig({ periodic_zoom_change: true });
-      expect(card._periodicZoomChange).toBe(true);
+      expect(card._zoom.periodicZoomChange).toBe(true);
     });
   });
 
@@ -1050,13 +1050,13 @@ describe("SolarViewCard", () => {
     it("defaults to MAX_ZOOM for invalid periodic_zoom_max values", () => {
       const card = document.createElement("ha-planetary-solar-system-card-test");
       card.setConfig({ periodic_zoom_max: "abc" });
-      expect(card._periodicZoomMax).toBe(4);
+      expect(card._zoom.periodicZoomMax).toBe(4);
       card.setConfig({ periodic_zoom_max: 2.5 });
-      expect(card._periodicZoomMax).toBe(4);
+      expect(card._zoom.periodicZoomMax).toBe(4);
       card.setConfig({ periodic_zoom_max: 1 });
-      expect(card._periodicZoomMax).toBe(4);
+      expect(card._zoom.periodicZoomMax).toBe(4);
       card.setConfig({ periodic_zoom_max: 5 });
-      expect(card._periodicZoomMax).toBe(4);
+      expect(card._zoom.periodicZoomMax).toBe(4);
     });
 
     it("has no effect when periodic_zoom_change is false", () => {
@@ -1102,24 +1102,19 @@ describe("SolarViewCard", () => {
       expect(() => card._updateViewBox()).not.toThrow();
     });
 
-    it("_applyZoom is safe when shadow DOM has no .zoom-level element", () => {
+    it("_zoom.advancePeriodic is a no-op before the view is initialized", () => {
       const card = document.createElement("ha-planetary-solar-system-card-test");
-      expect(() => card._applyZoom(800, 800)).not.toThrow();
+      expect(() => card._zoom.advancePeriodic()).not.toThrow();
     });
 
-    it("_advanceZoom is a no-op when _viewState is null", () => {
+    it("_zoom.zoomIn is a no-op before the view is initialized", () => {
       const card = document.createElement("ha-planetary-solar-system-card-test");
-      expect(() => card._advanceZoom()).not.toThrow();
+      expect(() => card._zoom.zoomIn()).not.toThrow();
     });
 
-    it("_zoomIn is a no-op when _viewState is null", () => {
+    it("_zoom.zoomOut is a no-op before the view is initialized", () => {
       const card = document.createElement("ha-planetary-solar-system-card-test");
-      expect(() => card._zoomIn()).not.toThrow();
-    });
-
-    it("_zoomOut is a no-op when _viewState is null", () => {
-      const card = document.createElement("ha-planetary-solar-system-card-test");
-      expect(() => card._zoomOut()).not.toThrow();
+      expect(() => card._zoom.zoomOut()).not.toThrow();
     });
 
     it("disconnectedCallback is safe before connectedCallback", () => {
@@ -1149,9 +1144,9 @@ describe("SolarViewCard", () => {
     it("pointermove before pointerdown is a no-op", () => {
       const card = createAndMount();
       const svg = card.shadowRoot.querySelector("#solar-view svg");
-      const centerBefore = card._viewState.centerX;
+      const centerBefore = card._zoom.panZoomState.centerX;
       svg.dispatchEvent(new PointerEvent("pointermove", { clientX: 300, clientY: 300 }));
-      expect(card._viewState.centerX).toBe(centerBefore);
+      expect(card._zoom.panZoomState.centerX).toBe(centerBefore);
       card.remove();
     });
 
@@ -1161,7 +1156,7 @@ describe("SolarViewCard", () => {
       svg.releasePointerCapture = () => {};
       // Should not throw and dragging flag stays false
       svg.dispatchEvent(new PointerEvent("pointerup", { clientX: 300, clientY: 300 }));
-      expect(card._viewState.isDragging).toBe(false);
+      expect(card._zoom.isDragging).toBe(false);
       card.remove();
     });
   });
@@ -1194,7 +1189,7 @@ describe("SolarViewCard", () => {
       svg.setPointerCapture = () => {};
       svg.releasePointerCapture = () => {};
       svg.dispatchEvent(downEvent);
-      expect(card._viewState.isDragging).toBe(true);
+      expect(card._zoom.isDragging).toBe(true);
 
       // Simulate pointerup — should end drag
       const upEvent = new PointerEvent("pointerup", {
@@ -1203,7 +1198,7 @@ describe("SolarViewCard", () => {
         pointerId: 1,
       });
       svg.dispatchEvent(upEvent);
-      expect(card._viewState.isDragging).toBe(false);
+      expect(card._zoom.isDragging).toBe(false);
       card.remove();
     });
 
@@ -1215,7 +1210,10 @@ describe("SolarViewCard", () => {
       // Mock getBoundingClientRect
       svg.getBoundingClientRect = () => ({ width: 400, height: 400, x: 0, y: 0, top: 0, left: 0 });
 
-      const centerBefore = { x: card._viewState.centerX, y: card._viewState.centerY };
+      const centerBefore = {
+        x: card._zoom.panZoomState.centerX,
+        y: card._zoom.panZoomState.centerY,
+      };
 
       svg.dispatchEvent(
         new PointerEvent("pointerdown", { clientX: 200, clientY: 200, pointerId: 1 })
@@ -1225,7 +1223,7 @@ describe("SolarViewCard", () => {
       );
 
       // Dragging right should decrease centerX (content moves right)
-      expect(card._viewState.centerX).toBeLessThan(centerBefore.x);
+      expect(card._zoom.panZoomState.centerX).toBeLessThan(centerBefore.x);
 
       svg.dispatchEvent(
         new PointerEvent("pointerup", { clientX: 250, clientY: 200, pointerId: 1 })
@@ -1391,13 +1389,13 @@ describe("SolarViewCard", () => {
     it("defaults to true when not set", () => {
       const card = document.createElement("ha-planetary-solar-system-card-test");
       card.setConfig({});
-      expect(card._zoomAnimate).toBe(true);
+      expect(card._zoom.animate).toBe(true);
     });
 
     it("is false when configured as false", () => {
       const card = document.createElement("ha-planetary-solar-system-card-test");
       card.setConfig({ zoom_animate: false });
-      expect(card._zoomAnimate).toBe(false);
+      expect(card._zoom.animate).toBe(false);
     });
 
     it("zoom is instant when zoom_animate is false", () => {
@@ -1434,7 +1432,7 @@ describe("SolarViewCard", () => {
       document.body.appendChild(card);
       expect(parseViewBox(card).width).toBe(800);
       // Reconfigure with new default zoom — should re-render instantly
-      card._viewState = null; // force fresh ViewState on next render
+      card._zoom.reset(); // force fresh ViewState on next render
       card.setConfig({ zoom_animate: true, default_zoom: 3 });
       card._render();
       expect(parseViewBox(card).width).toBe(480);

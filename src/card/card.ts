@@ -576,6 +576,7 @@ export class SolarViewCard extends LitElement {
   private _goToday(): void {
     this._isLiveMode = true;
     this._currentDate = new Date();
+    this._viewState?.recenter();
     this._render();
   }
 
@@ -614,9 +615,9 @@ export class SolarViewCard extends LitElement {
     this._replayTimer = null;
     this._isReplaying = false;
     this._isLiveMode = resumeLiveMode;
-    // If replay started from live mode, land on real "now" (time passed during the
-    // animation); otherwise return exactly to the date the user had paused on.
-    this._currentDate = resumeLiveMode ? new Date() : new Date(endTime);
+    // Always return to the date the user was viewing before replay started,
+    // regardless of live mode — replay should not jump the view forward.
+    this._currentDate = new Date(endTime);
     this._render();
   }
 

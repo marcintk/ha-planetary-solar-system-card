@@ -63,6 +63,26 @@ async function resolveDisplayImage(mode: ImageSource): Promise<SourcedImage> {
   }
 }
 
+// Resolves config.height into an inline style for #solar-view/.image-view. A px value caps
+// the height and lets the square SVG/image letterbox-shrink to fit (preserveAspectRatio
+// "meet" — nothing crops). A percent reshapes the aspect-ratio itself (e.g. "50%" = half as
+// tall as wide) since CSS max-height can't resolve against an auto-height parent.
+function resolveHeightStyle(height: CardConfig["height"]): string {
+  if (typeof height === "number") {
+    return height > 0 ? `max-height: ${height}px` : "";
+  }
+  if (typeof height === "string") {
+    const px = /^(\d+(?:\.\d+)?)px$/.exec(height);
+    if (px) return `max-height: ${px[1]}px`;
+    const pct = /^(\d+(?:\.\d+)?)%$/.exec(height);
+    if (pct) {
+      const n = Number(pct[1]);
+      return n > 0 ? `aspect-ratio: ${100 / n}` : "";
+    }
+  }
+  return "";
+}
+
 type ImagePanelMode = "none" | ImageSource;
 export type GalleryMode = "none" | "earth" | "sun" | "both" | "slide";
 const GALLERY_MODES: GalleryMode[] = ["none", "earth", "sun", "both", "slide"];
@@ -90,6 +110,7 @@ export class SolarViewCard extends LitElement {
   private _periodicZoomMax: number;
   private _zoomAnimate: boolean;
   private _eclipticView: boolean;
+  private _heightStyle: string;
   private _positions: ViewPosition[];
   private _onVisibilityChange: (() => void) | null;
   private _imagePanelMode: ImagePanelMode;
@@ -126,6 +147,7 @@ export class SolarViewCard extends LitElement {
     this._periodicZoomMax = MAX_ZOOM;
     this._zoomAnimate = false;
     this._eclipticView = false;
+    this._heightStyle = "";
     this._positions = [];
     this._onVisibilityChange = null;
     this._imagePanelMode = "none";
@@ -193,6 +215,7 @@ export class SolarViewCard extends LitElement {
     this._colors = config.colors ?? {};
 
     this._eclipticView = config.ecliptic_view === "south";
+    this._heightStyle = resolveHeightStyle(config.height);
 
     this._galleryMode = GALLERY_MODES.includes(config.gallery?.mode as GalleryMode)
       ? (config.gallery?.mode as GalleryMode)
@@ -272,10 +295,15 @@ export class SolarViewCard extends LitElement {
       <div class="card" style="background: ${background}">
         <div class="solar-view-wrapper">
           ${statusBar}
-          <div id="solar-view" class=${this._imagePanelMode === "none" ? "" : "hidden"}></div>
+          <div
+            id="solar-view"
+            class=${this._imagePanelMode === "none" ? "" : "hidden"}
+            style=${this._heightStyle || nothing}
+          ></div>
           <img
             id="image-view"
             class="image-view ${this._imagePanelMode === "none" ? "" : "visible"}"
+            style=${this._heightStyle || nothing}
             src=${this._imageUrl ?? nothing}
             alt=""
             @click=${this._onImageClick}

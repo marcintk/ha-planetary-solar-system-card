@@ -100,6 +100,7 @@ export interface HASSConfig {
 }
 
 export interface CardConfig {
+  height?: "auto" | number | string;
   default_zoom?: number;
   refresh_mins?: number;
   periodic_zoom_change?: boolean;

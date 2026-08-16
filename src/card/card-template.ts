@@ -44,14 +44,14 @@ export const IMAGE_SOURCE_LABELS: Record<ImageSource, string> = {
 
 // Labels for the gallery thumbnail strip.
 export const GALLERY_SOURCE_LABELS: Record<ImageSource, string> = {
-  earth: "L1▶EARTH",
-  sun: "GEO▶SUN",
+  earth: "L1▷EARTH",
+  sun: "GEO▷SUN",
 };
 
 export const GALLERY_SOURCES: ImageSource[] = ["earth", "sun"];
 
 // Short instrument name for the full-screen status bar, paired with the gallery source
-// label so the two stay in sync (e.g. "GEO▶SUN · SDO HMI · captured ..."). Kept separate
+// label so the two stay in sync (e.g. "GEO▷SUN · SDO HMI · captured ..."). Kept separate
 // from IMAGE_SOURCE_LABELS, which stays fuller for the error banner ("SDO HMI Continuum
 // image unavailable").
 const IMAGE_STATUS_INSTRUMENT: Record<ImageSource, string> = {

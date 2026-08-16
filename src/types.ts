@@ -10,9 +10,11 @@ export interface Planet extends CelestialBody {
   au: number;
   periodDays: number;
   meanLongitudeJ2000: number;
+  eccentricity: number;
+  longitudeOfPerihelion: number;
 }
 
-export type MoonData = Omit<Planet, "au">;
+export type MoonData = Omit<Planet, "au" | "eccentricity" | "longitudeOfPerihelion">;
 
 export interface Comet {
   name: string;
@@ -98,6 +100,7 @@ export interface HASSConfig {
 }
 
 export interface CardConfig {
+  height?: "auto" | number | string;
   default_zoom?: number;
   refresh_mins?: number;
   periodic_zoom_change?: boolean;
@@ -106,5 +109,5 @@ export interface CardConfig {
   colors?: Colors;
   ecliptic_view?: string;
   show_version?: boolean;
-  debug?: boolean;
+  gallery?: { mode?: string; slide_interval_secs?: number };
 }

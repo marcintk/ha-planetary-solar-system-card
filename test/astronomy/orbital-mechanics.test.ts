@@ -3,6 +3,7 @@ import { COMETS } from "../../src/astronomy/comet-data.js";
 import {
   calculateCometPosition,
   calculateMoonPosition,
+  calculatePlanetOrbit,
   calculatePlanetPosition,
   solveKeplerEquation,
 } from "../../src/astronomy/orbital-mechanics.js";
@@ -45,6 +46,60 @@ describe("calculatePlanetPosition", () => {
     const angle = calculatePlanetPosition(neptune, new Date("2026-02-14"));
     expect(angle).toBeGreaterThanOrEqual(0);
     expect(angle).toBeLessThan(2 * Math.PI);
+  });
+});
+
+describe("calculatePlanetOrbit", () => {
+  const earth = PLANETS.find((p) => p.name === "Earth");
+  const mercury = PLANETS.find((p) => p.name === "Mercury");
+
+  it("returns an object with angle, radius, and trueAnomaly", () => {
+    const result = calculatePlanetOrbit(earth, new Date("2024-06-15"));
+    expect(result).toHaveProperty("angle");
+    expect(result).toHaveProperty("radius");
+    expect(result).toHaveProperty("trueAnomaly");
+  });
+
+  it("angle matches calculatePlanetPosition for the same planet/date", () => {
+    const date = new Date("2026-02-14");
+    const { angle } = calculatePlanetOrbit(mercury, date);
+    expect(angle).toBe(calculatePlanetPosition(mercury, date));
+  });
+
+  it("returns radius within orbital bounds [au*(1-e), au*(1+e)]", () => {
+    const dates = [new Date("2020-01-01"), new Date("2024-06-15"), new Date("2026-03-15")];
+    const perihelion = mercury.au * (1 - mercury.eccentricity);
+    const aphelion = mercury.au * (1 + mercury.eccentricity);
+
+    for (const date of dates) {
+      const { radius } = calculatePlanetOrbit(mercury, date);
+      expect(radius).toBeGreaterThanOrEqual(perihelion - 0.001);
+      expect(radius).toBeLessThanOrEqual(aphelion + 0.001);
+    }
+  });
+
+  it("Mercury's radius varies noticeably more than Earth's over an orbit (higher eccentricity)", () => {
+    const dates = [
+      new Date("2024-01-01"),
+      new Date("2024-04-01"),
+      new Date("2024-07-01"),
+      new Date("2024-10-01"),
+    ];
+    const spread = (planet: typeof earth) => {
+      const radii = dates.map((d) => calculatePlanetOrbit(planet, d).radius);
+      return Math.max(...radii) - Math.min(...radii);
+    };
+    expect(spread(mercury)).toBeGreaterThan(spread(earth));
+  });
+
+  it("works for all planets without error", () => {
+    const date = new Date("2026-02-14");
+    for (const planet of PLANETS) {
+      const { angle, radius } = calculatePlanetOrbit(planet, date);
+      expect(angle).toBeGreaterThanOrEqual(0);
+      expect(angle).toBeLessThan(2 * Math.PI);
+      expect(radius).toBeGreaterThan(0);
+    }
   });
 });
 

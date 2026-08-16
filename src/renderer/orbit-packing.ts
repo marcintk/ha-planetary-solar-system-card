@@ -1,5 +1,5 @@
 import { MOON, MOON_PIXEL_OFFSET } from "../astronomy/planet-data.js";
-import type { Planet } from "../types.js";
+import type { CometVisualEllipse, Planet } from "../types.js";
 import { SATURN_RING_OUTER_RADIUS } from "./bodies.js";
 import { auToRadius } from "./svg-utils.js";
 
@@ -36,4 +36,27 @@ export function packOrbitRadii(planets: readonly Planet[]): number[] {
   }
 
   return radii;
+}
+
+/**
+ * Compute a planet's visual orbit ellipse in pixel space, given the packed
+ * radius offset (packedRadius - auToRadius(planet.au)) that packOrbitRadii
+ * applied to keep it clear of its neighbors. The offset is added uniformly
+ * to perihelion/aphelion so the drawn ellipse and the packed circular radii
+ * agree at the semi-major axis, and the marker (positioned from the same
+ * ellipse) never drifts off the drawn ring.
+ */
+export function computePlanetVisualEllipse(
+  planet: Planet,
+  packedOffset: number
+): CometVisualEllipse {
+  const { au, eccentricity: e } = planet;
+  const perihelionPx = auToRadius(au * (1 - e)) + packedOffset;
+  const aphelionPx = auToRadius(au * (1 + e)) + packedOffset;
+
+  const aPx = (perihelionPx + aphelionPx) / 2;
+  const cPx = (aphelionPx - perihelionPx) / 2;
+  const bPx = Math.sqrt(aPx * aPx - cPx * cPx);
+  const ePx = cPx / aPx;
+  return { aPx, bPx, cPx, ePx, rotationDeg: planet.longitudeOfPerihelion };
 }

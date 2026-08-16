@@ -20,7 +20,7 @@ describe("renderDynamicLabels", () => {
 
     const label = textAt(svg);
     expect(Number(label.getAttribute("x"))).toBeCloseTo(100, 5);
-    expect(Number(label.getAttribute("y"))).toBeCloseTo(100 - 6 - 6, 5);
+    expect(Number(label.getAttribute("y"))).toBeCloseTo(100 - 6 - 3, 5);
   });
 
   it("places the label above the body when the nearest neighbor is below", () => {
@@ -31,7 +31,7 @@ describe("renderDynamicLabels", () => {
     renderDynamicLabels(svg, targets, obstacles, "#fff");
 
     const label = textAt(svg);
-    expect(Number(label.getAttribute("y"))).toBeCloseTo(200 - 21 - 6, 5);
+    expect(Number(label.getAttribute("y"))).toBeCloseTo(200 - 21 - 3, 5);
   });
 
   it("flips the label below the body when the nearest neighbor is close and above", () => {
@@ -43,7 +43,7 @@ describe("renderDynamicLabels", () => {
 
     const label = textAt(svg);
     expect(Number(label.getAttribute("x"))).toBeCloseTo(200, 5);
-    expect(Number(label.getAttribute("y"))).toBeCloseTo(200 + 21 + 6 + 8, 5);
+    expect(Number(label.getAttribute("y"))).toBeCloseTo(200 + 21 + 3 + 8, 5);
   });
 
   it("ignores a far-away body above and keeps the default above placement", () => {
@@ -55,7 +55,7 @@ describe("renderDynamicLabels", () => {
 
     const label = textAt(svg);
     expect(Number(label.getAttribute("x"))).toBeCloseTo(400, 5);
-    expect(Number(label.getAttribute("y"))).toBeCloseTo(400 - 13 - 6, 5);
+    expect(Number(label.getAttribute("y"))).toBeCloseTo(400 - 13 - 3, 5);
   });
 
   it("skips an obstacle that shares the target's own name", () => {
@@ -66,7 +66,7 @@ describe("renderDynamicLabels", () => {
     renderDynamicLabels(svg, targets, obstacles, "#fff");
 
     const label = textAt(svg);
-    expect(Number(label.getAttribute("y"))).toBeCloseTo(50 - 7 - 6, 5);
+    expect(Number(label.getAttribute("y"))).toBeCloseTo(50 - 7 - 3, 5);
   });
 });
 

@@ -35,6 +35,28 @@ the standard astronomical twilight definitions:
 | Astronomical twilight | -12° to -18°  | Sky background glow, faint stars washed out                      |
 | Night                 | < -18°        | Full dark; the Sun no longer lights the sky                      |
 
+### Live Imagery
+
+Live imagery from two NASA probes: [DSCOVR](https://epic.gsfc.nasa.gov/) at the Sun-Earth L1 point
+watches Earth, [SDO](https://sdo.gsfc.nasa.gov/) in geosynchronous Earth orbit watches the Sun.
+`gallery.mode` picks what shows (☷ toggles the strip, a thumbnail click opens full-screen):
+
+| Mode    | Strip shows                                                 |
+| ------- | ----------------------------------------------------------- |
+| `none`  | Nothing — gallery button hidden                             |
+| `earth` | Earth only                                                  |
+| `sun`   | Sun only                                                    |
+| `both`  | Earth and Sun together                                      |
+| `slide` | One thumbnail, flipping every `gallery.slide_interval_secs` |
+
+| Thumbnail | Source                                                              | We poll     | Latest image is usually                   |
+| --------- | ------------------------------------------------------------------- | ----------- | ----------------------------------------- |
+| DSCOVR/E  | [NASA EPIC](https://epic.gsfc.nasa.gov/) (DSCOVR, at Sun-Earth L1)  | Hourly      | ~1-2 days old (EPIC processing backlog)   |
+| SDO/S     | [NASA SDO](https://sdo.gsfc.nasa.gov/) (geosynchronous Earth orbit) | Every 15min | ~15-30min old (up to 45min if it retries) |
+
+Strict reverse-proxy CSP may block `epic.gsfc.nasa.gov` / `sdo.gsfc.nasa.gov` — not fixable
+card-side.
+
 ## Installation
 
 ### Via HACS (recommended)
@@ -64,17 +86,19 @@ default_zoom: 2
 
 ## Configuration
 
-| Option                 | Type                   | Default   | Description                                                                                |
-| ---------------------- | ---------------------- | --------- | ------------------------------------------------------------------------------------------ |
-| `refresh_mins`         | number                 | `1`       | Auto-update interval in minutes                                                            |
-| `default_zoom`         | number                 | `1`       | Starting zoom level                                                                        |
-| `zoom_animate`         | boolean                | `true`    | Animate zoom transitions                                                                   |
-| `periodic_zoom_change` | boolean                | `false`   | Cycle zoom levels on each refresh tick                                                     |
-| `periodic_zoom_max`    | number                 | `4`       | Maximum zoom level for auto-cycle (2–4)                                                    |
-| `colors`               | object                 | see below | Color overrides (see Colors)                                                               |
-| `ecliptic_view`        | `"north"` \| `"south"` | `"north"` | Viewing pole: `"north"` = counter-clockwise orbits (default); `"south"` = clockwise orbits |
-| `show_version`         | boolean                | `false`   | Show card version number in the bottom-right corner of the nav bar                         |
-| `debug`                | boolean                | `false`   | Opt in to try in-progress/beta features — currently: replay button (↺, replays last 6h)    |
+| Option                        | Type                                    | Default   | Description                                                                                                                   |
+| ----------------------------- | --------------------------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `height`                      | `"auto"` \| number \| `"Npx"` \| `"N%"` | `"auto"`  | `"auto"` = square, sized to card width. Number/`"Npx"` caps height, shrinks to fit. `"N%"` sets height as a fraction of width |
+| `refresh_mins`                | number                                  | `1`       | Auto-update interval in minutes                                                                                               |
+| `default_zoom`                | number                                  | `1`       | Starting zoom level                                                                                                           |
+| `zoom_animate`                | boolean                                 | `true`    | Animate zoom transitions                                                                                                      |
+| `periodic_zoom_change`        | boolean                                 | `false`   | Cycle zoom levels on each refresh tick                                                                                        |
+| `periodic_zoom_max`           | number                                  | `4`       | Maximum zoom level for auto-cycle (2–4)                                                                                       |
+| `colors`                      | object                                  | see below | Color overrides (see Colors)                                                                                                  |
+| `ecliptic_view`               | `"north"` \| `"south"`                  | `"north"` | Viewing pole: `"north"` = counter-clockwise orbits (default); `"south"` = clockwise orbits                                    |
+| `show_version`                | boolean                                 | `false`   | Show card version number in the bottom-right corner of the nav bar                                                            |
+| `gallery.mode`                | see below                               | `"none"`  | Live Imagery gallery mode (see Live Imagery)                                                                                  |
+| `gallery.slide_interval_secs` | number                                  | `60`      | How often `slide` mode flips the displayed thumbnail between Earth and Sun                                                    |
 
 ### Colors
 
@@ -96,4 +120,13 @@ colors:
   background: "#0d1117"
   orbit: "rgba(100, 200, 255, 0.2)"
   label: "#e0e0ff"
+```
+
+See [Live Imagery](#live-imagery) above for what `gallery.*` does.
+
+```yaml
+type: custom:ha-planetary-solar-system-card
+gallery:
+  mode: slide
+  slide_interval_secs: 30
 ```

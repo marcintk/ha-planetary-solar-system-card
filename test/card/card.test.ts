@@ -1930,6 +1930,63 @@ describe("SolarViewCard", () => {
       card.remove();
     });
 
+    it("falls back to the solar view with a visible error when the earth image load hangs past the timeout", async () => {
+      vi.useFakeTimers();
+      stubEarthFetch();
+      vi.stubGlobal(
+        "Image",
+        class {
+          src = "";
+          decode() {
+            return new Promise(() => {}); // never settles — simulates a hung image load
+          }
+        }
+      );
+      // gallery.mode: "earth" keeps this isolated to earth's own timeout — "both" would
+      // also hang sun's preload (same stubbed Image), which retries once and so needs a
+      // second 15s wait before the shared Promise.allSettled in _refreshImageSources
+      // settles, unrelated to what this test is checking.
+      const card = createAndMount({ gallery: { mode: "earth" } });
+      await vi.advanceTimersByTimeAsync(0);
+      card.shadowRoot.querySelector('.gallery-thumb[data-source="earth"]').click();
+      await vi.advanceTimersByTimeAsync(15000); // IMAGE_LOAD_TIMEOUT_MS in card.ts
+      const img = card.shadowRoot.querySelector("#image-view");
+      expect(img.classList.contains("visible")).toBe(false);
+      expect(card._imagePanelMode).toBe("none");
+      expect(card.shadowRoot.querySelector(".status-bar").textContent).toContain(
+        "DSCOVR Earth image unavailable"
+      );
+      card.remove();
+      vi.useRealTimers();
+    });
+
+    it("falls back to the unavailable banner when the sun image load hangs on both the primary and retry attempts", async () => {
+      vi.useFakeTimers();
+      vi.stubGlobal(
+        "Image",
+        class {
+          src = "";
+          decode() {
+            return new Promise(() => {}); // never settles on either attempt
+          }
+        }
+      );
+      const card = createAndMount({ gallery: { mode: "sun" } });
+      await vi.advanceTimersByTimeAsync(0);
+      card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"]').click();
+      // Primary attempt times out, then the one retry (getPreviousSunSlot) also hangs and
+      // times out — two sequential 15s bounds before the banner surfaces.
+      await vi.advanceTimersByTimeAsync(30000);
+      const img = card.shadowRoot.querySelector("#image-view");
+      expect(img.classList.contains("visible")).toBe(false);
+      expect(card._imagePanelMode).toBe("none");
+      expect(card.shadowRoot.querySelector(".status-bar").textContent).toContain(
+        "SDO HMI Continuum image unavailable"
+      );
+      card.remove();
+      vi.useRealTimers();
+    });
+
     it("auto-update ticks refresh gallery thumbnails while the gallery stays open", async () => {
       vi.useFakeTimers();
       const fetchMock = stubEarthFetch();

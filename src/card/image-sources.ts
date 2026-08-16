@@ -9,7 +9,7 @@ const GALLERY_CACHE_TTL_MS = 3600000;
 // Bounds a hung EPIC request — without it, a stalled fetch has no app-level ceiling and
 // blocks that gallery source indefinitely (only the browser's own network stack would
 // eventually give up, if ever).
-const EPIC_FETCH_TIMEOUT_MS = 8000;
+const EPIC_FETCH_TIMEOUT_MS = 15000;
 
 // SDO publishes HMI Continuum (visible-light sunspot disk) quicklook frames to a dated
 // browse archive on a fixed 15-min grid (:00/:15/:30/:45 UTC), named for their real capture

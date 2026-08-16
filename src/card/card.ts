@@ -31,6 +31,11 @@ const REPLAY_STEP_MS = REPLAY_WINDOW_MS / REPLAY_STEPS;
 const REPLAY_MAX_DURATION_MS = 5000;
 const REPLAY_INTERVAL_MS = Math.floor(REPLAY_MAX_DURATION_MS / REPLAY_STEPS);
 
+// Bounds a hung image load — decode() has no built-in timeout, so a stalled request against
+// either NASA host (Earth or Sun) would otherwise wait indefinitely with no way to fall back
+// or surface an error. Same 15s bound as the EPIC JSON fetch in image-sources.ts.
+const IMAGE_LOAD_TIMEOUT_MS = 15000;
+
 // Confirms a candidate image URL actually loads AND decodes before anything commits to
 // displaying it — so a failed or not-yet-published candidate never touches a visible <img>.
 // decode() (not the load event) is what actually guarantees this: load only means the bytes
@@ -40,7 +45,12 @@ const REPLAY_INTERVAL_MS = Math.floor(REPLAY_MAX_DURATION_MS / REPLAY_STEPS);
 function preloadImage(url: string): Promise<void> {
   const probe = new Image();
   probe.src = url;
-  return probe.decode();
+  return Promise.race([
+    probe.decode(),
+    new Promise<never>((_resolve, reject) => {
+      setTimeout(() => reject(new Error("Image load timed out")), IMAGE_LOAD_TIMEOUT_MS);
+    }),
+  ]);
 }
 
 // Resolves a source to a candidate that's confirmed to actually load, preloading off-DOM

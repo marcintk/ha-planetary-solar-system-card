@@ -31,16 +31,16 @@ const REPLAY_STEP_MS = REPLAY_WINDOW_MS / REPLAY_STEPS;
 const REPLAY_MAX_DURATION_MS = 5000;
 const REPLAY_INTERVAL_MS = Math.floor(REPLAY_MAX_DURATION_MS / REPLAY_STEPS);
 
-// Confirms a candidate image URL actually loads before anything commits to displaying it —
-// so a failed or not-yet-published candidate never touches a visible <img>. Off-DOM: doesn't
-// reuse the real <img> element, so a failed probe can never flash a broken-image state onto it.
+// Confirms a candidate image URL actually loads AND decodes before anything commits to
+// displaying it — so a failed or not-yet-published candidate never touches a visible <img>.
+// decode() (not the load event) is what actually guarantees this: load only means the bytes
+// downloaded, not that the browser has rasterized them yet — assigning to a live <img> right
+// after load can still stumble onto the broken-image glyph for a frame while it decodes.
+// Off-DOM: doesn't reuse the real <img> element, so a failed probe can never flash onto it.
 function preloadImage(url: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const probe = new Image();
-    probe.onload = () => resolve();
-    probe.onerror = () => reject(new Error(`preload failed: ${url}`));
-    probe.src = url;
-  });
+  const probe = new Image();
+  probe.src = url;
+  return probe.decode();
 }
 
 // Resolves a source to a candidate that's confirmed to actually load, preloading off-DOM
@@ -221,7 +221,7 @@ export class SolarViewCard extends LitElement {
     this._startAutoUpdateTimer();
     this._startAutoSwitchTimer();
     if (this._galleryOpen) {
-      this._refreshGalleryImages();
+      this._refreshImageSources();
     }
     this._onVisibilityChange = () => {
       if (!document.hidden && this._isLiveMode) {
@@ -407,10 +407,11 @@ export class SolarViewCard extends LitElement {
       if (this._periodicZoomChange) {
         this._advanceZoom();
       }
-      if (this._imagePanelMode !== "none") {
-        this._refreshOpenImage();
-      } else if (this._galleryOpen) {
-        this._refreshGalleryImages();
+      // _galleryOpen is always true while a panel is open (only a thumbnail click opens
+      // one, and thumbnails only exist while the strip is open), so this one check covers
+      // keeping both the strip and an open panel fresh.
+      if (this._galleryOpen) {
+        this._refreshImageSources();
       }
     }, interval) as unknown as number;
   }
@@ -643,7 +644,7 @@ export class SolarViewCard extends LitElement {
     } else {
       this._imageError = null;
       this._render();
-      this._refreshGalleryImages();
+      this._refreshImageSources();
     }
   }
 
@@ -678,7 +679,14 @@ export class SolarViewCard extends LitElement {
     this._render();
   }
 
-  private async _setImagePanel(mode: ImagePanelMode): Promise<void> {
+  // A click is a pure view switch, nothing more: no fetch, no preload, no async gap. Every
+  // source's image is already kept current in the background by the auto-update timer
+  // (_refreshImageSources, cadence = refresh_mins) whether or not the gallery strip or a
+  // panel is currently visible, so opening one just displays whatever that timer already
+  // confirmed — instant when it landed, "loading…" only for the narrow window before the
+  // very first background fetch for a source completes (already in flight from
+  // connectedCallback/setConfig — this only nudges it rather than waiting for the next tick).
+  private _setImagePanel(mode: ImagePanelMode): void {
     if (mode === "none") {
       this._imagePanelMode = "none";
       this._imageUrl = null;
@@ -687,49 +695,17 @@ export class SolarViewCard extends LitElement {
       this._render();
       return;
     }
-    // Opens immediately on the (cheap, cached-when-possible) black backdrop + "loading…"
-    // status text, then swaps in the confirmed-loaded image once resolveDisplayImage
-    // settles — instantly when it's already sitting in the browser's cache (a re-open
-    // within the source's own TTL), a real wait only the first time a source is opened.
-    this._imageError = null;
     this._imagePanelMode = mode;
-    this._imageUrl = null;
-    this._imageDate = null;
-    this._imageLoaded = false;
-    this._render();
-    try {
-      const image = await resolveDisplayImage(mode);
-      if (this._imagePanelMode !== mode) return; // user closed/switched while resolving
-      this._applyImage(image.url, image.date);
+    this._imageError = null;
+    const known = this._galleryImages[mode];
+    if (known) {
+      this._applyImage(known.url, known.date);
       this._imageLoaded = true;
-    } catch {
-      this._imagePanelMode = "none";
+    } else {
       this._imageUrl = null;
       this._imageDate = null;
-      this._imageError = `${IMAGE_SOURCE_LABELS[mode]} image unavailable`;
-    }
-    this._render();
-  }
-
-  // Keeps the open full-screen image fresh on each auto-update tick (cadence =
-  // refresh_mins), for as long as it stays open. Only called while
-  // _imagePanelMode !== "none" (see the tick handler). Never overrides the currently shown
-  // image with an unconfirmed one — resolveDisplayImage preloads off-DOM first, so a fetch
-  // failure or a not-yet-published slot just leaves the current image in place instead of
-  // swapping to something that might not load (#94 follow-up). Always renders at the end,
-  // even on a no-op tick (same image still current), so the "captured … ago" text keeps
-  // advancing every tick instead of freezing until the image itself actually changes.
-  private async _refreshOpenImage(): Promise<void> {
-    // Guarded by the tick handler: only called while _imagePanelMode !== "none".
-    const mode = this._imagePanelMode as ImageSource;
-    try {
-      const image = await resolveDisplayImage(mode);
-      if (image.url !== this._imageUrl) {
-        this._applyImage(image.url, image.date);
-        this._imageLoaded = true;
-      }
-    } catch {
-      // Keep showing the current image — candidate failed to fetch or load.
+      this._imageLoaded = false;
+      this._refreshImageSources();
     }
     this._render();
   }
@@ -756,22 +732,36 @@ export class SolarViewCard extends LitElement {
     return this._galleryMode === "slide" ? [this._autoDisplayedSource] : this._fetchGallerySources;
   }
 
-  // Fetches gallery thumbnails for the active gallery.mode — called when the gallery is
-  // opened, and on each auto-update tick while it stays open and no full image is showing
-  // (never while both are closed, to avoid unconditional background polling of NASA's
-  // servers for every install regardless of use). Each source is cache-guarded (earth
-  // hourly, sun every 15min — matching each source's own publish cadence), so this only
-  // hits the network once the relevant cache has expired.
-  private async _refreshGalleryImages(): Promise<void> {
+  // Fetches every source this gallery.mode needs — called when the gallery is opened, on
+  // click for a source that isn't known yet (see _setImagePanel), and on each auto-update
+  // tick while the strip or a panel stays open (never while both are closed, to avoid
+  // unconditional background polling of NASA's servers for every install regardless of
+  // use). Each source is cache-guarded (earth hourly, sun every 15min — matching each
+  // source's own publish cadence), so this only hits the network once the relevant cache
+  // has expired. This is the single place _galleryImages is written, so it's also the
+  // single place that keeps an open full-screen panel in sync with the same source.
+  private async _refreshImageSources(): Promise<void> {
     const sources = this._fetchGallerySources;
     const results = await Promise.allSettled(sources.map((source) => resolveDisplayImage(source)));
     for (let i = 0; i < results.length; i++) {
       const result = results[i];
-      // resolveDisplayImage already confirmed this candidate loads before it's ever
-      // assigned here, so its presence in _galleryImages is itself the "loaded" state —
-      // the <img src> assignment just paints from the browser's own cache.
+      const source = sources[i];
       if (result.status === "fulfilled") {
-        this._galleryImages[sources[i]] = result.value;
+        // resolveDisplayImage already confirmed this candidate loads before it's ever
+        // assigned here, so its presence in _galleryImages is itself the "loaded" state —
+        // the <img src> assignment just paints from the browser's own cache.
+        this._galleryImages[source] = result.value;
+        if (this._imagePanelMode === source) {
+          this._applyImage(result.value.url, result.value.date);
+          this._imageLoaded = true;
+        }
+      } else if (this._imagePanelMode === source && !this._galleryImages[source]) {
+        // The open panel is waiting on this exact source's first-ever fetch and it just
+        // failed — nothing to fall back to, so surface the error instead of "loading…"
+        // forever. A source that already has a known image just keeps showing it (matches
+        // the old behavior: never swap to something that might not load).
+        this._imagePanelMode = "none";
+        this._imageError = `${IMAGE_SOURCE_LABELS[source]} image unavailable`;
       }
     }
     this._render();

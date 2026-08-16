@@ -26,10 +26,11 @@ function stubImagePreload(...results) {
   vi.stubGlobal(
     "Image",
     class {
-      set src(_url) {
+      src = "";
+      decode() {
         const succeeds = results.length ? results[Math.min(calls, results.length - 1)] : true;
         calls++;
-        queueMicrotask(() => (succeeds ? this.onload?.() : this.onerror?.()));
+        return succeeds ? Promise.resolve() : Promise.reject(new Error("decode failed"));
       }
     }
   );
@@ -1394,30 +1395,31 @@ describe("SolarViewCard", () => {
       card.remove();
     });
 
-    it("full-screen status bar shows 'loading…' immediately, then 'captured' once the preload resolves", async () => {
+    it("full-screen status bar shows the already-loaded image instantly — no fetch, no loading step", async () => {
       const card = createAndMount();
-      await flush();
+      await flush(); // background fetch already resolved and cached the sun thumbnail
       card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"]').click();
-      // Preload hasn't resolved yet (queued on a microtask) — the click's synchronous
-      // render already shows the black backdrop + "loading…" status text.
-      expect(card.shadowRoot.querySelector(".status-bar").textContent).toContain("loading…");
-
-      await flush();
+      // Pure view switch, synchronous — no async gap at all.
       expect(card.shadowRoot.querySelector(".status-bar").textContent).toContain("captured");
       expect(card.shadowRoot.querySelector(".status-bar").textContent).not.toContain("loading…");
       card.remove();
     });
 
-    it("opens on the retried slot when the primary sun candidate fails to preload", async () => {
+    it("full-screen status bar shows 'loading…' if opened before the background fetch has landed", () => {
       const card = createAndMount();
-      await flush(); // gallery's own background fetch resolves normally first
-
-      // Force the click's own lookup to see a genuinely fresh candidate + failing preload,
-      // independent of whatever the gallery thumbnail already cached above.
-      clearImageCache();
-      stubImagePreload(false, true);
+      // Click immediately — the mount's own background fetch is still in flight.
       card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"]').click();
+      expect(card.shadowRoot.querySelector(".status-bar").textContent).toContain("loading…");
+      card.remove();
+    });
+
+    it("opens on the retried slot when the primary sun candidate fails to preload", async () => {
+      stubImagePreload(false, true);
+      const card = createAndMount();
+      // The background fetch retries once and lands before the click — clicking then just
+      // displays what it already resolved.
       await flush();
+      card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"]').click();
 
       expect(card._imagePanelMode).toBe("sun");
       clearImageCache();
@@ -1427,11 +1429,11 @@ describe("SolarViewCard", () => {
     });
 
     it("falls back to the unavailable banner when both the sun candidate and its retry fail to preload", async () => {
-      const card = createAndMount();
-      await flush(); // gallery's own background fetch resolves normally first
-
-      clearImageCache();
       stubImagePreload(false, false);
+      const card = createAndMount();
+      // The background fetch fails outright, so the sun thumbnail never populates —
+      // clicking it falls into the "not known yet" path, which retries and fails again.
+      await flush();
       card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"]').click();
       await flush();
 
@@ -1606,34 +1608,9 @@ describe("SolarViewCard", () => {
       await vi.advanceTimersByTimeAsync(0);
       const secondSrc = card.shadowRoot.querySelector("#image-view").src;
 
-      // Same cache the thumbnail's own background fetch uses, so a click reuses the exact
-      // image already loaded instead of forcing a new network fetch on open.
+      // A click is a pure view switch — it never fetches on its own, just shows whatever
+      // the background timer already resolved, so re-opening shows the same image.
       expect(secondSrc).toBe(firstSrc);
-      card.remove();
-    });
-
-    it("clicking a sun thumbnail again once the 15-min cache expires fetches a fresh slot", async () => {
-      vi.useFakeTimers();
-      vi.setSystemTime(new Date("2026-08-12T12:00:00Z"));
-      const card = createAndMount();
-      await vi.advanceTimersByTimeAsync(0);
-
-      const clickSun = () =>
-        card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"]').click();
-
-      clickSun();
-      await vi.advanceTimersByTimeAsync(0);
-      const firstSrc = card.shadowRoot.querySelector("#image-view").src;
-
-      card.shadowRoot.querySelector("#image-view").click(); // back to gallery
-      await vi.advanceTimersByTimeAsync(0);
-      // Past the 15-min cache and into the next published slot.
-      vi.setSystemTime(new Date("2026-08-12T12:15:01Z"));
-      clickSun();
-      await vi.advanceTimersByTimeAsync(0);
-      const secondSrc = card.shadowRoot.querySelector("#image-view").src;
-
-      expect(secondSrc).not.toBe(firstSrc);
       card.remove();
     });
 

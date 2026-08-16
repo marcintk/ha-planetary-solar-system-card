@@ -6,6 +6,7 @@ import {
   DEFAULT_LABEL_COLOR,
   type OrbitTransformComponents,
   orbitTransformComponents,
+  radiusFromAU,
 } from "./svg-utils.js";
 
 export const ORBIT_COLOR = "color-mix(in srgb, currentColor 12%, transparent)";
@@ -45,7 +46,6 @@ function verticalAxisIntersections(
 export function renderOrbit(
   svg: SVGElement,
   ellipse: CometVisualEllipse,
-  auLabel: number,
   eclipticViewDirection: number,
   colors: Colors = {}
 ): void {
@@ -78,6 +78,12 @@ export function renderOrbit(
     "text-anchor": "start",
   };
   const [topPoint, bottomPoint] = verticalAxisIntersections(aPx, bPx, components);
+  // The Sun's focus always maps to exactly (CENTER, CENTER) under this
+  // transform (a rigid rotation/reflection), so each label point's own
+  // distance from the Sun is just its distance from CENTER — no need to
+  // work back through local ellipse coordinates.
+  const auAt = (point: { x: number; y: number }) =>
+    radiusFromAU(Math.hypot(point.x - CENTER, point.y - CENTER));
 
   // Top label
   svg.appendChild(
@@ -86,7 +92,7 @@ export function renderOrbit(
       y: topPoint.y - LABEL_OFFSET,
       ...labelAttrs,
     })
-  ).textContent = `${Number(auLabel).toFixed(1)} AU`;
+  ).textContent = `${auAt(topPoint).toFixed(1)} AU`;
 
   // Bottom label
   svg.appendChild(
@@ -95,7 +101,7 @@ export function renderOrbit(
       y: bottomPoint.y + LABEL_OFFSET + 6,
       ...labelAttrs,
     })
-  ).textContent = `${Number(auLabel).toFixed(1)} AU`;
+  ).textContent = `${auAt(bottomPoint).toFixed(1)} AU`;
 }
 
 export function renderBody(

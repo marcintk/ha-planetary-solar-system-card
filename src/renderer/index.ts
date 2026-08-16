@@ -73,8 +73,8 @@ export function renderSolarSystem(
   renderSeasonOverlay(svg, hemisphere, colors, eclipticViewDirection);
 
   // Draw orbits (planets then comets, so all orbits are behind bodies)
-  PLANETS.forEach((planet, i) => {
-    renderOrbit(svg, planetEllipses[i], planet.au, eclipticViewDirection, colors);
+  planetEllipses.forEach((ellipse) => {
+    renderOrbit(svg, ellipse, eclipticViewDirection, colors);
   });
   for (const comet of COMETS) {
     renderCometOrbit(svg, comet, eclipticViewDirection, colors);

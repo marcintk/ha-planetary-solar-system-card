@@ -6,7 +6,7 @@ import {
   renderOrbit,
   renderSaturnRings,
 } from "../../src/renderer/bodies.js";
-import { CENTER, SVG_NS } from "../../src/renderer/svg-utils.js";
+import { CENTER, radiusFromAU, SVG_NS } from "../../src/renderer/svg-utils.js";
 import type { CometVisualEllipse } from "../../src/types.js";
 
 function createSvg() {
@@ -45,7 +45,7 @@ function markerLiesOnEllipse(
 describe("renderOrbit", () => {
   it("appends a dashed ellipse at the given radii", () => {
     const svg = createSvg();
-    renderOrbit(svg, circleEllipse(200), 1.0, -1);
+    renderOrbit(svg, circleEllipse(200), -1);
 
     const orbit = svg.querySelector('ellipse[stroke-dasharray="5, 5"]');
     expect(orbit).not.toBeNull();
@@ -58,7 +58,7 @@ describe("renderOrbit", () => {
 
   it("uses ORBIT_COLOR for the stroke", () => {
     const svg = createSvg();
-    renderOrbit(svg, circleEllipse(200), 1.0, -1);
+    renderOrbit(svg, circleEllipse(200), -1);
 
     const orbit = svg.querySelector('ellipse[stroke-dasharray="5, 5"]');
     expect(orbit.getAttribute("style")).toBe(`stroke: ${ORBIT_COLOR}`);
@@ -66,7 +66,7 @@ describe("renderOrbit", () => {
 
   it("places a circular ellipse (rotationDeg=0) centered on CENTER via its transform", () => {
     const svg = createSvg();
-    renderOrbit(svg, circleEllipse(200), 1.0, -1);
+    renderOrbit(svg, circleEllipse(200), -1);
 
     const orbit = svg.querySelector('ellipse[stroke-dasharray="5, 5"]');
     expect(orbit.getAttribute("transform")).toBe(`matrix(1, 0, 0, -1, ${CENTER}, ${CENTER})`);
@@ -80,7 +80,7 @@ describe("renderOrbit", () => {
       const cPx = 90;
       const bPx = Math.sqrt(aPx * aPx - cPx * cPx);
       const ellipse: CometVisualEllipse = { aPx, bPx, cPx, ePx: cPx / aPx, rotationDeg: 35 };
-      renderOrbit(svg, ellipse, 1.0, eclipticViewDirection);
+      renderOrbit(svg, ellipse, eclipticViewDirection);
 
       const orbit = svg.querySelector('ellipse[stroke-dasharray="5, 5"]');
       const transform = orbit.getAttribute("transform");
@@ -98,23 +98,22 @@ describe("renderOrbit", () => {
     }
   );
 
-  it("appends two AU text labels (top and bottom)", () => {
+  it("appends two AU text labels (top and bottom) showing the ring's real distance from the Sun", () => {
     const svg = createSvg();
-    renderOrbit(svg, circleEllipse(200), 1.0, -1);
+    renderOrbit(svg, circleEllipse(200), -1);
 
+    const expectedText = `${radiusFromAU(200).toFixed(1)} AU`;
     const labels = Array.from(svg.querySelectorAll("text")).filter(
-      (t) => t.textContent === "1.0 AU"
+      (t) => t.textContent === expectedText
     );
     expect(labels.length).toBe(2);
   });
 
   it("top AU label is above center and bottom label is below center", () => {
     const svg = createSvg();
-    renderOrbit(svg, circleEllipse(200), 1.0, -1);
+    renderOrbit(svg, circleEllipse(200), -1);
 
-    const labels = Array.from(svg.querySelectorAll("text")).filter(
-      (t) => t.textContent === "1.0 AU"
-    );
+    const labels = Array.from(svg.querySelectorAll("text[font-size='9']"));
     const ys = labels.map((t) => Number(t.getAttribute("y")));
     expect(ys.some((y) => y < CENTER)).toBe(true);
     expect(ys.some((y) => y > CENTER)).toBe(true);
@@ -122,11 +121,9 @@ describe("renderOrbit", () => {
 
   it("AU labels are text-anchor: start and offset right of center", () => {
     const svg = createSvg();
-    renderOrbit(svg, circleEllipse(200), 1.0, -1);
+    renderOrbit(svg, circleEllipse(200), -1);
 
-    const labels = Array.from(svg.querySelectorAll("text")).filter(
-      (t) => t.textContent === "1.0 AU"
-    );
+    const labels = Array.from(svg.querySelectorAll("text[font-size='9']"));
     for (const label of labels) {
       expect(label.getAttribute("text-anchor")).toBe("start");
       expect(Number(label.getAttribute("x"))).toBeGreaterThanOrEqual(CENTER);
@@ -135,10 +132,23 @@ describe("renderOrbit", () => {
 
   it("formats the AU label to one decimal place", () => {
     const svg = createSvg();
-    renderOrbit(svg, circleEllipse(100), 5.2, -1);
+    renderOrbit(svg, circleEllipse(100), -1);
 
+    const expectedText = `${radiusFromAU(100).toFixed(1)} AU`;
     const texts = Array.from(svg.querySelectorAll("text")).map((t) => t.textContent);
-    expect(texts.filter((t) => t === "5.2 AU").length).toBe(2);
+    expect(texts.filter((t) => t === expectedText).length).toBe(2);
+  });
+
+  it("shows different AU values top vs bottom for an off-axis rotated ellipse", () => {
+    const svg = createSvg();
+    const aPx = 220;
+    const cPx = 90;
+    const bPx = Math.sqrt(aPx * aPx - cPx * cPx);
+    const ellipse: CometVisualEllipse = { aPx, bPx, cPx, ePx: cPx / aPx, rotationDeg: 35 };
+    renderOrbit(svg, ellipse, -1);
+
+    const [topLabel, bottomLabel] = svg.querySelectorAll("text[font-size='9']");
+    expect(topLabel.textContent).not.toBe(bottomLabel.textContent);
   });
 });
 

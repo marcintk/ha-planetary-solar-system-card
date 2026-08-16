@@ -14,7 +14,7 @@ import {
   calculateObserverAngle,
 } from "../../src/renderer/observer.js";
 import { computePlanetVisualEllipse, packOrbitRadii } from "../../src/renderer/orbit-packing.js";
-import { auToRadius } from "../../src/renderer/svg-utils.js";
+import { auToRadius, radiusFromAU, CENTER as SVG_CENTER } from "../../src/renderer/svg-utils.js";
 
 function renderInto(container, date) {
   const { svg } = renderSolarSystem(date);
@@ -90,7 +90,7 @@ describe("renderSolarSystem", () => {
     expect(texts).toContain("Moon");
   });
 
-  it("renders AU distance labels on vertical axis in mirrored pairs", () => {
+  it("renders AU distance labels on vertical axis in top/bottom pairs", () => {
     const container = document.createElement("div");
     renderInto(container, new Date("2026-02-14"));
 
@@ -110,12 +110,16 @@ describe("renderSolarSystem", () => {
       expect(label.getAttribute("transform")).toBeNull();
     }
 
-    // For each AU value, there should be one label above and one below center
-    const earthLabels = auLabels.filter((t) => t.textContent === "1.0 AU");
-    expect(earthLabels.length).toBe(2);
-    const ys = earthLabels.map((t) => Number(t.getAttribute("y")));
-    expect(ys.some((y) => y < 400)).toBe(true); // top
-    expect(ys.some((y) => y > 400)).toBe(true); // bottom
+    // Labels are appended in PLANETS order, top then bottom per planet —
+    // each pair should straddle CENTER=400 (the ring is drawn with the
+    // Sun's focus, always inside the ellipse, so it always crosses the
+    // vertical axis both above and below center).
+    for (let i = 0; i < auLabels.length; i += 2) {
+      const topY = Number(auLabels[i].getAttribute("y"));
+      const bottomY = Number(auLabels[i + 1].getAttribute("y"));
+      expect(topY).toBeLessThan(400);
+      expect(bottomY).toBeGreaterThan(400);
+    }
   });
 
   it("returns svg element without appending to container", () => {
@@ -777,4 +781,76 @@ describe("renderSolarSystem — AU labels sit next to the drawn orbit ring (#94)
       }
     });
   });
+
+  // Mercury has by far the largest eccentricity (e≈0.206) and a non-trivial
+  // longitudeOfPerihelion (≈77°), so its ring's top/bottom AU labels are the
+  // clearest case where the old CENTER±semi-major-axis placement broke
+  // (#94) — both showed "0.4 AU" regardless of hemisphere. Pin the fixed
+  // behavior down for Mercury specifically, in both ecliptic_view settings.
+  it.each([
+    ["north (ecliptic_view: north / default)", false],
+    ["south (ecliptic_view: south)", true],
+  ])(
+    "Mercury's top and bottom AU labels are distinct and match the ring — %s",
+    (_label, eclipticView) => {
+      const mercury = PLANETS.find((p) => p.name === "Mercury");
+      const mercuryIndex = PLANETS.indexOf(mercury);
+      const { svg } = renderSolarSystem(new Date("2026-02-14"), "north", null, {}, eclipticView);
+
+      const orbitEllipses = Array.from(
+        svg.querySelectorAll('ellipse[fill="none"][stroke-dasharray="5, 5"]')
+      );
+      const auLabels = Array.from(svg.querySelectorAll('text[font-size="9"]'));
+      const [topLabel, bottomLabel] = auLabels.slice(mercuryIndex * 2, mercuryIndex * 2 + 2);
+
+      // Distinct values — the bug this test guards against printed the same
+      // "0.4 AU" (Mercury's semi-major axis) on both sides.
+      expect(topLabel.textContent).not.toBe(bottomLabel.textContent);
+
+      // Both readings fall within Mercury's real perihelion/aphelion range.
+      const perihelion = mercury.au * (1 - mercury.eccentricity);
+      const aphelion = mercury.au * (1 + mercury.eccentricity);
+      for (const label of [topLabel, bottomLabel]) {
+        const shownAU = Number.parseFloat(label.textContent);
+        expect(shownAU).toBeGreaterThanOrEqual(perihelion - 0.05);
+        expect(shownAU).toBeLessThanOrEqual(aphelion + 0.05);
+      }
+
+      // Each label's printed value matches the ring's real distance from the
+      // Sun at the exact point where the ring crosses the vertical axis — the
+      // Sun's focus always maps to exactly (CENTER, CENTER) under the ring's
+      // transform, so that crossing point can be solved independently here
+      // rather than trusting the renderer's own computation.
+      const ellipseEl = orbitEllipses[mercuryIndex];
+      const rx = Number(ellipseEl.getAttribute("rx"));
+      const ry = Number(ellipseEl.getAttribute("ry"));
+      const transform = ellipseEl.getAttribute("transform");
+      const [a, b, c, d, e, f] = transform
+        .replace(/matrix\(|\)/g, "")
+        .split(",")
+        .map(Number);
+      const A = a * rx;
+      const B = c * ry;
+      const radius = Math.hypot(A, B);
+      const phi = Math.atan2(B, A);
+      const delta = Math.acos(Math.max(-1, Math.min(1, (SVG_CENTER - e) / radius)));
+      const crossings = [phi + delta, phi - delta].map((t) => {
+        const localX = rx * Math.cos(t);
+        const localY = ry * Math.sin(t);
+        return { x: a * localX + c * localY + e, y: b * localX + d * localY + f };
+      });
+      const [topCrossing, bottomCrossing] =
+        crossings[0].y <= crossings[1].y ? crossings : [crossings[1], crossings[0]];
+
+      const expectedTopAU = radiusFromAU(
+        Math.hypot(topCrossing.x - SVG_CENTER, topCrossing.y - SVG_CENTER)
+      );
+      const expectedBottomAU = radiusFromAU(
+        Math.hypot(bottomCrossing.x - SVG_CENTER, bottomCrossing.y - SVG_CENTER)
+      );
+      // Printed text is rounded to 1 decimal place, so allow that rounding.
+      expect(Number.parseFloat(topLabel.textContent)).toBeCloseTo(expectedTopAU, 1);
+      expect(Number.parseFloat(bottomLabel.textContent)).toBeCloseTo(expectedBottomAU, 1);
+    }
+  );
 });

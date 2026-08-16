@@ -23,6 +23,12 @@ export function auToRadius(au: number): number {
   return MIN_RADIUS + t * (MAX_RADIUS - MIN_RADIUS);
 }
 
+/** Inverse of auToRadius: pixel distance from the Sun -> AU. */
+export function radiusFromAU(radius: number): number {
+  const t = (radius - MIN_RADIUS) / (MAX_RADIUS - MIN_RADIUS);
+  return Math.exp(_logMinAU + t * (_logMaxAU - _logMinAU));
+}
+
 export interface OrbitTransformComponents {
   a: number;
   b: number;

@@ -351,12 +351,7 @@ export class SolarViewCard extends LitElement {
           <span>${this._imageError}</span>
         </div>`
       : this._imagePanelMode === "none"
-        ? buildStatusBar(
-            this._locationData,
-            this._effectiveLocationName,
-            this._currentDate,
-            this._config?.show_version
-          )
+        ? buildStatusBar(this._locationData, this._effectiveLocationName, this._currentDate)
         : buildImageStatusBar(
             this._imagePanelMode,
             this._imageDate ? this._formatDate(this._imageDate) : "",
@@ -456,6 +451,7 @@ export class SolarViewCard extends LitElement {
                   </span>`
               : nothing
           }
+          ${this._config?.show_version ? html`<span class="card-version">v${__CARD_VERSION__}</span>` : nothing}
         </div>
       </div>
     `;

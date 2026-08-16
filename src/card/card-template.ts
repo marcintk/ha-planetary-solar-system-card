@@ -11,8 +11,7 @@ import { formatRelativeAge } from "./relative-time.js";
 export function buildStatusBar(
   locationData: LocationData | null,
   locationName: string | null,
-  currentDate: Date,
-  showVersion?: boolean
+  currentDate: Date
 ): TemplateResult | typeof nothing {
   if (!locationData) return nothing;
 
@@ -32,7 +31,6 @@ export function buildStatusBar(
   const name = locationName || "";
   return html`<div class="status-bar">
     <span>${name} | ${mode} (${elevRounded}°)</span>
-    ${showVersion ? html`<span class="card-version">v${__CARD_VERSION__}</span>` : nothing}
     ${next && formatter ? html`<span>Next: ${next.toMode} (${formatter.format(next.time)})</span>` : nothing}
   </div>`;
 }

@@ -214,8 +214,8 @@ export const cardStyles = css`
     user-select: none;
     font-family: sans-serif;
     position: absolute;
-    left: 50%;
+    right: 8px;
     top: 50%;
-    transform: translate(-50%, -50%);
+    transform: translateY(-50%);
   }
 `;

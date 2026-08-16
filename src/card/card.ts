@@ -9,67 +9,18 @@ import type {
   PanZoomState,
   ZoomLevel,
 } from "../types.js";
+import { parseCardConfig } from "./card-config.js";
 import { cardStyles } from "./card-styles.js";
 import type { ImageSource } from "./card-template.js";
 import { buildImageStatusBar, buildStatusBar, GALLERY_SOURCE_LABELS } from "./card-template.js";
-import { DEFAULT_ZOOM_LEVEL, MAX_ZOOM, MIN_ZOOM } from "./card-view-state.js";
 import { DateNav } from "./date-nav.js";
 import type { GalleryMode } from "./gallery-controller.js";
-import {
-  DEFAULT_GALLERY_INTERVAL_MS,
-  GALLERY_MODES,
-  GalleryController,
-} from "./gallery-controller.js";
+import { GalleryController } from "./gallery-controller.js";
 import { formatRelativeAge } from "./relative-time.js";
+import { resolveTheme, THEME_OVERRIDE_VARS } from "./theme.js";
 import { ZoomController } from "./zoom-controller.js";
 
 export type { GalleryMode };
-
-// Built-in background+text pairs for `theme: "dark" | "light"` — forces every currentColor-
-// derived accent (orbit, labels, twilight cones, needle, ...) to a consistent palette
-// regardless of the HA theme actually installed. `colors.background` still overrides the
-// background half, matching how colors.* already layers on top elsewhere.
-const THEME_PALETTES: Record<"dark" | "light", { background: string; color: string }> = {
-  dark: { background: "#1c1c1c", color: "#e1e1e1" },
-  light: { background: "#ffffff", color: "#212121" },
-};
-
-// card-styles.ts leans on these HA custom properties (status-bar/nav backgrounds, borders)
-// with a currentColor-based fallback for when HA doesn't define them. But HA always defines
-// them — from whichever theme is actually installed — and custom properties pierce the shadow
-// boundary, so a forced dark/light `theme:` only overriding :host's plain background/color
-// still left every var(--secondary-background-color, ...) etc. resolving to the real (possibly
-// mismatched) HA theme's value instead of the intended fallback. Setting each to the CSS-wide
-// keyword "initial" makes it the custom property's guaranteed-invalid value, which is exactly
-// what makes var()'s fallback kick in.
-const THEME_OVERRIDE_VARS = [
-  "--ha-card-background",
-  "--card-background-color",
-  "--primary-background-color",
-  "--primary-text-color",
-  "--secondary-background-color",
-  "--divider-color",
-];
-
-// Resolves config.height into an inline style for #solar-view/.image-view. A px value caps
-// the height and lets the square SVG/image letterbox-shrink to fit (preserveAspectRatio
-// "meet" — nothing crops). A percent reshapes the aspect-ratio itself (e.g. "50%" = half as
-// tall as wide) since CSS max-height can't resolve against an auto-height parent.
-function resolveHeightStyle(height: CardConfig["height"]): string {
-  if (typeof height === "number") {
-    return height > 0 ? `max-height: ${height}px` : "";
-  }
-  if (typeof height === "string") {
-    const px = /^(\d+(?:\.\d+)?)px$/.exec(height);
-    if (px) return `max-height: ${px[1]}px`;
-    const pct = /^(\d+(?:\.\d+)?)%$/.exec(height);
-    if (pct) {
-      const n = Number(pct[1]);
-      return n > 0 ? `aspect-ratio: ${100 / n}` : "";
-    }
-  }
-  return "";
-}
 
 // HASS and config.location update independently (hass setter vs. setConfig), so each source
 // is kept as one grouped field rather than losing either one to an eager merge — _locationData
@@ -99,9 +50,6 @@ export class SolarViewCard extends LitElement {
   private _refreshMs: number;
   private _eclipticView: boolean;
   private _theme: "auto" | "dark" | "light";
-  private get _themePalette(): { background: string; color: string } | null {
-    return this._theme === "auto" ? null : THEME_PALETTES[this._theme];
-  }
   private _heightStyle: string;
   private _updateMarkers: ((viewState: PanZoomState) => void) | null;
   private _onVisibilityChange: (() => void) | null;
@@ -168,50 +116,22 @@ export class SolarViewCard extends LitElement {
 
   setConfig(config: CardConfig): void {
     this._config = config;
-    const defaultZoomLevel =
-      config.default_zoom == null ||
-      config.default_zoom < MIN_ZOOM ||
-      config.default_zoom > MAX_ZOOM
-        ? DEFAULT_ZOOM_LEVEL
-        : (config.default_zoom as ZoomLevel);
+    const parsed = parseCardConfig(config);
 
-    const rawRefresh = Number(config.refresh_mins);
-    this._refreshMs = Number.isFinite(rawRefresh) && rawRefresh >= 0.1 ? rawRefresh * 60000 : 60000;
-
-    const periodicZoomChange = config.periodic_zoom_change === true;
-    const rawMax = Number(config.periodic_zoom_max);
-    const periodicZoomMax =
-      Number.isInteger(rawMax) && rawMax >= 2 && rawMax <= MAX_ZOOM ? rawMax : MAX_ZOOM;
-    const zoomAnimate = config.zoom_animate !== false;
-    this._zoom.configure(defaultZoomLevel, periodicZoomChange, periodicZoomMax, zoomAnimate);
-
-    this._colors = config.colors ?? {};
-    this._theme = config.theme === "dark" || config.theme === "light" ? config.theme : "auto";
-
-    this._eclipticView = config.ecliptic_view === "south";
-
-    const overrideLat = config.location?.latitude;
-    const overrideLon = config.location?.longitude;
-    const hasOverride =
-      typeof overrideLat === "number" &&
-      typeof overrideLon === "number" &&
-      overrideLat >= -90 &&
-      overrideLat <= 90 &&
-      overrideLon >= -180 &&
-      overrideLon <= 180;
-    this._locationOverride = hasOverride ? { lat: overrideLat, lon: overrideLon } : null;
-    this._locationNameOverride = config.location?.name || null;
-    this._heightStyle = resolveHeightStyle(config.height);
-
-    const galleryMode = GALLERY_MODES.includes(config.gallery?.mode as GalleryMode)
-      ? (config.gallery?.mode as GalleryMode)
-      : "none";
-    const rawInterval = Number(config.gallery?.slide_interval_secs);
-    const galleryAutoIntervalMs =
-      Number.isFinite(rawInterval) && rawInterval >= 0.1
-        ? rawInterval * 1000
-        : DEFAULT_GALLERY_INTERVAL_MS;
-    this._gallery.configure(galleryMode, galleryAutoIntervalMs);
+    this._zoom.configure(
+      parsed.zoomLevel,
+      parsed.periodicZoomChange,
+      parsed.periodicZoomMax,
+      parsed.zoomAnimate
+    );
+    this._refreshMs = parsed.refreshMs;
+    this._colors = parsed.colors;
+    this._theme = parsed.theme;
+    this._eclipticView = parsed.eclipticView;
+    this._locationOverride = parsed.locationOverride;
+    this._locationNameOverride = parsed.locationNameOverride;
+    this._heightStyle = parsed.heightStyle;
+    this._gallery.configure(parsed.galleryMode, parsed.galleryIntervalMs);
 
     if (this._autoUpdateTimer != null) {
       this._startAutoUpdateTimer();
@@ -264,12 +184,10 @@ export class SolarViewCard extends LitElement {
             this._gallery.imageLoaded
           );
     const zoomLevel = this._zoom.displayZoomLevel;
-    /* v8 ignore next */
-    const background = this._colors.background ?? this._themePalette?.background ?? "";
-    const color = this._themePalette?.color ?? "";
+    const theme = resolveTheme(this._theme, this._colors.background);
 
     return html`
-      <div class="card" style="background: ${background}; color: ${color}">
+      <div class="card" style="background: ${theme.background}; color: ${theme.color}">
         <div class="solar-view-wrapper">
           ${statusBar}
           <div
@@ -381,14 +299,14 @@ export class SolarViewCard extends LitElement {
     }
 
     this._updateViewBox();
-    /* v8 ignore next */
-    this.style.background = this._colors.background ?? this._themePalette?.background ?? "";
-    this.style.color = this._themePalette?.color ?? "";
+    const theme = resolveTheme(this._theme, this._colors.background);
+    this.style.background = theme.background;
+    this.style.color = theme.color;
     for (const varName of THEME_OVERRIDE_VARS) {
-      if (this._themePalette) {
-        this.style.setProperty(varName, "initial");
-      } else {
+      if (theme.vars[varName] === null) {
         this.style.removeProperty(varName);
+      } else {
+        this.style.setProperty(varName, theme.vars[varName]);
       }
     }
   }

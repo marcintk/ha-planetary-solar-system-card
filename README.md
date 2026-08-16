@@ -90,8 +90,6 @@ colors:
   label: "#e0e0ff"
 ```
 
-See [Live Imagery](#live-imagery) above for what `gallery.*` does.
-
 ```yaml
 type: custom:ha-planetary-solar-system-card
 gallery:

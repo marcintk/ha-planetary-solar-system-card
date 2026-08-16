@@ -38,8 +38,6 @@ export interface LocationData {
 
 export interface Colors {
   background?: string;
-  orbit?: string;
-  label?: string;
   season_line?: string;
   season_label?: string;
   cone_day?: string;

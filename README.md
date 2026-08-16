@@ -86,8 +86,8 @@ default_zoom: 2
 type: custom:ha-planetary-solar-system-card
 colors:
   background: "#0d1117"
-  orbit: "rgba(100, 200, 255, 0.2)"
-  label: "#e0e0ff"
+  season_line: "rgba(100, 200, 255, 0.2)"
+  season_label: "#e0e0ff"
 ```
 
 ```yaml
@@ -134,19 +134,17 @@ location:
 
 ### Colors
 
-`colors.background` (card background) defaults to the HA theme (`--ha-card-background`).
-
-`orbit`, `label`, `season_line`, and `season_label` default to the theme's text color (adaptive to
+`background`, `season_line`, and `season_label` are the only overridable colors outside the
+visibility cone. `season_line`/`season_label` default to the theme's text color (adaptive to
 light/dark) at the opacity shown below — that opacity only applies to the default. Setting the key
 yourself replaces the color outright (any CSS color string: hex, `rgb()`, `rgba()`, etc.) with no
 opacity layered on top; include your own alpha (e.g. `rgba(..., 0.3)`) if you want transparency:
 
-| Key                   | Default (opacity of theme text color) | Description                          |
-| --------------------- | ------------------------------------- | ------------------------------------ |
-| `colors.orbit`        | 12%                                   | Orbit ring and moon-orbit stroke     |
-| `colors.label`        | 100%                                  | Planet and comet name labels         |
-| `colors.season_line`  | 25%                                   | Season quadrant divider lines        |
-| `colors.season_label` | 50%                                   | Season name labels (curved arc text) |
+| Key                   | Default                           | Description                          |
+| --------------------- | --------------------------------- | ------------------------------------ |
+| `colors.background`   | HA theme (`--ha-card-background`) | Card background                      |
+| `colors.season_line`  | 25% of theme text color           | Season quadrant divider lines        |
+| `colors.season_label` | 50% of theme text color           | Season name labels (curved arc text) |
 
 The visibility cone shades by how far the Sun is below the horizon (see
 [Horizon Twilight Zones](#horizon-twilight-zones)). `cone_day` defaults to the theme's text color at

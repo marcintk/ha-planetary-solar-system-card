@@ -1,0 +1,101 @@
+import type { CardConfig, Colors, ZoomLevel } from "../types.js";
+import { DEFAULT_ZOOM_LEVEL, MAX_ZOOM, MIN_ZOOM } from "./card-view-state.js";
+import type { GalleryMode } from "./gallery-controller.js";
+import { DEFAULT_GALLERY_INTERVAL_MS, GALLERY_MODES } from "./gallery-controller.js";
+
+export interface ParsedCardConfig {
+  zoomLevel: ZoomLevel;
+  refreshMs: number;
+  periodicZoomChange: boolean;
+  periodicZoomMax: number;
+  zoomAnimate: boolean;
+  colors: Colors;
+  theme: "auto" | "dark" | "light";
+  eclipticView: boolean;
+  locationOverride: { lat: number; lon: number } | null;
+  locationNameOverride: string | null;
+  heightStyle: string;
+  galleryMode: GalleryMode;
+  galleryIntervalMs: number;
+}
+
+// Resolves config.height into an inline style for #solar-view/.image-view. A px value caps
+// the height and lets the square SVG/image letterbox-shrink to fit (preserveAspectRatio
+// "meet" — nothing crops). A percent reshapes the aspect-ratio itself (e.g. "50%" = half as
+// tall as wide) since CSS max-height can't resolve against an auto-height parent.
+function resolveHeightStyle(height: CardConfig["height"]): string {
+  if (typeof height === "number") {
+    return height > 0 ? `max-height: ${height}px` : "";
+  }
+  if (typeof height === "string") {
+    const px = /^(\d+(?:\.\d+)?)px$/.exec(height);
+    if (px) return `max-height: ${px[1]}px`;
+    const pct = /^(\d+(?:\.\d+)?)%$/.exec(height);
+    if (pct) {
+      const n = Number(pct[1]);
+      return n > 0 ? `aspect-ratio: ${100 / n}` : "";
+    }
+  }
+  return "";
+}
+
+// Pure validate/default pass over CardConfig — the single place each field's fallback and
+// range-check rule lives. card.ts's setConfig hands the result straight to _zoom.configure()/
+// _gallery.configure() and its own remaining fields, instead of parsing inline.
+export function parseCardConfig(config: CardConfig): ParsedCardConfig {
+  const zoomLevel =
+    config.default_zoom == null || config.default_zoom < MIN_ZOOM || config.default_zoom > MAX_ZOOM
+      ? DEFAULT_ZOOM_LEVEL
+      : (config.default_zoom as ZoomLevel);
+
+  const rawRefresh = Number(config.refresh_mins);
+  const refreshMs = Number.isFinite(rawRefresh) && rawRefresh >= 0.1 ? rawRefresh * 60000 : 60000;
+
+  const periodicZoomChange = config.periodic_zoom_change === true;
+  const rawMax = Number(config.periodic_zoom_max);
+  const periodicZoomMax =
+    Number.isInteger(rawMax) && rawMax >= 2 && rawMax <= MAX_ZOOM ? rawMax : MAX_ZOOM;
+  const zoomAnimate = config.zoom_animate !== false;
+
+  const theme = config.theme === "dark" || config.theme === "light" ? config.theme : "auto";
+  const eclipticView = config.ecliptic_view === "south";
+
+  const overrideLat = config.location?.latitude;
+  const overrideLon = config.location?.longitude;
+  const hasOverride =
+    typeof overrideLat === "number" &&
+    typeof overrideLon === "number" &&
+    overrideLat >= -90 &&
+    overrideLat <= 90 &&
+    overrideLon >= -180 &&
+    overrideLon <= 180;
+  const locationOverride = hasOverride ? { lat: overrideLat, lon: overrideLon } : null;
+  const locationNameOverride = config.location?.name || null;
+
+  const heightStyle = resolveHeightStyle(config.height);
+
+  const galleryMode = GALLERY_MODES.includes(config.gallery?.mode as GalleryMode)
+    ? (config.gallery?.mode as GalleryMode)
+    : "none";
+  const rawInterval = Number(config.gallery?.slide_interval_secs);
+  const galleryIntervalMs =
+    Number.isFinite(rawInterval) && rawInterval >= 0.1
+      ? rawInterval * 1000
+      : DEFAULT_GALLERY_INTERVAL_MS;
+
+  return {
+    zoomLevel,
+    refreshMs,
+    periodicZoomChange,
+    periodicZoomMax,
+    zoomAnimate,
+    colors: config.colors ?? {},
+    theme,
+    eclipticView,
+    locationOverride,
+    locationNameOverride,
+    heightStyle,
+    galleryMode,
+    galleryIntervalMs,
+  };
+}

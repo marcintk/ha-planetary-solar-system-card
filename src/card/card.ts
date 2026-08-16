@@ -21,12 +21,7 @@ import {
 } from "./card-template.js";
 import { DEFAULT_ZOOM_LEVEL, MAX_ZOOM, MIN_ZOOM, ViewState } from "./card-view-state.js";
 import type { SourcedImage } from "./image-sources.js";
-import {
-  CLICK_CACHE_TTL_MS,
-  fetchLatestEarthImageUrl,
-  getPreviousSunSlot,
-  getSunImageUrl,
-} from "./image-sources.js";
+import { fetchLatestEarthImageUrl, getPreviousSunSlot, getSunImageUrl } from "./image-sources.js";
 import { formatRelativeAge } from "./relative-time.js";
 import { ZoomAnimator } from "./zoom-animator.js";
 
@@ -68,10 +63,12 @@ export class SolarViewCard extends LitElement {
   private _imagePanelMode: ImagePanelMode;
   private _imageUrl: string | null;
   private _imageDate: Date | null;
+  private _imageLoaded: boolean;
   private _imageError: string | null;
   private _sunRetried: boolean;
   private _galleryOpen: boolean;
   private _galleryImages: Partial<Record<ImageSource, SourcedImage>>;
+  private _galleryLoaded: Partial<Record<ImageSource, boolean>>;
   private _gallerySunRetried: boolean;
   private _galleryMode: GalleryMode;
   private _galleryAutoIntervalMs: number;
@@ -105,10 +102,12 @@ export class SolarViewCard extends LitElement {
     this._imagePanelMode = "none";
     this._imageUrl = null;
     this._imageDate = null;
+    this._imageLoaded = false;
     this._imageError = null;
     this._sunRetried = false;
     this._galleryOpen = false;
     this._galleryImages = {};
+    this._galleryLoaded = {};
     this._gallerySunRetried = false;
     this._galleryMode = "none";
     this._galleryAutoIntervalMs = DEFAULT_GALLERY_INTERVAL_MS;
@@ -236,7 +235,8 @@ export class SolarViewCard extends LitElement {
             this._imagePanelMode,
             this._formatDate(this._imageDate as Date),
             this._imageDate as Date,
-            new Date()
+            new Date(),
+            this._imageLoaded
           );
     const zoomLevel = this._viewState?.zoomLevel ?? this._defaultZoomLevel;
     /* v8 ignore next */
@@ -253,6 +253,7 @@ export class SolarViewCard extends LitElement {
             src=${this._imageUrl ?? ""}
             alt=""
             @click=${this._onImageClick}
+            @load=${this._onImageLoad}
             @error=${this._onImageLoadError}
           />
           ${
@@ -268,6 +269,7 @@ export class SolarViewCard extends LitElement {
                       <img
                         src=${this._galleryImages[source]?.url ?? ""}
                         alt=""
+                        @load=${() => this._onGalleryImageLoad(source)}
                         @error=${source === "sun" ? this._onSunThumbError : undefined}
                       />
                       <div class="gallery-info">
@@ -275,7 +277,14 @@ export class SolarViewCard extends LitElement {
                         ${
                           this._galleryImages[source]
                             ? html`<span class="gallery-age"
-                                >${formatRelativeAge(this._galleryImages[source]?.date as Date, new Date())}</span
+                                >${
+                                  this._galleryLoaded[source]
+                                    ? formatRelativeAge(
+                                        this._galleryImages[source]?.date as Date,
+                                        new Date()
+                                      )
+                                    : "loading…"
+                                }</span
                               >`
                             : nothing
                         }
@@ -630,8 +639,7 @@ export class SolarViewCard extends LitElement {
     if (this._imagePanelMode === "sun" && !this._sunRetried) {
       this._sunRetried = true;
       const { url, date } = getPreviousSunSlot(this._imageDate as Date);
-      this._imageUrl = url;
-      this._imageDate = date;
+      this._applyImage(url, date);
       this._render();
       return;
     }
@@ -639,6 +647,23 @@ export class SolarViewCard extends LitElement {
     this._imagePanelMode = "none";
     this._imageUrl = null;
     this._imageDate = null;
+    this._render();
+  }
+
+  // The date/age shown in the status bar is only as trustworthy as the image actually
+  // loading — a computed sun slot can 404 (see _onImageLoadError) before we know that.
+  // _imageLoaded gates the displayed text on the <img> load event instead of the fetch
+  // resolving, so a bad guess shows "loading…" rather than a date for a slot that turns
+  // out not to exist. Only resets when the URL actually changes, so a cache-hit refresh
+  // (same URL, already loaded) doesn't flash back to "loading…" for no reason.
+  private _applyImage(url: string, date: Date): void {
+    if (url !== this._imageUrl) this._imageLoaded = false;
+    this._imageUrl = url;
+    this._imageDate = date;
+  }
+
+  private _onImageLoad(): void {
+    this._imageLoaded = true;
     this._render();
   }
 
@@ -654,16 +679,12 @@ export class SolarViewCard extends LitElement {
     }
     this._imageError = null;
     try {
-      // Opening the full image is a click-triggered fetch: a short cache (CLICK_CACHE_TTL_MS)
-      // avoids redownloading from NASA's slow servers if you just looked at this same source
-      // moments ago. Once open, _refreshOpenImage takes over on its own (longer) cadence.
-      const { url, date } =
-        mode === "earth"
-          ? await fetchLatestEarthImageUrl(CLICK_CACHE_TTL_MS)
-          : getSunImageUrl(CLICK_CACHE_TTL_MS);
+      // Same cache TTL as the gallery thumbnail's own background fetch (earth hourly, sun
+      // every 15min) — reuses the exact image the thumbnail already has loaded instead of
+      // computing a slightly newer slot and forcing a fresh network fetch on click.
+      const { url, date } = mode === "earth" ? await fetchLatestEarthImageUrl() : getSunImageUrl();
       this._imagePanelMode = mode;
-      this._imageUrl = url;
-      this._imageDate = date;
+      this._applyImage(url, date);
     } catch {
       this._imagePanelMode = "none";
       this._imageUrl = null;
@@ -682,8 +703,7 @@ export class SolarViewCard extends LitElement {
     const mode = this._imagePanelMode;
     try {
       const { url, date } = mode === "earth" ? await fetchLatestEarthImageUrl() : getSunImageUrl();
-      this._imageUrl = url;
-      this._imageDate = date;
+      this._applyImage(url, date);
       this._render();
     } catch {
       // Keep showing the last good image.
@@ -729,9 +749,21 @@ export class SolarViewCard extends LitElement {
     for (let i = 0; i < results.length; i++) {
       const result = results[i];
       if (result.status === "fulfilled") {
-        this._galleryImages[sources[i]] = result.value;
+        this._applyGalleryImage(sources[i], result.value);
       }
     }
+    this._render();
+  }
+
+  // Same "don't trust the date until the pixels actually load" reasoning as _applyImage,
+  // for the gallery thumbnail instead of the full-screen view.
+  private _applyGalleryImage(source: ImageSource, image: SourcedImage): void {
+    if (image.url !== this._galleryImages[source]?.url) this._galleryLoaded[source] = false;
+    this._galleryImages[source] = image;
+  }
+
+  private _onGalleryImageLoad(source: ImageSource): void {
+    this._galleryLoaded[source] = true;
     this._render();
   }
 
@@ -741,6 +773,7 @@ export class SolarViewCard extends LitElement {
   private _onSunThumbError(): void {
     if (this._gallerySunRetried) {
       delete this._galleryImages.sun;
+      delete this._galleryLoaded.sun;
       this._render();
       return;
     }
@@ -748,7 +781,7 @@ export class SolarViewCard extends LitElement {
     /* v8 ignore next */
     if (!current) return;
     this._gallerySunRetried = true;
-    this._galleryImages.sun = getPreviousSunSlot(current.date);
+    this._applyGalleryImage("sun", getPreviousSunSlot(current.date));
     this._render();
   }
 

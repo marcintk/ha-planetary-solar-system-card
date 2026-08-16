@@ -54,9 +54,13 @@ export function buildImageStatusBar(
   mode: ImageSource,
   dateText: string,
   imageDate: Date,
-  now: Date
+  now: Date,
+  loaded: boolean
 ): TemplateResult {
+  const status = loaded
+    ? `captured ${dateText} (${formatRelativeAge(imageDate, now)})`
+    : "loading…";
   return html`<div class="status-bar">
-    <span>${IMAGE_SOURCE_LABELS[mode]} · captured ${dateText} (${formatRelativeAge(imageDate, now)})</span>
+    <span>${IMAGE_SOURCE_LABELS[mode]} · ${status}</span>
   </div>`;
 }

@@ -1284,7 +1284,18 @@ describe("SolarViewCard", () => {
       expect(Array.from(thumbs).map((t) => t.dataset.source)).toEqual(["earth", "sun"]);
       const labels = Array.from(thumbs).map((t) => t.querySelector(".gallery-label").textContent);
       expect(labels).toEqual(["L1→EARTH", "GEO→SUN"]);
-      const ages = Array.from(thumbs).map((t) => t.querySelector(".gallery-age").textContent);
+
+      // Age shows "loading…" until each thumbnail's image actually loads.
+      let ages = Array.from(thumbs).map((t) => t.querySelector(".gallery-age").textContent);
+      expect(ages).toEqual(["loading…", "loading…"]);
+
+      for (const thumb of thumbs) {
+        thumb.querySelector("img").dispatchEvent(new Event("load"));
+      }
+      await flush();
+      ages = Array.from(card.shadowRoot.querySelectorAll(".gallery-thumb")).map(
+        (t) => t.querySelector(".gallery-age").textContent
+      );
       for (const age of ages) {
         expect(age).toMatch(/^(\d+[mh] ago|just now)$/);
       }
@@ -1362,6 +1373,20 @@ describe("SolarViewCard", () => {
       card.remove();
     });
 
+    it("full-screen status bar shows 'loading…' until the image actually loads", async () => {
+      const card = createAndMount();
+      await flush();
+      card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"]').click();
+      await flush();
+      expect(card.shadowRoot.querySelector(".status-bar").textContent).toContain("loading…");
+
+      card.shadowRoot.querySelector("#image-view").dispatchEvent(new Event("load"));
+      await flush();
+      expect(card.shadowRoot.querySelector(".status-bar").textContent).toContain("captured");
+      expect(card.shadowRoot.querySelector(".status-bar").textContent).not.toContain("loading…");
+      card.remove();
+    });
+
     it("a sun image load error retries the previous 15-min slot once before giving up", async () => {
       const card = createAndMount();
       await flush();
@@ -1424,7 +1449,7 @@ describe("SolarViewCard", () => {
       card.remove();
     });
 
-    it("clicking a sun thumbnail again within the short click cache reuses the same slot timestamp", async () => {
+    it("clicking a sun thumbnail again reuses the already-loaded image within the 15-min cache", async () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date("2026-08-12T12:00:00Z"));
       const card = createAndMount();
@@ -1439,18 +1464,18 @@ describe("SolarViewCard", () => {
 
       card.shadowRoot.querySelector("#image-view").click(); // back to gallery
       await vi.advanceTimersByTimeAsync(0);
-      vi.setSystemTime(new Date("2026-08-12T12:00:30Z")); // 30s later, within the 2-min click cache
+      vi.setSystemTime(new Date("2026-08-12T12:00:30Z")); // 30s later, well within the 15-min cache
       clickSun();
       await vi.advanceTimersByTimeAsync(0);
       const secondSrc = card.shadowRoot.querySelector("#image-view").src;
 
-      // A short click-side cache avoids re-downloading from NASA's slow SDO server on a
-      // rapid re-click when the source hasn't posted a new frame since the last one.
+      // Same cache the thumbnail's own background fetch uses, so a click reuses the exact
+      // image already loaded instead of forcing a new network fetch on open.
       expect(secondSrc).toBe(firstSrc);
       card.remove();
     });
 
-    it("clicking a sun thumbnail again once the click cache expires fetches a fresh slot timestamp", async () => {
+    it("clicking a sun thumbnail again once the 15-min cache expires fetches a fresh slot", async () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date("2026-08-12T12:00:00Z"));
       const card = createAndMount();
@@ -1465,7 +1490,7 @@ describe("SolarViewCard", () => {
 
       card.shadowRoot.querySelector("#image-view").click(); // back to gallery
       await vi.advanceTimersByTimeAsync(0);
-      // Past both the 2-min click cache and into the next published 15-min slot.
+      // Past the 15-min cache and into the next published slot.
       vi.setSystemTime(new Date("2026-08-12T12:15:01Z"));
       clickSun();
       await vi.advanceTimersByTimeAsync(0);

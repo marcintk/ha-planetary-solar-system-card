@@ -15,7 +15,7 @@ export const cardStyles = css`
   }
   .date {
     font-size: 11px;
-    color: var(--secondary-text-color, color-mix(in srgb, currentColor 60%, transparent));
+    color: inherit;
     margin: 2px 2px;
   }
   .solar-view-wrapper {
@@ -29,10 +29,9 @@ export const cardStyles = css`
     top: 0;
     left: 0;
     right: 0;
-    background: rgba(0, 0, 0, 0.55);
+    background: var(--secondary-background-color, color-mix(in srgb, currentColor 10%, transparent));
     font-size: 10px;
-    color: #fff;
-    text-shadow: 0 0 2px rgba(0, 0, 0, 0.8);
+    color: inherit;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -124,6 +123,7 @@ export const cardStyles = css`
     gap: 4px;
     margin-top: 2px;
     position: relative;
+    background: var(--secondary-background-color, color-mix(in srgb, currentColor 10%, transparent));
   }
   .nav button {
     background: color-mix(in srgb, currentColor 15%, transparent);
@@ -140,7 +140,7 @@ export const cardStyles = css`
     box-sizing: border-box;
   }
   .nav button:hover {
-    background: var(--secondary-background-color, color-mix(in srgb, currentColor 20%, transparent));
+    background: color-mix(in srgb, currentColor 25%, transparent);
   }
   .nav button .icon {
     filter: grayscale(1);

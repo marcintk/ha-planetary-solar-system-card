@@ -97,21 +97,21 @@ describe("buildImageStatusBar", () => {
 
   it("labels the earth source with DSCOVR", () => {
     const root = renderToDOM(
-      buildImageStatusBar("earth", "26-08-10 18:49", new Date("2026-08-10T18:49:00Z"), now)
+      buildImageStatusBar("earth", "26-08-10 18:49", new Date("2026-08-10T18:49:00Z"), now, true)
     );
     expect(root.querySelector(".status-bar span").textContent).toContain("DSCOVR Earth");
   });
 
   it("labels the sun source with SDO HMI Continuum", () => {
     const root = renderToDOM(
-      buildImageStatusBar("sun", "26-08-12 11:55", new Date("2026-08-12T11:55:00Z"), now)
+      buildImageStatusBar("sun", "26-08-12 11:55", new Date("2026-08-12T11:55:00Z"), now, true)
     );
     expect(root.querySelector(".status-bar span").textContent).toContain("SDO HMI Continuum");
   });
 
   it("includes the absolute date text and relative age in parentheses, verb 'captured' for earth", () => {
     const root = renderToDOM(
-      buildImageStatusBar("earth", "26-08-11 06:00", new Date("2026-08-11T06:00:00Z"), now)
+      buildImageStatusBar("earth", "26-08-11 06:00", new Date("2026-08-11T06:00:00Z"), now, true)
     );
     expect(root.querySelector(".status-bar span").textContent).toBe(
       "DSCOVR Earth · captured 26-08-11 06:00 (30h ago)"
@@ -120,10 +120,17 @@ describe("buildImageStatusBar", () => {
 
   it("uses verb 'captured' for sun too, now that its URL carries a real timestamp", () => {
     const root = renderToDOM(
-      buildImageStatusBar("sun", "26-08-12 11:55", new Date("2026-08-12T11:55:00Z"), now)
+      buildImageStatusBar("sun", "26-08-12 11:55", new Date("2026-08-12T11:55:00Z"), now, true)
     );
     expect(root.querySelector(".status-bar span").textContent).toBe(
       "SDO HMI Continuum · captured 26-08-12 11:55 (5m ago)"
     );
+  });
+
+  it("shows 'loading…' instead of the date until the image has actually loaded", () => {
+    const root = renderToDOM(
+      buildImageStatusBar("sun", "26-08-12 11:55", new Date("2026-08-12T11:55:00Z"), now, false)
+    );
+    expect(root.querySelector(".status-bar span").textContent).toBe("SDO HMI Continuum · loading…");
   });
 });

@@ -1,11 +1,9 @@
 export const EPIC_BASE_URL = "https://epic.gsfc.nasa.gov";
-// Two cadences:
-// - CLICK: opening a thumbnail is an explicit request for the freshest shot, but still
-//   respects a short TTL — otherwise a rapid re-click re-downloads for no new content.
-// - GALLERY: everything else (the idling thumbnail strip, and the full-screen view once
-//   open) ticks in the background. Earth ticks hourly; Sun ticks every 15 min — matching
-//   SUN_SLOT_MS below, since polling faster than the source's own publish grid buys nothing.
-export const CLICK_CACHE_TTL_MS = 120000;
+// One cache TTL per source, shared by the gallery thumbnail's background poll, the
+// full-screen view's click-open fetch, and its own background refresh once open — so
+// clicking a thumbnail always reuses the exact image already loaded rather than computing
+// a slightly newer slot and forcing an extra network fetch. Earth: hourly. Sun: every
+// 15 min, matching SUN_SLOT_MS below (polling faster than its own publish grid buys nothing).
 const GALLERY_CACHE_TTL_MS = 3600000;
 
 // SDO publishes HMI Continuum (visible-light sunspot disk) quicklook frames to a dated

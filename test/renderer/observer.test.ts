@@ -13,6 +13,7 @@ import {
   CONE_NIGHT,
   calculateObserverAngle,
   calculateSolarElevationDeg,
+  computeTwilightBand,
   rayCircleDistance,
   renderDayNightSplit,
   renderObserverNeedle,
@@ -619,5 +620,42 @@ describe("computeZenithAngleFromSun", () => {
     // Real azimuthal rate peaks near culmination (measured ~0.43°/min at this lat/season),
     // well below the ~0.25°/min naive average but nowhere near the old bug's 122° jump.
     expect(maxJumpDeg).toBeLessThan(2);
+  });
+});
+
+describe("computeTwilightBand", () => {
+  it("day elevation gets CONE_DAY and a 90° half-angle", () => {
+    expect(computeTwilightBand(10, null, {})).toEqual({ color: CONE_DAY, halfAngle: 90 });
+  });
+
+  it("civil twilight (0 to -6) gets CONE_CIVIL", () => {
+    expect(computeTwilightBand(-3, null, {}).color).toBe(CONE_CIVIL);
+  });
+
+  it("nautical twilight (-6 to -12) gets CONE_NAUTICAL", () => {
+    expect(computeTwilightBand(-9, null, {}).color).toBe(CONE_NAUTICAL);
+  });
+
+  it("astronomical twilight (-12 to -18) gets CONE_ASTRONOMICAL", () => {
+    expect(computeTwilightBand(-15, null, {}).color).toBe(CONE_ASTRONOMICAL);
+  });
+
+  it("below -18 gets CONE_NIGHT and a 90° half-angle", () => {
+    expect(computeTwilightBand(-20, null, {})).toEqual({ color: CONE_NIGHT, halfAngle: 90 });
+  });
+
+  it("colors overrides take precedence over the CONE_* defaults", () => {
+    const band = computeTwilightBand(10, null, { cone_day: "red" });
+    expect(band.color).toBe("red");
+  });
+
+  it("half-angle during twilight uses the projected zenith magnitude when available", () => {
+    const band = computeTwilightBand(-9, Math.PI / 3, {});
+    expect(band.halfAngle).toBeCloseTo(60, 5);
+  });
+
+  it("half-angle during twilight falls back to 90 - elevationDeg without a projected zenith", () => {
+    const band = computeTwilightBand(-9, null, {});
+    expect(band.halfAngle).toBeCloseTo(99, 5);
   });
 });

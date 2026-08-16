@@ -18,9 +18,7 @@ Have an idea or found a bug?
 
 [**→ Try the interactive demo**](https://marcintk.github.io/ha-planetary-solar-system-card/)
 
-| Dark                                                                                                                                                                                | Light                                                                                                                                                                                 |
-| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [![Preview Dark](https://raw.githubusercontent.com/marcintk/ha-planetary-solar-system-card/main/docs/preview-dark.png)](https://marcintk.github.io/ha-planetary-solar-system-card/) | [![Preview Light](https://raw.githubusercontent.com/marcintk/ha-planetary-solar-system-card/main/docs/preview-light.png)](https://marcintk.github.io/ha-planetary-solar-system-card/) |
+[![Preview](docs/preview.png)](https://marcintk.github.io/ha-planetary-solar-system-card/)
 
 ### Horizon Twilight Zones
 
@@ -37,22 +35,17 @@ the standard astronomical twilight definitions:
 
 ### Live Imagery
 
-Live imagery from two NASA probes: [DSCOVR](https://epic.gsfc.nasa.gov/) at the Sun-Earth L1 point
-watches Earth, [SDO](https://sdo.gsfc.nasa.gov/) in geosynchronous Earth orbit watches the Sun.
-`gallery.mode` picks what shows (☷ toggles the strip, a thumbnail click opens full-screen):
+A thumbnail strip alongside the solar view can show near-real-time photos of Earth and the Sun,
+sourced from two NASA probes: [DSCOVR](https://epic.gsfc.nasa.gov/), parked at the Sun-Earth L1
+point watching Earth's sunlit side, and [SDO](https://sdo.gsfc.nasa.gov/), in geosynchronous orbit
+watching the Sun. It's off by default — enable and configure it with `gallery.*` options (see
+[Gallery](#gallery) in Configuration). Once enabled, ☷ toggles the strip on/off and clicking a
+thumbnail opens it full-screen.
 
-| Mode    | Strip shows                                                 |
-| ------- | ----------------------------------------------------------- |
-| `none`  | Nothing — gallery button hidden                             |
-| `earth` | Earth only                                                  |
-| `sun`   | Sun only                                                    |
-| `both`  | Earth and Sun together                                      |
-| `slide` | One thumbnail, flipping every `gallery.slide_interval_secs` |
-
-| Thumbnail | Source                                                              | We poll     | Latest image is usually                   |
-| --------- | ------------------------------------------------------------------- | ----------- | ----------------------------------------- |
-| DSCOVR/E  | [NASA EPIC](https://epic.gsfc.nasa.gov/) (DSCOVR, at Sun-Earth L1)  | Hourly      | ~1-2 days old (EPIC processing backlog)   |
-| SDO/S     | [NASA SDO](https://sdo.gsfc.nasa.gov/) (geosynchronous Earth orbit) | Every 15min | ~15-30min old (up to 45min if it retries) |
+| Thumbnail | Source                                                              | We poll     | Latest image is usually                 |
+| --------- | ------------------------------------------------------------------- | ----------- | --------------------------------------- |
+| DSCOVR/E  | [NASA EPIC](https://epic.gsfc.nasa.gov/) (DSCOVR, at Sun-Earth L1)  | Hourly      | ~1-2 days old (EPIC processing backlog) |
+| SDO/S     | [NASA SDO](https://sdo.gsfc.nasa.gov/) (geosynchronous Earth orbit) | Every 15min | ~15-30min old                           |
 
 Strict reverse-proxy CSP may block `epic.gsfc.nasa.gov` / `sdo.gsfc.nasa.gov` — not fixable
 card-side.
@@ -84,52 +77,13 @@ type: custom:ha-planetary-solar-system-card
 default_zoom: 2
 ```
 
-## Configuration
-
-| Option                        | Type                                    | Default   | Description                                                                                                                   |
-| ----------------------------- | --------------------------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `height`                      | `"auto"` \| number \| `"Npx"` \| `"N%"` | `"auto"`  | `"auto"` = square, sized to card width. Number/`"Npx"` caps height, shrinks to fit. `"N%"` sets height as a fraction of width |
-| `refresh_mins`                | number                                  | `1`       | Auto-update interval in minutes                                                                                               |
-| `default_zoom`                | number                                  | `1`       | Starting zoom level                                                                                                           |
-| `zoom_animate`                | boolean                                 | `true`    | Animate zoom transitions                                                                                                      |
-| `periodic_zoom_change`        | boolean                                 | `false`   | Cycle zoom levels on each refresh tick                                                                                        |
-| `periodic_zoom_max`           | number                                  | `4`       | Maximum zoom level for auto-cycle (2–4)                                                                                       |
-| `theme`                       | `"auto"` \| `"dark"` \| `"light"`       | `"auto"`  | `"auto"` follows the HA theme. `"dark"`/`"light"` forces a built-in background/text pair regardless of the installed theme    |
-| `colors`                      | object                                  | see below | Color overrides (see Colors)                                                                                                  |
-| `ecliptic_view`               | `"north"` \| `"south"`                  | `"north"` | Viewing pole: `"north"` = counter-clockwise orbits (default); `"south"` = clockwise orbits                                    |
-| `show_version`                | boolean                                 | `false`   | Show card version number in the bottom-right corner of the nav bar                                                            |
-| `gallery.mode`                | see below                               | `"none"`  | Live Imagery gallery mode (see Live Imagery)                                                                                  |
-| `gallery.slide_interval_secs` | number                                  | `60`      | How often `slide` mode flips the displayed thumbnail between Earth and Sun                                                    |
-
-### Colors
-
-By default the card inherits the HA theme background via `--ha-card-background` (falling back to
-`--card-background-color`, then `--primary-background-color`). Set `colors.background` to override,
-or `theme: "dark"` / `theme: "light"` to force the whole palette regardless of the installed theme.
-Every color value accepts any valid CSS color string (`#rrggbb`, `rgba(…)`, named colors).
-
-| Key                                 | Default                            | Description                                            |
-| ----------------------------------- | ---------------------------------- | ------------------------------------------------------ |
-| `colors.background`                 | HA theme (`--ha-card-background`)  | Card background                                        |
-| `colors.orbit`                      | 12% of theme text color (adaptive) | Orbit ring and moon-orbit stroke                       |
-| `colors.label`                      | theme text color (adaptive)        | Planet and comet name labels                           |
-| `colors.season_line`                | 25% of theme text color (adaptive) | Season quadrant divider lines                          |
-| `colors.season_label`               | 50% of theme text color (adaptive) | Season name labels (curved arc text)                   |
-| `colors.cone_day`                   | 8% of theme text color (adaptive)  | Visibility cone — Sun above horizon                    |
-| `colors.cone_twilight_civil`        | `rgba(255, 220, 160, 0.09)`        | Visibility cone — civil twilight (0° to -6°)           |
-| `colors.cone_twilight_nautical`     | `rgba(90, 130, 180, 0.12)`         | Visibility cone — nautical twilight (-6° to -12°)      |
-| `colors.cone_twilight_astronomical` | `rgba(70, 50, 130, 0.18)`          | Visibility cone — astronomical twilight (-12° to -18°) |
-| `colors.cone_night`                 | `rgba(30, 20, 60, 0.22)`           | Visibility cone — Sun below -18°                       |
-
 ```yaml
 type: custom:ha-planetary-solar-system-card
 colors:
   background: "#0d1117"
-  orbit: "rgba(100, 200, 255, 0.2)"
-  label: "#e0e0ff"
+  season_line: "rgba(100, 200, 255, 0.2)"
+  season_label: "#e0e0ff"
 ```
-
-See [Live Imagery](#live-imagery) above for what `gallery.*` does.
 
 ```yaml
 type: custom:ha-planetary-solar-system-card
@@ -137,3 +91,70 @@ gallery:
   mode: slide
   slide_interval_secs: 30
 ```
+
+```yaml
+type: custom:ha-planetary-solar-system-card
+location:
+  latitude: 51.5074
+  longitude: -0.1278
+  name: London
+```
+
+## Configuration
+
+### Layout
+
+| Option         | Type                                    | Default  | Description                                                                                                                   |
+| -------------- | --------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `height`       | `"auto"` \| number \| `"Npx"` \| `"N%"` | `"auto"` | `"auto"` = square, sized to card width. Number/`"Npx"` caps height, shrinks to fit. `"N%"` sets height as a fraction of width |
+| `refresh_mins` | number                                  | `1`      | Auto-update interval in minutes                                                                                               |
+
+### Zoom
+
+| Option                 | Type    | Default | Description                             |
+| ---------------------- | ------- | ------- | --------------------------------------- |
+| `default_zoom`         | number  | `1`     | Starting zoom level                     |
+| `zoom_animate`         | boolean | `true`  | Animate zoom transitions                |
+| `periodic_zoom_change` | boolean | `false` | Cycle zoom levels on each refresh tick  |
+| `periodic_zoom_max`    | number  | `4`     | Maximum zoom level for auto-cycle (2–4) |
+
+### Appearance
+
+| Option          | Type                              | Default   | Description                                                                                                                |
+| --------------- | --------------------------------- | --------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `theme`         | `"auto"` \| `"dark"` \| `"light"` | `"auto"`  | `"auto"` follows the HA theme. `"dark"`/`"light"` forces a built-in background/text pair regardless of the installed theme |
+| `colors`        | object                            | see below | Color overrides (see Colors)                                                                                               |
+| `ecliptic_view` | `"north"` \| `"south"`            | `"north"` | Viewing pole: `"north"` = counter-clockwise orbits; `"south"` = clockwise orbits                                           |
+| `show_version`  | boolean                           | `false`   | Show card version number centered in the top status bar                                                                    |
+
+### Colors
+
+| Key                                 | Default                           | Description                          |
+| ----------------------------------- | --------------------------------- | ------------------------------------ |
+| `colors.background`                 | HA theme (`--ha-card-background`) | Card background                      |
+| `colors.season_line`                | 25% of theme text color           | Season quadrant divider lines        |
+| `colors.season_label`               | 50% of theme text color           | Season name labels (curved arc text) |
+| `colors.cone_day`                   | 8% of theme text color            | Visibility cone — Sun above horizon  |
+| `colors.cone_twilight_civil`        | `rgba(255, 220, 160, 0.09)`       | Civil twilight (0° to -6°)           |
+| `colors.cone_twilight_nautical`     | `rgba(90, 130, 180, 0.12)`        | Nautical twilight (-6° to -12°)      |
+| `colors.cone_twilight_astronomical` | `rgba(70, 50, 130, 0.18)`         | Astronomical twilight (-12° to -18°) |
+| `colors.cone_night`                 | `rgba(30, 20, 60, 0.22)`          | Night (Sun below -18°)               |
+
+### Gallery
+
+`gallery` (object, unset by default) — Live Imagery gallery options:
+
+| Key                           | Type   | Default  | Description                                                                                                        |
+| ----------------------------- | ------ | -------- | ------------------------------------------------------------------------------------------------------------------ |
+| `gallery.mode`                | string | `"none"` | `"none"` hides the gallery button. `"earth"`/`"sun"`/`"both"` show that thumbnail. `"slide"` flips between the two |
+| `gallery.slide_interval_secs` | number | `60`     | How often `slide` mode flips the displayed thumbnail                                                               |
+
+### Location
+
+`location` (object, unset by default) — overrides HA's configured location:
+
+| Key                  | Type                 | Default   | Description                                                                                                  |
+| -------------------- | -------------------- | --------- | ------------------------------------------------------------------------------------------------------------ |
+| `location.name`      | string               | HA config | Overrides the location label shown in the status bar                                                         |
+| `location.latitude`  | number (-90 to 90)   | HA config | Overrides HA's latitude for hemisphere/season/twilight math. Requires `location.longitude` too, else ignored |
+| `location.longitude` | number (-180 to 180) | HA config | Overrides HA's longitude. Requires `location.latitude` too, else ignored                                     |

@@ -1,4 +1,4 @@
-import type { Colors, Comet, CometVisualEllipse } from "../types.js";
+import type { Comet, CometVisualEllipse } from "../types.js";
 import { ORBIT_COLOR } from "./bodies.js";
 import {
   auToRadius,
@@ -41,10 +41,8 @@ export function computeCometVisualEllipse(comet: Comet): CometVisualEllipse {
 export function renderCometOrbit(
   svg: SVGElement,
   comet: Comet,
-  eclipticViewDirection: number,
-  colors: Colors = {}
+  eclipticViewDirection: number
 ): void {
-  const orbitColor = colors.orbit ?? ORBIT_COLOR;
   const { aPx, bPx, cPx, rotationDeg } = computeCometVisualEllipse(comet);
 
   svg.appendChild(
@@ -54,7 +52,7 @@ export function renderCometOrbit(
       rx: aPx,
       ry: bPx,
       fill: "none",
-      style: `stroke: ${orbitColor}`,
+      style: `stroke: ${ORBIT_COLOR}`,
       "stroke-width": 1,
       "stroke-dasharray": "4, 8",
       transform: orbitTransformMatrix(cPx, rotationDeg, eclipticViewDirection),
@@ -73,10 +71,8 @@ export function renderCometBody(
   comet: Comet,
   sunX: number,
   sunY: number,
-  dynamicTailLength?: number,
-  colors: Colors = {}
+  dynamicTailLength?: number
 ): void {
-  const labelColor = colors.label ?? DEFAULT_LABEL_COLOR;
   // Direction away from the Sun
   const dx = x - sunX;
   const dy = y - sunY;
@@ -118,7 +114,7 @@ export function renderCometBody(
     createSvgElement("text", {
       x: x,
       y: y - comet.size - 6,
-      style: `fill: ${labelColor}`,
+      style: `fill: ${DEFAULT_LABEL_COLOR}`,
       ...BODY_LABEL_ATTRS,
     })
   ).textContent = comet.name;

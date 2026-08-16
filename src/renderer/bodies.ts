@@ -1,4 +1,4 @@
-import type { CelestialBody, Colors, CometVisualEllipse } from "../types.js";
+import type { CelestialBody, CometVisualEllipse } from "../types.js";
 import {
   BODY_LABEL_ATTRS,
   CENTER,
@@ -45,10 +45,9 @@ function verticalAxisIntersections(
 export function renderOrbit(
   svg: SVGElement,
   ellipse: CometVisualEllipse,
-  eclipticViewDirection: number,
-  colors: Colors = {}
+  eclipticViewDirection: number
 ): void {
-  const orbitColor = colors.orbit ?? ORBIT_COLOR;
+  const orbitColor = ORBIT_COLOR;
   const { aPx, bPx, cPx, rotationDeg } = ellipse;
   const components = orbitTransformComponents(cPx, rotationDeg, eclipticViewDirection);
   const { a, b, c, d, e, f } = components;
@@ -108,11 +107,8 @@ export function renderBody(
   x: number,
   y: number,
   body: CelestialBody,
-  showLabel = true,
-  colors: Colors = {}
+  showLabel = true
 ): void {
-  const labelColor = colors.label ?? DEFAULT_LABEL_COLOR;
-
   svg.appendChild(
     createSvgElement("circle", {
       cx: x,
@@ -127,7 +123,7 @@ export function renderBody(
       createSvgElement("text", {
         x: x,
         y: y - body.size - 6,
-        style: `fill: ${labelColor}`,
+        style: `fill: ${DEFAULT_LABEL_COLOR}`,
         ...BODY_LABEL_ATTRS,
       })
     ).textContent = body.name;

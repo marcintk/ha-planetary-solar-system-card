@@ -127,6 +127,9 @@ export class SolarViewCard extends LitElement {
   private _lon: number | null;
   private _timezone: string | null;
   private _locationName: string | null;
+  private _configLat: number | null;
+  private _configLon: number | null;
+  private _configLocationName: string | null;
   private _autoUpdateTimer: number | null;
   private _replayTimer: number | null;
   private _isReplaying: boolean;
@@ -166,6 +169,9 @@ export class SolarViewCard extends LitElement {
     this._hemisphere = "north";
     this._lat = null;
     this._lon = null;
+    this._configLat = null;
+    this._configLon = null;
+    this._configLocationName = null;
     this._timezone = null;
     this._locationName = null;
     this._autoUpdateTimer = null;
@@ -197,10 +203,19 @@ export class SolarViewCard extends LitElement {
   // ---------------------------------------------------------------------------
   // Proxy getters
   // ---------------------------------------------------------------------------
+  get _effectiveLat(): number | null {
+    return this._configLat ?? this._lat;
+  }
+  get _effectiveLon(): number | null {
+    return this._configLon ?? this._lon;
+  }
+  get _effectiveLocationName(): string | null {
+    return this._configLocationName ?? this._locationName;
+  }
   get _locationData(): LocationData | null {
-    return this._lat != null && this._lon != null
-      ? { lat: this._lat, lon: this._lon, timezone: this._timezone ?? "UTC" }
-      : null;
+    const lat = this._effectiveLat;
+    const lon = this._effectiveLon;
+    return lat != null && lon != null ? { lat, lon, timezone: this._timezone ?? "UTC" } : null;
   }
   get _zoomLevel(): ZoomLevel | null {
     return this._viewState?.zoomLevel ?? null;
@@ -247,6 +262,19 @@ export class SolarViewCard extends LitElement {
     this._theme = config.theme === "dark" || config.theme === "light" ? config.theme : "auto";
 
     this._eclipticView = config.ecliptic_view === "south";
+
+    const overrideLat = config.location?.latitude;
+    const overrideLon = config.location?.longitude;
+    const hasOverride =
+      typeof overrideLat === "number" &&
+      typeof overrideLon === "number" &&
+      overrideLat >= -90 &&
+      overrideLat <= 90 &&
+      overrideLon >= -180 &&
+      overrideLon <= 180;
+    this._configLat = hasOverride ? overrideLat : null;
+    this._configLon = hasOverride ? overrideLon : null;
+    this._configLocationName = config.location?.name || null;
     this._heightStyle = resolveHeightStyle(config.height);
 
     this._galleryMode = GALLERY_MODES.includes(config.gallery?.mode as GalleryMode)
@@ -302,8 +330,8 @@ export class SolarViewCard extends LitElement {
   }
 
   render() {
-    if (this._lat != null) {
-      this._hemisphere = this._lat < 0 ? "south" : "north";
+    if (this._effectiveLat != null) {
+      this._hemisphere = this._effectiveLat < 0 ? "south" : "north";
     }
 
     const statusBar = this._imageError
@@ -311,7 +339,12 @@ export class SolarViewCard extends LitElement {
           <span>${this._imageError}</span>
         </div>`
       : this._imagePanelMode === "none"
-        ? buildStatusBar(this._locationData, this._locationName, this._currentDate)
+        ? buildStatusBar(
+            this._locationData,
+            this._effectiveLocationName,
+            this._currentDate,
+            this._config?.show_version
+          )
         : buildImageStatusBar(
             this._imagePanelMode,
             this._imageDate ? this._formatDate(this._imageDate) : "",
@@ -411,7 +444,6 @@ export class SolarViewCard extends LitElement {
                   </span>`
               : nothing
           }
-          ${this._config?.show_version ? html`<span class="card-version">v${__CARD_VERSION__}</span>` : nothing}
         </div>
       </div>
     `;

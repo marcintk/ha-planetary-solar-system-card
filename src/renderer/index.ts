@@ -35,8 +35,6 @@ export function renderSolarSystem(
   eclipticView = false
 ): { svg: SVGSVGElement; positions: ViewPosition[] } {
   const eclipticViewDirection = eclipticView ? 1 : -1;
-  const orbitColor = colors.orbit ?? ORBIT_COLOR;
-  const labelColor = colors.label ?? DEFAULT_LABEL_COLOR;
 
   const svg = createSvgElement("svg", {
     viewBox: `0 0 ${VIEW_SIZE} ${VIEW_SIZE}`,
@@ -82,14 +80,14 @@ export function renderSolarSystem(
 
   // Draw orbits (planets then comets, so all orbits are behind bodies)
   planetEllipses.forEach((ellipse) => {
-    renderOrbit(svg, ellipse, eclipticViewDirection, colors);
+    renderOrbit(svg, ellipse, eclipticViewDirection);
   });
   for (const comet of COMETS) {
-    renderCometOrbit(svg, comet, eclipticViewDirection, colors);
+    renderCometOrbit(svg, comet, eclipticViewDirection);
   }
 
   // Sun at center
-  renderBody(svg, CENTER, CENTER, SUN, false, colors);
+  renderBody(svg, CENTER, CENTER, SUN, false);
 
   // Draw planets (labels rendered in a separate dynamic-placement pass below,
   // once every body's position is known)
@@ -113,11 +111,11 @@ export function renderSolarSystem(
       // Shrink Saturn's body to make room for top-down circular ring
       const saturnRenderSize = Math.round(planet.size / 2);
       const saturnOverride = { ...planet, size: saturnRenderSize };
-      renderBody(svg, x, y, saturnOverride, false, colors);
+      renderBody(svg, x, y, saturnOverride, false);
       renderSaturnRings(svg, x, y, planet);
       planetLabels.push({ name: planet.name, x, y, radius: SATURN_RING_OUTER_RADIUS });
     } else {
-      renderBody(svg, x, y, planet, false, colors);
+      renderBody(svg, x, y, planet, false);
       planetLabels.push({ name: planet.name, x, y, radius: planet.size });
     }
   });
@@ -133,7 +131,7 @@ export function renderSolarSystem(
     const perihelion = comet.semiMajorAxis * (1 - comet.eccentricity);
     const tailScale = Math.min(1, perihelion / radius);
     const dynamicTail = comet.tailLength * tailScale;
-    renderCometBody(svg, cx, cy, comet, CENTER, CENTER, dynamicTail, colors);
+    renderCometBody(svg, cx, cy, comet, CENTER, CENTER, dynamicTail);
     positions.push({ name: comet.name, x: cx, y: cy, color: comet.color });
   }
 
@@ -156,13 +154,13 @@ export function renderSolarSystem(
       cy: earthY,
       r: MOON_PIXEL_OFFSET,
       fill: "none",
-      style: `stroke: ${orbitColor}`,
+      style: `stroke: ${ORBIT_COLOR}`,
       "stroke-width": 0.5,
       "stroke-dasharray": "2, 3",
     })
   );
 
-  renderBody(svg, moonX, moonY, MOON, false, colors);
+  renderBody(svg, moonX, moonY, MOON, false);
 
   // Planet + Moon labels, placed once every body's final position is known
   // so each label can steer away from its nearest neighbor instead of
@@ -173,7 +171,7 @@ export function renderSolarSystem(
     ...positions,
     { name: SUN.name, x: CENTER, y: CENTER, color: SUN.color },
   ];
-  renderDynamicLabels(svg, planetLabels, labelObstacles, labelColor);
+  renderDynamicLabels(svg, planetLabels, labelObstacles, DEFAULT_LABEL_COLOR);
 
   // Observer needle on Earth (tip at surface)
   const observerAngle = calculateObserverAngle(

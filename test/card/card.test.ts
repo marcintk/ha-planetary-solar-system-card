@@ -423,6 +423,7 @@ describe("SolarViewCard", () => {
 
     it("shows version when show_version is true", () => {
       const card = createAndMount();
+      card.hass = { config: { latitude: 51.5, longitude: -0.1 } };
       card.setConfig({ show_version: true });
       card._render();
       const el = card.shadowRoot.querySelector(".card-version");
@@ -547,6 +548,68 @@ describe("SolarViewCard", () => {
       expect(card._lon).toBeNull();
       expect(card._timezone).toBeNull();
       expect(card._locationName).toBeNull();
+      card.remove();
+    });
+  });
+
+  describe("location override", () => {
+    it("config.location overrides HA lat/lon/hemisphere and status-bar name", () => {
+      const card = createAndMount();
+      card.hass = {
+        config: {
+          latitude: 51.5,
+          longitude: -0.1,
+          time_zone: "Europe/London",
+          location_name: "London",
+        },
+      };
+      card.setConfig({ location: { latitude: -34.9, longitude: -56.2, name: "Montevideo" } });
+      card._render();
+      expect(card._effectiveLat).toBe(-34.9);
+      expect(card._effectiveLon).toBe(-56.2);
+      expect(card._hemisphere).toBe("south");
+      expect(card._effectiveLocationName).toBe("Montevideo");
+      card.remove();
+    });
+
+    it("config.location with only latitude set is ignored, falls back to HA", () => {
+      const card = createAndMount();
+      card.hass = { config: { latitude: 51.5, longitude: -0.1 } };
+      card.setConfig({ location: { latitude: -34.9 } });
+      card._render();
+      expect(card._effectiveLat).toBe(51.5);
+      expect(card._effectiveLon).toBe(-0.1);
+      expect(card._hemisphere).toBe("north");
+      card.remove();
+    });
+
+    it("config.location with out-of-range latitude is ignored, falls back to HA", () => {
+      const card = createAndMount();
+      card.hass = { config: { latitude: 51.5, longitude: -0.1 } };
+      card.setConfig({ location: { latitude: 200, longitude: -56.2 } });
+      card._render();
+      expect(card._effectiveLat).toBe(51.5);
+      expect(card._effectiveLon).toBe(-0.1);
+      card.remove();
+    });
+
+    it("config.location with out-of-range longitude is ignored, falls back to HA", () => {
+      const card = createAndMount();
+      card.hass = { config: { latitude: 51.5, longitude: -0.1 } };
+      card.setConfig({ location: { latitude: -34.9, longitude: -200 } });
+      card._render();
+      expect(card._effectiveLat).toBe(51.5);
+      expect(card._effectiveLon).toBe(-0.1);
+      card.remove();
+    });
+
+    it("no config.location falls back to HA lat/lon/name", () => {
+      const card = createAndMount();
+      card.hass = { config: { latitude: 51.5, longitude: -0.1, location_name: "London" } };
+      card.setConfig({});
+      expect(card._effectiveLat).toBe(51.5);
+      expect(card._effectiveLon).toBe(-0.1);
+      expect(card._effectiveLocationName).toBe("London");
       card.remove();
     });
   });

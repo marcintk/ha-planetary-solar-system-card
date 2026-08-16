@@ -767,18 +767,14 @@ export class SolarViewCard extends LitElement {
     const results = await Promise.allSettled(sources.map((source) => resolveDisplayImage(source)));
     for (let i = 0; i < results.length; i++) {
       const result = results[i];
+      // resolveDisplayImage already confirmed this candidate loads before it's ever
+      // assigned here, so its presence in _galleryImages is itself the "loaded" state —
+      // the <img src> assignment just paints from the browser's own cache.
       if (result.status === "fulfilled") {
-        this._applyGalleryImage(sources[i], result.value);
+        this._galleryImages[sources[i]] = result.value;
       }
     }
     this._render();
-  }
-
-  // resolveDisplayImage already confirmed this candidate loads before it's ever assigned to
-  // the thumbnail, so its presence in _galleryImages is itself the "loaded" state — the <img
-  // src> assignment just paints from the browser's own cache instead of a live fetch.
-  private _applyGalleryImage(source: ImageSource, image: SourcedImage): void {
-    this._galleryImages[source] = image;
   }
 
   // resolveDisplayImage already retried once before this URL was ever assigned to the

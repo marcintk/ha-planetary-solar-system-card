@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { calculatePlanetPosition } from "../../src/astronomy/orbital-mechanics.js";
+import {
+  calculatePlanetOrbit,
+  calculatePlanetPosition,
+} from "../../src/astronomy/orbital-mechanics.js";
 import { PLANETS } from "../../src/astronomy/planet-data.js";
 import { renderSolarSystem } from "../../src/renderer/index.js";
 import {
@@ -10,7 +13,8 @@ import {
   CONE_NIGHT,
   calculateObserverAngle,
 } from "../../src/renderer/observer.js";
-import { packOrbitRadii } from "../../src/renderer/orbit-packing.js";
+import { computePlanetVisualEllipse, packOrbitRadii } from "../../src/renderer/orbit-packing.js";
+import { auToRadius } from "../../src/renderer/svg-utils.js";
 
 function renderInto(container, date) {
   const { svg } = renderSolarSystem(date);
@@ -52,14 +56,14 @@ describe("renderSolarSystem", () => {
     expect(svg.getAttribute("viewBox")).toBe("0 0 800 800");
   });
 
-  it("renders 8 orbit circles", () => {
+  it("renders 8 orbit ellipses", () => {
     const container = document.createElement("div");
     renderInto(container, new Date("2026-02-14"));
 
     const svg = container.querySelector("svg");
-    // Orbits are dashed circles with stroke and no fill
-    const orbitCircles = svg.querySelectorAll('circle[fill="none"][stroke-dasharray="5, 5"]');
-    expect(orbitCircles.length).toBe(8);
+    // Orbits are dashed ellipses with stroke and no fill
+    const orbitEllipses = svg.querySelectorAll('ellipse[fill="none"][stroke-dasharray="5, 5"]');
+    expect(orbitEllipses.length).toBe(8);
   });
 
   it("renders Sun at center", () => {
@@ -427,9 +431,12 @@ describe("renderSolarSystem", () => {
     const planetToRingGap = innerInnerEdge - bodyRadius;
     expect(planetToRingGap).toBeGreaterThanOrEqual(interRingGap * 2);
 
-    // Ellipses belong to comet orbits only (no Saturn ring ellipses)
+    // Ellipses belong to planet/comet orbits only (no Saturn ring ellipses)
+    const planetOrbitEllipses = svg.querySelectorAll('ellipse[stroke-dasharray="5, 5"]');
     const cometEllipses = svg.querySelectorAll('ellipse[stroke-dasharray="4, 8"]');
-    expect(svg.querySelectorAll("ellipse").length).toBe(cometEllipses.length);
+    expect(svg.querySelectorAll("ellipse").length).toBe(
+      planetOrbitEllipses.length + cometEllipses.length
+    );
 
     // Saturn's body should be rendered at half its data size (13px)
     const saturnBody = svg.querySelector('circle[fill="#e0c080"]');
@@ -487,9 +494,12 @@ describe("renderSolarSystem", () => {
     // Only Saturn should have ring-colored circles
     const ringCircles = svg.querySelectorAll('circle[stroke="#e0c080"][opacity="0.6"]');
     expect(ringCircles.length).toBe(2); // Only Saturn's dual rings
-    // Ellipses are comet orbits only
+    // Ellipses are planet/comet orbits only
+    const planetOrbitEllipses2 = svg.querySelectorAll('ellipse[stroke-dasharray="5, 5"]');
     const cometEllipses2 = svg.querySelectorAll('ellipse[stroke-dasharray="4, 8"]');
-    expect(svg.querySelectorAll("ellipse").length).toBe(cometEllipses2.length);
+    expect(svg.querySelectorAll("ellipse").length).toBe(
+      planetOrbitEllipses2.length + cometEllipses2.length
+    );
   });
 
   it("renders Moon orbit as a dotted circle centered on Earth", () => {
@@ -632,8 +642,11 @@ describe("renderSolarSystem ecliptic_view", () => {
 
   it("default (eclipticView=false) places planet at CENTER - radius*sin(angle)", () => {
     const earth = PLANETS.find((p) => p.name === "Earth");
-    const angle = calculatePlanetPosition(earth, DATE);
-    const radius = packOrbitRadii(PLANETS)[PLANETS.indexOf(earth)];
+    const earthIndex = PLANETS.indexOf(earth);
+    const { angle, trueAnomaly } = calculatePlanetOrbit(earth, DATE);
+    const packedOffset = packOrbitRadii(PLANETS)[earthIndex] - auToRadius(earth.au);
+    const { aPx, ePx } = computePlanetVisualEllipse(earth, packedOffset);
+    const radius = (aPx * (1 - ePx * ePx)) / (1 + ePx * Math.cos(trueAnomaly));
     const { positions } = renderSolarSystem(DATE, "north", null, {}, false);
     const pos = positions.find((p) => p.name === "Earth");
     expect(pos.y).toBeCloseTo(CENTER - radius * Math.sin(angle), 5);
@@ -646,5 +659,122 @@ describe("renderSolarSystem ecliptic_view", () => {
     if (Math.abs(normal.y - CENTER) > 0.5) {
       expect(normal.y).not.toBeCloseTo(flipped.y, 1);
     }
+  });
+});
+
+// Parses transform="matrix(a, b, c, d, e, f)" and reports whether a marker
+// point lies on the drawn ellipse (rx, ry, local center 0,0).
+function markerLiesOnDrawnEllipse(
+  transform: string,
+  rx: number,
+  ry: number,
+  markerX: number,
+  markerY: number
+): boolean {
+  const [a, b, c, d, e, f] = transform
+    .replace(/matrix\(|\)/g, "")
+    .split(",")
+    .map(Number);
+  const det = a * d - b * c;
+  const px = markerX - e;
+  const py = markerY - f;
+  const localX = (d * px - c * py) / det;
+  const localY = (-b * px + a * py) / det;
+  const value = (localX / rx) ** 2 + (localY / ry) ** 2;
+  return Math.abs(value - 1) < 1e-9;
+}
+
+describe("renderSolarSystem — planet markers stay on their drawn orbit ellipse (#94)", () => {
+  const dates = [
+    new Date("2024-01-01"),
+    new Date("2024-04-15"),
+    new Date("2025-09-01"),
+    new Date("2026-02-14"),
+  ];
+
+  it.each([
+    ["north (ecliptic_view: north / default)", false],
+    ["south (ecliptic_view: south)", true],
+  ])("every planet marker lies exactly on its drawn orbit ellipse — %s", (_label, eclipticView) => {
+    for (const date of dates) {
+      const { svg, positions } = renderSolarSystem(date, "north", null, {}, eclipticView);
+      const orbitEllipses = Array.from(
+        svg.querySelectorAll('ellipse[fill="none"][stroke-dasharray="5, 5"]')
+      );
+      expect(orbitEllipses.length).toBe(PLANETS.length);
+
+      for (const planet of PLANETS) {
+        // renderSolarSystem draws orbit ellipses in PLANETS order, so match
+        // each planet to its ellipse by index rather than duplicating the
+        // renderer's ellipse math here.
+        const ellipseEl = orbitEllipses[PLANETS.indexOf(planet)];
+        const rx = Number(ellipseEl.getAttribute("rx"));
+        const ry = Number(ellipseEl.getAttribute("ry"));
+        const transform = ellipseEl.getAttribute("transform");
+        const pos = positions.find((p) => p.name === planet.name);
+        expect(markerLiesOnDrawnEllipse(transform, rx, ry, pos.x, pos.y)).toBe(true);
+      }
+    }
+  });
+});
+
+// Samples the drawn ellipse (rx, ry, local center 0,0, given transform) and
+// returns the shortest distance from (x, y) to any point on it.
+function distanceToDrawnEllipse(
+  transform: string,
+  rx: number,
+  ry: number,
+  x: number,
+  y: number
+): number {
+  const [a, b, c, d, e, f] = transform
+    .replace(/matrix\(|\)/g, "")
+    .split(",")
+    .map(Number);
+
+  let minDist = Infinity;
+  const STEPS = 2000;
+  for (let i = 0; i < STEPS; i++) {
+    const t = (2 * Math.PI * i) / STEPS;
+    const localX = rx * Math.cos(t);
+    const localY = ry * Math.sin(t);
+    const px = a * localX + c * localY + e;
+    const py = b * localX + d * localY + f;
+    const dist = Math.hypot(px - x, py - y);
+    if (dist < minDist) minDist = dist;
+  }
+  return minDist;
+}
+
+describe("renderSolarSystem — AU labels sit next to the drawn orbit ring (#94)", () => {
+  it("every AU label sits within a few pixels of the drawn ellipse", () => {
+    const date = new Date("2026-02-14");
+    const { svg } = renderSolarSystem(date, "north", null, {}, false);
+
+    const orbitEllipses = Array.from(
+      svg.querySelectorAll('ellipse[fill="none"][stroke-dasharray="5, 5"]')
+    );
+    const auLabels = Array.from(svg.querySelectorAll('text[font-size="9"]'));
+    expect(auLabels.length).toBe(PLANETS.length * 2);
+
+    // Labels sit LABEL_OFFSET=3px right of the ring and (top: 3px above,
+    // bottom: 3+6px below) for readability, so exact-on-ring isn't the
+    // target — max designed offset is the bottom label's diagonal, ~9.5px.
+    const LABEL_TOLERANCE_PX = 10;
+
+    PLANETS.forEach((_planet, i) => {
+      const ellipseEl = orbitEllipses[i];
+      const rx = Number(ellipseEl.getAttribute("rx"));
+      const ry = Number(ellipseEl.getAttribute("ry"));
+      const transform = ellipseEl.getAttribute("transform");
+
+      const [topLabel, bottomLabel] = auLabels.slice(i * 2, i * 2 + 2);
+      for (const label of [topLabel, bottomLabel]) {
+        const x = Number(label.getAttribute("x"));
+        const y = Number(label.getAttribute("y"));
+        const dist = distanceToDrawnEllipse(transform, rx, ry, x, y);
+        expect(dist).toBeLessThanOrEqual(LABEL_TOLERANCE_PX);
+      }
+    });
   });
 });

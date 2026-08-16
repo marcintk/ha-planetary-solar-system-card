@@ -1,33 +1,75 @@
-import type { CelestialBody, Colors } from "../types.js";
-import { BODY_LABEL_ATTRS, CENTER, createSvgElement, DEFAULT_LABEL_COLOR } from "./svg-utils.js";
+import type { CelestialBody, Colors, CometVisualEllipse } from "../types.js";
+import {
+  BODY_LABEL_ATTRS,
+  CENTER,
+  createSvgElement,
+  DEFAULT_LABEL_COLOR,
+  type OrbitTransformComponents,
+  orbitTransformComponents,
+} from "./svg-utils.js";
 
 export const ORBIT_COLOR = "color-mix(in srgb, currentColor 12%, transparent)";
 const AU_LABEL_COLOR = "color-mix(in srgb, currentColor 50%, transparent)";
 // Outer ring circle (r=23, stroke-width=2) -> visible edge at 24px, wider than Saturn's shrunk body.
 export const SATURN_RING_OUTER_RADIUS = 24;
 
+/**
+ * Where the drawn orbit ellipse crosses the vertical line x=CENTER (the
+ * season-divider axis the AU labels sit next to). The Sun's focus is always
+ * inside the ellipse, so this line crosses it at exactly two points —
+ * computed from the *same* transform components used to draw the ellipse,
+ * so the labels can never drift off the ring the way a fixed
+ * CENTER±semi-major-axis placement does once the ellipse is rotated (#94).
+ * Returns [top, bottom] sorted by y.
+ */
+function verticalAxisIntersections(
+  rx: number,
+  ry: number,
+  { a, b, c, d, e, f }: OrbitTransformComponents
+): [{ x: number; y: number }, { x: number; y: number }] {
+  const A = a * rx;
+  const B = c * ry;
+  const radius = Math.hypot(A, B);
+  const phi = Math.atan2(B, A);
+  const cosVal = Math.max(-1, Math.min(1, (CENTER - e) / radius));
+  const delta = Math.acos(cosVal);
+
+  const points = [phi + delta, phi - delta].map((t) => {
+    const localX = rx * Math.cos(t);
+    const localY = ry * Math.sin(t);
+    return { x: a * localX + c * localY + e, y: b * localX + d * localY + f };
+  });
+  return points[0].y <= points[1].y ? [points[0], points[1]] : [points[1], points[0]];
+}
+
 export function renderOrbit(
   svg: SVGElement,
-  radius: number,
+  ellipse: CometVisualEllipse,
   auLabel: number,
+  eclipticViewDirection: number,
   colors: Colors = {}
 ): void {
   const orbitColor = colors.orbit ?? ORBIT_COLOR;
+  const { aPx, bPx, cPx, rotationDeg } = ellipse;
+  const components = orbitTransformComponents(cPx, rotationDeg, eclipticViewDirection);
+  const { a, b, c, d, e, f } = components;
 
   svg.appendChild(
-    createSvgElement("circle", {
-      cx: CENTER,
-      cy: CENTER,
-      r: radius,
+    createSvgElement("ellipse", {
+      cx: 0,
+      cy: 0,
+      rx: aPx,
+      ry: bPx,
       fill: "none",
       style: `stroke: ${orbitColor}`,
       "stroke-width": 1,
       "stroke-dasharray": "5, 5",
+      transform: `matrix(${a}, ${b}, ${c}, ${d}, ${e}, ${f})`,
     })
   );
 
-  // AU labels on the vertical axis — mirrored above and below center
-  // Offset right of the season dividing line to avoid overlap
+  // AU labels next to where the ring crosses the vertical axis — offset
+  // right of the season dividing line to avoid overlap.
   const LABEL_OFFSET = 3;
   const labelAttrs = {
     style: `fill: ${AU_LABEL_COLOR}`,
@@ -35,12 +77,13 @@ export function renderOrbit(
     "font-family": "sans-serif",
     "text-anchor": "start",
   };
+  const [topPoint, bottomPoint] = verticalAxisIntersections(aPx, bPx, components);
 
   // Top label
   svg.appendChild(
     createSvgElement("text", {
-      x: CENTER + LABEL_OFFSET,
-      y: CENTER - radius - LABEL_OFFSET,
+      x: topPoint.x + LABEL_OFFSET,
+      y: topPoint.y - LABEL_OFFSET,
       ...labelAttrs,
     })
   ).textContent = `${Number(auLabel).toFixed(1)} AU`;
@@ -48,8 +91,8 @@ export function renderOrbit(
   // Bottom label
   svg.appendChild(
     createSvgElement("text", {
-      x: CENTER + LABEL_OFFSET,
-      y: CENTER + radius + LABEL_OFFSET + 6,
+      x: bottomPoint.x + LABEL_OFFSET,
+      y: bottomPoint.y + LABEL_OFFSET + 6,
       ...labelAttrs,
     })
   ).textContent = `${Number(auLabel).toFixed(1)} AU`;

@@ -7,7 +7,7 @@ import {
   renderCometOrbit,
 } from "../../src/renderer/comets.js";
 import { renderSolarSystem } from "../../src/renderer/index.js";
-import { auToRadius, CENTER, SVG_NS } from "../../src/renderer/svg-utils.js";
+import { auToRadius, CENTER, orbitTransformMatrix, SVG_NS } from "../../src/renderer/svg-utils.js";
 
 function createSvg() {
   return document.createElementNS(SVG_NS, "svg");
@@ -95,30 +95,52 @@ describe("computeCometVisualEllipse", () => {
   });
 });
 
+// Parses transform="matrix(a, b, c, d, e, f)" and reports whether a marker
+// point lies on the drawn ellipse (rx=aPx, ry=bPx, local center 0,0).
+function markerLiesOnEllipse(
+  transform: string,
+  aPx: number,
+  bPx: number,
+  markerX: number,
+  markerY: number
+): boolean {
+  const [a, b, c, d, e, f] = transform
+    .replace(/matrix\(|\)/g, "")
+    .split(",")
+    .map(Number);
+  const det = a * d - b * c;
+  const px = markerX - e;
+  const py = markerY - f;
+  const localX = (d * px - c * py) / det;
+  const localY = (-b * px + a * py) / det;
+  const value = (localX / aPx) ** 2 + (localY / bPx) ** 2;
+  return Math.abs(value - 1) < 1e-9;
+}
+
 describe("renderCometOrbit", () => {
   const halley = COMETS.find((c) => c.name === "Halley");
 
   it("appends an ellipse element to the SVG", () => {
     const svg = createSvg();
-    renderCometOrbit(svg, halley);
+    renderCometOrbit(svg, halley, -1);
 
     const ellipse = svg.querySelector("ellipse");
     expect(ellipse).not.toBeNull();
     expect(svg.querySelector("path")).toBeNull();
   });
 
-  it("ellipse is centered at CENTER", () => {
+  it("ellipse is drawn at its own local origin (transform carries it to CENTER)", () => {
     const svg = createSvg();
-    renderCometOrbit(svg, halley);
+    renderCometOrbit(svg, halley, -1);
 
     const ellipse = svg.querySelector("ellipse");
-    expect(ellipse.getAttribute("cx")).toBe(String(CENTER));
-    expect(ellipse.getAttribute("cy")).toBe(String(CENTER));
+    expect(ellipse.getAttribute("cx")).toBe("0");
+    expect(ellipse.getAttribute("cy")).toBe("0");
   });
 
   it("ellipse rx and ry match computeCometVisualEllipse", () => {
     const svg = createSvg();
-    renderCometOrbit(svg, halley);
+    renderCometOrbit(svg, halley, -1);
     const { aPx, bPx } = computeCometVisualEllipse(halley);
 
     const ellipse = svg.querySelector("ellipse");
@@ -128,7 +150,7 @@ describe("renderCometOrbit", () => {
 
   it("ellipse has dashed stroke styling", () => {
     const svg = createSvg();
-    renderCometOrbit(svg, halley);
+    renderCometOrbit(svg, halley, -1);
 
     const ellipse = svg.querySelector("ellipse");
     expect(ellipse.getAttribute("stroke-dasharray")).toBe("4, 8");
@@ -137,59 +159,47 @@ describe("renderCometOrbit", () => {
 
   it("ellipse has no fill", () => {
     const svg = createSvg();
-    renderCometOrbit(svg, halley);
+    renderCometOrbit(svg, halley, -1);
 
     const ellipse = svg.querySelector("ellipse");
     expect(ellipse.getAttribute("fill")).toBe("none");
   });
 
-  it("ellipse has rotation transform with negated longitude of perihelion", () => {
+  it("ellipse transform is a matrix built from the focus shift and rotation", () => {
     const svg = createSvg();
-    renderCometOrbit(svg, halley);
+    renderCometOrbit(svg, halley, -1);
+    const { cPx, rotationDeg } = computeCometVisualEllipse(halley);
 
     const ellipse = svg.querySelector("ellipse");
     const transform = ellipse.getAttribute("transform");
-    expect(transform).toContain(`rotate(${-halley.longitudeOfPerihelion}`);
-    expect(transform).toContain(`${CENTER}, ${CENTER}`);
+    expect(transform).toBe(orbitTransformMatrix(cPx, rotationDeg, -1));
   });
 
-  it("ellipse transform includes a translation offset (focus shift)", () => {
-    const svg = createSvg();
-    renderCometOrbit(svg, halley);
-    const { cPx } = computeCometVisualEllipse(halley);
+  it.each([-1, 1])(
+    "comet body (from the same polar-focus formula the renderer uses) lands exactly on the drawn ellipse, eclipticViewDirection=%i",
+    (eclipticViewDirection) => {
+      const svg = createSvg();
+      renderCometOrbit(svg, halley, eclipticViewDirection);
+      const { aPx, bPx, ePx, rotationDeg } = computeCometVisualEllipse(halley);
 
-    const ellipse = svg.querySelector("ellipse");
-    const transform = ellipse.getAttribute("transform");
-    expect(transform).toContain(`translate(${-cPx}`);
-  });
+      const ellipse = svg.querySelector("ellipse");
+      const transform = ellipse.getAttribute("transform");
 
-  it("comet body lies on or near the visual ellipse", () => {
-    const date = new Date("2026-03-15");
-    const { angle, trueAnomaly } = calculateCometPosition(halley, date);
-    const { aPx, ePx } = computeCometVisualEllipse(halley);
-    const rPx = (aPx * (1 - ePx * ePx)) / (1 + ePx * Math.cos(trueAnomaly));
-    const bodyX = CENTER + rPx * Math.cos(angle);
-    const bodyY = CENTER - rPx * Math.sin(angle);
-
-    // The visual ellipse in untransformed space (before rotation/translation):
-    // point on ellipse at angle θ relative to focus:
-    // r(θ) = aPx*(1-ePx²)/(1+ePx*cos(θ))
-    // After transform, the body should be on the ellipse curve.
-    // Verify body is at a reasonable distance from center (not at infinity or zero)
-    const distFromCenter = Math.sqrt((bodyX - CENTER) ** 2 + (bodyY - CENTER) ** 2);
-    expect(distFromCenter).toBeGreaterThan(0);
-    expect(distFromCenter).toBeLessThan(1000);
-    // rPx should be within the pixel-space perihelion/aphelion range
-    const periPx = aPx * (1 - ePx);
-    const apoPx = aPx * (1 + ePx);
-    expect(rPx).toBeGreaterThanOrEqual(periPx - 0.01);
-    expect(rPx).toBeLessThanOrEqual(apoPx + 0.01);
-  });
+      const rotationRad = (rotationDeg * Math.PI) / 180;
+      for (const trueAnomaly of [0, Math.PI / 4, Math.PI / 2, Math.PI, (3 * Math.PI) / 2]) {
+        const angle = trueAnomaly + rotationRad;
+        const rPx = (aPx * (1 - ePx * ePx)) / (1 + ePx * Math.cos(trueAnomaly));
+        const bodyX = CENTER + rPx * Math.cos(angle);
+        const bodyY = CENTER + eclipticViewDirection * rPx * Math.sin(angle);
+        expect(markerLiesOnEllipse(transform, aPx, bPx, bodyX, bodyY)).toBe(true);
+      }
+    }
+  );
 
   it("works for all comets without error", () => {
     for (const comet of COMETS) {
       const svg = createSvg();
-      renderCometOrbit(svg, comet);
+      renderCometOrbit(svg, comet, -1);
       expect(svg.querySelector("ellipse")).not.toBeNull();
     }
   });

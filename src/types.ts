@@ -10,9 +10,11 @@ export interface Planet extends CelestialBody {
   au: number;
   periodDays: number;
   meanLongitudeJ2000: number;
+  eccentricity: number;
+  longitudeOfPerihelion: number;
 }
 
-export type MoonData = Omit<Planet, "au">;
+export type MoonData = Omit<Planet, "au" | "eccentricity" | "longitudeOfPerihelion">;
 
 export interface Comet {
   name: string;

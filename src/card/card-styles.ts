@@ -210,7 +210,7 @@ export const cardStyles = css`
   }
   .card-version {
     font-size: 9px;
-    color: inherit;
+    color: #00e676;
     user-select: none;
     font-family: sans-serif;
     position: absolute;

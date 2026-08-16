@@ -123,15 +123,21 @@ exports[`cardStyles > matches snapshot 1`] = `
     object-fit: cover;
     display: block;
   }
-  .gallery-label {
+  .gallery-info {
     position: absolute;
     bottom: 1px;
+    left: 2px;
     right: 2px;
+    display: flex;
+    justify-content: space-between;
+    pointer-events: none;
+  }
+  .gallery-label,
+  .gallery-age {
     font-size: 8px;
     color: #fff;
     text-shadow: 0 0 2px #000;
     font-family: sans-serif;
-    pointer-events: none;
   }
   .nav {
     display: flex;

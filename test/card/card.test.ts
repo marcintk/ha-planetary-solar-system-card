@@ -1283,8 +1283,11 @@ describe("SolarViewCard", () => {
       expect(thumbs.length).toBe(2);
       expect(Array.from(thumbs).map((t) => t.dataset.source)).toEqual(["earth", "sun"]);
       const labels = Array.from(thumbs).map((t) => t.querySelector(".gallery-label").textContent);
-      expect(labels[0]).toMatch(/^L1→EARTH · (\d+[mh] ago|just now)$/);
-      expect(labels[1]).toMatch(/^L1→SUN · (\d+[mh] ago|just now)$/);
+      expect(labels).toEqual(["L1→EARTH", "GEO→SUN"]);
+      const ages = Array.from(thumbs).map((t) => t.querySelector(".gallery-age").textContent);
+      for (const age of ages) {
+        expect(age).toMatch(/^(\d+[mh] ago|just now)$/);
+      }
       card.remove();
     });
 
@@ -1335,16 +1338,27 @@ describe("SolarViewCard", () => {
       card.remove();
     });
 
-    it("a full-screen image load error falls back to the unavailable banner and closes the panel", async () => {
+    it("a sun image load error retries the previous 15-min slot once before giving up", async () => {
       const card = createAndMount();
       await flush();
       card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"]').click();
       await flush();
       expect(card._imagePanelMode).toBe("sun");
+      const firstSrc = card.shadowRoot.querySelector("#image-view").src;
+      const firstDate = card._imageDate;
 
       card.shadowRoot.querySelector("#image-view").dispatchEvent(new Event("error"));
       await flush();
 
+      // Still open, on a different (earlier) slot — not yet the unavailable banner.
+      expect(card._imagePanelMode).toBe("sun");
+      const secondSrc = card.shadowRoot.querySelector("#image-view").src;
+      expect(secondSrc).not.toBe(firstSrc);
+      expect(card._imageDate.getTime()).toBe(firstDate.getTime() - 15 * 60000);
+
+      // A second failure (the retried slot also 404s) falls back to the banner.
+      card.shadowRoot.querySelector("#image-view").dispatchEvent(new Event("error"));
+      await flush();
       expect(card._imagePanelMode).toBe("none");
       expect(card.shadowRoot.querySelector(".status-bar").textContent).toContain(
         "SDO HMI Continuum image unavailable"
@@ -1428,7 +1442,7 @@ describe("SolarViewCard", () => {
       card.shadowRoot.querySelector("#image-view").click(); // back to gallery
       await vi.advanceTimersByTimeAsync(0);
       // Past both the 2-min click cache and into the next published 15-min slot.
-      vi.setSystemTime(new Date("2026-08-12T12:05:01Z"));
+      vi.setSystemTime(new Date("2026-08-12T12:15:01Z"));
       clickSun();
       await vi.advanceTimersByTimeAsync(0);
       const secondSrc = card.shadowRoot.querySelector("#image-view").src;
@@ -1445,7 +1459,7 @@ describe("SolarViewCard", () => {
       await vi.advanceTimersByTimeAsync(0);
       const firstSrc = card.shadowRoot.querySelector("#image-view").src;
 
-      // A single tick timed just past the 15-min full-panel TTL.
+      // A single tick timed just past the 15-min TTL.
       await vi.advanceTimersByTimeAsync(16 * 60000);
       const secondSrc = card.shadowRoot.querySelector("#image-view").src;
 
@@ -1454,16 +1468,16 @@ describe("SolarViewCard", () => {
       vi.useRealTimers();
     });
 
-    it("auto-update ticks also refresh the open earth full image every 15 minutes", async () => {
+    it("auto-update ticks also refresh the open earth full image hourly", async () => {
       vi.useFakeTimers();
       const fetchMock = stubEarthFetch();
-      const card = createAndMount({ refresh_mins: 16 });
+      const card = createAndMount({ refresh_mins: 61 });
       await vi.advanceTimersByTimeAsync(0);
       card.shadowRoot.querySelector('.gallery-thumb[data-source="earth"]').click();
       await vi.advanceTimersByTimeAsync(0);
       const callsAfterOpen = fetchMock.mock.calls.length;
 
-      await vi.advanceTimersByTimeAsync(16 * 60000);
+      await vi.advanceTimersByTimeAsync(61 * 60000);
       expect(fetchMock.mock.calls.length).toBeGreaterThan(callsAfterOpen);
 
       card.remove();

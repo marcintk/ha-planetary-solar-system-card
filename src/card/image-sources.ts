@@ -1,12 +1,11 @@
 export const EPIC_BASE_URL = "https://epic.gsfc.nasa.gov";
-// Three cadences, from most to least frequent background traffic:
+// Two cadences:
 // - CLICK: opening a thumbnail is an explicit request for the freshest shot, but still
 //   respects a short TTL — otherwise a rapid re-click re-downloads for no new content.
-// - FULL_PANEL: while the full-screen image stays open, it keeps itself fresh on its own.
-// - GALLERY: the thumbnail strip's background ticks, much slower to avoid hammering NASA's
-//   (slow, ~1-2s per image) servers for a view that's just idling in the background.
+// - GALLERY: everything else (the idling thumbnail strip, and the full-screen view once
+//   open) ticks in the background. Earth ticks hourly; Sun ticks every 15 min — matching
+//   SUN_SLOT_MS below, since polling faster than the source's own publish grid buys nothing.
 export const CLICK_CACHE_TTL_MS = 120000;
-export const FULL_PANEL_CACHE_TTL_MS = 900000;
 const GALLERY_CACHE_TTL_MS = 3600000;
 
 // SDO publishes HMI Continuum (visible-light sunspot disk) quicklook frames to a dated
@@ -18,8 +17,8 @@ const GALLERY_CACHE_TTL_MS = 3600000;
 // fetch or retry — if NASA's pipeline ever lags past it, the image 404s and the UI falls back
 // to the same "unavailable" state as any other failed source.
 export const SDO_BROWSE_BASE_URL = "https://sdo.gsfc.nasa.gov/assets/img/browse";
-const SUN_SLOT_MS = 15 * 60000;
-const SUN_PUBLISH_BUFFER_MS = 20 * 60000;
+export const SUN_SLOT_MS = 15 * 60000;
+const SUN_PUBLISH_BUFFER_MS = 30 * 60000;
 
 export interface SourcedImage {
   url: string;
@@ -36,23 +35,33 @@ function pad(n: number): string {
   return String(n).padStart(2, "0");
 }
 
-export function getSunImageUrl(maxAgeMs = GALLERY_CACHE_TTL_MS): SourcedImage {
+function buildSunSlotImage(slot: Date): SourcedImage {
+  const year = slot.getUTCFullYear();
+  const month = pad(slot.getUTCMonth() + 1);
+  const day = pad(slot.getUTCDate());
+  const hhmmss = `${pad(slot.getUTCHours())}${pad(slot.getUTCMinutes())}00`;
+  return {
+    url: `${SDO_BROWSE_BASE_URL}/${year}/${month}/${day}/${year}${month}${day}_${hhmmss}_1024_HMIIC.jpg`,
+    date: slot,
+  };
+}
+
+export function getSunImageUrl(maxAgeMs = SUN_SLOT_MS): SourcedImage {
   const now = Date.now();
   const cached = cache.get("sun");
   if (cached && now - cached.fetchedAt < maxAgeMs) return cached.image;
 
   const slotMs = Math.floor((now - SUN_PUBLISH_BUFFER_MS) / SUN_SLOT_MS) * SUN_SLOT_MS;
-  const slot = new Date(slotMs);
-  const year = slot.getUTCFullYear();
-  const month = pad(slot.getUTCMonth() + 1);
-  const day = pad(slot.getUTCDate());
-  const hhmmss = `${pad(slot.getUTCHours())}${pad(slot.getUTCMinutes())}00`;
-  const image = {
-    url: `${SDO_BROWSE_BASE_URL}/${year}/${month}/${day}/${year}${month}${day}_${hhmmss}_1024_HMIIC.jpg`,
-    date: slot,
-  };
+  const image = buildSunSlotImage(new Date(slotMs));
   cache.set("sun", { image, fetchedAt: now });
   return image;
+}
+
+// One-step fallback for when the computed slot 404s (NASA's publish pipeline occasionally
+// lags past the buffer) — steps back exactly one 15-min slot and nothing further, so a
+// single stale request doesn't turn into an unbounded retry chain.
+export function getPreviousSunSlot(currentSlot: Date): SourcedImage {
+  return buildSunSlotImage(new Date(currentSlot.getTime() - SUN_SLOT_MS));
 }
 
 export async function fetchLatestEarthImageUrl(

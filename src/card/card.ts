@@ -23,8 +23,8 @@ import { DEFAULT_ZOOM_LEVEL, MAX_ZOOM, MIN_ZOOM, ViewState } from "./card-view-s
 import type { SourcedImage } from "./image-sources.js";
 import {
   CLICK_CACHE_TTL_MS,
-  FULL_PANEL_CACHE_TTL_MS,
   fetchLatestEarthImageUrl,
+  getPreviousSunSlot,
   getSunImageUrl,
 } from "./image-sources.js";
 import { formatRelativeAge } from "./relative-time.js";
@@ -69,6 +69,7 @@ export class SolarViewCard extends LitElement {
   private _imageUrl: string | null;
   private _imageDate: Date | null;
   private _imageError: string | null;
+  private _sunRetried: boolean;
   private _galleryOpen: boolean;
   private _galleryImages: Partial<Record<ImageSource, SourcedImage>>;
   private _galleryMode: GalleryMode;
@@ -104,6 +105,7 @@ export class SolarViewCard extends LitElement {
     this._imageUrl = null;
     this._imageDate = null;
     this._imageError = null;
+    this._sunRetried = false;
     this._galleryOpen = false;
     this._galleryImages = {};
     this._galleryMode = "none";
@@ -262,13 +264,16 @@ export class SolarViewCard extends LitElement {
                       @click=${this._onGalleryClick}
                     >
                       <img src=${this._galleryImages[source]?.url ?? ""} alt="" />
-                      <span class="gallery-label"
-                        >${GALLERY_SOURCE_LABELS[source]}${
+                      <div class="gallery-info">
+                        <span class="gallery-label">${GALLERY_SOURCE_LABELS[source]}</span>
+                        ${
                           this._galleryImages[source]
-                            ? html` · ${formatRelativeAge(this._galleryImages[source]?.date as Date, new Date())}`
+                            ? html`<span class="gallery-age"
+                                >${formatRelativeAge(this._galleryImages[source]?.date as Date, new Date())}</span
+                              >`
                             : nothing
-                        }</span
-                      >
+                        }
+                      </div>
                     </button>`
                   )}
                 </div>`
@@ -612,9 +617,18 @@ export class SolarViewCard extends LitElement {
 
   // Earth's URL is validated by a real fetch before it's ever assigned, so this only ever
   // fires in practice for sun: its URL is computed (not fetch-checked) from NASA's publish
-  // cadence, so it can occasionally 404 if a slot hasn't been published yet.
+  // cadence, so it can occasionally 404 if a slot hasn't been published yet. First failure
+  // steps back one 15-min slot and retries once; only a second failure shows the banner.
   private _onImageLoadError(): void {
     if (this._imagePanelMode === "none") return;
+    if (this._imagePanelMode === "sun" && !this._sunRetried) {
+      this._sunRetried = true;
+      const { url, date } = getPreviousSunSlot(this._imageDate as Date);
+      this._imageUrl = url;
+      this._imageDate = date;
+      this._render();
+      return;
+    }
     this._imageError = `${IMAGE_SOURCE_LABELS[this._imagePanelMode]} image unavailable`;
     this._imagePanelMode = "none";
     this._imageUrl = null;
@@ -623,6 +637,7 @@ export class SolarViewCard extends LitElement {
   }
 
   private async _setImagePanel(mode: ImagePanelMode): Promise<void> {
+    this._sunRetried = false;
     if (mode === "none") {
       this._imagePanelMode = "none";
       this._imageUrl = null;
@@ -652,17 +667,15 @@ export class SolarViewCard extends LitElement {
     this._render();
   }
 
-  // Keeps the open full-screen image fresh (15-min TTL) on each auto-update tick, for as
-  // long as it stays open. Only called while _imagePanelMode !== "none" (see the tick
-  // handler). A failed refresh is silently skipped — the panel keeps showing the last
-  // good image rather than surfacing a transient background-fetch error.
+  // Keeps the open full-screen image fresh (hourly, same cadence as the gallery strip) on
+  // each auto-update tick, for as long as it stays open. Only called while
+  // _imagePanelMode !== "none" (see the tick handler). A failed refresh is silently skipped
+  // — the panel keeps showing the last good image rather than surfacing a transient
+  // background-fetch error.
   private async _refreshOpenImage(): Promise<void> {
     const mode = this._imagePanelMode;
     try {
-      const { url, date } =
-        mode === "earth"
-          ? await fetchLatestEarthImageUrl(FULL_PANEL_CACHE_TTL_MS)
-          : getSunImageUrl(FULL_PANEL_CACHE_TTL_MS);
+      const { url, date } = mode === "earth" ? await fetchLatestEarthImageUrl() : getSunImageUrl();
       this._imageUrl = url;
       this._imageDate = date;
       this._render();
@@ -696,16 +709,13 @@ export class SolarViewCard extends LitElement {
   // Fetches gallery thumbnails for the active gallery.mode — called when the gallery is
   // opened, and on each auto-update tick while it stays open and no full image is showing
   // (never while both are closed, to avoid unconditional background polling of NASA's
-  // servers for every install regardless of use). Each source is still cache-guarded (Sun:
-  // 15-min TTL, Earth: 1-hour TTL — Sun's disk image updates far more often), so this only
-  // hits the network once the relevant cache has expired.
+  // servers for every install regardless of use). Each source is cache-guarded at a 1-hour
+  // TTL, so this only hits the network once the cache has expired.
   private async _refreshGalleryImages(): Promise<void> {
     const sources = this._fetchGallerySources;
     const results = await Promise.allSettled(
       sources.map((source) =>
-        source === "earth"
-          ? fetchLatestEarthImageUrl()
-          : Promise.resolve(getSunImageUrl(FULL_PANEL_CACHE_TTL_MS))
+        source === "earth" ? fetchLatestEarthImageUrl() : Promise.resolve(getSunImageUrl())
       )
     );
     for (let i = 0; i < results.length; i++) {

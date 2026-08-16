@@ -35,11 +35,11 @@ the standard astronomical twilight definitions:
 | Astronomical twilight | -12° to -18°  | Sky background glow, faint stars washed out                      |
 | Night                 | < -18°        | Full dark; the Sun no longer lights the sky                      |
 
-### L1 Imagery
+### Live Imagery
 
 Live imagery from two NASA probes: [DSCOVR](https://epic.gsfc.nasa.gov/) at the Sun-Earth L1 point
-watches Earth, [SDO](https://sdo.gsfc.nasa.gov/) in Earth orbit watches the Sun. `gallery.mode`
-picks what shows (☷ toggles the strip, a thumbnail click opens full-screen):
+watches Earth, [SDO](https://sdo.gsfc.nasa.gov/) in geosynchronous Earth orbit watches the Sun.
+`gallery.mode` picks what shows (☷ toggles the strip, a thumbnail click opens full-screen):
 
 | Mode    | Strip shows                                                 |
 | ------- | ----------------------------------------------------------- |
@@ -49,10 +49,10 @@ picks what shows (☷ toggles the strip, a thumbnail click opens full-screen):
 | `both`  | Earth and Sun together                                      |
 | `slide` | One thumbnail, flipping every `gallery.slide_interval_secs` |
 
-| Thumbnail | Source                                                             | We poll     | Latest image is usually                 |
-| --------- | ------------------------------------------------------------------ | ----------- | --------------------------------------- |
-| L1→EARTH  | [NASA EPIC](https://epic.gsfc.nasa.gov/) (DSCOVR, at Sun-Earth L1) | Hourly      | ~1-2 days old (EPIC processing backlog) |
-| L1→SUN    | [NASA SDO](https://sdo.gsfc.nasa.gov/) (Earth orbit, not L1)       | Every 15min | ~15-35min old                           |
+| Thumbnail | Source                                                              | We poll     | Latest image is usually                 |
+| --------- | ------------------------------------------------------------------- | ----------- | --------------------------------------- |
+| L1→EARTH  | [NASA EPIC](https://epic.gsfc.nasa.gov/) (DSCOVR, at Sun-Earth L1)  | Hourly      | ~1-2 days old (EPIC processing backlog) |
+| GEO→SUN   | [NASA SDO](https://sdo.gsfc.nasa.gov/) (geosynchronous Earth orbit) | Every 15min | ~30-45min old                           |
 
 Strict reverse-proxy CSP may block `epic.gsfc.nasa.gov` / `sdo.gsfc.nasa.gov` — not fixable
 card-side.
@@ -96,7 +96,7 @@ default_zoom: 2
 | `colors`                      | object                 | see below | Color overrides (see Colors)                                                               |
 | `ecliptic_view`               | `"north"` \| `"south"` | `"north"` | Viewing pole: `"north"` = counter-clockwise orbits (default); `"south"` = clockwise orbits |
 | `show_version`                | boolean                | `false`   | Show card version number in the bottom-right corner of the nav bar                         |
-| `gallery.mode`                | see below              | `"none"`  | L1 Imagery gallery mode (see L1 Imagery)                                                   |
+| `gallery.mode`                | see below              | `"none"`  | Live Imagery gallery mode (see Live Imagery)                                               |
 | `gallery.slide_interval_secs` | number                 | `60`      | How often `slide` mode flips the displayed thumbnail between Earth and Sun                 |
 
 ### Colors
@@ -121,7 +121,7 @@ colors:
   label: "#e0e0ff"
 ```
 
-See [L1 Imagery](#l1-imagery) above for what `gallery.*` does.
+See [Live Imagery](#live-imagery) above for what `gallery.*` does.
 
 ```yaml
 type: custom:ha-planetary-solar-system-card

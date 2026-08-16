@@ -45,7 +45,7 @@ export const IMAGE_SOURCE_LABELS: Record<ImageSource, string> = {
 // Labels for the gallery thumbnail strip.
 export const GALLERY_SOURCE_LABELS: Record<ImageSource, string> = {
   earth: "L1→EARTH",
-  sun: "L1→SUN",
+  sun: "GEO→SUN",
 };
 
 export const GALLERY_SOURCES: ImageSource[] = ["earth", "sun"];

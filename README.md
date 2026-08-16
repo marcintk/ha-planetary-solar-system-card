@@ -35,17 +35,12 @@ the standard astronomical twilight definitions:
 
 ### Live Imagery
 
-Live imagery from two NASA probes: [DSCOVR](https://epic.gsfc.nasa.gov/) and
-[SDO](https://sdo.gsfc.nasa.gov/). `gallery.mode` picks what shows (☷ toggles the strip, a
-thumbnail click opens full-screen):
-
-| Mode    | Strip shows                                                 |
-| ------- | ----------------------------------------------------------- |
-| `none`  | Nothing — gallery button hidden                             |
-| `earth` | Earth only                                                  |
-| `sun`   | Sun only                                                    |
-| `both`  | Earth and Sun together                                      |
-| `slide` | One thumbnail, flipping every `gallery.slide_interval_secs` |
+A thumbnail strip alongside the solar view can show near-real-time photos of Earth and the Sun,
+sourced from two NASA probes: [DSCOVR](https://epic.gsfc.nasa.gov/), parked at the Sun-Earth L1
+point watching Earth's sunlit side, and [SDO](https://sdo.gsfc.nasa.gov/), in geosynchronous orbit
+watching the Sun. It's off by default — enable and configure it with `gallery.*` options (see
+[Gallery](#gallery) in Configuration). Once enabled, ☷ toggles the strip on/off and clicking a
+thumbnail opens it full-screen.
 
 | Thumbnail | Source                                                              | We poll     | Latest image is usually                 |
 | --------- | ------------------------------------------------------------------- | ----------- | --------------------------------------- |
@@ -154,8 +149,16 @@ location:
 
 | Key                           | Type   | Default  | Description                                          |
 | ----------------------------- | ------ | -------- | ---------------------------------------------------- |
-| `gallery.mode`                | string | `"none"` | See [Live Imagery](#live-imagery) for values         |
+| `gallery.mode`                | string | `"none"` | See mode table below                                 |
 | `gallery.slide_interval_secs` | number | `60`     | How often `slide` mode flips the displayed thumbnail |
+
+| `gallery.mode` | Strip shows                                                 |
+| -------------- | ----------------------------------------------------------- |
+| `"none"`       | Nothing — gallery button hidden                             |
+| `"earth"`      | Earth only                                                  |
+| `"sun"`        | Sun only                                                    |
+| `"both"`       | Earth and Sun together                                      |
+| `"slide"`      | One thumbnail, flipping every `gallery.slide_interval_secs` |
 
 ### Location
 

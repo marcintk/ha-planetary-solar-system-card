@@ -14,15 +14,15 @@ describe("image-sources", () => {
   });
 
   describe("getSunImageUrl", () => {
-    // now = 2026-08-15T22:42:30Z; minus the 30-min publish buffer = 22:12:30;
-    // floored to the last 15-min slot = 22:00:00.
+    // now = 2026-08-15T22:42:30Z; minus the 15-min publish buffer = 22:27:30;
+    // floored to the last 15-min slot = 22:15:00.
     const NOW = Date.UTC(2026, 7, 15, 22, 42, 30);
 
     it("computes the SDO browse-archive URL for the last published 15-min slot, buffered for publish latency", () => {
       vi.spyOn(Date, "now").mockReturnValue(NOW);
       const { url, date } = getSunImageUrl();
-      expect(url).toBe(`${SDO_BROWSE_BASE_URL}/2026/08/15/20260815_220000_1024_HMIIC.jpg`);
-      expect(date.toISOString()).toBe("2026-08-15T22:00:00.000Z");
+      expect(url).toBe(`${SDO_BROWSE_BASE_URL}/2026/08/15/20260815_221500_1024_HMIIC.jpg`);
+      expect(date.toISOString()).toBe("2026-08-15T22:15:00.000Z");
     });
 
     it("returns the cached result within the TTL instead of a fresh slot", () => {

@@ -13,12 +13,13 @@ const GALLERY_CACHE_TTL_MS = 3600000;
 // time — but sdo.gsfc.nasa.gov sends no CORS header, so unlike EPIC's JSON API we can't fetch
 // the directory listing from the browser to confirm which slot has actually been published.
 // Instead we compute the URL: floor "now minus a publish-latency buffer" to the last 15-min
-// slot. The buffer trades a small amount of freshness for a single request with no listing
-// fetch or retry — if NASA's pipeline ever lags past it, the image 404s and the UI falls back
-// to the same "unavailable" state as any other failed source.
+// slot. One buffer's worth of margin (one slot) covers the typical case; both the gallery
+// thumbnail and full-screen view retry once, a further slot back, if that guess 404s — so
+// the buffer only needs to cover the common case, not the worst case, before falling back to
+// the same "unavailable" state as any other failed source.
 export const SDO_BROWSE_BASE_URL = "https://sdo.gsfc.nasa.gov/assets/img/browse";
 export const SUN_SLOT_MS = 15 * 60000;
-const SUN_PUBLISH_BUFFER_MS = 30 * 60000;
+const SUN_PUBLISH_BUFFER_MS = 15 * 60000;
 
 export interface SourcedImage {
   url: string;

@@ -72,6 +72,7 @@ export class SolarViewCard extends LitElement {
   private _sunRetried: boolean;
   private _galleryOpen: boolean;
   private _galleryImages: Partial<Record<ImageSource, SourcedImage>>;
+  private _gallerySunRetried: boolean;
   private _galleryMode: GalleryMode;
   private _galleryAutoIntervalMs: number;
   private _autoDisplayedSource: ImageSource;
@@ -108,6 +109,7 @@ export class SolarViewCard extends LitElement {
     this._sunRetried = false;
     this._galleryOpen = false;
     this._galleryImages = {};
+    this._gallerySunRetried = false;
     this._galleryMode = "none";
     this._galleryAutoIntervalMs = DEFAULT_GALLERY_INTERVAL_MS;
     this._autoDisplayedSource = "earth";
@@ -263,7 +265,11 @@ export class SolarViewCard extends LitElement {
                       title=${`Show ${GALLERY_SOURCE_LABELS[source]}`}
                       @click=${this._onGalleryClick}
                     >
-                      <img src=${this._galleryImages[source]?.url ?? ""} alt="" />
+                      <img
+                        src=${this._galleryImages[source]?.url ?? ""}
+                        alt=""
+                        @error=${source === "sun" ? this._onSunThumbError : undefined}
+                      />
                       <div class="gallery-info">
                         <span class="gallery-label">${GALLERY_SOURCE_LABELS[source]}</span>
                         ${
@@ -709,10 +715,12 @@ export class SolarViewCard extends LitElement {
   // Fetches gallery thumbnails for the active gallery.mode — called when the gallery is
   // opened, and on each auto-update tick while it stays open and no full image is showing
   // (never while both are closed, to avoid unconditional background polling of NASA's
-  // servers for every install regardless of use). Each source is cache-guarded at a 1-hour
-  // TTL, so this only hits the network once the cache has expired.
+  // servers for every install regardless of use). Each source is cache-guarded (earth
+  // hourly, sun every 15min — matching each source's own publish cadence), so this only
+  // hits the network once the relevant cache has expired.
   private async _refreshGalleryImages(): Promise<void> {
     const sources = this._fetchGallerySources;
+    if (sources.includes("sun")) this._gallerySunRetried = false;
     const results = await Promise.allSettled(
       sources.map((source) =>
         source === "earth" ? fetchLatestEarthImageUrl() : Promise.resolve(getSunImageUrl())
@@ -724,6 +732,23 @@ export class SolarViewCard extends LitElement {
         this._galleryImages[sources[i]] = result.value;
       }
     }
+    this._render();
+  }
+
+  // Mirrors _onImageLoadError's one-step-back retry, for the gallery thumbnail instead of
+  // the full-screen view: first failure steps back one 15-min slot; a second failure drops
+  // the thumbnail (falls back to the transparent placeholder) rather than retrying forever.
+  private _onSunThumbError(): void {
+    if (this._gallerySunRetried) {
+      delete this._galleryImages.sun;
+      this._render();
+      return;
+    }
+    const current = this._galleryImages.sun;
+    /* v8 ignore next */
+    if (!current) return;
+    this._gallerySunRetried = true;
+    this._galleryImages.sun = getPreviousSunSlot(current.date);
     this._render();
   }
 

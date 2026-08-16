@@ -1291,6 +1291,30 @@ describe("SolarViewCard", () => {
       card.remove();
     });
 
+    it("a sun thumbnail load error retries the previous 15-min slot once, then drops the thumbnail", async () => {
+      const card = createAndMount();
+      await flush();
+      const sunImg = () => card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"] img');
+      const firstSrc = sunImg().src;
+      const firstDate = card._galleryImages.sun.date;
+
+      sunImg().dispatchEvent(new Event("error"));
+      await flush();
+
+      // Retried once, on an earlier slot — thumbnail still shows something.
+      expect(sunImg().src).not.toBe(firstSrc);
+      expect(card._galleryImages.sun.date.getTime()).toBe(firstDate.getTime() - 15 * 60000);
+
+      // A second failure (the retried slot also 404s) drops the thumbnail.
+      sunImg().dispatchEvent(new Event("error"));
+      await flush();
+      expect(sunImg().getAttribute("src")).toBe("");
+      expect(
+        card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"] .gallery-age')
+      ).toBeNull();
+      card.remove();
+    });
+
     it("fetches all thumbnails as soon as the card connects", async () => {
       const fetchMock = stubEarthFetch();
       const card = createAndMount();

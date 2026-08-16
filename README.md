@@ -49,10 +49,10 @@ watches Earth, [SDO](https://sdo.gsfc.nasa.gov/) in geosynchronous Earth orbit w
 | `both`  | Earth and Sun together                                      |
 | `slide` | One thumbnail, flipping every `gallery.slide_interval_secs` |
 
-| Thumbnail | Source                                                              | We poll     | Latest image is usually                 |
-| --------- | ------------------------------------------------------------------- | ----------- | --------------------------------------- |
-| L1→EARTH  | [NASA EPIC](https://epic.gsfc.nasa.gov/) (DSCOVR, at Sun-Earth L1)  | Hourly      | ~1-2 days old (EPIC processing backlog) |
-| GEO→SUN   | [NASA SDO](https://sdo.gsfc.nasa.gov/) (geosynchronous Earth orbit) | Every 15min | ~30-45min old                           |
+| Thumbnail | Source                                                              | We poll     | Latest image is usually                   |
+| --------- | ------------------------------------------------------------------- | ----------- | ----------------------------------------- |
+| L1→EARTH  | [NASA EPIC](https://epic.gsfc.nasa.gov/) (DSCOVR, at Sun-Earth L1)  | Hourly      | ~1-2 days old (EPIC processing backlog)   |
+| GEO→SUN   | [NASA SDO](https://sdo.gsfc.nasa.gov/) (geosynchronous Earth orbit) | Every 15min | ~15-30min old (up to 45min if it retries) |
 
 Strict reverse-proxy CSP may block `epic.gsfc.nasa.gov` / `sdo.gsfc.nasa.gov` — not fixable
 card-side.

@@ -1,13 +1,12 @@
 import { html, LitElement, nothing } from "lit";
 import { renderSolarSystem } from "../renderer/index.js";
-import { MARKER_GROUP_ID, renderOffscreenMarkers } from "../renderer/offscreen-markers.js";
 import type {
   CardConfig,
   Colors,
   HASSConfig,
   Hemisphere,
   LocationData,
-  ViewPosition,
+  PanZoomState,
   ZoomLevel,
 } from "../types.js";
 import { cardStyles } from "./card-styles.js";
@@ -109,7 +108,7 @@ export class SolarViewCard extends LitElement {
     return this._theme === "auto" ? null : THEME_PALETTES[this._theme];
   }
   private _heightStyle: string;
-  private _positions: ViewPosition[];
+  private _updateMarkers: ((viewState: PanZoomState) => void) | null;
   private _onVisibilityChange: (() => void) | null;
   private _gallery: GalleryController;
   _config: CardConfig | undefined;
@@ -133,7 +132,7 @@ export class SolarViewCard extends LitElement {
     this._eclipticView = false;
     this._theme = "auto";
     this._heightStyle = "";
-    this._positions = [];
+    this._updateMarkers = null;
     this._onVisibilityChange = null;
     this._gallery = new GalleryController(() => this._render());
   }
@@ -378,14 +377,14 @@ export class SolarViewCard extends LitElement {
     /* v8 ignore next */
     if (container) {
       while (container.firstChild) container.removeChild(container.firstChild);
-      const { svg, positions } = renderSolarSystem(
+      const { svg, updateMarkers } = renderSolarSystem(
         this._dateNav.currentDate,
         this._hemisphere,
         this._locationData,
         this._colors,
         this._eclipticView
       );
-      this._positions = positions;
+      this._updateMarkers = updateMarkers;
       container.appendChild(svg);
       this._bindSvgEvents(svg);
     }
@@ -484,19 +483,7 @@ export class SolarViewCard extends LitElement {
       "#solar-view svg"
     ) as SVGSVGElement | null;
     if (svg) svg.setAttribute("viewBox", this._viewState.viewBox);
-    this._updateOffscreenMarkers();
-  }
-
-  private _updateOffscreenMarkers(): void {
-    const svg = (this.shadowRoot as ShadowRoot).querySelector(
-      "#solar-view svg"
-    ) as SVGSVGElement | null;
-    if (!svg) return;
-    const old = svg.getElementById(MARKER_GROUP_ID);
-    if (old) old.remove();
-    if (this._positions && this._viewState) {
-      svg.appendChild(renderOffscreenMarkers(this._positions, this._viewState));
-    }
+    this._updateMarkers?.(this._viewState);
   }
 
   private _onPointerDown(e: PointerEvent): void {

@@ -5,7 +5,7 @@ import {
   calculatePlanetOrbit,
 } from "../astronomy/orbital-mechanics.js";
 import { EARTH, MOON, MOON_PIXEL_OFFSET, PLANETS, SUN } from "../astronomy/planet-data.js";
-import type { Colors, Hemisphere, LocationData, ViewPosition } from "../types.js";
+import type { Colors, Hemisphere, LocationData, PanZoomState, ViewPosition } from "../types.js";
 import {
   ORBIT_COLOR,
   renderBody,
@@ -17,6 +17,7 @@ import { computeCometVisualEllipse, renderCometBody, renderCometOrbit } from "./
 import { type LabelTarget, renderDynamicLabels } from "./labels.js";
 import { renderMoonPhaseIndicator } from "./moon-phase.js";
 import { calculateObserverAngle, renderDayNightSplit, renderObserverNeedle } from "./observer.js";
+import { MARKER_GROUP_ID, renderOffscreenMarkers } from "./offscreen-markers.js";
 import { computePlanetVisualEllipse, packOrbitRadii } from "./orbit-packing.js";
 import { renderSeasonOverlay } from "./seasons.js";
 import {
@@ -34,7 +35,11 @@ export function renderSolarSystem(
   locationData: LocationData | null = null,
   colors: Colors = {},
   eclipticView = false
-): { svg: SVGSVGElement; positions: ViewPosition[] } {
+): {
+  svg: SVGSVGElement;
+  positions: ViewPosition[];
+  updateMarkers: (viewState: PanZoomState) => void;
+} {
   const eclipticViewDirection = eclipticView ? 1 : -1;
 
   const svg = createSvgElement("svg", {
@@ -182,5 +187,15 @@ export function renderSolarSystem(
   // Moon phase indicator (rendered last so it appears on top)
   renderMoonPhaseIndicator(svg, date, hemisphere);
 
-  return { svg, positions };
+  // Re-derives which bodies' markers belong offscreen from this render's positions and the
+  // caller's current pan/zoom — cheap enough to call on every drag/zoom tick without rebuilding
+  // the rest of the SVG. Owns the marker group's DOM lifecycle (replace-by-id) so callers never
+  // need to know MARKER_GROUP_ID or reach into the SVG themselves.
+  function updateMarkers(viewState: PanZoomState): void {
+    const old = svg.getElementById(MARKER_GROUP_ID);
+    if (old) old.remove();
+    svg.appendChild(renderOffscreenMarkers(positions, viewState));
+  }
+
+  return { svg, positions, updateMarkers };
 }

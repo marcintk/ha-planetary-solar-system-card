@@ -1340,10 +1340,10 @@ describe("SolarViewCard", () => {
       await flush();
 
       const sunImg = card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"] img');
-      expect(sunImg.getAttribute("src")).toBe("");
+      expect(sunImg.getAttribute("src")).toBeNull();
       expect(
-        card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"] .gallery-age')
-      ).toBeNull();
+        card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"] .gallery-age').textContent
+      ).toBe("loading…");
       card.remove();
     });
 
@@ -1531,7 +1531,7 @@ describe("SolarViewCard", () => {
       await flush();
       expect(
         card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"] img').getAttribute("src")
-      ).toBe("");
+      ).toBeNull();
       card.remove();
     });
 
@@ -1789,7 +1789,7 @@ describe("SolarViewCard", () => {
       const sunThumb = card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"] img');
       const earthThumb = card.shadowRoot.querySelector('.gallery-thumb[data-source="earth"] img');
       expect(sunThumb.getAttribute("src")).not.toBe("");
-      expect(earthThumb.getAttribute("src")).toBe(""); // earth fetch failed, thumbnail stays empty
+      expect(earthThumb.getAttribute("src")).toBeNull(); // earth fetch failed, thumbnail stays empty
       card.remove();
     });
 

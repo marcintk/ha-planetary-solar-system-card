@@ -276,7 +276,7 @@ export class SolarViewCard extends LitElement {
           <img
             id="image-view"
             class="image-view ${this._imagePanelMode === "none" ? "" : "visible"}"
-            src=${this._imageUrl ?? ""}
+            src=${this._imageUrl ?? nothing}
             alt=""
             @click=${this._onImageClick}
             @load=${this._onImageLoad}
@@ -293,22 +293,22 @@ export class SolarViewCard extends LitElement {
                       @click=${this._onGalleryClick}
                     >
                       <img
-                        src=${this._galleryImages[source]?.url ?? ""}
+                        src=${this._galleryImages[source]?.url ?? nothing}
                         alt=""
                         @error=${source === "sun" ? this._onSunThumbError : undefined}
                       />
                       <div class="gallery-info">
                         <span class="gallery-label">${GALLERY_SOURCE_LABELS[source]}</span>
-                        ${
-                          this._galleryImages[source]
-                            ? html`<span class="gallery-age"
-                                >${formatRelativeAge(
+                        <span class="gallery-age"
+                          >${
+                            this._galleryImages[source]
+                              ? formatRelativeAge(
                                   this._galleryImages[source]?.date as Date,
                                   new Date()
-                                )}</span
-                              >`
-                            : nothing
-                        }
+                                )
+                              : "loading…"
+                          }</span
+                        >
                       </div>
                     </button>`
                   )}

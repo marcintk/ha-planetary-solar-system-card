@@ -140,11 +140,6 @@ location:
 | `colors.season_line`  | 25% of theme text color           | Season quadrant divider lines        |
 | `colors.season_label` | 50% of theme text color           | Season name labels (curved arc text) |
 
-The visibility cone shades by how far the Sun is below the horizon (see
-[Horizon Twilight Zones](#horizon-twilight-zones)). `cone_day` defaults to the theme's text color at
-8% opacity (same override rules as above); the twilight/night bands default to fixed colors, not
-theme-adaptive:
-
 | Key                                 | Default                     | Description                          |
 | ----------------------------------- | --------------------------- | ------------------------------------ |
 | `colors.cone_day`                   | 8% of theme text color      | Sun above horizon                    |

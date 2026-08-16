@@ -100,6 +100,38 @@ export function calculateObserverAngle(
   return earthOrbitalAngle + localTimeAngle;
 }
 
+// Elevation/zenith angle -> which twilight band the visibility cone should show, and how wide
+// it should be. Pure so the band boundaries and half-angle geometry are testable without a
+// DOM — renderDayNightSplit only calls this and hands the result to renderVisibilityCone.
+export function computeTwilightBand(
+  elevationDeg: number,
+  zenithAngleFromSun: number | null,
+  colors: Colors
+): { color: string; halfAngle: number } {
+  let color: string;
+  if (elevationDeg >= 0) color = colors.cone_day ?? CONE_DAY;
+  else if (elevationDeg >= -6) color = colors.cone_twilight_civil ?? CONE_CIVIL;
+  else if (elevationDeg >= -12) color = colors.cone_twilight_nautical ?? CONE_NAUTICAL;
+  else if (elevationDeg >= -18) color = colors.cone_twilight_astronomical ?? CONE_ASTRONOMICAL;
+  else color = colors.cone_night ?? CONE_NIGHT;
+
+  // Twilight half-angle must expand in the SAME frame as displayObserverAngle (the cone's
+  // axis), or the two disagree away from solar noon/midnight. zenithAngleFromSun is an
+  // ecliptic-PLANE PROJECTION of the true 3D zenith angle — so reuse that same projected
+  // magnitude here instead of the true unprojected (90 - elevationDeg), which was silently
+  // assumed to be interchangeable with it. Using the mismatched true-angle magnitude on a
+  // projected axis is exactly what pushed the -6/-12/-18 cone edges away from the Sun's
+  // actual direction after sunset (worst at mid latitudes).
+  const halfAngle =
+    elevationDeg >= 0 || elevationDeg < -18
+      ? 90
+      : zenithAngleFromSun != null
+        ? (Math.abs(zenithAngleFromSun) * 180) / Math.PI
+        : 90 - elevationDeg;
+
+  return { color, halfAngle };
+}
+
 function renderVisibilityCone(
   svg: SVGElement,
   anchorX: number,
@@ -198,26 +230,11 @@ export function renderDayNightSplit(
   const displayObserverAngle =
     zenithAngleFromSun != null ? earthAngle + Math.PI + zenithAngleFromSun : observerAngle;
 
-  let coneColor: string;
-  if (elevationDeg >= 0) coneColor = colors.cone_day ?? CONE_DAY;
-  else if (elevationDeg >= -6) coneColor = colors.cone_twilight_civil ?? CONE_CIVIL;
-  else if (elevationDeg >= -12) coneColor = colors.cone_twilight_nautical ?? CONE_NAUTICAL;
-  else if (elevationDeg >= -18) coneColor = colors.cone_twilight_astronomical ?? CONE_ASTRONOMICAL;
-  else coneColor = colors.cone_night ?? CONE_NIGHT;
-
-  // Twilight half-angle must expand in the SAME frame as displayObserverAngle (the cone's
-  // axis), or the two disagree away from solar noon/midnight. displayObserverAngle is built
-  // from zenithAngleFromSun, an ecliptic-PLANE PROJECTION of the true 3D zenith angle — so
-  // reuse that same projected magnitude here instead of the true unprojected (90 -
-  // elevationDeg), which was silently assumed to be interchangeable with it. Using the
-  // mismatched true-angle magnitude on a projected axis is exactly what pushed the -6/-12/-18
-  // cone edges away from the Sun's actual direction after sunset (worst at mid latitudes).
-  const halfAngle =
-    elevationDeg >= 0 || elevationDeg < -18
-      ? 90
-      : zenithAngleFromSun != null
-        ? (Math.abs(zenithAngleFromSun) * 180) / Math.PI
-        : 90 - elevationDeg;
+  const { color: coneColor, halfAngle } = computeTwilightBand(
+    elevationDeg,
+    zenithAngleFromSun,
+    colors
+  );
   renderVisibilityCone(
     svg,
     anchorX,

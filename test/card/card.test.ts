@@ -1824,6 +1824,45 @@ describe("SolarViewCard", () => {
       vi.useRealTimers();
     });
 
+    it("gallery.mode: slide keeps showing the previous source until the next image finishes decoding", async () => {
+      vi.useFakeTimers();
+      stubEarthFetch();
+      let holding = false;
+      let resolveDecode: () => void;
+      vi.stubGlobal(
+        "Image",
+        class {
+          src = "";
+          decode() {
+            if (holding) {
+              return new Promise((resolve) => {
+                resolveDecode = resolve;
+              });
+            }
+            return Promise.resolve();
+          }
+        }
+      );
+
+      const card = createAndMount({ gallery: { mode: "slide", slide_interval_secs: 30 } });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(card.shadowRoot.querySelector(".gallery-thumb").dataset.source).toBe("earth");
+
+      holding = true;
+      await vi.advanceTimersByTimeAsync(30 * 1000);
+      // Next image's decode() is still pending — label and thumbnail stay on the old source.
+      expect(card.shadowRoot.querySelector(".gallery-thumb").dataset.source).toBe("earth");
+      expect(card.shadowRoot.querySelector(".gallery-label").textContent).toBe("L1▷EARTH");
+
+      resolveDecode();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(card.shadowRoot.querySelector(".gallery-thumb").dataset.source).toBe("sun");
+      expect(card.shadowRoot.querySelector(".gallery-label").textContent).toBe("GEO▷SUN");
+
+      card.remove();
+      vi.useRealTimers();
+    });
+
     it("reconfiguring the slide interval while slide mode stays active restarts the timer", async () => {
       vi.useFakeTimers();
       const card = createAndMount({ gallery: { mode: "slide", slide_interval_secs: 120 } });

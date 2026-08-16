@@ -426,9 +426,26 @@ export class SolarViewCard extends LitElement {
       return;
     }
     this._autoSwitchTimer = setInterval(() => {
-      this._autoDisplayedSource = this._autoDisplayedSource === "earth" ? "sun" : "earth";
-      this._render();
+      void this._advanceSlide();
     }, this._galleryAutoIntervalMs) as unknown as number;
+  }
+
+  // Re-decodes the next slide's image off-DOM before flipping the displayed source, so the
+  // label and the thumbnail <img> switch together — otherwise the label re-renders instantly
+  // while the reused <img> still shows the previous bitmap for a frame until it decodes.
+  private async _advanceSlide(): Promise<void> {
+    const next = this._autoDisplayedSource === "earth" ? "sun" : "earth";
+    const known = this._galleryImages[next];
+    if (known) {
+      try {
+        await preloadImage(known.url);
+      } catch {
+        // Already-validated URL failing a re-decode is transient; show it anyway rather
+        // than getting stuck on the previous source forever.
+      }
+    }
+    this._autoDisplayedSource = next;
+    this._render();
   }
 
   private _advanceZoom(): void {

@@ -1,12 +1,10 @@
 import { html, LitElement, nothing } from "lit";
-import { renderSolarSystem } from "../renderer/index.js";
 import type {
   CardConfig,
   Colors,
   HASSConfig,
   Hemisphere,
   LocationData,
-  PanZoomState,
   ZoomLevel,
 } from "../types.js";
 import { parseCardConfig } from "./card-config.js";
@@ -17,6 +15,7 @@ import { DateNav } from "./date-nav.js";
 import type { GalleryMode } from "./gallery-controller.js";
 import { GalleryController } from "./gallery-controller.js";
 import { formatRelativeAge } from "./relative-time.js";
+import { SolarView } from "./solar-view.js";
 import { resolveTheme, THEME_OVERRIDE_VARS } from "./theme.js";
 import { ZoomController } from "./zoom-controller.js";
 
@@ -51,7 +50,7 @@ export class SolarViewCard extends LitElement {
   private _eclipticView: boolean;
   private _theme: "auto" | "dark" | "light";
   private _heightStyle: string;
-  private _updateMarkers: ((viewState: PanZoomState) => void) | null;
+  private _solarView: SolarView;
   private _onVisibilityChange: (() => void) | null;
   private _gallery: GalleryController;
   _config: CardConfig | undefined;
@@ -61,7 +60,7 @@ export class SolarViewCard extends LitElement {
     this._dateNav = new DateNav(() => this._render());
     this._zoom = new ZoomController(
       () => this._render(),
-      () => this._updateViewBox()
+      () => this._solarView.applyViewState()
     );
     this._hemisphere = "north";
     this._hassLocation = { lat: null, lon: null, timezone: null, name: null };
@@ -73,7 +72,7 @@ export class SolarViewCard extends LitElement {
     this._eclipticView = false;
     this._theme = "auto";
     this._heightStyle = "";
-    this._updateMarkers = null;
+    this._solarView = new SolarView(this._zoom);
     this._onVisibilityChange = null;
     this._gallery = new GalleryController(() => this._render());
   }
@@ -285,20 +284,17 @@ export class SolarViewCard extends LitElement {
     const container = (this.shadowRoot as ShadowRoot).getElementById("solar-view");
     /* v8 ignore next */
     if (container) {
-      while (container.firstChild) container.removeChild(container.firstChild);
-      const { svg, updateMarkers } = renderSolarSystem(
+      this._solarView.mount(
+        container,
         this._dateNav.currentDate,
         this._hemisphere,
         this._locationData,
         this._colors,
         this._eclipticView
       );
-      this._updateMarkers = updateMarkers;
-      container.appendChild(svg);
-      this._bindSvgEvents(svg);
     }
 
-    this._updateViewBox();
+    this._solarView.applyViewState();
     const theme = resolveTheme(this._theme, this._colors.background);
     this.style.background = theme.background;
     this.style.color = theme.color;
@@ -353,38 +349,6 @@ export class SolarViewCard extends LitElement {
     this._dateNav.goLive();
   }
 
-  private _updateViewBox(): void {
-    const panZoomState = this._zoom.panZoomState;
-    if (!panZoomState) return;
-    const svg = (this.shadowRoot as ShadowRoot).querySelector(
-      "#solar-view svg"
-    ) as SVGSVGElement | null;
-    if (svg) svg.setAttribute("viewBox", this._zoom.viewBox as string);
-    this._updateMarkers?.(panZoomState);
-  }
-
-  private _onPointerDown(e: PointerEvent): void {
-    const svg = e.currentTarget as SVGSVGElement;
-    svg.setPointerCapture(e.pointerId);
-    this._zoom.startDrag(e.clientX, e.clientY);
-    svg.style.cursor = "grabbing";
-  }
-
-  private _onPointerMove(e: PointerEvent): void {
-    if (!this._zoom.isDragging) return;
-    const svg = e.currentTarget as SVGSVGElement;
-    const rect = svg.getBoundingClientRect();
-    this._zoom.updateDrag(e.clientX, e.clientY, rect);
-  }
-
-  private _onPointerUp(e: PointerEvent): void {
-    if (!this._zoom.isDragging) return;
-    this._zoom.endDrag();
-    const svg = e.currentTarget as SVGSVGElement;
-    svg.releasePointerCapture(e.pointerId);
-    svg.style.cursor = "grab";
-  }
-
   private _onNavClick(e: Event): void {
     this._handleNavAction((e.currentTarget as HTMLButtonElement).dataset.action);
   }
@@ -392,12 +356,6 @@ export class SolarViewCard extends LitElement {
   private _onGalleryClick(e: Event): void {
     const source = (e.currentTarget as HTMLButtonElement).dataset.source as ImageSource;
     this._gallery.openPanel(source);
-  }
-
-  private _bindSvgEvents(svg: SVGSVGElement): void {
-    svg.addEventListener("pointerdown", (e) => this._onPointerDown(e));
-    svg.addEventListener("pointermove", (e) => this._onPointerMove(e));
-    svg.addEventListener("pointerup", (e) => this._onPointerUp(e));
   }
 
   private _handleNavAction(action: string | undefined): void {

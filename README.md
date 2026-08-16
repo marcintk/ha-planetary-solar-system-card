@@ -97,6 +97,14 @@ gallery:
   slide_interval_secs: 30
 ```
 
+```yaml
+type: custom:ha-planetary-solar-system-card
+location:
+  latitude: 51.5074
+  longitude: -0.1278
+  name: London
+```
+
 ## Configuration
 
 ### Layout

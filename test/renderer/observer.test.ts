@@ -305,6 +305,29 @@ describe("renderDayNightSplit cone bisector geometry", () => {
     const bisector = coneBisectorAngle(svg);
     expect(angleDiff(bisector, expectedBisector)).toBeLessThan(0.05); // within ~3°
   });
+
+  it("south view (eclipticViewDirection=1) sweeps the arc through the bisector, not the opposite/major arc", () => {
+    // Mirroring the scene reverses screen chirality, so the sweep flag that traces the
+    // wedge through the bisector for north (-1) traces the complementary arc for south (1)
+    // unless the sweep flag itself is flipped too. Regression for that bug: assert the
+    // rendered sweep-flag digit in the path's "A" command differs between the two views.
+    const date = new Date("2025-07-15T19:00:00Z");
+    const locationData = { lat: 55, lon: 0, timezone: "Europe/London" };
+
+    const svgNorth = createSvg();
+    renderDayNightSplit(svgNorth, 200, date, earth.size, locationData, -1);
+    const svgSouth = createSvg();
+    renderDayNightSplit(svgSouth, 200, date, earth.size, locationData, 1);
+
+    const sweepFlagOf = (svg: SVGElement) =>
+      svg
+        .querySelector("clipPath path")
+        .getAttribute("d")
+        .match(/A [\d.]+ [\d.]+ 0 (\d) (\d)/)[2];
+
+    expect(sweepFlagOf(svgNorth)).toBe("1");
+    expect(sweepFlagOf(svgSouth)).toBe("0");
+  });
 });
 
 describe("renderDayNightSplit twilight cone/line edges drift from the Sun", () => {

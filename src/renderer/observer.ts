@@ -101,6 +101,10 @@ function renderVisibilityCone(
   const HALF_ANGLE = (halfAngleDeg * Math.PI) / 180;
   /* v8 ignore next */
   const largeArcFlag = halfAngleDeg >= 90 ? 1 : 0;
+  // Mirroring the scene (eclipticViewDirection=1, south view) reverses screen chirality,
+  // so the sweep direction that passes through the bisector (not the opposite/major arc)
+  // flips too. Hardcoding sweep=1 only drew the correct wedge for the north (-1) case.
+  const sweepFlag = eclipticViewDirection === -1 ? 1 : 0;
 
   const leftAngle = observerAngle + HALF_ANGLE;
   const rightAngle = observerAngle - HALF_ANGLE;
@@ -110,7 +114,7 @@ function renderVisibilityCone(
   const rightY = anchorY + eclipticViewDirection * D * Math.sin(rightAngle);
 
   // SVG path: MoveTo apex, LineTo left edge, Arc to right edge, ClosePath
-  const pathD = `M ${anchorX} ${anchorY} L ${leftX} ${leftY} A ${D} ${D} 0 ${largeArcFlag} 1 ${rightX} ${rightY} Z`;
+  const pathD = `M ${anchorX} ${anchorY} L ${leftX} ${leftY} A ${D} ${D} 0 ${largeArcFlag} ${sweepFlag} ${rightX} ${rightY} Z`;
 
   const defs =
     svg.querySelector("defs") || svg.insertBefore(createSvgElement("defs", {}), svg.firstChild);

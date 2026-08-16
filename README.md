@@ -143,10 +143,10 @@ gallery:
 
 `gallery` (object, unset by default) — Live Imagery gallery options:
 
-| Key                           | Type   | Default  | Description                                                                                   |
-| ----------------------------- | ------ | -------- | --------------------------------------------------------------------------------------------- |
-| `gallery.mode`                | string | `"none"` | `"none"` \| `"earth"` \| `"sun"` \| `"both"` \| `"slide"` — see [Live Imagery](#live-imagery) |
-| `gallery.slide_interval_secs` | number | `60`     | How often `slide` mode flips the displayed thumbnail                                          |
+| Key                           | Type   | Default  | Description                                          |
+| ----------------------------- | ------ | -------- | ---------------------------------------------------- |
+| `gallery.mode`                | string | `"none"` | See [Live Imagery](#live-imagery) for values         |
+| `gallery.slide_interval_secs` | number | `60`     | How often `slide` mode flips the displayed thumbnail |
 
 ### Location
 

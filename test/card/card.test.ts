@@ -1367,7 +1367,7 @@ describe("SolarViewCard", () => {
       expect(thumbs.length).toBe(2);
       expect(Array.from(thumbs).map((t) => t.dataset.source)).toEqual(["earth", "sun"]);
       const labels = Array.from(thumbs).map((t) => t.querySelector(".gallery-label").textContent);
-      expect(labels).toEqual(["L1▷EARTH", "GEO▷SUN"]);
+      expect(labels).toEqual(["DSCOVR▷E", "SDO▷S"]);
 
       // Each candidate is preloaded off-DOM before it's ever assigned to the thumbnail, so
       // by the time the fetch/preload chain settles the age is already known — no separate
@@ -1446,9 +1446,7 @@ describe("SolarViewCard", () => {
       card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"]').click();
       await flush();
       expect(card._imagePanelMode).toBe("sun");
-      expect(card.shadowRoot.querySelector(".status-bar").textContent).toContain(
-        "GEO▷SUN · SDO HMI"
-      );
+      expect(card.shadowRoot.querySelector(".status-bar").textContent).toContain("SDO▷S · SDO HMI");
       const img = card.shadowRoot.querySelector("#image-view");
       expect(img.classList.contains("visible")).toBe(true);
       expect(card.shadowRoot.querySelector(".gallery")).toBeNull();
@@ -1737,7 +1735,7 @@ describe("SolarViewCard", () => {
         `${EPIC_BASE_URL}/archive/natural/2026/08/10/jpg/epic_1b_20260810234950.jpg`
       );
       expect(card.shadowRoot.querySelector(".status-bar").textContent).toContain(
-        "L1▷EARTH · DSCOVR"
+        "DSCOVR▷E · DSCOVR"
       );
       card.remove();
     });
@@ -1913,12 +1911,12 @@ describe("SolarViewCard", () => {
       await vi.advanceTimersByTimeAsync(30 * 1000);
       // Next image's decode() is still pending — label and thumbnail stay on the old source.
       expect(card.shadowRoot.querySelector(".gallery-thumb").dataset.source).toBe("earth");
-      expect(card.shadowRoot.querySelector(".gallery-label").textContent).toBe("L1▷EARTH");
+      expect(card.shadowRoot.querySelector(".gallery-label").textContent).toBe("DSCOVR▷E");
 
       resolveDecode();
       await vi.advanceTimersByTimeAsync(0);
       expect(card.shadowRoot.querySelector(".gallery-thumb").dataset.source).toBe("sun");
-      expect(card.shadowRoot.querySelector(".gallery-label").textContent).toBe("GEO▷SUN");
+      expect(card.shadowRoot.querySelector(".gallery-label").textContent).toBe("SDO▷S");
 
       card.remove();
       vi.useRealTimers();

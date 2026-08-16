@@ -30,7 +30,8 @@ exports[`cardStyles > matches snapshot 1`] = `
     color: var(--primary-text-color, CanvasText);
   }
   .card {
-    border-radius: 0px;
+    border-radius: var(--ha-card-border-radius, 12px);
+    overflow: hidden;
     padding: 0px;
     color: inherit;
     font-family: sans-serif;

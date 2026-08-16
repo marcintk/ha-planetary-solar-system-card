@@ -1,6 +1,6 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { SolarViewCard } from "../../src/card/card.js";
-import { clearImageCache, EPIC_BASE_URL } from "../../src/card/image-sources.js";
+import { clearImageCache, EPIC_BASE_URL, getSunImageUrl } from "../../src/card/image-sources.js";
 
 beforeAll(() => {
   if (!customElements.get("ha-planetary-solar-system-card-test")) {
@@ -14,8 +14,30 @@ beforeAll(() => {
 // after its own test ends and pollute image-sources.ts's module-level cache for a later
 // test. Default fetch to a safe rejection for every test; individual tests override it with
 // their own vi.stubGlobal("fetch", ...) when they want specific behavior.
+//
+// Every image path (initial open, gallery thumbnail, background refresh) now preloads a
+// candidate off-DOM (resolveDisplayImage) before it's ever assigned to a visible <img>, via
+// `new Image()`. Left unstubbed, that never resolves in jsdom (no real network), hanging
+// every await. Default it to succeed on the next microtask for every test; pass one boolean
+// per attempt to control retries (e.g. stubImagePreload(false, true) — first attempt fails,
+// the sun retry succeeds); the last value repeats for any further attempt.
+function stubImagePreload(...results) {
+  let calls = 0;
+  vi.stubGlobal(
+    "Image",
+    class {
+      set src(_url) {
+        const succeeds = results.length ? results[Math.min(calls, results.length - 1)] : true;
+        calls++;
+        queueMicrotask(() => (succeeds ? this.onload?.() : this.onerror?.()));
+      }
+    }
+  );
+}
+
 beforeEach(() => {
   vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("fetch not stubbed for this test")));
+  stubImagePreload();
 });
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -1285,41 +1307,40 @@ describe("SolarViewCard", () => {
       const labels = Array.from(thumbs).map((t) => t.querySelector(".gallery-label").textContent);
       expect(labels).toEqual(["L1▶EARTH", "GEO▶SUN"]);
 
-      // Age shows "loading…" until each thumbnail's image actually loads.
-      let ages = Array.from(thumbs).map((t) => t.querySelector(".gallery-age").textContent);
-      expect(ages).toEqual(["loading…", "loading…"]);
-
-      for (const thumb of thumbs) {
-        thumb.querySelector("img").dispatchEvent(new Event("load"));
-      }
-      await flush();
-      ages = Array.from(card.shadowRoot.querySelectorAll(".gallery-thumb")).map(
-        (t) => t.querySelector(".gallery-age").textContent
-      );
+      // Each candidate is preloaded off-DOM before it's ever assigned to the thumbnail, so
+      // by the time the fetch/preload chain settles the age is already known — no separate
+      // on-<img> "load" event needed.
+      const ages = Array.from(thumbs).map((t) => t.querySelector(".gallery-age").textContent);
       for (const age of ages) {
         expect(age).toMatch(/^(\d+[mh] ago|just now)$/);
       }
       card.remove();
     });
 
-    it("a sun thumbnail load error retries the previous 15-min slot once, then drops the thumbnail", async () => {
+    it("a sun thumbnail preload failure retries the previous 15-min slot once", async () => {
+      stubImagePreload(false, true);
       const card = createAndMount();
       await flush();
-      const sunImg = () => card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"] img');
-      const firstSrc = sunImg().src;
-      const firstDate = card._galleryImages.sun.date;
 
-      sunImg().dispatchEvent(new Event("error"));
+      // Retried once, on an earlier slot — thumbnail shows the fallback.
+      const sunImg = card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"] img');
+      expect(sunImg.getAttribute("src")).not.toBe("");
+      // Retried slot is one 15-min step earlier than a fresh (un-retried) lookup would give
+      // — clear the cache first so this recomputes the primary slot instead of reading back
+      // the retried one the card just cached.
+      clearImageCache();
+      const primarySlot = getSunImageUrl().date.getTime();
+      expect(card._galleryImages.sun.date.getTime()).toBe(primarySlot - 15 * 60000);
+      card.remove();
+    });
+
+    it("drops the sun thumbnail if both the candidate and its retry fail to preload", async () => {
+      stubImagePreload(false, false);
+      const card = createAndMount();
       await flush();
 
-      // Retried once, on an earlier slot — thumbnail still shows something.
-      expect(sunImg().src).not.toBe(firstSrc);
-      expect(card._galleryImages.sun.date.getTime()).toBe(firstDate.getTime() - 15 * 60000);
-
-      // A second failure (the retried slot also 404s) drops the thumbnail.
-      sunImg().dispatchEvent(new Event("error"));
-      await flush();
-      expect(sunImg().getAttribute("src")).toBe("");
+      const sunImg = card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"] img');
+      expect(sunImg.getAttribute("src")).toBe("");
       expect(
         card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"] .gallery-age')
       ).toBeNull();
@@ -1373,61 +1394,53 @@ describe("SolarViewCard", () => {
       card.remove();
     });
 
-    it("full-screen status bar shows 'loading…' until the image actually loads", async () => {
+    it("full-screen status bar shows 'loading…' immediately, then 'captured' once the preload resolves", async () => {
       const card = createAndMount();
       await flush();
       card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"]').click();
-      await flush();
+      // Preload hasn't resolved yet (queued on a microtask) — the click's synchronous
+      // render already shows the black backdrop + "loading…" status text.
       expect(card.shadowRoot.querySelector(".status-bar").textContent).toContain("loading…");
 
-      card.shadowRoot.querySelector("#image-view").dispatchEvent(new Event("load"));
       await flush();
       expect(card.shadowRoot.querySelector(".status-bar").textContent).toContain("captured");
       expect(card.shadowRoot.querySelector(".status-bar").textContent).not.toContain("loading…");
       card.remove();
     });
 
-    it("a sun image load error retries the previous 15-min slot once before giving up", async () => {
+    it("opens on the retried slot when the primary sun candidate fails to preload", async () => {
       const card = createAndMount();
-      await flush();
+      await flush(); // gallery's own background fetch resolves normally first
+
+      // Force the click's own lookup to see a genuinely fresh candidate + failing preload,
+      // independent of whatever the gallery thumbnail already cached above.
+      clearImageCache();
+      stubImagePreload(false, true);
       card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"]').click();
       await flush();
-      expect(card._imagePanelMode).toBe("sun");
-      const firstSrc = card.shadowRoot.querySelector("#image-view").src;
-      const firstDate = card._imageDate;
 
-      card.shadowRoot.querySelector("#image-view").dispatchEvent(new Event("error"));
+      expect(card._imagePanelMode).toBe("sun");
+      clearImageCache();
+      const primarySlot = getSunImageUrl().date.getTime();
+      expect(card._imageDate.getTime()).toBe(primarySlot - 15 * 60000);
+      card.remove();
+    });
+
+    it("falls back to the unavailable banner when both the sun candidate and its retry fail to preload", async () => {
+      const card = createAndMount();
+      await flush(); // gallery's own background fetch resolves normally first
+
+      clearImageCache();
+      stubImagePreload(false, false);
+      card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"]').click();
       await flush();
 
-      // Still open, on a different (earlier) slot — not yet the unavailable banner.
-      expect(card._imagePanelMode).toBe("sun");
-      const secondSrc = card.shadowRoot.querySelector("#image-view").src;
-      expect(secondSrc).not.toBe(firstSrc);
-      expect(card._imageDate.getTime()).toBe(firstDate.getTime() - 15 * 60000);
-
-      // A second failure (the retried slot also 404s) falls back to the banner.
-      card.shadowRoot.querySelector("#image-view").dispatchEvent(new Event("error"));
-      await flush();
       expect(card._imagePanelMode).toBe("none");
       expect(card.shadowRoot.querySelector(".status-bar").textContent).toContain(
         "SDO HMI Continuum image unavailable"
       );
       card.remove();
     });
-
-    // Stubs the off-DOM preload probe (_refreshOpenImage's preloadImage) to resolve or
-    // reject on the next microtask — mirrors how the beforeEach fetch stub controls
-    // fetchLatestEarthImageUrl, for the same kind of network-shaped dependency.
-    function stubImagePreload(succeeds) {
-      vi.stubGlobal(
-        "Image",
-        class {
-          set src(_url) {
-            queueMicrotask(() => (succeeds ? this.onload?.() : this.onerror?.()));
-          }
-        }
-      );
-    }
 
     it("a background refresh does not replace the shown image if the new candidate fails to preload", async () => {
       stubImagePreload(true);
@@ -1474,6 +1487,78 @@ describe("SolarViewCard", () => {
       await flush();
       expect(card._imagePanelMode).toBe("none");
       expect(card._imageError).toBeNull();
+      card.remove();
+    });
+
+    // resolveDisplayImage already confirmed this exact URL loads once, but the real <img>
+    // still fires its own load/error events once mounted in the DOM — an unrelated later
+    // failure (e.g. the browser's cache evicting the entry) has no retry left to fall back
+    // on, unlike the preload-time retry covered elsewhere.
+    it("an unexpected error on the already-resolved full image shows the unavailable banner", async () => {
+      const card = createAndMount();
+      await flush();
+      card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"]').click();
+      await flush();
+      expect(card._imagePanelMode).toBe("sun");
+
+      card.shadowRoot.querySelector("#image-view").dispatchEvent(new Event("error"));
+      await flush();
+      expect(card._imagePanelMode).toBe("none");
+      expect(card.shadowRoot.querySelector(".status-bar").textContent).toContain(
+        "SDO HMI Continuum image unavailable"
+      );
+      card.remove();
+    });
+
+    it("the full image's own load event is harmless once already preloaded", async () => {
+      const card = createAndMount();
+      await flush();
+      card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"]').click();
+      await flush();
+
+      card.shadowRoot.querySelector("#image-view").dispatchEvent(new Event("load"));
+      await flush();
+      expect(card.shadowRoot.querySelector(".status-bar").textContent).toContain("captured");
+      card.remove();
+    });
+
+    it("an unexpected error on an already-resolved sun thumbnail drops it", async () => {
+      const card = createAndMount();
+      await flush();
+
+      const sunImg = card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"] img');
+      sunImg.dispatchEvent(new Event("error"));
+      await flush();
+      expect(
+        card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"] img').getAttribute("src")
+      ).toBe("");
+      card.remove();
+    });
+
+    it("switching to earth while the sun preload is still resolving discards the stale sun result", async () => {
+      const card = createAndMount();
+      await flush();
+      card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"]').click();
+      // Don't await — switch away before the sun candidate's preload settles.
+      card.shadowRoot.querySelector("#image-view").click(); // back to gallery ("none")
+      await flush();
+
+      expect(card._imagePanelMode).toBe("none");
+      card.remove();
+    });
+
+    it("an earth candidate that fails to preload shows the unavailable banner with no retry", async () => {
+      stubEarthFetch();
+      stubImagePreload(false);
+      const card = createAndMount();
+      await flush();
+      card.shadowRoot.querySelector('.gallery-thumb[data-source="earth"]').click();
+      await flush();
+
+      expect(card._imagePanelMode).toBe("none");
+      expect(card.shadowRoot.querySelector(".status-bar").textContent).toContain(
+        "DSCOVR Earth image unavailable"
+      );
       card.remove();
     });
 

@@ -32,9 +32,8 @@ const REPLAY_MAX_DURATION_MS = 5000;
 const REPLAY_INTERVAL_MS = Math.floor(REPLAY_MAX_DURATION_MS / REPLAY_STEPS);
 
 // Confirms a candidate image URL actually loads before anything commits to displaying it —
-// used by the background refresh (_refreshOpenImage) so a failed candidate never touches
-// the currently-shown image. Off-DOM: doesn't reuse the visible <img>, so a failed probe
-// can never flash a broken-image state onto it.
+// so a failed or not-yet-published candidate never touches a visible <img>. Off-DOM: doesn't
+// reuse the real <img> element, so a failed probe can never flash a broken-image state onto it.
 function preloadImage(url: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const probe = new Image();
@@ -42,6 +41,26 @@ function preloadImage(url: string): Promise<void> {
     probe.onerror = () => reject(new Error(`preload failed: ${url}`));
     probe.src = url;
   });
+}
+
+// Resolves a source to a candidate that's confirmed to actually load, preloading off-DOM
+// first. Earth's URL is already confirmed by a real API lookup (see
+// fetchLatestEarthImageUrl), so it never needs the retry; sun's URL is only computed from
+// NASA's publish cadence and can occasionally 404 if a slot hasn't been published yet — one
+// step back, one retry, matching the old on-DOM retry this replaces. Every caller (initial
+// open, background refresh, gallery thumbnails) shares this so a slow or failing candidate
+// is caught before it ever reaches a visible <img>.
+async function resolveDisplayImage(mode: ImageSource): Promise<SourcedImage> {
+  const candidate = mode === "earth" ? await fetchLatestEarthImageUrl() : getSunImageUrl();
+  try {
+    await preloadImage(candidate.url);
+    return candidate;
+  } catch (err) {
+    if (mode !== "sun") throw err;
+    const fallback = getPreviousSunSlot(candidate.date);
+    await preloadImage(fallback.url);
+    return fallback;
+  }
 }
 
 type ImagePanelMode = "none" | ImageSource;
@@ -78,11 +97,8 @@ export class SolarViewCard extends LitElement {
   private _imageDate: Date | null;
   private _imageLoaded: boolean;
   private _imageError: string | null;
-  private _sunRetried: boolean;
   private _galleryOpen: boolean;
   private _galleryImages: Partial<Record<ImageSource, SourcedImage>>;
-  private _galleryLoaded: Partial<Record<ImageSource, boolean>>;
-  private _gallerySunRetried: boolean;
   private _galleryMode: GalleryMode;
   private _galleryAutoIntervalMs: number;
   private _autoDisplayedSource: ImageSource;
@@ -117,11 +133,8 @@ export class SolarViewCard extends LitElement {
     this._imageDate = null;
     this._imageLoaded = false;
     this._imageError = null;
-    this._sunRetried = false;
     this._galleryOpen = false;
     this._galleryImages = {};
-    this._galleryLoaded = {};
-    this._gallerySunRetried = false;
     this._galleryMode = "none";
     this._galleryAutoIntervalMs = DEFAULT_GALLERY_INTERVAL_MS;
     this._autoDisplayedSource = "earth";
@@ -246,8 +259,8 @@ export class SolarViewCard extends LitElement {
         ? buildStatusBar(this._locationData, this._locationName, this._currentDate)
         : buildImageStatusBar(
             this._imagePanelMode,
-            this._formatDate(this._imageDate as Date),
-            this._imageDate as Date,
+            this._imageDate ? this._formatDate(this._imageDate) : "",
+            this._imageDate ?? new Date(),
             new Date(),
             this._imageLoaded
           );
@@ -282,7 +295,6 @@ export class SolarViewCard extends LitElement {
                       <img
                         src=${this._galleryImages[source]?.url ?? ""}
                         alt=""
-                        @load=${() => this._onGalleryImageLoad(source)}
                         @error=${source === "sun" ? this._onSunThumbError : undefined}
                       />
                       <div class="gallery-info">
@@ -290,14 +302,10 @@ export class SolarViewCard extends LitElement {
                         ${
                           this._galleryImages[source]
                             ? html`<span class="gallery-age"
-                                >${
-                                  this._galleryLoaded[source]
-                                    ? formatRelativeAge(
-                                        this._galleryImages[source]?.date as Date,
-                                        new Date()
-                                      )
-                                    : "loading…"
-                                }</span
+                                >${formatRelativeAge(
+                                  this._galleryImages[source]?.date as Date,
+                                  new Date()
+                                )}</span
                               >`
                             : nothing
                         }
@@ -643,23 +651,12 @@ export class SolarViewCard extends LitElement {
     this._setImagePanel("none");
   }
 
-  // Earth's URL is validated by a real fetch before it's ever assigned, so this only ever
-  // fires in practice for sun: its URL is computed (not fetch-checked) from NASA's publish
-  // cadence, so it can occasionally 404 if a slot hasn't been published yet. First failure
-  // steps back one 15-min slot and retries once; only a second failure shows the banner.
-  // The background refresh (_refreshOpenImage) never reaches this handler for a bad
-  // candidate — it preloads before committing, so a failed refresh just leaves the current
-  // image in place. This only ever fires for the image actually assigned to the visible
-  // <img>, i.e. the initial open (nothing to fall back to yet).
+  // resolveDisplayImage already confirms a candidate loads (with a retry for sun) before
+  // it's ever assigned to the visible <img>, so this only ever fires for a genuinely
+  // unexpected failure after the fact (e.g. the browser evicting its cache between preload
+  // and paint) — no retry left to try, just surface the error banner.
   private _onImageLoadError(): void {
     if (this._imagePanelMode === "none") return;
-    if (this._imagePanelMode === "sun" && !this._sunRetried) {
-      this._sunRetried = true;
-      const { url, date } = getPreviousSunSlot(this._imageDate as Date);
-      this._applyImage(url, date);
-      this._render();
-      return;
-    }
     this._imageError = `${IMAGE_SOURCE_LABELS[this._imagePanelMode]} image unavailable`;
     this._imagePanelMode = "none";
     this._imageUrl = null;
@@ -667,13 +664,9 @@ export class SolarViewCard extends LitElement {
     this._render();
   }
 
-  // The date/age shown in the status bar is only as trustworthy as the image actually
-  // loading — a computed sun slot can 404 (see _onImageLoadError) before we know that.
-  // _imageLoaded gates the displayed text on the <img> load event instead of the fetch
-  // resolving, so a bad guess shows "loading…" rather than a date for a slot that turns
-  // out not to exist. Every call site only ever passes a genuinely new URL (a background
-  // refresh reusing the same URL never reaches here — see the early return in
-  // _refreshOpenImage), so this doesn't need to guard against a same-URL no-op call.
+  // Every caller preloads (via resolveDisplayImage) before calling this, so the pixels are
+  // already sitting in the browser's cache — _imageLoaded is set true right after, letting
+  // the visible <img> paint from that cache instead of a live fetch.
   private _applyImage(url: string, date: Date): void {
     this._imageLoaded = false;
     this._imageUrl = url;
@@ -686,7 +679,6 @@ export class SolarViewCard extends LitElement {
   }
 
   private async _setImagePanel(mode: ImagePanelMode): Promise<void> {
-    this._sunRetried = false;
     if (mode === "none") {
       this._imagePanelMode = "none";
       this._imageUrl = null;
@@ -695,14 +687,21 @@ export class SolarViewCard extends LitElement {
       this._render();
       return;
     }
+    // Opens immediately on the (cheap, cached-when-possible) black backdrop + "loading…"
+    // status text, then swaps in the confirmed-loaded image once resolveDisplayImage
+    // settles — instantly when it's already sitting in the browser's cache (a re-open
+    // within the source's own TTL), a real wait only the first time a source is opened.
     this._imageError = null;
+    this._imagePanelMode = mode;
+    this._imageUrl = null;
+    this._imageDate = null;
+    this._imageLoaded = false;
+    this._render();
     try {
-      // Same cache TTL as the gallery thumbnail's own background fetch (earth hourly, sun
-      // every 15min) — reuses the exact image the thumbnail already has loaded instead of
-      // computing a slightly newer slot and forcing a fresh network fetch on click.
-      const { url, date } = mode === "earth" ? await fetchLatestEarthImageUrl() : getSunImageUrl();
-      this._imagePanelMode = mode;
-      this._applyImage(url, date);
+      const image = await resolveDisplayImage(mode);
+      if (this._imagePanelMode !== mode) return; // user closed/switched while resolving
+      this._applyImage(image.url, image.date);
+      this._imageLoaded = true;
     } catch {
       this._imagePanelMode = "none";
       this._imageUrl = null;
@@ -715,21 +714,24 @@ export class SolarViewCard extends LitElement {
   // Keeps the open full-screen image fresh on each auto-update tick (cadence =
   // refresh_mins), for as long as it stays open. Only called while
   // _imagePanelMode !== "none" (see the tick handler). Never overrides the currently shown
-  // image with an unconfirmed one: the candidate is preloaded off-DOM first, so a fetch
+  // image with an unconfirmed one — resolveDisplayImage preloads off-DOM first, so a fetch
   // failure or a not-yet-published slot just leaves the current image in place instead of
-  // swapping to something that might not load (#94 follow-up).
+  // swapping to something that might not load (#94 follow-up). Always renders at the end,
+  // even on a no-op tick (same image still current), so the "captured … ago" text keeps
+  // advancing every tick instead of freezing until the image itself actually changes.
   private async _refreshOpenImage(): Promise<void> {
-    const mode = this._imagePanelMode;
+    // Guarded by the tick handler: only called while _imagePanelMode !== "none".
+    const mode = this._imagePanelMode as ImageSource;
     try {
-      const { url, date } = mode === "earth" ? await fetchLatestEarthImageUrl() : getSunImageUrl();
-      if (url === this._imageUrl) return;
-      await preloadImage(url);
-      this._applyImage(url, date);
-      this._imageLoaded = true;
-      this._render();
+      const image = await resolveDisplayImage(mode);
+      if (image.url !== this._imageUrl) {
+        this._applyImage(image.url, image.date);
+        this._imageLoaded = true;
+      }
     } catch {
       // Keep showing the current image — candidate failed to fetch or load.
     }
+    this._render();
   }
 
   // Sources this gallery.mode needs fetched in the background — "slide" still fetches both
@@ -762,12 +764,7 @@ export class SolarViewCard extends LitElement {
   // hits the network once the relevant cache has expired.
   private async _refreshGalleryImages(): Promise<void> {
     const sources = this._fetchGallerySources;
-    if (sources.includes("sun")) this._gallerySunRetried = false;
-    const results = await Promise.allSettled(
-      sources.map((source) =>
-        source === "earth" ? fetchLatestEarthImageUrl() : Promise.resolve(getSunImageUrl())
-      )
-    );
+    const results = await Promise.allSettled(sources.map((source) => resolveDisplayImage(source)));
     for (let i = 0; i < results.length; i++) {
       const result = results[i];
       if (result.status === "fulfilled") {
@@ -777,33 +774,18 @@ export class SolarViewCard extends LitElement {
     this._render();
   }
 
-  // Same "don't trust the date until the pixels actually load" reasoning as _applyImage,
-  // for the gallery thumbnail instead of the full-screen view.
+  // resolveDisplayImage already confirmed this candidate loads before it's ever assigned to
+  // the thumbnail, so its presence in _galleryImages is itself the "loaded" state — the <img
+  // src> assignment just paints from the browser's own cache instead of a live fetch.
   private _applyGalleryImage(source: ImageSource, image: SourcedImage): void {
-    if (image.url !== this._galleryImages[source]?.url) this._galleryLoaded[source] = false;
     this._galleryImages[source] = image;
   }
 
-  private _onGalleryImageLoad(source: ImageSource): void {
-    this._galleryLoaded[source] = true;
-    this._render();
-  }
-
-  // Mirrors _onImageLoadError's one-step-back retry, for the gallery thumbnail instead of
-  // the full-screen view: first failure steps back one 15-min slot; a second failure drops
-  // the thumbnail (falls back to the transparent placeholder) rather than retrying forever.
+  // resolveDisplayImage already retried once before this URL was ever assigned to the
+  // thumbnail, so a real error here means no retry is left — drop the thumbnail (falls back
+  // to the transparent placeholder) rather than retrying forever.
   private _onSunThumbError(): void {
-    if (this._gallerySunRetried) {
-      delete this._galleryImages.sun;
-      delete this._galleryLoaded.sun;
-      this._render();
-      return;
-    }
-    const current = this._galleryImages.sun;
-    /* v8 ignore next */
-    if (!current) return;
-    this._gallerySunRetried = true;
-    this._applyGalleryImage("sun", getPreviousSunSlot(current.date));
+    delete this._galleryImages.sun;
     this._render();
   }
 

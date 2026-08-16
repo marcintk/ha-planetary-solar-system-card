@@ -1558,7 +1558,7 @@ describe("SolarViewCard", () => {
       // the retried one the card just cached.
       clearImageCache();
       const primarySlot = getSunImageUrl().date.getTime();
-      expect(card._galleryImages.sun.date.getTime()).toBe(primarySlot - 15 * 60000);
+      expect(card._gallery.images.sun.date.getTime()).toBe(primarySlot - 15 * 60000);
       card.remove();
     });
 
@@ -1611,7 +1611,7 @@ describe("SolarViewCard", () => {
       await flush();
       card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"]').click();
       await flush();
-      expect(card._imagePanelMode).toBe("sun");
+      expect(card._gallery.panelMode).toBe("sun");
       expect(card.shadowRoot.querySelector(".status-bar").textContent).toContain("SUN · SDO HMI");
       const img = card.shadowRoot.querySelector("#image-view");
       expect(img.classList.contains("visible")).toBe(true);
@@ -1646,10 +1646,10 @@ describe("SolarViewCard", () => {
       await flush();
       card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"]').click();
 
-      expect(card._imagePanelMode).toBe("sun");
+      expect(card._gallery.panelMode).toBe("sun");
       clearImageCache();
       const primarySlot = getSunImageUrl().date.getTime();
-      expect(card._imageDate.getTime()).toBe(primarySlot - 15 * 60000);
+      expect(card._gallery.imageDate.getTime()).toBe(primarySlot - 15 * 60000);
       card.remove();
     });
 
@@ -1662,7 +1662,7 @@ describe("SolarViewCard", () => {
       card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"]').click();
       await flush();
 
-      expect(card._imagePanelMode).toBe("none");
+      expect(card._gallery.panelMode).toBe("none");
       expect(card.shadowRoot.querySelector(".status-bar").textContent).toContain(
         "SDO HMI Continuum image unavailable"
       );
@@ -1684,8 +1684,8 @@ describe("SolarViewCard", () => {
       await vi.advanceTimersByTimeAsync(16 * 60000);
 
       expect(card.shadowRoot.querySelector("#image-view").src).toBe(firstSrc);
-      expect(card._imagePanelMode).toBe("sun");
-      expect(card._imageError).toBeNull();
+      expect(card._gallery.panelMode).toBe("sun");
+      expect(card._gallery.error).toBeNull();
       card.remove();
       vi.useRealTimers();
     });
@@ -1702,7 +1702,7 @@ describe("SolarViewCard", () => {
       await vi.advanceTimersByTimeAsync(16 * 60000);
 
       expect(card.shadowRoot.querySelector("#image-view").src).not.toBe(firstSrc);
-      expect(card._imagePanelMode).toBe("sun");
+      expect(card._gallery.panelMode).toBe("sun");
       card.remove();
       vi.useRealTimers();
     });
@@ -1712,8 +1712,8 @@ describe("SolarViewCard", () => {
       await flush();
       card.shadowRoot.querySelector("#image-view").dispatchEvent(new Event("error"));
       await flush();
-      expect(card._imagePanelMode).toBe("none");
-      expect(card._imageError).toBeNull();
+      expect(card._gallery.panelMode).toBe("none");
+      expect(card._gallery.error).toBeNull();
       card.remove();
     });
 
@@ -1726,11 +1726,11 @@ describe("SolarViewCard", () => {
       await flush();
       card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"]').click();
       await flush();
-      expect(card._imagePanelMode).toBe("sun");
+      expect(card._gallery.panelMode).toBe("sun");
 
       card.shadowRoot.querySelector("#image-view").dispatchEvent(new Event("error"));
       await flush();
-      expect(card._imagePanelMode).toBe("none");
+      expect(card._gallery.panelMode).toBe("none");
       expect(card.shadowRoot.querySelector(".status-bar").textContent).toContain(
         "SDO HMI Continuum image unavailable"
       );
@@ -1770,7 +1770,7 @@ describe("SolarViewCard", () => {
       card.shadowRoot.querySelector("#image-view").click(); // back to gallery ("none")
       await flush();
 
-      expect(card._imagePanelMode).toBe("none");
+      expect(card._gallery.panelMode).toBe("none");
       card.remove();
     });
 
@@ -1782,7 +1782,7 @@ describe("SolarViewCard", () => {
       card.shadowRoot.querySelector('.gallery-thumb[data-source="earth"]').click();
       await flush();
 
-      expect(card._imagePanelMode).toBe("none");
+      expect(card._gallery.panelMode).toBe("none");
       expect(card.shadowRoot.querySelector(".status-bar").textContent).toContain(
         "DSCOVR Earth image unavailable"
       );
@@ -1796,7 +1796,7 @@ describe("SolarViewCard", () => {
       await flush();
       card.shadowRoot.querySelector("#image-view").click();
       await flush();
-      expect(card._imagePanelMode).toBe("none");
+      expect(card._gallery.panelMode).toBe("none");
       expect(card.shadowRoot.querySelector(".gallery")).toBeTruthy();
       card.remove();
     });
@@ -1808,7 +1808,7 @@ describe("SolarViewCard", () => {
       await flush();
       clickButton(card, "gallery");
       await flush();
-      expect(card._imagePanelMode).toBe("none");
+      expect(card._gallery.panelMode).toBe("none");
       expect(card.shadowRoot.querySelector(".gallery")).toBeNull();
       card.remove();
     });
@@ -1912,7 +1912,7 @@ describe("SolarViewCard", () => {
       await flush();
       const img = card.shadowRoot.querySelector("#image-view");
       expect(img.classList.contains("visible")).toBe(false);
-      expect(card._imagePanelMode).toBe("none");
+      expect(card._gallery.panelMode).toBe("none");
       expect(card.shadowRoot.querySelector(".status-bar").textContent).toContain(
         "DSCOVR Earth image unavailable"
       );
@@ -1944,7 +1944,7 @@ describe("SolarViewCard", () => {
       await flush();
       const img = card.shadowRoot.querySelector("#image-view");
       expect(img.classList.contains("visible")).toBe(false);
-      expect(card._imagePanelMode).toBe("none");
+      expect(card._gallery.panelMode).toBe("none");
       expect(card.shadowRoot.querySelector(".status-bar").textContent).toContain(
         "DSCOVR Earth image unavailable"
       );
@@ -1973,7 +1973,7 @@ describe("SolarViewCard", () => {
       await vi.advanceTimersByTimeAsync(15000); // FETCH_TIMEOUT_MS in image-sources.ts
       const img = card.shadowRoot.querySelector("#image-view");
       expect(img.classList.contains("visible")).toBe(false);
-      expect(card._imagePanelMode).toBe("none");
+      expect(card._gallery.panelMode).toBe("none");
       expect(card.shadowRoot.querySelector(".status-bar").textContent).toContain(
         "DSCOVR Earth image unavailable"
       );
@@ -2000,7 +2000,7 @@ describe("SolarViewCard", () => {
       await vi.advanceTimersByTimeAsync(30000);
       const img = card.shadowRoot.querySelector("#image-view");
       expect(img.classList.contains("visible")).toBe(false);
-      expect(card._imagePanelMode).toBe("none");
+      expect(card._gallery.panelMode).toBe("none");
       expect(card.shadowRoot.querySelector(".status-bar").textContent).toContain(
         "SDO HMI Continuum image unavailable"
       );

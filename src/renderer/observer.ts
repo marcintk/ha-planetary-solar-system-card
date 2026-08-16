@@ -5,19 +5,23 @@ import {
   computeZenithAngleFromSun,
   getLocalTimeInZone,
 } from "../astronomy/solar-position.js";
-import type { LocationData } from "../types.js";
+import type { Colors, LocationData } from "../types.js";
 import { CENTER, createSvgElement, MAX_RADIUS, VIEW_SIZE } from "./svg-utils.js";
 
 const NEEDLE_COLOR = "color-mix(in srgb, currentColor 70%, transparent)";
 
-// White-based (day family) pops on dark theme, fades on light theme.
-// Black-based (night family) pops on light theme, fades on dark theme.
-// Alpha blending onto a matching background gives this contrast flip for free.
-export const CONE_DAY = "rgba(255, 255, 255, 0.10)"; // Sun above horizon
+// Each band carries its own hue (not just a white/black fade) so it stays visually
+// distinct — and readable — against both a light and a dark HA theme background.
+// CONE_DAY mixes currentColor rather than a fixed rgba (same trick as NEEDLE_COLOR/
+// ORBIT_COLOR below) so it auto-inverts: dark tint on light theme, light tint on dark
+// theme — a fixed white was invisible on a light card background. The twilight/night
+// bands below use enough alpha and a hue shift (warm → cool → violet → indigo) to stay
+// legible on dark card backgrounds too.
+export const CONE_DAY = "color-mix(in srgb, currentColor 8%, transparent)"; // Sun above horizon
 export const CONE_CIVIL = "rgba(255, 220, 160, 0.09)"; // Civil twilight:        0° to -6°
-export const CONE_NAUTICAL = "rgba(128, 128, 128, 0.08)"; // Nautical twilight:  -6° to -12°
-export const CONE_ASTRONOMICAL = "rgba(20, 20, 40, 0.10)"; // Astronomical twilight: -12° to -18°
-export const CONE_NIGHT = "rgba(0, 0, 0, 0.12)"; // Sun below -18°
+export const CONE_NAUTICAL = "rgba(90, 130, 180, 0.12)"; // Nautical twilight:  -6° to -12°
+export const CONE_ASTRONOMICAL = "rgba(70, 50, 130, 0.18)"; // Astronomical twilight: -12° to -18°
+export const CONE_NIGHT = "rgba(30, 20, 60, 0.22)"; // Sun below -18°
 
 /**
  * Compute the distance from point (ax,ay) along direction (dx,dy) to the
@@ -97,6 +101,10 @@ function renderVisibilityCone(
   const HALF_ANGLE = (halfAngleDeg * Math.PI) / 180;
   /* v8 ignore next */
   const largeArcFlag = halfAngleDeg >= 90 ? 1 : 0;
+  // Mirroring the scene (eclipticViewDirection=1, south view) reverses screen chirality,
+  // so the sweep direction that passes through the bisector (not the opposite/major arc)
+  // flips too. Hardcoding sweep=1 only drew the correct wedge for the north (-1) case.
+  const sweepFlag = eclipticViewDirection === -1 ? 1 : 0;
 
   const leftAngle = observerAngle + HALF_ANGLE;
   const rightAngle = observerAngle - HALF_ANGLE;
@@ -106,7 +114,7 @@ function renderVisibilityCone(
   const rightY = anchorY + eclipticViewDirection * D * Math.sin(rightAngle);
 
   // SVG path: MoveTo apex, LineTo left edge, Arc to right edge, ClosePath
-  const pathD = `M ${anchorX} ${anchorY} L ${leftX} ${leftY} A ${D} ${D} 0 ${largeArcFlag} 1 ${rightX} ${rightY} Z`;
+  const pathD = `M ${anchorX} ${anchorY} L ${leftX} ${leftY} A ${D} ${D} 0 ${largeArcFlag} ${sweepFlag} ${rightX} ${rightY} Z`;
 
   const defs =
     svg.querySelector("defs") || svg.insertBefore(createSvgElement("defs", {}), svg.firstChild);
@@ -132,7 +140,8 @@ export function renderDayNightSplit(
   date: Date,
   earthBodySize: number,
   locationData: LocationData | null,
-  eclipticViewDirection = -1
+  eclipticViewDirection = -1,
+  colors: Colors = {}
 ): void {
   const earthAngle = calculatePlanetPosition(EARTH, date);
   const observerAngle = calculateObserverAngle(
@@ -177,11 +186,11 @@ export function renderDayNightSplit(
     zenithAngleFromSun != null ? earthAngle + Math.PI + zenithAngleFromSun : observerAngle;
 
   let coneColor: string;
-  if (elevationDeg >= 0) coneColor = CONE_DAY;
-  else if (elevationDeg >= -6) coneColor = CONE_CIVIL;
-  else if (elevationDeg >= -12) coneColor = CONE_NAUTICAL;
-  else if (elevationDeg >= -18) coneColor = CONE_ASTRONOMICAL;
-  else coneColor = CONE_NIGHT;
+  if (elevationDeg >= 0) coneColor = colors.cone_day ?? CONE_DAY;
+  else if (elevationDeg >= -6) coneColor = colors.cone_twilight_civil ?? CONE_CIVIL;
+  else if (elevationDeg >= -12) coneColor = colors.cone_twilight_nautical ?? CONE_NAUTICAL;
+  else if (elevationDeg >= -18) coneColor = colors.cone_twilight_astronomical ?? CONE_ASTRONOMICAL;
+  else coneColor = colors.cone_night ?? CONE_NIGHT;
 
   // Twilight half-angle must expand in the SAME frame as displayObserverAngle (the cone's
   // axis), or the two disagree away from solar noon/midnight. displayObserverAngle is built

@@ -110,15 +110,19 @@ describe("cone color constants", () => {
     expect(colors.size).toBe(5);
   });
 
-  it("cone colors darken from day (white) to night (black)", () => {
-    // Day-family zones are white-based (pop on dark theme, fade on light theme);
-    // night-family zones are black-based (pop on light theme, fade on dark theme).
-    // The RGB sum should fall monotonically across the elevation bands.
+  it("CONE_DAY mixes currentColor so it auto-inverts between light and dark theme", () => {
+    // A fixed white rgba is invisible on a light card background — mixing currentColor
+    // (same trick as NEEDLE_COLOR/ORBIT_COLOR) makes it dark-on-light, light-on-dark.
+    expect(CONE_DAY).toContain("currentColor");
+  });
+
+  it("cone colors darken from civil to night", () => {
+    // Twilight/night zones are hardcoded rgba with their own hue; the RGB sum should
+    // fall monotonically across the elevation bands as the sky gets darker.
     const rgbSum = (c) => {
       const [, r, g, b] = c.match(/rgba\((\d+), (\d+), (\d+)/).map(Number);
       return r + g + b;
     };
-    expect(rgbSum(CONE_DAY)).toBeGreaterThan(rgbSum(CONE_CIVIL));
     expect(rgbSum(CONE_CIVIL)).toBeGreaterThan(rgbSum(CONE_NAUTICAL));
     expect(rgbSum(CONE_NAUTICAL)).toBeGreaterThan(rgbSum(CONE_ASTRONOMICAL));
     expect(rgbSum(CONE_ASTRONOMICAL)).toBeGreaterThan(rgbSum(CONE_NIGHT));
@@ -300,6 +304,29 @@ describe("renderDayNightSplit cone bisector geometry", () => {
 
     const bisector = coneBisectorAngle(svg);
     expect(angleDiff(bisector, expectedBisector)).toBeLessThan(0.05); // within ~3°
+  });
+
+  it("south view (eclipticViewDirection=1) sweeps the arc through the bisector, not the opposite/major arc", () => {
+    // Mirroring the scene reverses screen chirality, so the sweep flag that traces the
+    // wedge through the bisector for north (-1) traces the complementary arc for south (1)
+    // unless the sweep flag itself is flipped too. Regression for that bug: assert the
+    // rendered sweep-flag digit in the path's "A" command differs between the two views.
+    const date = new Date("2025-07-15T19:00:00Z");
+    const locationData = { lat: 55, lon: 0, timezone: "Europe/London" };
+
+    const svgNorth = createSvg();
+    renderDayNightSplit(svgNorth, 200, date, earth.size, locationData, -1);
+    const svgSouth = createSvg();
+    renderDayNightSplit(svgSouth, 200, date, earth.size, locationData, 1);
+
+    const sweepFlagOf = (svg: SVGElement) =>
+      svg
+        .querySelector("clipPath path")
+        .getAttribute("d")
+        .match(/A [\d.]+ [\d.]+ 0 (\d) (\d)/)[2];
+
+    expect(sweepFlagOf(svgNorth)).toBe("1");
+    expect(sweepFlagOf(svgSouth)).toBe("0");
   });
 });
 

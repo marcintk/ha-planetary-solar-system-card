@@ -141,6 +141,77 @@ describe("SolarViewCard", () => {
     card.remove();
   });
 
+  it("theme defaults to auto (no forced background/color)", () => {
+    const card = document.createElement("ha-planetary-solar-system-card-test");
+    card.setConfig({});
+    document.body.appendChild(card);
+    const cardEl = card.shadowRoot.querySelector(".card");
+    expect(cardEl.style.background).toBe("");
+    expect(cardEl.style.color).toBe("");
+    card.remove();
+  });
+
+  it("theme: 'dark' forces a dark background/text pair regardless of the host theme", () => {
+    const card = document.createElement("ha-planetary-solar-system-card-test");
+    card.setConfig({ theme: "dark" });
+    document.body.appendChild(card);
+    const cardEl = card.shadowRoot.querySelector(".card");
+    expect(cardEl.style.background).toBe("rgb(28, 28, 28)");
+    expect(cardEl.style.color).toBe("rgb(225, 225, 225)");
+    card.remove();
+  });
+
+  it("theme: 'light' forces a light background/text pair regardless of the host theme", () => {
+    const card = document.createElement("ha-planetary-solar-system-card-test");
+    card.setConfig({ theme: "light" });
+    document.body.appendChild(card);
+    const cardEl = card.shadowRoot.querySelector(".card");
+    expect(cardEl.style.background).toBe("rgb(255, 255, 255)");
+    expect(cardEl.style.color).toBe("rgb(33, 33, 33)");
+    card.remove();
+  });
+
+  it("colors.background still overrides the forced theme's background", () => {
+    const card = document.createElement("ha-planetary-solar-system-card-test");
+    card.setConfig({ theme: "dark", colors: { background: "#ff00ff" } });
+    document.body.appendChild(card);
+    const cardEl = card.shadowRoot.querySelector(".card");
+    expect(cardEl.style.background).toBe("rgb(255, 0, 255)");
+    expect(cardEl.style.color).toBe("rgb(225, 225, 225)");
+    card.remove();
+  });
+
+  it("theme: 'dark' resets HA theme custom properties (status-bar/nav backgrounds, borders) to 'initial' so they don't leak the host HA theme's colors", () => {
+    // These vars are consumed by card-styles.ts (.status-bar/.nav background, borders) with a
+    // currentColor fallback. "initial" is the guaranteed-invalid value for a custom property,
+    // which is what makes var()'s fallback apply.
+    const card = document.createElement("ha-planetary-solar-system-card-test");
+    card.setConfig({ theme: "dark" });
+    document.body.appendChild(card);
+    expect(card.style.getPropertyValue("--secondary-background-color")).toBe("initial");
+    expect(card.style.getPropertyValue("--divider-color")).toBe("initial");
+    expect(card.style.getPropertyValue("--primary-text-color")).toBe("initial");
+    card.remove();
+  });
+
+  it("theme: 'auto' leaves HA theme custom properties untouched", () => {
+    const card = document.createElement("ha-planetary-solar-system-card-test");
+    card.setConfig({});
+    document.body.appendChild(card);
+    expect(card.style.getPropertyValue("--secondary-background-color")).toBe("");
+    card.remove();
+  });
+
+  it("theme ignores unrecognised values and falls back to auto", () => {
+    const card = document.createElement("ha-planetary-solar-system-card-test");
+    card.setConfig({ theme: "purple" });
+    document.body.appendChild(card);
+    const cardEl = card.shadowRoot.querySelector(".card");
+    expect(cardEl.style.background).toBe("");
+    expect(cardEl.style.color).toBe("");
+    card.remove();
+  });
+
   it("getCardSize returns 6", () => {
     const card = document.createElement("ha-planetary-solar-system-card-test");
     expect(card.getCardSize()).toBe(6);
@@ -507,10 +578,10 @@ describe("SolarViewCard", () => {
       const card = createAndMount();
       const labels = {
         "month-back": "\u22D8",
-        "day-back": "\u00AB",
-        "hour-back": "\u2039",
-        "hour-forward": "\u203A",
-        "day-forward": "\u00BB",
+        "day-back": "\u226A",
+        "hour-back": "<",
+        "hour-forward": ">",
+        "day-forward": "\u226B",
         "month-forward": "\u22D9",
       };
       for (const [action, expected] of Object.entries(labels)) {

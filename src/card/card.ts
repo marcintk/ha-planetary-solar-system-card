@@ -63,6 +63,32 @@ async function resolveDisplayImage(mode: ImageSource): Promise<SourcedImage> {
   }
 }
 
+// Built-in background+text pairs for `theme: "dark" | "light"` — forces every currentColor-
+// derived accent (orbit, labels, twilight cones, needle, ...) to a consistent palette
+// regardless of the HA theme actually installed. `colors.background` still overrides the
+// background half, matching how colors.* already layers on top elsewhere.
+const THEME_PALETTES: Record<"dark" | "light", { background: string; color: string }> = {
+  dark: { background: "#1c1c1c", color: "#e1e1e1" },
+  light: { background: "#ffffff", color: "#212121" },
+};
+
+// card-styles.ts leans on these HA custom properties (status-bar/nav backgrounds, borders)
+// with a currentColor-based fallback for when HA doesn't define them. But HA always defines
+// them — from whichever theme is actually installed — and custom properties pierce the shadow
+// boundary, so a forced dark/light `theme:` only overriding :host's plain background/color
+// still left every var(--secondary-background-color, ...) etc. resolving to the real (possibly
+// mismatched) HA theme's value instead of the intended fallback. Setting each to the CSS-wide
+// keyword "initial" makes it the custom property's guaranteed-invalid value, which is exactly
+// what makes var()'s fallback kick in.
+const THEME_OVERRIDE_VARS = [
+  "--ha-card-background",
+  "--card-background-color",
+  "--primary-background-color",
+  "--primary-text-color",
+  "--secondary-background-color",
+  "--divider-color",
+];
+
 // Resolves config.height into an inline style for #solar-view/.image-view. A px value caps
 // the height and lets the square SVG/image letterbox-shrink to fit (preserveAspectRatio
 // "meet" — nothing crops). A percent reshapes the aspect-ratio itself (e.g. "50%" = half as
@@ -110,6 +136,10 @@ export class SolarViewCard extends LitElement {
   private _periodicZoomMax: number;
   private _zoomAnimate: boolean;
   private _eclipticView: boolean;
+  private _theme: "auto" | "dark" | "light";
+  private get _themePalette(): { background: string; color: string } | null {
+    return this._theme === "auto" ? null : THEME_PALETTES[this._theme];
+  }
   private _heightStyle: string;
   private _positions: ViewPosition[];
   private _onVisibilityChange: (() => void) | null;
@@ -147,6 +177,7 @@ export class SolarViewCard extends LitElement {
     this._periodicZoomMax = MAX_ZOOM;
     this._zoomAnimate = false;
     this._eclipticView = false;
+    this._theme = "auto";
     this._heightStyle = "";
     this._positions = [];
     this._onVisibilityChange = null;
@@ -213,6 +244,7 @@ export class SolarViewCard extends LitElement {
     this._zoomAnimate = config.zoom_animate !== false;
 
     this._colors = config.colors ?? {};
+    this._theme = config.theme === "dark" || config.theme === "light" ? config.theme : "auto";
 
     this._eclipticView = config.ecliptic_view === "south";
     this._heightStyle = resolveHeightStyle(config.height);
@@ -289,10 +321,11 @@ export class SolarViewCard extends LitElement {
           );
     const zoomLevel = this._viewState?.zoomLevel ?? this._defaultZoomLevel;
     /* v8 ignore next */
-    const background = this._colors.background ?? "";
+    const background = this._colors.background ?? this._themePalette?.background ?? "";
+    const color = this._themePalette?.color ?? "";
 
     return html`
-      <div class="card" style="background: ${background}">
+      <div class="card" style="background: ${background}; color: ${color}">
         <div class="solar-view-wrapper">
           ${statusBar}
           <div
@@ -347,11 +380,11 @@ export class SolarViewCard extends LitElement {
         <div class="nav">
           <span class="btn-group">
             <button data-action="month-back" title="Back 1 month" ?disabled=${this._isReplaying} @click=${this._onNavClick}>⋘</button>
-            <button data-action="day-back" title="Back 1 day" ?disabled=${this._isReplaying} @click=${this._onNavClick}>«</button>
-            <button data-action="hour-back" title="Back 1 hour" ?disabled=${this._isReplaying} @click=${this._onNavClick}>‹</button>
+            <button data-action="day-back" title="Back 1 day" ?disabled=${this._isReplaying} @click=${this._onNavClick}>≪</button>
+            <button data-action="hour-back" title="Back 1 hour" ?disabled=${this._isReplaying} @click=${this._onNavClick}>&lt;</button>
             <button data-action="today" ?disabled=${this._isReplaying} @click=${this._onNavClick}>Now</button>
-            <button data-action="hour-forward" title="Forward 1 hour" ?disabled=${this._isReplaying} @click=${this._onNavClick}>›</button>
-            <button data-action="day-forward" title="Forward 1 day" ?disabled=${this._isReplaying} @click=${this._onNavClick}>»</button>
+            <button data-action="hour-forward" title="Forward 1 hour" ?disabled=${this._isReplaying} @click=${this._onNavClick}>&gt;</button>
+            <button data-action="day-forward" title="Forward 1 day" ?disabled=${this._isReplaying} @click=${this._onNavClick}>≫</button>
             <button data-action="month-forward" title="Forward 1 month" ?disabled=${this._isReplaying} @click=${this._onNavClick}>⋙</button>
             <button data-action="replay" title="Replay last 6h" @click=${this._onNavClick}>↺</button>
           </span>
@@ -408,7 +441,15 @@ export class SolarViewCard extends LitElement {
 
     this._updateViewBox();
     /* v8 ignore next */
-    this.style.background = this._colors.background ?? "";
+    this.style.background = this._colors.background ?? this._themePalette?.background ?? "";
+    this.style.color = this._themePalette?.color ?? "";
+    for (const varName of THEME_OVERRIDE_VARS) {
+      if (this._themePalette) {
+        this.style.setProperty(varName, "initial");
+      } else {
+        this.style.removeProperty(varName);
+      }
+    }
   }
 
   /**

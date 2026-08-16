@@ -209,7 +209,7 @@ export const cardStyles = css`
   }
   .card-version {
     font-size: 9px;
-    color: var(--secondary-text-color, color-mix(in srgb, currentColor 30%, transparent));
+    color: inherit;
     user-select: none;
     font-family: sans-serif;
     position: absolute;

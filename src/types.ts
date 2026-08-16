@@ -42,6 +42,11 @@ export interface Colors {
   label?: string;
   season_line?: string;
   season_label?: string;
+  cone_day?: string;
+  cone_twilight_civil?: string;
+  cone_twilight_nautical?: string;
+  cone_twilight_astronomical?: string;
+  cone_night?: string;
 }
 
 export type ZoomLevel = 1 | 2 | 3 | 4;
@@ -100,6 +105,7 @@ export interface HASSConfig {
 }
 
 export interface CardConfig {
+  theme?: "auto" | "dark" | "light";
   height?: "auto" | number | string;
   default_zoom?: number;
   refresh_mins?: number;

@@ -16,7 +16,6 @@
     "lint": "biome lint src/ test/",
     "lint:fix": "biome lint --write src/ test/",
     "check": "biome check --write src/ test/",
-    "check:fix": "biome check --write src/ test/",
     "typecheck": "tsc --noEmit",
     "check:ci": "tsc --noEmit && biome check src/ test/ && prettier --check \"**/*.md\"",
     "format:md": "prettier --write \"**/*.md\"",

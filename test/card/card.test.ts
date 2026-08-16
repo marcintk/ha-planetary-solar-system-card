@@ -181,6 +181,27 @@ describe("SolarViewCard", () => {
     card.remove();
   });
 
+  it("theme: 'dark' resets HA theme custom properties (status-bar/nav backgrounds, borders) to 'initial' so they don't leak the host HA theme's colors", () => {
+    // These vars are consumed by card-styles.ts (.status-bar/.nav background, borders) with a
+    // currentColor fallback. "initial" is the guaranteed-invalid value for a custom property,
+    // which is what makes var()'s fallback apply.
+    const card = document.createElement("ha-planetary-solar-system-card-test");
+    card.setConfig({ theme: "dark" });
+    document.body.appendChild(card);
+    expect(card.style.getPropertyValue("--secondary-background-color")).toBe("initial");
+    expect(card.style.getPropertyValue("--divider-color")).toBe("initial");
+    expect(card.style.getPropertyValue("--primary-text-color")).toBe("initial");
+    card.remove();
+  });
+
+  it("theme: 'auto' leaves HA theme custom properties untouched", () => {
+    const card = document.createElement("ha-planetary-solar-system-card-test");
+    card.setConfig({});
+    document.body.appendChild(card);
+    expect(card.style.getPropertyValue("--secondary-background-color")).toBe("");
+    card.remove();
+  });
+
   it("theme ignores unrecognised values and falls back to auto", () => {
     const card = document.createElement("ha-planetary-solar-system-card-test");
     card.setConfig({ theme: "purple" });

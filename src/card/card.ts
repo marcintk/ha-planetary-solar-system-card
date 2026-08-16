@@ -72,6 +72,23 @@ const THEME_PALETTES: Record<"dark" | "light", { background: string; color: stri
   light: { background: "#ffffff", color: "#212121" },
 };
 
+// card-styles.ts leans on these HA custom properties (status-bar/nav backgrounds, borders)
+// with a currentColor-based fallback for when HA doesn't define them. But HA always defines
+// them — from whichever theme is actually installed — and custom properties pierce the shadow
+// boundary, so a forced dark/light `theme:` only overriding :host's plain background/color
+// still left every var(--secondary-background-color, ...) etc. resolving to the real (possibly
+// mismatched) HA theme's value instead of the intended fallback. Setting each to the CSS-wide
+// keyword "initial" makes it the custom property's guaranteed-invalid value, which is exactly
+// what makes var()'s fallback kick in.
+const THEME_OVERRIDE_VARS = [
+  "--ha-card-background",
+  "--card-background-color",
+  "--primary-background-color",
+  "--primary-text-color",
+  "--secondary-background-color",
+  "--divider-color",
+];
+
 // Resolves config.height into an inline style for #solar-view/.image-view. A px value caps
 // the height and lets the square SVG/image letterbox-shrink to fit (preserveAspectRatio
 // "meet" — nothing crops). A percent reshapes the aspect-ratio itself (e.g. "50%" = half as
@@ -426,6 +443,13 @@ export class SolarViewCard extends LitElement {
     /* v8 ignore next */
     this.style.background = this._colors.background ?? this._themePalette?.background ?? "";
     this.style.color = this._themePalette?.color ?? "";
+    for (const varName of THEME_OVERRIDE_VARS) {
+      if (this._themePalette) {
+        this.style.setProperty(varName, "initial");
+      } else {
+        this.style.removeProperty(varName);
+      }
+    }
   }
 
   /**

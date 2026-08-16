@@ -35,9 +35,9 @@ the standard astronomical twilight definitions:
 
 ### Live Imagery
 
-Live imagery from two NASA probes: [DSCOVR](https://epic.gsfc.nasa.gov/) at the Sun-Earth L1 point
-watches Earth, [SDO](https://sdo.gsfc.nasa.gov/) in geosynchronous Earth orbit watches the Sun.
-`gallery.mode` picks what shows (☷ toggles the strip, a thumbnail click opens full-screen):
+Live imagery from two NASA probes: [DSCOVR](https://epic.gsfc.nasa.gov/) and
+[SDO](https://sdo.gsfc.nasa.gov/). `gallery.mode` picks what shows (☷ toggles the strip, a
+thumbnail click opens full-screen):
 
 | Mode    | Strip shows                                                 |
 | ------- | ----------------------------------------------------------- |
@@ -47,10 +47,10 @@ watches Earth, [SDO](https://sdo.gsfc.nasa.gov/) in geosynchronous Earth orbit w
 | `both`  | Earth and Sun together                                      |
 | `slide` | One thumbnail, flipping every `gallery.slide_interval_secs` |
 
-| Thumbnail | Source                                                              | We poll     | Latest image is usually                   |
-| --------- | ------------------------------------------------------------------- | ----------- | ----------------------------------------- |
-| DSCOVR/E  | [NASA EPIC](https://epic.gsfc.nasa.gov/) (DSCOVR, at Sun-Earth L1)  | Hourly      | ~1-2 days old (EPIC processing backlog)   |
-| SDO/S     | [NASA SDO](https://sdo.gsfc.nasa.gov/) (geosynchronous Earth orbit) | Every 15min | ~15-30min old (up to 45min if it retries) |
+| Thumbnail | Source                                                              | We poll     | Latest image is usually                 |
+| --------- | ------------------------------------------------------------------- | ----------- | --------------------------------------- |
+| DSCOVR/E  | [NASA EPIC](https://epic.gsfc.nasa.gov/) (DSCOVR, at Sun-Earth L1)  | Hourly      | ~1-2 days old (EPIC processing backlog) |
+| SDO/S     | [NASA SDO](https://sdo.gsfc.nasa.gov/) (geosynchronous Earth orbit) | Every 15min | ~15-30min old                           |
 
 Strict reverse-proxy CSP may block `epic.gsfc.nasa.gov` / `sdo.gsfc.nasa.gov` — not fixable
 card-side.
@@ -131,10 +131,10 @@ gallery:
 
 ### Gallery
 
-| Key                           | Type      | Default  | Description                                               |
-| ----------------------------- | --------- | -------- | --------------------------------------------------------- |
-| `gallery.mode`                | see below | `"none"` | `"none"` \| `"earth"` \| `"sun"` \| `"both"` \| `"slide"` |
-| `gallery.slide_interval_secs` | number    | `60`     | How often `slide` mode flips the displayed thumbnail      |
+| Key                           | Type   | Default  | Description                                                                                   |
+| ----------------------------- | ------ | -------- | --------------------------------------------------------------------------------------------- |
+| `gallery.mode`                | string | `"none"` | `"none"` \| `"earth"` \| `"sun"` \| `"both"` \| `"slide"` — see [Live Imagery](#live-imagery) |
+| `gallery.slide_interval_secs` | number | `60`     | How often `slide` mode flips the displayed thumbnail                                          |
 
 ### Location
 

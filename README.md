@@ -94,6 +94,7 @@ default_zoom: 2
 | `zoom_animate`                | boolean                                 | `true`    | Animate zoom transitions                                                                                                      |
 | `periodic_zoom_change`        | boolean                                 | `false`   | Cycle zoom levels on each refresh tick                                                                                        |
 | `periodic_zoom_max`           | number                                  | `4`       | Maximum zoom level for auto-cycle (2–4)                                                                                       |
+| `theme`                       | `"auto"` \| `"dark"` \| `"light"`       | `"auto"`  | `"auto"` follows the HA theme. `"dark"`/`"light"` forces a built-in background/text pair regardless of the installed theme    |
 | `colors`                      | object                                  | see below | Color overrides (see Colors)                                                                                                  |
 | `ecliptic_view`               | `"north"` \| `"south"`                  | `"north"` | Viewing pole: `"north"` = counter-clockwise orbits (default); `"south"` = clockwise orbits                                    |
 | `show_version`                | boolean                                 | `false`   | Show card version number in the bottom-right corner of the nav bar                                                            |
@@ -103,7 +104,8 @@ default_zoom: 2
 ### Colors
 
 By default the card inherits the HA theme background via `--ha-card-background` (falling back to
-`--card-background-color`, then `--primary-background-color`). Set `colors.background` to override.
+`--card-background-color`, then `--primary-background-color`). Set `colors.background` to override,
+or `theme: "dark"` / `theme: "light"` to force the whole palette regardless of the installed theme.
 Every color value accepts any valid CSS color string (`#rrggbb`, `rgba(…)`, named colors).
 
 | Key                            | Default                            | Description                                            |
@@ -113,7 +115,7 @@ Every color value accepts any valid CSS color string (`#rrggbb`, `rgba(…)`, na
 | `colors.label`                 | theme text color (adaptive)        | Planet and comet name labels                           |
 | `colors.season_line`           | 25% of theme text color (adaptive) | Season quadrant divider lines                          |
 | `colors.season_label`          | 50% of theme text color (adaptive) | Season name labels (curved arc text)                   |
-| `colors.twilight_day`          | `rgba(255, 255, 255, 0.10)`        | Visibility cone — Sun above horizon                    |
+| `colors.twilight_day`          | 8% of theme text color (adaptive)  | Visibility cone — Sun above horizon                    |
 | `colors.twilight_civil`        | `rgba(255, 220, 160, 0.09)`        | Visibility cone — civil twilight (0° to -6°)           |
 | `colors.twilight_nautical`     | `rgba(90, 130, 180, 0.12)`         | Visibility cone — nautical twilight (-6° to -12°)      |
 | `colors.twilight_astronomical` | `rgba(70, 50, 130, 0.18)`          | Visibility cone — astronomical twilight (-12° to -18°) |

@@ -12,10 +12,12 @@ const NEEDLE_COLOR = "color-mix(in srgb, currentColor 70%, transparent)";
 
 // Each band carries its own hue (not just a white/black fade) so it stays visually
 // distinct — and readable — against both a light and a dark HA theme background.
-// White-based CONE_DAY still pops on dark theme, fades on light theme by design (daytime
-// is the "nothing to see" state); the twilight/night bands below use enough alpha and a
-// hue shift (warm → cool → violet → indigo) to stay legible on dark card backgrounds too.
-export const CONE_DAY = "rgba(255, 255, 255, 0.10)"; // Sun above horizon
+// CONE_DAY mixes currentColor rather than a fixed rgba (same trick as NEEDLE_COLOR/
+// ORBIT_COLOR below) so it auto-inverts: dark tint on light theme, light tint on dark
+// theme — a fixed white was invisible on a light card background. The twilight/night
+// bands below use enough alpha and a hue shift (warm → cool → violet → indigo) to stay
+// legible on dark card backgrounds too.
+export const CONE_DAY = "color-mix(in srgb, currentColor 8%, transparent)"; // Sun above horizon
 export const CONE_CIVIL = "rgba(255, 220, 160, 0.09)"; // Civil twilight:        0° to -6°
 export const CONE_NAUTICAL = "rgba(90, 130, 180, 0.12)"; // Nautical twilight:  -6° to -12°
 export const CONE_ASTRONOMICAL = "rgba(70, 50, 130, 0.18)"; // Astronomical twilight: -12° to -18°

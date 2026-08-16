@@ -141,6 +141,56 @@ describe("SolarViewCard", () => {
     card.remove();
   });
 
+  it("theme defaults to auto (no forced background/color)", () => {
+    const card = document.createElement("ha-planetary-solar-system-card-test");
+    card.setConfig({});
+    document.body.appendChild(card);
+    const cardEl = card.shadowRoot.querySelector(".card");
+    expect(cardEl.style.background).toBe("");
+    expect(cardEl.style.color).toBe("");
+    card.remove();
+  });
+
+  it("theme: 'dark' forces a dark background/text pair regardless of the host theme", () => {
+    const card = document.createElement("ha-planetary-solar-system-card-test");
+    card.setConfig({ theme: "dark" });
+    document.body.appendChild(card);
+    const cardEl = card.shadowRoot.querySelector(".card");
+    expect(cardEl.style.background).toBe("rgb(28, 28, 28)");
+    expect(cardEl.style.color).toBe("rgb(225, 225, 225)");
+    card.remove();
+  });
+
+  it("theme: 'light' forces a light background/text pair regardless of the host theme", () => {
+    const card = document.createElement("ha-planetary-solar-system-card-test");
+    card.setConfig({ theme: "light" });
+    document.body.appendChild(card);
+    const cardEl = card.shadowRoot.querySelector(".card");
+    expect(cardEl.style.background).toBe("rgb(255, 255, 255)");
+    expect(cardEl.style.color).toBe("rgb(33, 33, 33)");
+    card.remove();
+  });
+
+  it("colors.background still overrides the forced theme's background", () => {
+    const card = document.createElement("ha-planetary-solar-system-card-test");
+    card.setConfig({ theme: "dark", colors: { background: "#ff00ff" } });
+    document.body.appendChild(card);
+    const cardEl = card.shadowRoot.querySelector(".card");
+    expect(cardEl.style.background).toBe("rgb(255, 0, 255)");
+    expect(cardEl.style.color).toBe("rgb(225, 225, 225)");
+    card.remove();
+  });
+
+  it("theme ignores unrecognised values and falls back to auto", () => {
+    const card = document.createElement("ha-planetary-solar-system-card-test");
+    card.setConfig({ theme: "purple" });
+    document.body.appendChild(card);
+    const cardEl = card.shadowRoot.querySelector(".card");
+    expect(cardEl.style.background).toBe("");
+    expect(cardEl.style.color).toBe("");
+    card.remove();
+  });
+
   it("getCardSize returns 6", () => {
     const card = document.createElement("ha-planetary-solar-system-card-test");
     expect(card.getCardSize()).toBe(6);

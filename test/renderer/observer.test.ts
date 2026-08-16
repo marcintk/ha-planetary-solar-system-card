@@ -110,15 +110,19 @@ describe("cone color constants", () => {
     expect(colors.size).toBe(5);
   });
 
-  it("cone colors darken from day (white) to night (black)", () => {
-    // Day-family zones are white-based (pop on dark theme, fade on light theme);
-    // night-family zones are black-based (pop on light theme, fade on dark theme).
-    // The RGB sum should fall monotonically across the elevation bands.
+  it("CONE_DAY mixes currentColor so it auto-inverts between light and dark theme", () => {
+    // A fixed white rgba is invisible on a light card background — mixing currentColor
+    // (same trick as NEEDLE_COLOR/ORBIT_COLOR) makes it dark-on-light, light-on-dark.
+    expect(CONE_DAY).toContain("currentColor");
+  });
+
+  it("cone colors darken from civil to night", () => {
+    // Twilight/night zones are hardcoded rgba with their own hue; the RGB sum should
+    // fall monotonically across the elevation bands as the sky gets darker.
     const rgbSum = (c) => {
       const [, r, g, b] = c.match(/rgba\((\d+), (\d+), (\d+)/).map(Number);
       return r + g + b;
     };
-    expect(rgbSum(CONE_DAY)).toBeGreaterThan(rgbSum(CONE_CIVIL));
     expect(rgbSum(CONE_CIVIL)).toBeGreaterThan(rgbSum(CONE_NAUTICAL));
     expect(rgbSum(CONE_NAUTICAL)).toBeGreaterThan(rgbSum(CONE_ASTRONOMICAL));
     expect(rgbSum(CONE_ASTRONOMICAL)).toBeGreaterThan(rgbSum(CONE_NIGHT));

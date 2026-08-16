@@ -105,6 +105,7 @@ export interface HASSConfig {
 }
 
 export interface CardConfig {
+  theme?: "auto" | "dark" | "light";
   height?: "auto" | number | string;
   default_zoom?: number;
   refresh_mins?: number;

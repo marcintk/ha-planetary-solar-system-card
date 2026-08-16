@@ -25,10 +25,7 @@ export const cardStyles = css`
     flex-direction: column;
   }
   .status-bar {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
+    flex: 0 0 auto;
     background: var(--secondary-background-color, color-mix(in srgb, currentColor 10%, transparent));
     font-size: 10px;
     color: inherit;
@@ -38,7 +35,7 @@ export const cardStyles = css`
     padding: 3px 8px;
     pointer-events: none;
     font-family: sans-serif;
-    z-index: 1;
+    box-sizing: border-box;
   }
   .status-bar span {
     white-space: nowrap;
@@ -118,6 +115,7 @@ export const cardStyles = css`
   }
   .nav {
     display: flex;
+    flex-wrap: wrap;
     justify-content: center;
     align-items: center;
     gap: 4px;

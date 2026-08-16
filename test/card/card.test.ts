@@ -1283,7 +1283,7 @@ describe("SolarViewCard", () => {
       expect(thumbs.length).toBe(2);
       expect(Array.from(thumbs).map((t) => t.dataset.source)).toEqual(["earth", "sun"]);
       const labels = Array.from(thumbs).map((t) => t.querySelector(".gallery-label").textContent);
-      expect(labels).toEqual(["L1→EARTH", "GEO→SUN"]);
+      expect(labels).toEqual(["L1▶EARTH", "GEO▶SUN"]);
 
       // Age shows "loading…" until each thumbnail's image actually loads.
       let ages = Array.from(thumbs).map((t) => t.querySelector(".gallery-age").textContent);
@@ -1364,7 +1364,7 @@ describe("SolarViewCard", () => {
       await flush();
       expect(card._imagePanelMode).toBe("sun");
       expect(card.shadowRoot.querySelector(".status-bar").textContent).toContain(
-        "GEO→SUN · SDO HMI"
+        "GEO▶SUN · SDO HMI"
       );
       const img = card.shadowRoot.querySelector("#image-view");
       expect(img.classList.contains("visible")).toBe(true);
@@ -1614,7 +1614,7 @@ describe("SolarViewCard", () => {
         `${EPIC_BASE_URL}/archive/natural/2026/08/10/jpg/epic_1b_20260810234950.jpg`
       );
       expect(card.shadowRoot.querySelector(".status-bar").textContent).toContain(
-        "L1→EARTH · DSCOVR"
+        "L1▶EARTH · DSCOVR"
       );
       card.remove();
     });

@@ -21,7 +21,12 @@ import {
 } from "./card-template.js";
 import { DEFAULT_ZOOM_LEVEL, MAX_ZOOM, MIN_ZOOM, ViewState } from "./card-view-state.js";
 import type { SourcedImage } from "./image-sources.js";
-import { fetchLatestEarthImageUrl, getPreviousSunSlot, getSunImageUrl } from "./image-sources.js";
+import {
+  FETCH_TIMEOUT_MS,
+  fetchLatestEarthImageUrl,
+  getPreviousSunSlot,
+  getSunImageUrl,
+} from "./image-sources.js";
 import { formatRelativeAge } from "./relative-time.js";
 import { ZoomAnimator } from "./zoom-animator.js";
 
@@ -37,10 +42,17 @@ const REPLAY_INTERVAL_MS = Math.floor(REPLAY_MAX_DURATION_MS / REPLAY_STEPS);
 // downloaded, not that the browser has rasterized them yet — assigning to a live <img> right
 // after load can still stumble onto the broken-image glyph for a frame while it decodes.
 // Off-DOM: doesn't reuse the real <img> element, so a failed probe can never flash onto it.
+// Bounded by FETCH_TIMEOUT_MS (image-sources.ts) — decode() has no built-in timeout, so a
+// stalled load against either NASA host would otherwise wait indefinitely.
 function preloadImage(url: string): Promise<void> {
   const probe = new Image();
   probe.src = url;
-  return probe.decode();
+  return Promise.race([
+    probe.decode(),
+    new Promise<never>((_resolve, reject) => {
+      setTimeout(() => reject(new Error("Image load timed out")), FETCH_TIMEOUT_MS);
+    }),
+  ]);
 }
 
 // Resolves a source to a candidate that's confirmed to actually load, preloading off-DOM

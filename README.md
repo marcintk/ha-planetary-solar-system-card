@@ -144,18 +144,10 @@ location:
 
 `gallery` (object, unset by default) — Live Imagery gallery options:
 
-| Key                           | Type   | Default  | Description                                          |
-| ----------------------------- | ------ | -------- | ---------------------------------------------------- |
-| `gallery.mode`                | string | `"none"` | See mode table below                                 |
-| `gallery.slide_interval_secs` | number | `60`     | How often `slide` mode flips the displayed thumbnail |
-
-| `gallery.mode` | Strip shows                                                 |
-| -------------- | ----------------------------------------------------------- |
-| `"none"`       | Nothing — gallery button hidden                             |
-| `"earth"`      | Earth only                                                  |
-| `"sun"`        | Sun only                                                    |
-| `"both"`       | Earth and Sun together                                      |
-| `"slide"`      | One thumbnail, flipping every `gallery.slide_interval_secs` |
+| Key                           | Type   | Default  | Description                                                                                                        |
+| ----------------------------- | ------ | -------- | ------------------------------------------------------------------------------------------------------------------ |
+| `gallery.mode`                | string | `"none"` | `"none"` hides the gallery button. `"earth"`/`"sun"`/`"both"` show that thumbnail. `"slide"` flips between the two |
+| `gallery.slide_interval_secs` | number | `60`     | How often `slide` mode flips the displayed thumbnail                                                               |
 
 ### Location
 

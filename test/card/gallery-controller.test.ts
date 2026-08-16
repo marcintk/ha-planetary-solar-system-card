@@ -232,3 +232,60 @@ describe("GalleryController slide auto-switch", () => {
     expect(gallery.displaySources).toEqual(before);
   });
 });
+
+describe("GalleryController.viewModel", () => {
+  it("reflects the error state", () => {
+    const gallery = new GalleryController(() => {});
+    gallery.configure("earth", 60000);
+    gallery.openPanel("earth");
+    (gallery as unknown as { _error: string | null })._error = "Earth image unavailable";
+    expect(gallery.viewModel().error).toBe("Earth image unavailable");
+  });
+
+  it("reflects no panel open, strip closed", () => {
+    const gallery = new GalleryController(() => {});
+    gallery.configure("earth", 60000);
+    gallery.toggle(); // configure() opens by default; close it
+    const vm = gallery.viewModel();
+    expect(vm.error).toBeNull();
+    expect(vm.panelSource).toBe("none");
+    expect(vm.navButtonVisible).toBe(true);
+    expect(vm.navButtonActive).toBe(false);
+  });
+
+  it("reflects an open strip with no panel", () => {
+    const gallery = new GalleryController(() => {});
+    gallery.configure("both", 60000);
+    const vm = gallery.viewModel();
+    expect(vm.showStrip).toBe(true);
+    expect(vm.panelSource).toBe("none");
+    expect(vm.navButtonActive).toBe(true);
+    expect(vm.thumbnails.map((t) => t.source)).toEqual(["earth", "sun"]);
+  });
+
+  it("reflects an open panel with image data, and hides the strip", async () => {
+    const gallery = new GalleryController(() => {});
+    gallery.configure("both", 60000);
+    gallery.openPanel("earth");
+    await vi.waitFor(() => expect(gallery.imageLoaded).toBe(true));
+    const vm = gallery.viewModel();
+    expect(vm.panelSource).toBe("earth");
+    expect(vm.imageUrl).toBe(gallery.imageUrl);
+    expect(vm.imageDate).toBe(gallery.imageDate);
+    expect(vm.imageLoaded).toBe(true);
+    expect(vm.showStrip).toBe(false);
+  });
+
+  it("thumbnails carry url/date from images for sources not yet fetched", () => {
+    const gallery = new GalleryController(() => {});
+    gallery.configure("sun", 60000);
+    const vm = gallery.viewModel();
+    expect(vm.thumbnails).toEqual([{ source: "sun", url: null, date: null }]);
+  });
+
+  it("navButtonVisible is false when gallery mode is none", () => {
+    const gallery = new GalleryController(() => {});
+    gallery.configure("none", 60000);
+    expect(gallery.viewModel().navButtonVisible).toBe(false);
+  });
+});

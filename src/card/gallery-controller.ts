@@ -13,6 +13,22 @@ export type GalleryMode = "none" | "earth" | "sun" | "both" | "slide";
 export const GALLERY_MODES: GalleryMode[] = ["none", "earth", "sun", "both", "slide"];
 export const DEFAULT_GALLERY_INTERVAL_MS = 60000;
 
+// Render-ready shape for card.ts's template — raw data only (dates, urls, booleans), no
+// formatting, so formatRelativeAge/date-formatting stays in card.ts alongside its other
+// display logic. Collapses the branching card.ts's render() otherwise reconstructs from the
+// individual getters below (which stay, and remain this module's own test seam).
+export interface GalleryViewModel {
+  error: string | null;
+  panelSource: ImagePanelMode;
+  imageUrl: string | null;
+  imageDate: Date | null;
+  imageLoaded: boolean;
+  showStrip: boolean;
+  thumbnails: { source: ImageSource; url: string | null; date: Date | null }[];
+  navButtonVisible: boolean;
+  navButtonActive: boolean;
+}
+
 // Confirms a candidate image URL actually loads AND decodes before anything commits to
 // displaying it — so a failed or not-yet-published candidate never touches a visible <img>.
 // decode() (not the load event) is what actually guarantees this: load only means the bytes
@@ -117,6 +133,24 @@ export class GalleryController {
   // Sources rendered as thumbnails right now.
   get displaySources(): ImageSource[] {
     return this._mode === "slide" ? [this._autoDisplayedSource] : this._fetchSources;
+  }
+
+  viewModel(): GalleryViewModel {
+    return {
+      error: this._error,
+      panelSource: this._panelMode,
+      imageUrl: this._imageUrl,
+      imageDate: this._imageDate,
+      imageLoaded: this._imageLoaded,
+      showStrip: this._open && this._panelMode === "none",
+      thumbnails: this.displaySources.map((source) => ({
+        source,
+        url: this._images[source]?.url ?? null,
+        date: this._images[source]?.date ?? null,
+      })),
+      navButtonVisible: this._mode !== "none",
+      navButtonActive: this._open,
+    };
   }
 
   // Sources this gallery.mode needs fetched in the background — "slide" still fetches both

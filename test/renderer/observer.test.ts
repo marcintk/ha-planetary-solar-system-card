@@ -117,10 +117,11 @@ describe("cone color constants", () => {
   });
 
   it("cone colors darken from civil to night", () => {
-    // Twilight/night zones are hardcoded rgba with their own hue; the RGB sum should
-    // fall monotonically across the elevation bands as the sky gets darker.
+    // Twilight/night zones each carry their own hue mixed with currentColor for legibility
+    // on both themes; the underlying hue's RGB sum should still fall monotonically across
+    // the elevation bands as the sky gets darker.
     const rgbSum = (c) => {
-      const [, r, g, b] = c.match(/rgba\((\d+), (\d+), (\d+)/).map(Number);
+      const [, r, g, b] = c.match(/rgb\((\d+), (\d+), (\d+)\)/).map(Number);
       return r + g + b;
     };
     expect(rgbSum(CONE_CIVIL)).toBeGreaterThan(rgbSum(CONE_NAUTICAL));

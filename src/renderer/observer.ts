@@ -186,11 +186,11 @@ export function renderDayNightSplit(
     zenithAngleFromSun != null ? earthAngle + Math.PI + zenithAngleFromSun : observerAngle;
 
   let coneColor: string;
-  if (elevationDeg >= 0) coneColor = colors.twilight_day ?? CONE_DAY;
-  else if (elevationDeg >= -6) coneColor = colors.twilight_civil ?? CONE_CIVIL;
-  else if (elevationDeg >= -12) coneColor = colors.twilight_nautical ?? CONE_NAUTICAL;
-  else if (elevationDeg >= -18) coneColor = colors.twilight_astronomical ?? CONE_ASTRONOMICAL;
-  else coneColor = colors.twilight_night ?? CONE_NIGHT;
+  if (elevationDeg >= 0) coneColor = colors.cone_day ?? CONE_DAY;
+  else if (elevationDeg >= -6) coneColor = colors.cone_twilight_civil ?? CONE_CIVIL;
+  else if (elevationDeg >= -12) coneColor = colors.cone_twilight_nautical ?? CONE_NAUTICAL;
+  else if (elevationDeg >= -18) coneColor = colors.cone_twilight_astronomical ?? CONE_ASTRONOMICAL;
+  else coneColor = colors.cone_night ?? CONE_NIGHT;
 
   // Twilight half-angle must expand in the SAME frame as displayObserverAngle (the cone's
   // axis), or the two disagree away from solar noon/midnight. displayObserverAngle is built

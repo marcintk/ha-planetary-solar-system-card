@@ -42,11 +42,11 @@ export interface Colors {
   label?: string;
   season_line?: string;
   season_label?: string;
-  twilight_day?: string;
-  twilight_civil?: string;
-  twilight_nautical?: string;
-  twilight_astronomical?: string;
-  twilight_night?: string;
+  cone_day?: string;
+  cone_twilight_civil?: string;
+  cone_twilight_nautical?: string;
+  cone_twilight_astronomical?: string;
+  cone_night?: string;
 }
 
 export type ZoomLevel = 1 | 2 | 3 | 4;

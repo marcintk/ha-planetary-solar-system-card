@@ -10,7 +10,6 @@ import {
 } from "./svg-utils.js";
 
 export const ORBIT_COLOR = "color-mix(in srgb, currentColor 12%, transparent)";
-const AU_LABEL_COLOR = "color-mix(in srgb, currentColor 50%, transparent)";
 // Outer ring circle (r=23, stroke-width=2) -> visible edge at 24px, wider than Saturn's shrunk body.
 export const SATURN_RING_OUTER_RADIUS = 24;
 
@@ -72,7 +71,7 @@ export function renderOrbit(
   // right of the season dividing line to avoid overlap.
   const LABEL_OFFSET = 3;
   const labelAttrs = {
-    style: `fill: ${AU_LABEL_COLOR}`,
+    style: `fill: ${orbitColor}`,
     "font-size": "9",
     "font-family": "sans-serif",
     "text-anchor": "start",

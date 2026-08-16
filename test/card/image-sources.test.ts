@@ -144,7 +144,7 @@ describe("image-sources", () => {
 
     it("aborts and rejects a request that hangs past the timeout, bounding an otherwise-indefinite stall", async () => {
       // Stubs AbortSignal.timeout to fire immediately instead of waiting out the real
-      // 8s bound, so this test verifies the abort wiring without a real 8s sleep.
+      // FETCH_TIMEOUT_MS bound, so this test verifies the abort wiring without a real sleep.
       vi.spyOn(AbortSignal, "timeout").mockReturnValue(AbortSignal.abort(new Error("timeout")));
       vi.stubGlobal(
         "fetch",

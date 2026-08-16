@@ -47,9 +47,9 @@ function preloadImage(url: string): Promise<void> {
 // first. Earth's URL is already confirmed by a real API lookup (see
 // fetchLatestEarthImageUrl), so it never needs the retry; sun's URL is only computed from
 // NASA's publish cadence and can occasionally 404 if a slot hasn't been published yet — one
-// step back, one retry, matching the old on-DOM retry this replaces. Every caller (initial
-// open, background refresh, gallery thumbnails) shares this so a slow or failing candidate
-// is caught before it ever reaches a visible <img>.
+// step back, one retry. Used only by _refreshImageSources — every source's image, for both
+// the gallery strip and a full-screen panel, is resolved there and nowhere else, so a slow
+// or failing candidate is caught before it ever reaches a visible <img>.
 async function resolveDisplayImage(mode: ImageSource): Promise<SourcedImage> {
   const candidate = mode === "earth" ? await fetchLatestEarthImageUrl() : getSunImageUrl();
   try {
@@ -681,10 +681,10 @@ export class SolarViewCard extends LitElement {
 
   // A click is a pure view switch, nothing more: no fetch, no preload, no async gap. Every
   // source's image is already kept current in the background by the auto-update timer
-  // (_refreshImageSources, cadence = refresh_mins) whether or not the gallery strip or a
-  // panel is currently visible, so opening one just displays whatever that timer already
-  // confirmed — instant when it landed, "loading…" only for the narrow window before the
-  // very first background fetch for a source completes (already in flight from
+  // (_refreshImageSources, cadence = refresh_mins) for as long as the gallery strip or a
+  // panel stays open, so opening one just displays whatever that timer already confirmed —
+  // instant when it landed, "loading…" only for the narrow window before the very first
+  // background fetch for a source completes (already in flight from
   // connectedCallback/setConfig — this only nudges it rather than waiting for the next tick).
   private _setImagePanel(mode: ImagePanelMode): void {
     if (mode === "none") {

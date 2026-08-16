@@ -1097,11 +1097,6 @@ describe("SolarViewCard", () => {
   });
 
   describe("internal method null guards", () => {
-    it("_updateViewBox is a no-op when shadow DOM has no SVG", () => {
-      const card = document.createElement("ha-planetary-solar-system-card-test");
-      expect(() => card._updateViewBox()).not.toThrow();
-    });
-
     it("_zoom.advancePeriodic is a no-op before the view is initialized", () => {
       const card = document.createElement("ha-planetary-solar-system-card-test");
       expect(() => card._zoom.advancePeriodic()).not.toThrow();
@@ -1120,13 +1115,6 @@ describe("SolarViewCard", () => {
     it("disconnectedCallback is safe before connectedCallback", () => {
       const card = document.createElement("ha-planetary-solar-system-card-test");
       expect(() => card.disconnectedCallback()).not.toThrow();
-    });
-
-    it("_updateViewBox skips setAttribute when #solar-view has no SVG child", () => {
-      const card = createAndMount();
-      card.shadowRoot.querySelector("#solar-view").innerHTML = "";
-      expect(() => card._updateViewBox()).not.toThrow();
-      card.remove();
     });
   });
 

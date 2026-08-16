@@ -1107,13 +1107,6 @@ describe("SolarViewCard", () => {
       expect(() => card._applyZoom(800, 800)).not.toThrow();
     });
 
-    it("_updateOffscreenMarkers skips appending when _positions is null", () => {
-      const card = createAndMount();
-      card._positions = null;
-      expect(() => card._updateOffscreenMarkers()).not.toThrow();
-      card.remove();
-    });
-
     it("_advanceZoom is a no-op when _viewState is null", () => {
       const card = document.createElement("ha-planetary-solar-system-card-test");
       expect(() => card._advanceZoom()).not.toThrow();

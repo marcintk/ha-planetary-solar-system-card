@@ -1,5 +1,5 @@
 import { VIEW_SIZE } from "../renderer/svg-utils.js";
-import type { ZoomLevel } from "../types.js";
+import type { PanZoomState, ZoomLevel } from "../types.js";
 
 export const DEFAULT_ZOOM_LEVEL: ZoomLevel = 1;
 export const MIN_ZOOM: ZoomLevel = 1;
@@ -11,7 +11,7 @@ export const ZOOM_LEVELS: Record<ZoomLevel, number> = { 1: 800, 2: 640, 3: 480, 
  * Encapsulates all pan and zoom state for the solar system view.
  * Keeps the SolarViewCard focused on rendering and event wiring.
  */
-export class ViewState {
+export class ViewState implements PanZoomState {
   centerX: number;
   centerY: number;
   zoomLevel: ZoomLevel;

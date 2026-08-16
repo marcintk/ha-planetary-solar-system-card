@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { renderSolarSystem } from "../../src/renderer/index.js";
-import { renderOffscreenMarkers } from "../../src/renderer/offscreen-markers.js";
+import { MARKER_GROUP_ID, renderOffscreenMarkers } from "../../src/renderer/offscreen-markers.js";
 
 // Minimal viewState mock
 function makeViewState(zoomLevel, centerX = 400, centerY = 400, size = null) {
@@ -102,5 +102,33 @@ describe("renderOffscreenMarkers", () => {
     const label = group.querySelector("text");
     expect(label).not.toBeNull();
     expect(label.getAttribute("text-anchor")).toBe("end");
+  });
+});
+
+describe("renderSolarSystem().updateMarkers", () => {
+  it("appends a marker group to the returned svg for the given pan/zoom", () => {
+    const { svg, updateMarkers } = renderSolarSystem(new Date("2025-06-15"));
+    expect(svg.getElementById(MARKER_GROUP_ID)).toBeNull();
+    updateMarkers(makeViewState(4));
+    expect(svg.getElementById(MARKER_GROUP_ID)).not.toBeNull();
+  });
+
+  it("replaces the marker group on each call rather than accumulating", () => {
+    const { svg, updateMarkers } = renderSolarSystem(new Date("2025-06-15"));
+    updateMarkers(makeViewState(4));
+    const first = svg.getElementById(MARKER_GROUP_ID);
+    updateMarkers(makeViewState(4));
+    const second = svg.getElementById(MARKER_GROUP_ID);
+    expect(svg.querySelectorAll(`#${MARKER_GROUP_ID}`).length).toBe(1);
+    expect(second).not.toBe(first);
+  });
+
+  it("reflects a narrower viewport with more offscreen markers on the next call", () => {
+    const { svg, updateMarkers } = renderSolarSystem(new Date("2025-06-15"));
+    updateMarkers(makeViewState(1));
+    const wideCount = svg.getElementById(MARKER_GROUP_ID).children.length;
+    updateMarkers(makeViewState(4));
+    const narrowCount = svg.getElementById(MARKER_GROUP_ID).children.length;
+    expect(narrowCount).toBeGreaterThan(wideCount);
   });
 });

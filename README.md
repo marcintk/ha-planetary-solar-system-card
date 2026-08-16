@@ -137,8 +137,10 @@ location:
 `colors.background` (card background) defaults to the HA theme (`--ha-card-background`).
 
 `orbit`, `label`, `season_line`, `season_label`, and `cone_day` default to the theme's text color
-(adaptive to light/dark) at the opacity shown below. Each still accepts any CSS color string (hex,
-`rgb()`, `rgba()`, etc.) as an override — only the built-in default is opacity-based:
+(adaptive to light/dark) at the opacity shown below — that opacity only applies to the default.
+Setting the key yourself replaces the color outright (any CSS color string: hex, `rgb()`, `rgba()`,
+etc.) with no opacity layered on top; include your own alpha (e.g. `rgba(..., 0.3)`) if you want
+transparency:
 
 | Key                   | Default (opacity of theme text color) | Description                          |
 | --------------------- | ------------------------------------- | ------------------------------------ |

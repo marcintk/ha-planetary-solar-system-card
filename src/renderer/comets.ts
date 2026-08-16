@@ -5,6 +5,7 @@ import {
   BODY_LABEL_ATTRS,
   createSvgElement,
   DEFAULT_LABEL_COLOR,
+  ellipseFromApsides,
   orbitTransformMatrix,
 } from "./svg-utils.js";
 
@@ -27,11 +28,10 @@ export function computeCometVisualEllipse(comet: Comet): CometVisualEllipse {
     aphelionPx = neptunePx + excess * 4;
   }
 
-  const aPx = (perihelionPx + aphelionPx) / 2;
-  const cPx = (aphelionPx - perihelionPx) / 2;
-  const bPx = Math.sqrt(aPx * aPx - cPx * cPx);
-  const ePx = cPx / aPx;
-  return { aPx, bPx, cPx, ePx, rotationDeg: comet.longitudeOfPerihelion };
+  return {
+    ...ellipseFromApsides(perihelionPx, aphelionPx),
+    rotationDeg: comet.longitudeOfPerihelion,
+  };
 }
 
 /**

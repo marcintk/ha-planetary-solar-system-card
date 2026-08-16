@@ -4,8 +4,10 @@ import {
   auToRadius,
   CENTER,
   createSvgElement,
+  ellipseFromApsides,
   MAX_RADIUS,
   MIN_RADIUS,
+  polarFromFocus,
   SVG_NS,
   VIEW_SIZE,
 } from "../../src/renderer/svg-utils.js";
@@ -71,5 +73,48 @@ describe("auToRadius", () => {
     const jupiterRadius = auToRadius(5.2);
     // Jupiter should be noticeably past the midpoint (> 50% of MAX_RADIUS)
     expect(jupiterRadius).toBeGreaterThan(MIN_RADIUS + (MAX_RADIUS - MIN_RADIUS) * 0.4);
+  });
+});
+
+describe("ellipseFromApsides", () => {
+  it("computes aPx as the midpoint and cPx as the half-difference of the apsides", () => {
+    const { aPx, cPx } = ellipseFromApsides(80, 120);
+    expect(aPx).toBe(100);
+    expect(cPx).toBe(20);
+  });
+
+  it("degenerates to a circle (bPx === aPx, ePx === 0) when apsides are equal", () => {
+    const { aPx, bPx, ePx } = ellipseFromApsides(100, 100);
+    expect(bPx).toBeCloseTo(aPx, 8);
+    expect(ePx).toBeCloseTo(0, 8);
+  });
+
+  it("matches the shared formula's own aPx/bPx/cPx/ePx relationship", () => {
+    const { aPx, bPx, cPx, ePx } = ellipseFromApsides(50, 150);
+    expect(bPx).toBeCloseTo(Math.sqrt(aPx * aPx - cPx * cPx), 8);
+    expect(ePx).toBeCloseTo(cPx / aPx, 8);
+  });
+});
+
+describe("polarFromFocus", () => {
+  it("places a circular orbit (ePx=0) at radius aPx regardless of angle", () => {
+    const { x, y } = polarFromFocus(100, 0, 0, Math.PI / 2, -1);
+    expect(x).toBeCloseTo(CENTER, 8);
+    expect(y).toBeCloseTo(CENTER - 100, 8);
+  });
+
+  it("puts a body at its perihelion distance when trueAnomaly is 0", () => {
+    const aPx = 100;
+    const ePx = 0.5;
+    const perihelionPx = aPx * (1 - ePx);
+    const { x } = polarFromFocus(aPx, ePx, 0, 0, -1);
+    expect(x).toBeCloseTo(CENTER + perihelionPx, 8);
+  });
+
+  it("negates the y-offset when eclipticViewDirection flips sign", () => {
+    const north = polarFromFocus(100, 0.3, 1, Math.PI / 3, -1);
+    const south = polarFromFocus(100, 0.3, 1, Math.PI / 3, 1);
+    expect(south.y - CENTER).toBeCloseTo(-(north.y - CENTER), 8);
+    expect(south.x).toBeCloseTo(north.x, 8);
   });
 });

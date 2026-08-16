@@ -24,6 +24,7 @@ import {
   CENTER,
   createSvgElement,
   DEFAULT_LABEL_COLOR,
+  polarFromFocus,
   VIEW_SIZE,
 } from "./svg-utils.js";
 
@@ -98,9 +99,7 @@ export function renderSolarSystem(
   PLANETS.forEach((planet, i) => {
     const { angle, trueAnomaly } = calculatePlanetOrbit(planet, date);
     const { aPx, ePx } = planetEllipses[i];
-    const radius = (aPx * (1 - ePx * ePx)) / (1 + ePx * Math.cos(trueAnomaly));
-    const x = CENTER + radius * Math.cos(angle);
-    const y = CENTER + eclipticViewDirection * radius * Math.sin(angle);
+    const { x, y } = polarFromFocus(aPx, ePx, trueAnomaly, angle, eclipticViewDirection);
     if (planet.name === EARTH.name) {
       earthX = x;
       earthY = y;
@@ -124,9 +123,7 @@ export function renderSolarSystem(
   for (const comet of COMETS) {
     const { angle, radius, trueAnomaly } = calculateCometPosition(comet, date);
     const { aPx, ePx } = computeCometVisualEllipse(comet);
-    const rPx = (aPx * (1 - ePx * ePx)) / (1 + ePx * Math.cos(trueAnomaly));
-    const cx = CENTER + rPx * Math.cos(angle);
-    const cy = CENTER + eclipticViewDirection * rPx * Math.sin(angle);
+    const { x: cx, y: cy } = polarFromFocus(aPx, ePx, trueAnomaly, angle, eclipticViewDirection);
     // Tail scales inversely with distance from Sun
     const perihelion = comet.semiMajorAxis * (1 - comet.eccentricity);
     const tailScale = Math.min(1, perihelion / radius);

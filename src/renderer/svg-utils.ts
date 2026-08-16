@@ -1,4 +1,5 @@
 import { PLANETS } from "../astronomy/planet-data.js";
+import type { CometVisualEllipse } from "../types.js";
 
 export const SVG_NS = "http://www.w3.org/2000/svg";
 export const DEFAULT_LABEL_COLOR = "currentColor";
@@ -27,6 +28,43 @@ export function auToRadius(au: number): number {
 export function radiusFromAU(radius: number): number {
   const t = (radius - MIN_RADIUS) / (MAX_RADIUS - MIN_RADIUS);
   return Math.exp(_logMinAU + t * (_logMaxAU - _logMinAU));
+}
+
+/**
+ * Ellipse parameters in pixel space from a body's perihelion/aphelion distances (both
+ * already converted to px via auToRadius). Shared by every orbiting body — planet, comet —
+ * so this math lives in exactly one place rather than being re-derived per body type.
+ */
+export function ellipseFromApsides(
+  perihelionPx: number,
+  aphelionPx: number
+): Omit<CometVisualEllipse, "rotationDeg"> {
+  const aPx = (perihelionPx + aphelionPx) / 2;
+  const cPx = (aphelionPx - perihelionPx) / 2;
+  const bPx = Math.sqrt(aPx * aPx - cPx * cPx);
+  const ePx = cPx / aPx;
+  return { aPx, bPx, cPx, ePx };
+}
+
+/**
+ * A body's pixel position on its ellipse at the given true anomaly/angle — the polar
+ * equation of an ellipse with the Sun at the focus, r = a(1-e²)/(1+e·cosθ), rotated into
+ * screen space. Must stay derived identically for every body type: this is the same
+ * formula orbitTransformComponents's matrix is built to agree with (see its docstring,
+ * #94) — a marker computed any other way can drift off the drawn orbit ring.
+ */
+export function polarFromFocus(
+  aPx: number,
+  ePx: number,
+  trueAnomaly: number,
+  angle: number,
+  eclipticViewDirection: number
+): { x: number; y: number } {
+  const radius = (aPx * (1 - ePx * ePx)) / (1 + ePx * Math.cos(trueAnomaly));
+  return {
+    x: CENTER + radius * Math.cos(angle),
+    y: CENTER + eclipticViewDirection * radius * Math.sin(angle),
+  };
 }
 
 export interface OrbitTransformComponents {

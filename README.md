@@ -106,13 +106,18 @@ By default the card inherits the HA theme background via `--ha-card-background` 
 `--card-background-color`, then `--primary-background-color`). Set `colors.background` to override.
 Every color value accepts any valid CSS color string (`#rrggbb`, `rgba(…)`, named colors).
 
-| Key                   | Default                            | Description                          |
-| --------------------- | ---------------------------------- | ------------------------------------ |
-| `colors.background`   | HA theme (`--ha-card-background`)  | Card background                      |
-| `colors.orbit`        | 12% of theme text color (adaptive) | Orbit ring and moon-orbit stroke     |
-| `colors.label`        | theme text color (adaptive)        | Planet and comet name labels         |
-| `colors.season_line`  | 25% of theme text color (adaptive) | Season quadrant divider lines        |
-| `colors.season_label` | 50% of theme text color (adaptive) | Season name labels (curved arc text) |
+| Key                            | Default                            | Description                                            |
+| ------------------------------ | ---------------------------------- | ------------------------------------------------------ |
+| `colors.background`            | HA theme (`--ha-card-background`)  | Card background                                        |
+| `colors.orbit`                 | 12% of theme text color (adaptive) | Orbit ring and moon-orbit stroke                       |
+| `colors.label`                 | theme text color (adaptive)        | Planet and comet name labels                           |
+| `colors.season_line`           | 25% of theme text color (adaptive) | Season quadrant divider lines                          |
+| `colors.season_label`          | 50% of theme text color (adaptive) | Season name labels (curved arc text)                   |
+| `colors.twilight_day`          | `rgba(255, 255, 255, 0.10)`        | Visibility cone — Sun above horizon                    |
+| `colors.twilight_civil`        | `rgba(255, 220, 160, 0.09)`        | Visibility cone — civil twilight (0° to -6°)           |
+| `colors.twilight_nautical`     | `rgba(90, 130, 180, 0.12)`         | Visibility cone — nautical twilight (-6° to -12°)      |
+| `colors.twilight_astronomical` | `rgba(70, 50, 130, 0.18)`          | Visibility cone — astronomical twilight (-12° to -18°) |
+| `colors.twilight_night`        | `rgba(30, 20, 60, 0.22)`           | Visibility cone — Sun below -18°                       |
 
 ```yaml
 type: custom:ha-planetary-solar-system-card

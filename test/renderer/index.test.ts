@@ -283,6 +283,28 @@ describe("renderSolarSystem", () => {
     expect(dot).toBeCloseTo(Math.cos((210 * Math.PI) / 180), 1);
   });
 
+  it("colors.twilight_* overrides the cone fill for each twilight band", () => {
+    const overrides = {
+      twilight_day: "#111111",
+      twilight_civil: "#222222",
+      twilight_nautical: "#333333",
+      twilight_astronomical: "#444444",
+      twilight_night: "#555555",
+    };
+    const cases: [Date, string][] = [
+      [new Date("2026-02-14T06:00:00"), overrides.twilight_day],
+      [new Date("2026-02-14T05:45:00"), overrides.twilight_civil],
+      [new Date("2026-02-14T05:24:00"), overrides.twilight_nautical],
+      [new Date("2026-02-14T05:00:00"), overrides.twilight_astronomical],
+      [new Date("2026-02-14T00:00:00"), overrides.twilight_night],
+    ];
+    for (const [date, expectedFill] of cases) {
+      const { svg } = renderSolarSystem(date, "north", null, overrides);
+      const cone = svg.querySelector('circle[clip-path="url(#sky-clip)"]');
+      expect(cone.getAttribute("fill")).toBe(expectedFill);
+    }
+  });
+
   it("only one twilight cone present in SVG per render", () => {
     const container = document.createElement("div");
     // 5:00 AM: elevation ≈ -15° (astronomical phase)

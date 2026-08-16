@@ -423,6 +423,7 @@ describe("SolarViewCard", () => {
 
     it("shows version when show_version is true", () => {
       const card = createAndMount();
+      card.hass = { config: { latitude: 51.5, longitude: -0.1 } };
       card.setConfig({ show_version: true });
       card._render();
       const el = card.shadowRoot.querySelector(".card-version");

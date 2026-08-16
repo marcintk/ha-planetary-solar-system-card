@@ -99,20 +99,20 @@ gallery:
 
 ## Configuration
 
-| Option                 | Type                                    | Default   | Description                                                                                                                   |
-| ---------------------- | --------------------------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `height`               | `"auto"` \| number \| `"Npx"` \| `"N%"` | `"auto"`  | `"auto"` = square, sized to card width. Number/`"Npx"` caps height, shrinks to fit. `"N%"` sets height as a fraction of width |
-| `refresh_mins`         | number                                  | `1`       | Auto-update interval in minutes                                                                                               |
-| `default_zoom`         | number                                  | `1`       | Starting zoom level                                                                                                           |
-| `zoom_animate`         | boolean                                 | `true`    | Animate zoom transitions                                                                                                      |
-| `periodic_zoom_change` | boolean                                 | `false`   | Cycle zoom levels on each refresh tick                                                                                        |
-| `periodic_zoom_max`    | number                                  | `4`       | Maximum zoom level for auto-cycle (2–4)                                                                                       |
-| `theme`                | `"auto"` \| `"dark"` \| `"light"`       | `"auto"`  | `"auto"` follows the HA theme. `"dark"`/`"light"` forces a built-in background/text pair regardless of the installed theme    |
-| `colors`               | object                                  | see below | Color overrides (see Colors)                                                                                                  |
-| `ecliptic_view`        | `"north"` \| `"south"`                  | `"north"` | Viewing pole: `"north"` = counter-clockwise orbits (default); `"south"` = clockwise orbits                                    |
-| `show_version`         | boolean                                 | `false`   | Show card version number in the bottom-right corner of the nav bar                                                            |
-| `gallery`              | object                                  | see below | Live Imagery gallery options (see Gallery)                                                                                    |
-| `location`             | object                                  | see below | Location override (see Location)                                                                                              |
+| Option                 | Type                                    | Default   | Description                                                                                                                        |
+| ---------------------- | --------------------------------------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `height`               | `"auto"` \| number \| `"Npx"` \| `"N%"` | `"auto"`  | `"auto"` = square, sized to card width. Number/`"Npx"` caps height, shrinks to fit. `"N%"` sets height as a fraction of width      |
+| `refresh_mins`         | number                                  | `1`       | Auto-update interval in minutes                                                                                                    |
+| `default_zoom`         | number                                  | `1`       | Starting zoom level                                                                                                                |
+| `zoom_animate`         | boolean                                 | `true`    | Animate zoom transitions                                                                                                           |
+| `periodic_zoom_change` | boolean                                 | `false`   | Cycle zoom levels on each refresh tick                                                                                             |
+| `periodic_zoom_max`    | number                                  | `4`       | Maximum zoom level for auto-cycle (2–4)                                                                                            |
+| `theme`                | `"auto"` \| `"dark"` \| `"light"`       | `"auto"`  | `"auto"` follows the HA theme. `"dark"`/`"light"` forces a built-in background/text pair regardless of the installed theme         |
+| `colors`               | object                                  | see below | Color overrides (see Colors)                                                                                                       |
+| `ecliptic_view`        | `"north"` \| `"south"`                  | `"north"` | Viewing pole: `"north"` = counter-clockwise orbits (default); `"south"` = clockwise orbits                                         |
+| `show_version`         | boolean                                 | `false`   | Show card version number centered in the top status bar (hidden when the status bar itself is hidden, e.g. no location configured) |
+| `gallery`              | object                                  | see below | Live Imagery gallery options (see Gallery)                                                                                         |
+| `location`             | object                                  | see below | Location override (see Location)                                                                                                   |
 
 ### Colors
 

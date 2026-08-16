@@ -3,6 +3,7 @@
 exports[`buildStatusBar snapshots > full status bar with Next transition 1`] = `
 "<!----><div class="status-bar">
     <span><!--?-->London | <!--?-->Day (<!--?-->32°)</span>
+    <!--?-->
     <!--?--><span>Next: <!--?-->Civil Twilight (<!--?-->17:25)</span>
   </div>"
 `;
@@ -10,6 +11,7 @@ exports[`buildStatusBar snapshots > full status bar with Next transition 1`] = `
 exports[`buildStatusBar snapshots > null location name (empty before pipe) 1`] = `
 "<!----><div class="status-bar">
     <span><!--?--> | <!--?-->Day (<!--?-->89°)</span>
+    <!--?-->
     <!--?--><span>Next: <!--?-->Civil Twilight (<!--?-->18:00)</span>
   </div>"
 `;
@@ -17,6 +19,7 @@ exports[`buildStatusBar snapshots > null location name (empty before pipe) 1`] =
 exports[`buildStatusBar snapshots > single span (polar night, no transition) 1`] = `
 "<!----><div class="status-bar">
     <span><!--?-->Arctic | <!--?-->Night (<!--?-->-22°)</span>
+    <!--?-->
     <!--?-->
   </div>"
 `;
@@ -57,6 +60,7 @@ exports[`cardStyles > matches snapshot 1`] = `
     flex-direction: column;
   }
   .status-bar {
+    position: relative;
     flex: 0 0 auto;
     background: var(--secondary-background-color, color-mix(in srgb, currentColor 10%, transparent));
     font-size: 10px;
@@ -235,8 +239,9 @@ exports[`cardStyles > matches snapshot 1`] = `
     user-select: none;
     font-family: sans-serif;
     position: absolute;
-    right: 6px;
-    bottom: 4px;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
   }
 "
 `;

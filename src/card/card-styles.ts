@@ -35,6 +35,7 @@ export const cardStyles = css`
     flex-direction: column;
   }
   .status-bar {
+    position: relative;
     flex: 0 0 auto;
     background: var(--secondary-background-color, color-mix(in srgb, currentColor 10%, transparent));
     font-size: 10px;
@@ -213,7 +214,8 @@ export const cardStyles = css`
     user-select: none;
     font-family: sans-serif;
     position: absolute;
-    right: 6px;
-    bottom: 4px;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
   }
 `;

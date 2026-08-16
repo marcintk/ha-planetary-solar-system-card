@@ -20,6 +20,15 @@ describe("planet-data constants", () => {
       expect(planet).toHaveProperty("color");
       expect(planet).toHaveProperty("size");
       expect(planet).toHaveProperty("meanLongitudeJ2000");
+      expect(planet).toHaveProperty("eccentricity");
+      expect(planet).toHaveProperty("longitudeOfPerihelion");
+    }
+  });
+
+  it("eccentricities are within [0, 1)", () => {
+    for (const planet of PLANETS) {
+      expect(planet.eccentricity).toBeGreaterThanOrEqual(0);
+      expect(planet.eccentricity).toBeLessThan(1);
     }
   });
 

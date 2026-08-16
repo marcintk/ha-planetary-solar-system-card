@@ -3,12 +3,22 @@ import { css } from "lit";
 export const cardStyles = css`
   :host {
     display: block;
+    /* HA's grid-based views (sections/masonry) stretch grid items to fill their row by
+       default. Without this, the host box grows past the card's own content height,
+       leaving blank host background below the nav bar. */
+    align-self: start;
     color-scheme: light dark;
     background: var(--ha-card-background, var(--card-background-color, var(--primary-background-color, Canvas)));
     color: var(--primary-text-color, CanvasText);
+    /* :host is the same size as .card (see align-self above) and paints its own
+       background — without matching its radius+clip, that square background pokes out
+       past .card's rounded corners. */
+    border-radius: var(--ha-card-border-radius, 12px);
+    overflow: hidden;
   }
   .card {
-    border-radius: 0px;
+    border-radius: var(--ha-card-border-radius, 12px);
+    overflow: hidden;
     padding: 0px;
     color: inherit;
     font-family: sans-serif;
@@ -25,10 +35,7 @@ export const cardStyles = css`
     flex-direction: column;
   }
   .status-bar {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
+    flex: 0 0 auto;
     background: var(--secondary-background-color, color-mix(in srgb, currentColor 10%, transparent));
     font-size: 10px;
     color: inherit;
@@ -38,7 +45,7 @@ export const cardStyles = css`
     padding: 3px 8px;
     pointer-events: none;
     font-family: sans-serif;
-    z-index: 1;
+    box-sizing: border-box;
   }
   .status-bar span {
     white-space: nowrap;
@@ -49,13 +56,21 @@ export const cardStyles = css`
     min-width: 0;
   }
   #solar-view {
+    position: relative;
     width: 100%;
     aspect-ratio: 1;
   }
   #solar-view.hidden {
     display: none;
   }
+  /* Absolutely positioned so the SVG's own width/height="100%" can't feed back into
+     #solar-view's own size — a percentage-height replaced child inside an aspect-ratio box
+     is a circular dependency that makes browsers ignore the aspect-ratio override entirely. */
   #solar-view svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
     cursor: grab;
     user-select: none;
     touch-action: none;
@@ -118,6 +133,7 @@ export const cardStyles = css`
   }
   .nav {
     display: flex;
+    flex-wrap: wrap;
     justify-content: center;
     align-items: center;
     gap: 4px;
@@ -158,6 +174,8 @@ export const cardStyles = css`
   }
   .btn-group {
     display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
     gap: 0;
   }
   .btn-group button {

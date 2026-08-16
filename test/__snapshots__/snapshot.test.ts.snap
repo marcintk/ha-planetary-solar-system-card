@@ -25,12 +25,22 @@ exports[`cardStyles > matches snapshot 1`] = `
 "
   :host {
     display: block;
+    /* HA's grid-based views (sections/masonry) stretch grid items to fill their row by
+       default. Without this, the host box grows past the card's own content height,
+       leaving blank host background below the nav bar. */
+    align-self: start;
     color-scheme: light dark;
     background: var(--ha-card-background, var(--card-background-color, var(--primary-background-color, Canvas)));
     color: var(--primary-text-color, CanvasText);
+    /* :host is the same size as .card (see align-self above) and paints its own
+       background — without matching its radius+clip, that square background pokes out
+       past .card's rounded corners. */
+    border-radius: var(--ha-card-border-radius, 12px);
+    overflow: hidden;
   }
   .card {
-    border-radius: 0px;
+    border-radius: var(--ha-card-border-radius, 12px);
+    overflow: hidden;
     padding: 0px;
     color: inherit;
     font-family: sans-serif;
@@ -47,10 +57,7 @@ exports[`cardStyles > matches snapshot 1`] = `
     flex-direction: column;
   }
   .status-bar {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
+    flex: 0 0 auto;
     background: var(--secondary-background-color, color-mix(in srgb, currentColor 10%, transparent));
     font-size: 10px;
     color: inherit;
@@ -60,7 +67,7 @@ exports[`cardStyles > matches snapshot 1`] = `
     padding: 3px 8px;
     pointer-events: none;
     font-family: sans-serif;
-    z-index: 1;
+    box-sizing: border-box;
   }
   .status-bar span {
     white-space: nowrap;
@@ -71,13 +78,21 @@ exports[`cardStyles > matches snapshot 1`] = `
     min-width: 0;
   }
   #solar-view {
+    position: relative;
     width: 100%;
     aspect-ratio: 1;
   }
   #solar-view.hidden {
     display: none;
   }
+  /* Absolutely positioned so the SVG's own width/height="100%" can't feed back into
+     #solar-view's own size — a percentage-height replaced child inside an aspect-ratio box
+     is a circular dependency that makes browsers ignore the aspect-ratio override entirely. */
   #solar-view svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
     cursor: grab;
     user-select: none;
     touch-action: none;
@@ -140,6 +155,7 @@ exports[`cardStyles > matches snapshot 1`] = `
   }
   .nav {
     display: flex;
+    flex-wrap: wrap;
     justify-content: center;
     align-items: center;
     gap: 4px;
@@ -180,6 +196,8 @@ exports[`cardStyles > matches snapshot 1`] = `
   }
   .btn-group {
     display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
     gap: 0;
   }
   .btn-group button {
@@ -222,3 +240,5 @@ exports[`cardStyles > matches snapshot 1`] = `
   }
 "
 `;
+
+exports[`renderSolarSystem snapshot > full solar system SVG at a fixed date (coarse tripwire for renderer changes) 1`] = `"<svg viewBox="0 0 800 800" width="100%" height="100%" style="background: transparent; display: block;"><defs><clipPath id="sky-clip"><path d="M 293.4113432852358 327.05483995547854 L 280.8331426273042 -472.84627197537054 A 800 800 0 1 1 305.98954394316746 1126.9559518863275 Z"></path></clipPath><path id="season-arc-0" d="M 32 399.99999999999994 A 368 368 0 0 1 400 32" fill="none"></path><path id="season-arc-1" d="M 400 32 A 368 368 0 0 1 768 400" fill="none"></path><path id="season-arc-2" d="M 399.99999999999994 780 A 380 380 0 0 0 780 400.0000000000001" fill="none"></path><path id="season-arc-3" d="M 20 399.99999999999994 A 380 380 0 0 0 399.99999999999994 780" fill="none"></path></defs><circle cx="400" cy="400" r="390" fill="rgba(255, 255, 255, 0.10)" clip-path="url(#sky-clip)"></circle><line style="stroke: color-mix(in srgb, currentColor 30%, transparent)" stroke-width="1" stroke-dasharray="4, 4" x1="288.55509756342605" y1="18.22558382212918" x2="300.61380109579056" y2="785.0896708487837"></line><line style="stroke: color-mix(in srgb, currentColor 30%, transparent)" stroke-width="1" stroke-dasharray="4, 4" x1="293.4113432852358" y1="327.05483995547854" x2="789.5749406724774" y2="319.25281893811376"></line><line x1="0" y1="400" x2="800" y2="400" style="stroke: color-mix(in srgb, currentColor 25%, transparent)" stroke-width="1" stroke-dasharray="4, 6"></line><line x1="400" y1="0" x2="400" y2="800" style="stroke: color-mix(in srgb, currentColor 25%, transparent)" stroke-width="1" stroke-dasharray="4, 6"></line><text style="fill: color-mix(in srgb, currentColor 50%, transparent)" font-size="20" font-family="sans-serif"><textPath href="#season-arc-0" startOffset="50%" text-anchor="middle">Winter</textPath></text><text style="fill: color-mix(in srgb, currentColor 50%, transparent)" font-size="20" font-family="sans-serif"><textPath href="#season-arc-1" startOffset="50%" text-anchor="middle">Autumn</textPath></text><text style="fill: color-mix(in srgb, currentColor 50%, transparent)" font-size="20" font-family="sans-serif"><textPath href="#season-arc-2" startOffset="50%" text-anchor="middle">Summer</textPath></text><text style="fill: color-mix(in srgb, currentColor 50%, transparent)" font-size="20" font-family="sans-serif"><textPath href="#season-arc-3" startOffset="50%" text-anchor="middle">Spring</textPath></text><ellipse cx="0" cy="0" rx="38.40887684888068" ry="35.20163338862441" fill="none" style="stroke: color-mix(in srgb, currentColor 12%, transparent)" stroke-width="1" stroke-dasharray="5, 5" transform="matrix(0.21718162504415645, -0.9761312113354328, -0.9761312113354328, -0.21718162504415645, 396.6629788704736, 414.9983704963726)"></ellipse><text x="403" y="373.79799924499855" style="fill: color-mix(in srgb, currentColor 12%, transparent)" font-size="9" font-family="sans-serif" text-anchor="start">0.3 AU</text><text x="403" y="461.9315758731703" style="fill: color-mix(in srgb, currentColor 12%, transparent)" font-size="9" font-family="sans-serif" text-anchor="start">0.5 AU</text><ellipse cx="0" cy="0" rx="85.15764723073227" ry="85.15618718388028" fill="none" style="stroke: color-mix(in srgb, currentColor 12%, transparent)" stroke-width="1" stroke-dasharray="5, 5" transform="matrix(-0.663051044513533, -0.7485741862831718, -0.7485741862831718, 0.663051044513533, 400.33063994726643, 400.3732872929252)"></ellipse><text x="403" y="312.2169182286872" style="fill: color-mix(in srgb, currentColor 12%, transparent)" font-size="9" font-family="sans-serif" text-anchor="start">0.7 AU</text><text x="403" y="494.5296451021792" style="fill: color-mix(in srgb, currentColor 12%, transparent)" font-size="9" font-family="sans-serif" text-anchor="start">0.7 AU</text><ellipse cx="0" cy="0" rx="139.1490504048667" ry="139.1436059034095" fill="none" style="stroke: color-mix(in srgb, currentColor 12%, transparent)" stroke-width="1" stroke-dasharray="5, 5" transform="matrix(-0.22405287386589728, -0.9745769901410726, -0.9745769901410726, 0.22405287386589728, 400.27579122960884, 401.19962659626657)"></ellipse><text x="403" y="259.05111813311214" style="fill: color-mix(in srgb, currentColor 12%, transparent)" font-size="9" font-family="sans-serif" text-anchor="start">1.5 AU</text><text x="402.99999999999994" y="549.3481256338262" style="fill: color-mix(in srgb, currentColor 12%, transparent)" font-size="9" font-family="sans-serif" text-anchor="start">1.5 AU</text><ellipse cx="0" cy="0" rx="190.83665077732428" ry="190.7118821479518" fill="none" style="stroke: color-mix(in srgb, currentColor 12%, transparent)" stroke-width="1" stroke-dasharray="5, 5" transform="matrix(0.9138351443591641, 0.4060853714849447, 0.4060853714849447, -0.9138351443591641, 393.69484957362044, 397.198149612685)"></ellipse><text x="403" y="203.57292204966367" style="fill: color-mix(in srgb, currentColor 12%, transparent)" font-size="9" font-family="sans-serif" text-anchor="start">3.1 AU</text><text x="402.99999999999994" y="596.8294955479445" style="fill: color-mix(in srgb, currentColor 12%, transparent)" font-size="9" font-family="sans-serif" text-anchor="start">2.9 AU</text><ellipse cx="0" cy="0" rx="230.70418627486328" ry="230.67649438892667" fill="none" style="stroke: color-mix(in srgb, currentColor 12%, transparent)" stroke-width="1" stroke-dasharray="5, 5" transform="matrix(0.9670288287079861, -0.2546669284529509, -0.2546669284529509, -0.9670288287079861, 396.5434297237104, 400.9102873762518)"></ellipse><text x="403" y="167.25768629762686" style="fill: color-mix(in srgb, currentColor 12%, transparent)" font-size="9" font-family="sans-serif" text-anchor="start">5.1 AU</text><text x="403" y="640.562479763844" style="fill: color-mix(in srgb, currentColor 12%, transparent)" font-size="9" font-family="sans-serif" text-anchor="start">5.3 AU</text><ellipse cx="0" cy="0" rx="283.67722534797224" ry="283.64769761928284" fill="none" style="stroke: color-mix(in srgb, currentColor 12%, transparent)" stroke-width="1" stroke-dasharray="5, 5" transform="matrix(-0.0424326163712869, -0.9990993309315582, -0.9990993309315582, 0.0424326163712869, 400.1736723829439, 404.0892119421121)"></ellipse><text x="403" y="117.41209140864459" style="fill: color-mix(in srgb, currentColor 12%, transparent)" font-size="9" font-family="sans-serif" text-anchor="start">10.1 AU</text><text x="402.9999999999999" y="696.7663294095776" style="fill: color-mix(in srgb, currentColor 12%, transparent)" font-size="9" font-family="sans-serif" text-anchor="start">11.3 AU</text><ellipse cx="0" cy="0" rx="328.7118487110114" ry="328.69413230267526" fill="none" style="stroke: color-mix(in srgb, currentColor 12%, transparent)" stroke-width="1" stroke-dasharray="5, 5" transform="matrix(-0.9875905128283725, -0.15705088019935537, -0.15705088019935537, 0.9875905128283725, 403.3704010042611, 400.5359756270117)"></ellipse><text x="403" y="68.85862859555539" style="fill: color-mix(in srgb, currentColor 12%, transparent)" font-size="9" font-family="sans-serif" text-anchor="start">19.5 AU</text><text x="403.0000000000001" y="738.2132099624362" style="fill: color-mix(in srgb, currentColor 12%, transparent)" font-size="9" font-family="sans-serif" text-anchor="start">19.8 AU</text><ellipse cx="0" cy="0" rx="362.7879055669394" ry="362.7873012198134" fill="none" style="stroke: color-mix(in srgb, currentColor 12%, transparent)" stroke-width="1" stroke-dasharray="5, 5" transform="matrix(0.7074602722042734, -0.7067531133660858, -0.7067531133660858, -0.7074602722042734, 399.5315249086509, 400.4680068158652)"></ellipse><text x="403" y="34.68070542054073" style="fill: color-mix(in srgb, currentColor 12%, transparent)" font-size="9" font-family="sans-serif" text-anchor="start">31.0 AU</text><text x="402.9999999999999" y="772.2553066503788" style="fill: color-mix(in srgb, currentColor 12%, transparent)" font-size="9" font-family="sans-serif" text-anchor="start">31.4 AU</text><ellipse cx="0" cy="0" rx="237.95102425942702" ry="168.86771413849394" fill="none" style="stroke: color-mix(in srgb, currentColor 12%, transparent)" stroke-width="1" stroke-dasharray="4, 8" transform="matrix(-0.36373901304299483, -0.9315009019805123, -0.9315009019805123, 0.36373901304299483, 460.97852677054226, 556.1601880782825)"></ellipse><circle cx="400" cy="400" r="16" fill="#ffd700"></circle><circle cx="416.65723010858613" cy="382.66059174651906" r="6" fill="#b0b0b0"></circle><circle cx="483.5333073941124" cy="418.5131440770895" r="9" fill="#e8cda0"></circle><circle cx="285.92903531385485" cy="321.9116015336593" r="10" fill="#4a90d9"></circle><circle cx="520.6238673862667" cy="539.6746528725564" r="7" fill="#c1440e"></circle><circle cx="310.80041163453427" cy="186.76086934441787" r="21" fill="#c88b3a"></circle><circle cx="683.2459069772303" cy="386.0300331336574" r="13" fill="#e0c080"></circle><circle cx="683.2459069772303" cy="386.0300331336574" r="23" fill="none" stroke="#e0c080" stroke-width="2" opacity="0.6"></circle><circle cx="683.2459069772303" cy="386.0300331336574" r="18" fill="none" stroke="#e0c080" stroke-width="6" opacity="0.6"></circle><circle cx="564.2775047006824" cy="113.91752735346836" r="13" fill="#7ec8e3"></circle><circle cx="762.223372733943" cy="392.1326011246034" r="13" fill="#3f54ba"></circle><line x1="540.1348303231027" y1="780.4243189543294" x2="540.3680633257527" y2="781.0574770777326" stroke="rgba(136, 204, 255, 0.5)" stroke-width="2" stroke-linecap="round" opacity="0.7"></line><circle cx="540.1348303231027" cy="780.4243189543294" r="4" fill="#88ccff"></circle><text x="540.1348303231027" y="770.4243189543294" style="fill: currentColor" font-size="11" font-family="sans-serif" text-anchor="middle">Halley</text><circle cx="285.92903531385485" cy="321.9116015336593" r="22" fill="none" style="stroke: color-mix(in srgb, currentColor 12%, transparent)" stroke-width="0.5" stroke-dasharray="2, 3"></circle><circle cx="297.4566103262089" cy="340.6496647829535" r="5" fill="#cccccc"></circle><text x="416.65723010858613" y="373.66059174651906" style="fill: currentColor" font-size="11" font-family="sans-serif" text-anchor="middle">Mercury</text><text x="483.5333073941124" y="438.5131440770895" style="fill: currentColor" font-size="11" font-family="sans-serif" text-anchor="middle">Venus</text><text x="285.92903531385485" y="308.9116015336593" style="fill: currentColor" font-size="11" font-family="sans-serif" text-anchor="middle">Earth</text><text x="520.6238673862667" y="529.6746528725564" style="fill: currentColor" font-size="11" font-family="sans-serif" text-anchor="middle">Mars</text><text x="310.80041163453427" y="162.76086934441787" style="fill: currentColor" font-size="11" font-family="sans-serif" text-anchor="middle">Jupiter</text><text x="683.2459069772303" y="359.0300331336574" style="fill: currentColor" font-size="11" font-family="sans-serif" text-anchor="middle">Saturn</text><text x="564.2775047006824" y="97.91752735346836" style="fill: currentColor" font-size="11" font-family="sans-serif" text-anchor="middle">Uranus</text><text x="762.223372733943" y="416.1326011246034" style="fill: currentColor" font-size="11" font-family="sans-serif" text-anchor="middle">Neptune</text><text x="297.4566103262089" y="356.6496647829535" style="fill: currentColor" font-size="11" font-family="sans-serif" text-anchor="middle">Moon</text><line x1="285.92903531385485" y1="321.9116015336593" x2="294.1708928800657" y2="327.5747970854916" style="stroke: color-mix(in srgb, currentColor 70%, transparent)" stroke-width="2" stroke-linecap="round"></line><circle cx="294.1708928800657" cy="327.5747970854916" r="2" style="fill: color-mix(in srgb, currentColor 70%, transparent)"></circle><g class="moon-phase-indicator"><circle cx="40" cy="735" r="30" fill="#1a1a2e"></circle><path d="M 40 705 A 30 30 0 0 0 40 765 A 25.389382783153412 30 0 0 1 40 705 Z" fill="#cccccc"></path><text x="10" y="779" fill="#aaaaaa" font-size="14" font-family="sans-serif" text-anchor="start">Waning Crescent</text></g></svg>"`;

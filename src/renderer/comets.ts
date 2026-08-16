@@ -3,9 +3,9 @@ import { ORBIT_COLOR } from "./bodies.js";
 import {
   auToRadius,
   BODY_LABEL_ATTRS,
-  CENTER,
   createSvgElement,
   DEFAULT_LABEL_COLOR,
+  orbitTransformMatrix,
 } from "./svg-utils.js";
 
 const TAIL_COLOR = "rgba(136, 204, 255, 0.5)";
@@ -38,21 +38,26 @@ export function computeCometVisualEllipse(comet: Comet): CometVisualEllipse {
  * Render a comet's orbit as an SVG ellipse in pixel space.
  * The ellipse is offset so the Sun (at CENTER) sits at one focus.
  */
-export function renderCometOrbit(svg: SVGElement, comet: Comet, colors: Colors = {}): void {
+export function renderCometOrbit(
+  svg: SVGElement,
+  comet: Comet,
+  eclipticViewDirection: number,
+  colors: Colors = {}
+): void {
   const orbitColor = colors.orbit ?? ORBIT_COLOR;
   const { aPx, bPx, cPx, rotationDeg } = computeCometVisualEllipse(comet);
 
   svg.appendChild(
     createSvgElement("ellipse", {
-      cx: CENTER,
-      cy: CENTER,
+      cx: 0,
+      cy: 0,
       rx: aPx,
       ry: bPx,
       fill: "none",
       style: `stroke: ${orbitColor}`,
       "stroke-width": 1,
       "stroke-dasharray": "4, 8",
-      transform: `rotate(${-rotationDeg}, ${CENTER}, ${CENTER}) translate(${-cPx}, 0)`,
+      transform: orbitTransformMatrix(cPx, rotationDeg, eclipticViewDirection),
     })
   );
 }

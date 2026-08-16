@@ -1,6 +1,6 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { SolarViewCard } from "../../src/card/card.js";
-import { clearImageCache, EPIC_BASE_URL } from "../../src/card/image-sources.js";
+import { clearImageCache, EPIC_BASE_URL, getSunImageUrl } from "../../src/card/image-sources.js";
 
 beforeAll(() => {
   if (!customElements.get("ha-planetary-solar-system-card-test")) {
@@ -14,8 +14,31 @@ beforeAll(() => {
 // after its own test ends and pollute image-sources.ts's module-level cache for a later
 // test. Default fetch to a safe rejection for every test; individual tests override it with
 // their own vi.stubGlobal("fetch", ...) when they want specific behavior.
+//
+// Every image path (initial open, gallery thumbnail, background refresh) now preloads a
+// candidate off-DOM (resolveDisplayImage) before it's ever assigned to a visible <img>, via
+// `new Image()`. Left unstubbed, that never resolves in jsdom (no real network), hanging
+// every await. Default it to succeed on the next microtask for every test; pass one boolean
+// per attempt to control retries (e.g. stubImagePreload(false, true) — first attempt fails,
+// the sun retry succeeds); the last value repeats for any further attempt.
+function stubImagePreload(...results) {
+  let calls = 0;
+  vi.stubGlobal(
+    "Image",
+    class {
+      src = "";
+      decode() {
+        const succeeds = results.length ? results[Math.min(calls, results.length - 1)] : true;
+        calls++;
+        return succeeds ? Promise.resolve() : Promise.reject(new Error("decode failed"));
+      }
+    }
+  );
+}
+
 beforeEach(() => {
   vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("fetch not stubbed for this test")));
+  stubImagePreload();
 });
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -55,6 +78,67 @@ describe("SolarViewCard", () => {
     const card = document.createElement("ha-planetary-solar-system-card-test");
     card.setConfig({ ecliptic_view: true });
     expect(card._eclipticView).toBe(false);
+  });
+
+  it("height defaults to no max-height (auto) when not set", () => {
+    const card = document.createElement("ha-planetary-solar-system-card-test");
+    card.setConfig({});
+    document.body.appendChild(card);
+    expect(card.shadowRoot.querySelector("#solar-view").style.maxHeight).toBe("");
+    card.remove();
+  });
+
+  it("height: 'auto' produces no max-height", () => {
+    const card = document.createElement("ha-planetary-solar-system-card-test");
+    card.setConfig({ height: "auto" });
+    document.body.appendChild(card);
+    expect(card.shadowRoot.querySelector("#solar-view").style.maxHeight).toBe("");
+    card.remove();
+  });
+
+  it("height: 400 caps #solar-view and .image-view at 400px", () => {
+    const card = document.createElement("ha-planetary-solar-system-card-test");
+    card.setConfig({ height: 400 });
+    document.body.appendChild(card);
+    expect(card.shadowRoot.querySelector("#solar-view").style.maxHeight).toBe("400px");
+    expect(card.shadowRoot.querySelector(".image-view").style.maxHeight).toBe("400px");
+    card.remove();
+  });
+
+  it("height: '300px' caps #solar-view and .image-view at 300px", () => {
+    const card = document.createElement("ha-planetary-solar-system-card-test");
+    card.setConfig({ height: "300px" });
+    document.body.appendChild(card);
+    expect(card.shadowRoot.querySelector("#solar-view").style.maxHeight).toBe("300px");
+    expect(card.shadowRoot.querySelector(".image-view").style.maxHeight).toBe("300px");
+    card.remove();
+  });
+
+  it("height: '50%' reshapes the aspect-ratio instead of capping height", () => {
+    const card = document.createElement("ha-planetary-solar-system-card-test");
+    card.setConfig({ height: "50%" });
+    document.body.appendChild(card);
+    expect(card.shadowRoot.querySelector("#solar-view").style.aspectRatio).toBe("2 / 1");
+    expect(card.shadowRoot.querySelector(".image-view").style.aspectRatio).toBe("2 / 1");
+    expect(card.shadowRoot.querySelector("#solar-view").style.maxHeight).toBe("");
+    card.remove();
+  });
+
+  it("height: '0%' ignores a zero percentage and falls back to auto", () => {
+    const card = document.createElement("ha-planetary-solar-system-card-test");
+    card.setConfig({ height: "0%" });
+    document.body.appendChild(card);
+    expect(card.shadowRoot.querySelector("#solar-view").style.aspectRatio).toBe("");
+    expect(card.shadowRoot.querySelector("#solar-view").style.maxHeight).toBe("");
+    card.remove();
+  });
+
+  it("height ignores invalid values and falls back to auto", () => {
+    const card = document.createElement("ha-planetary-solar-system-card-test");
+    card.setConfig({ height: -10 });
+    document.body.appendChild(card);
+    expect(card.shadowRoot.querySelector("#solar-view").style.maxHeight).toBe("");
+    card.remove();
   });
 
   it("getCardSize returns 6", () => {
@@ -1283,46 +1367,45 @@ describe("SolarViewCard", () => {
       expect(thumbs.length).toBe(2);
       expect(Array.from(thumbs).map((t) => t.dataset.source)).toEqual(["earth", "sun"]);
       const labels = Array.from(thumbs).map((t) => t.querySelector(".gallery-label").textContent);
-      expect(labels).toEqual(["L1→EARTH", "GEO→SUN"]);
+      expect(labels).toEqual(["DSCOVR/E", "SDO/S"]);
 
-      // Age shows "loading…" until each thumbnail's image actually loads.
-      let ages = Array.from(thumbs).map((t) => t.querySelector(".gallery-age").textContent);
-      expect(ages).toEqual(["loading…", "loading…"]);
-
-      for (const thumb of thumbs) {
-        thumb.querySelector("img").dispatchEvent(new Event("load"));
-      }
-      await flush();
-      ages = Array.from(card.shadowRoot.querySelectorAll(".gallery-thumb")).map(
-        (t) => t.querySelector(".gallery-age").textContent
-      );
+      // Each candidate is preloaded off-DOM before it's ever assigned to the thumbnail, so
+      // by the time the fetch/preload chain settles the age is already known — no separate
+      // on-<img> "load" event needed.
+      const ages = Array.from(thumbs).map((t) => t.querySelector(".gallery-age").textContent);
       for (const age of ages) {
         expect(age).toMatch(/^(\d+[mh] ago|just now)$/);
       }
       card.remove();
     });
 
-    it("a sun thumbnail load error retries the previous 15-min slot once, then drops the thumbnail", async () => {
+    it("a sun thumbnail preload failure retries the previous 15-min slot once", async () => {
+      stubImagePreload(false, true);
       const card = createAndMount();
       await flush();
-      const sunImg = () => card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"] img');
-      const firstSrc = sunImg().src;
-      const firstDate = card._galleryImages.sun.date;
 
-      sunImg().dispatchEvent(new Event("error"));
+      // Retried once, on an earlier slot — thumbnail shows the fallback.
+      const sunImg = card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"] img');
+      expect(sunImg.getAttribute("src")).not.toBe("");
+      // Retried slot is one 15-min step earlier than a fresh (un-retried) lookup would give
+      // — clear the cache first so this recomputes the primary slot instead of reading back
+      // the retried one the card just cached.
+      clearImageCache();
+      const primarySlot = getSunImageUrl().date.getTime();
+      expect(card._galleryImages.sun.date.getTime()).toBe(primarySlot - 15 * 60000);
+      card.remove();
+    });
+
+    it("drops the sun thumbnail if both the candidate and its retry fail to preload", async () => {
+      stubImagePreload(false, false);
+      const card = createAndMount();
       await flush();
 
-      // Retried once, on an earlier slot — thumbnail still shows something.
-      expect(sunImg().src).not.toBe(firstSrc);
-      expect(card._galleryImages.sun.date.getTime()).toBe(firstDate.getTime() - 15 * 60000);
-
-      // A second failure (the retried slot also 404s) drops the thumbnail.
-      sunImg().dispatchEvent(new Event("error"));
-      await flush();
-      expect(sunImg().getAttribute("src")).toBe("");
+      const sunImg = card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"] img');
+      expect(sunImg.getAttribute("src")).toBeNull();
       expect(
-        card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"] .gallery-age')
-      ).toBeNull();
+        card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"] .gallery-age').textContent
+      ).toBe("loading…");
       card.remove();
     });
 
@@ -1363,9 +1446,7 @@ describe("SolarViewCard", () => {
       card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"]').click();
       await flush();
       expect(card._imagePanelMode).toBe("sun");
-      expect(card.shadowRoot.querySelector(".status-bar").textContent).toContain(
-        "SDO HMI Continuum"
-      );
+      expect(card.shadowRoot.querySelector(".status-bar").textContent).toContain("SUN · SDO HMI");
       const img = card.shadowRoot.querySelector("#image-view");
       expect(img.classList.contains("visible")).toBe(true);
       expect(card.shadowRoot.querySelector(".gallery")).toBeNull();
@@ -1373,46 +1454,91 @@ describe("SolarViewCard", () => {
       card.remove();
     });
 
-    it("full-screen status bar shows 'loading…' until the image actually loads", async () => {
+    it("full-screen status bar shows the already-loaded image instantly — no fetch, no loading step", async () => {
       const card = createAndMount();
-      await flush();
+      await flush(); // background fetch already resolved and cached the sun thumbnail
       card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"]').click();
-      await flush();
-      expect(card.shadowRoot.querySelector(".status-bar").textContent).toContain("loading…");
-
-      card.shadowRoot.querySelector("#image-view").dispatchEvent(new Event("load"));
-      await flush();
+      // Pure view switch, synchronous — no async gap at all.
       expect(card.shadowRoot.querySelector(".status-bar").textContent).toContain("captured");
       expect(card.shadowRoot.querySelector(".status-bar").textContent).not.toContain("loading…");
       card.remove();
     });
 
-    it("a sun image load error retries the previous 15-min slot once before giving up", async () => {
+    it("full-screen status bar shows 'loading…' if opened before the background fetch has landed", () => {
       const card = createAndMount();
+      // Click immediately — the mount's own background fetch is still in flight.
+      card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"]').click();
+      expect(card.shadowRoot.querySelector(".status-bar").textContent).toContain("loading…");
+      card.remove();
+    });
+
+    it("opens on the retried slot when the primary sun candidate fails to preload", async () => {
+      stubImagePreload(false, true);
+      const card = createAndMount();
+      // The background fetch retries once and lands before the click — clicking then just
+      // displays what it already resolved.
+      await flush();
+      card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"]').click();
+
+      expect(card._imagePanelMode).toBe("sun");
+      clearImageCache();
+      const primarySlot = getSunImageUrl().date.getTime();
+      expect(card._imageDate.getTime()).toBe(primarySlot - 15 * 60000);
+      card.remove();
+    });
+
+    it("falls back to the unavailable banner when both the sun candidate and its retry fail to preload", async () => {
+      stubImagePreload(false, false);
+      const card = createAndMount();
+      // The background fetch fails outright, so the sun thumbnail never populates —
+      // clicking it falls into the "not known yet" path, which retries and fails again.
       await flush();
       card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"]').click();
       await flush();
-      expect(card._imagePanelMode).toBe("sun");
-      const firstSrc = card.shadowRoot.querySelector("#image-view").src;
-      const firstDate = card._imageDate;
 
-      card.shadowRoot.querySelector("#image-view").dispatchEvent(new Event("error"));
-      await flush();
-
-      // Still open, on a different (earlier) slot — not yet the unavailable banner.
-      expect(card._imagePanelMode).toBe("sun");
-      const secondSrc = card.shadowRoot.querySelector("#image-view").src;
-      expect(secondSrc).not.toBe(firstSrc);
-      expect(card._imageDate.getTime()).toBe(firstDate.getTime() - 15 * 60000);
-
-      // A second failure (the retried slot also 404s) falls back to the banner.
-      card.shadowRoot.querySelector("#image-view").dispatchEvent(new Event("error"));
-      await flush();
       expect(card._imagePanelMode).toBe("none");
       expect(card.shadowRoot.querySelector(".status-bar").textContent).toContain(
         "SDO HMI Continuum image unavailable"
       );
       card.remove();
+    });
+
+    it("a background refresh does not replace the shown image if the new candidate fails to preload", async () => {
+      stubImagePreload(true);
+      vi.useFakeTimers();
+      const card = createAndMount({ refresh_mins: 1 });
+      await vi.advanceTimersByTimeAsync(0);
+      card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"]').click();
+      await vi.advanceTimersByTimeAsync(0);
+      const firstSrc = card.shadowRoot.querySelector("#image-view").src;
+
+      // Cross the 15-min slot boundary so the next refresh computes a genuinely different
+      // candidate URL, then make the preload probe fail for it.
+      stubImagePreload(false);
+      await vi.advanceTimersByTimeAsync(16 * 60000);
+
+      expect(card.shadowRoot.querySelector("#image-view").src).toBe(firstSrc);
+      expect(card._imagePanelMode).toBe("sun");
+      expect(card._imageError).toBeNull();
+      card.remove();
+      vi.useRealTimers();
+    });
+
+    it("a background refresh replaces the shown image once the new candidate is confirmed to preload", async () => {
+      stubImagePreload(true);
+      vi.useFakeTimers();
+      const card = createAndMount({ refresh_mins: 1 });
+      await vi.advanceTimersByTimeAsync(0);
+      card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"]').click();
+      await vi.advanceTimersByTimeAsync(0);
+      const firstSrc = card.shadowRoot.querySelector("#image-view").src;
+
+      await vi.advanceTimersByTimeAsync(16 * 60000);
+
+      expect(card.shadowRoot.querySelector("#image-view").src).not.toBe(firstSrc);
+      expect(card._imagePanelMode).toBe("sun");
+      card.remove();
+      vi.useRealTimers();
     });
 
     it("an image load error while no panel is open is a no-op", async () => {
@@ -1422,6 +1548,78 @@ describe("SolarViewCard", () => {
       await flush();
       expect(card._imagePanelMode).toBe("none");
       expect(card._imageError).toBeNull();
+      card.remove();
+    });
+
+    // resolveDisplayImage already confirmed this exact URL loads once, but the real <img>
+    // still fires its own load/error events once mounted in the DOM — an unrelated later
+    // failure (e.g. the browser's cache evicting the entry) has no retry left to fall back
+    // on, unlike the preload-time retry covered elsewhere.
+    it("an unexpected error on the already-resolved full image shows the unavailable banner", async () => {
+      const card = createAndMount();
+      await flush();
+      card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"]').click();
+      await flush();
+      expect(card._imagePanelMode).toBe("sun");
+
+      card.shadowRoot.querySelector("#image-view").dispatchEvent(new Event("error"));
+      await flush();
+      expect(card._imagePanelMode).toBe("none");
+      expect(card.shadowRoot.querySelector(".status-bar").textContent).toContain(
+        "SDO HMI Continuum image unavailable"
+      );
+      card.remove();
+    });
+
+    it("the full image's own load event is harmless once already preloaded", async () => {
+      const card = createAndMount();
+      await flush();
+      card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"]').click();
+      await flush();
+
+      card.shadowRoot.querySelector("#image-view").dispatchEvent(new Event("load"));
+      await flush();
+      expect(card.shadowRoot.querySelector(".status-bar").textContent).toContain("captured");
+      card.remove();
+    });
+
+    it("an unexpected error on an already-resolved sun thumbnail drops it", async () => {
+      const card = createAndMount();
+      await flush();
+
+      const sunImg = card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"] img');
+      sunImg.dispatchEvent(new Event("error"));
+      await flush();
+      expect(
+        card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"] img').getAttribute("src")
+      ).toBeNull();
+      card.remove();
+    });
+
+    it("switching to earth while the sun preload is still resolving discards the stale sun result", async () => {
+      const card = createAndMount();
+      await flush();
+      card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"]').click();
+      // Don't await — switch away before the sun candidate's preload settles.
+      card.shadowRoot.querySelector("#image-view").click(); // back to gallery ("none")
+      await flush();
+
+      expect(card._imagePanelMode).toBe("none");
+      card.remove();
+    });
+
+    it("an earth candidate that fails to preload shows the unavailable banner with no retry", async () => {
+      stubEarthFetch();
+      stubImagePreload(false);
+      const card = createAndMount();
+      await flush();
+      card.shadowRoot.querySelector('.gallery-thumb[data-source="earth"]').click();
+      await flush();
+
+      expect(card._imagePanelMode).toBe("none");
+      expect(card.shadowRoot.querySelector(".status-bar").textContent).toContain(
+        "DSCOVR Earth image unavailable"
+      );
       card.remove();
     });
 
@@ -1469,38 +1667,14 @@ describe("SolarViewCard", () => {
       await vi.advanceTimersByTimeAsync(0);
       const secondSrc = card.shadowRoot.querySelector("#image-view").src;
 
-      // Same cache the thumbnail's own background fetch uses, so a click reuses the exact
-      // image already loaded instead of forcing a new network fetch on open.
+      // A click is a pure view switch — it never fetches on its own, just shows whatever
+      // the background timer already resolved, so re-opening shows the same image.
       expect(secondSrc).toBe(firstSrc);
       card.remove();
     });
 
-    it("clicking a sun thumbnail again once the 15-min cache expires fetches a fresh slot", async () => {
-      vi.useFakeTimers();
-      vi.setSystemTime(new Date("2026-08-12T12:00:00Z"));
-      const card = createAndMount();
-      await vi.advanceTimersByTimeAsync(0);
-
-      const clickSun = () =>
-        card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"]').click();
-
-      clickSun();
-      await vi.advanceTimersByTimeAsync(0);
-      const firstSrc = card.shadowRoot.querySelector("#image-view").src;
-
-      card.shadowRoot.querySelector("#image-view").click(); // back to gallery
-      await vi.advanceTimersByTimeAsync(0);
-      // Past the 15-min cache and into the next published slot.
-      vi.setSystemTime(new Date("2026-08-12T12:15:01Z"));
-      clickSun();
-      await vi.advanceTimersByTimeAsync(0);
-      const secondSrc = card.shadowRoot.querySelector("#image-view").src;
-
-      expect(secondSrc).not.toBe(firstSrc);
-      card.remove();
-    });
-
     it("auto-update ticks refresh the open full image every 15 minutes while it stays open", async () => {
+      stubImagePreload(true);
       vi.useFakeTimers();
       const card = createAndMount({ refresh_mins: 16 });
       await vi.advanceTimersByTimeAsync(0);
@@ -1560,7 +1734,7 @@ describe("SolarViewCard", () => {
       expect(img.src).toBe(
         `${EPIC_BASE_URL}/archive/natural/2026/08/10/jpg/epic_1b_20260810234950.jpg`
       );
-      expect(card.shadowRoot.querySelector(".status-bar").textContent).toContain("DSCOVR Earth");
+      expect(card.shadowRoot.querySelector(".status-bar").textContent).toContain("EARTH · DSCOVR");
       card.remove();
     });
 
@@ -1649,7 +1823,7 @@ describe("SolarViewCard", () => {
       const sunThumb = card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"] img');
       const earthThumb = card.shadowRoot.querySelector('.gallery-thumb[data-source="earth"] img');
       expect(sunThumb.getAttribute("src")).not.toBe("");
-      expect(earthThumb.getAttribute("src")).toBe(""); // earth fetch failed, thumbnail stays empty
+      expect(earthThumb.getAttribute("src")).toBeNull(); // earth fetch failed, thumbnail stays empty
       card.remove();
     });
 
@@ -1702,6 +1876,45 @@ describe("SolarViewCard", () => {
       thumbs = card.shadowRoot.querySelectorAll(".gallery-thumb");
       expect(thumbs.length).toBe(1);
       expect(thumbs[0].dataset.source).toBe("sun");
+
+      card.remove();
+      vi.useRealTimers();
+    });
+
+    it("gallery.mode: slide keeps showing the previous source until the next image finishes decoding", async () => {
+      vi.useFakeTimers();
+      stubEarthFetch();
+      let holding = false;
+      let resolveDecode: () => void;
+      vi.stubGlobal(
+        "Image",
+        class {
+          src = "";
+          decode() {
+            if (holding) {
+              return new Promise((resolve) => {
+                resolveDecode = resolve;
+              });
+            }
+            return Promise.resolve();
+          }
+        }
+      );
+
+      const card = createAndMount({ gallery: { mode: "slide", slide_interval_secs: 30 } });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(card.shadowRoot.querySelector(".gallery-thumb").dataset.source).toBe("earth");
+
+      holding = true;
+      await vi.advanceTimersByTimeAsync(30 * 1000);
+      // Next image's decode() is still pending — label and thumbnail stay on the old source.
+      expect(card.shadowRoot.querySelector(".gallery-thumb").dataset.source).toBe("earth");
+      expect(card.shadowRoot.querySelector(".gallery-label").textContent).toBe("DSCOVR/E");
+
+      resolveDecode();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(card.shadowRoot.querySelector(".gallery-thumb").dataset.source).toBe("sun");
+      expect(card.shadowRoot.querySelector(".gallery-label").textContent).toBe("SDO/S");
 
       card.remove();
       vi.useRealTimers();

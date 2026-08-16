@@ -3,7 +3,7 @@ import { BODY_LABEL_ATTRS, createSvgElement } from "./svg-utils.js";
 
 // ponytail: fixed heuristic distance for "close enough to reroute a label"; tune if false positives show up.
 const NEARBY_THRESHOLD = 80;
-const LABEL_GAP = 6;
+const LABEL_GAP = 3;
 // Approximate cap-height for BODY_LABEL_ATTRS font-size (11), ~0.73em for
 // common sans-serif fonts. Used to measure the gap from the visible top of
 // the glyphs, not the SVG baseline, when a label sits below its body.

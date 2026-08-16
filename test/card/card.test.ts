@@ -578,10 +578,10 @@ describe("SolarViewCard", () => {
       const card = createAndMount();
       const labels = {
         "month-back": "\u22D8",
-        "day-back": "\u00AB",
-        "hour-back": "\u2039",
-        "hour-forward": "\u203A",
-        "day-forward": "\u00BB",
+        "day-back": "\u226A",
+        "hour-back": "<",
+        "hour-forward": ">",
+        "day-forward": "\u226B",
         "month-forward": "\u22D9",
       };
       for (const [action, expected] of Object.entries(labels)) {

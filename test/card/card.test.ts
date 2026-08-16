@@ -444,10 +444,10 @@ describe("SolarViewCard", () => {
   describe("day navigation", () => {
     it("day-back rewinds by 1 day", () => {
       const card = createAndMount();
-      card._currentDate = new Date("2026-03-15T12:00:00");
+      card._dateNav.currentDate = new Date("2026-03-15T12:00:00");
       card._render();
       clickButton(card, "day-back");
-      expect(card._currentDate.getDate()).toBe(14);
+      expect(card._dateNav.currentDate.getDate()).toBe(14);
       card.remove();
     });
   });
@@ -455,41 +455,41 @@ describe("SolarViewCard", () => {
   describe("hour navigation", () => {
     it("hour-forward advances by 1 hour", () => {
       const card = createAndMount();
-      card._currentDate = new Date("2026-03-15T14:00:00");
+      card._dateNav.currentDate = new Date("2026-03-15T14:00:00");
       card._render();
       clickButton(card, "hour-forward");
-      expect(card._currentDate.getHours()).toBe(15);
-      expect(card._currentDate.getDate()).toBe(15);
+      expect(card._dateNav.currentDate.getHours()).toBe(15);
+      expect(card._dateNav.currentDate.getDate()).toBe(15);
       card.remove();
     });
 
     it("hour-back rewinds by 1 hour", () => {
       const card = createAndMount();
-      card._currentDate = new Date("2026-03-15T14:00:00");
+      card._dateNav.currentDate = new Date("2026-03-15T14:00:00");
       card._render();
       clickButton(card, "hour-back");
-      expect(card._currentDate.getHours()).toBe(13);
-      expect(card._currentDate.getDate()).toBe(15);
+      expect(card._dateNav.currentDate.getHours()).toBe(13);
+      expect(card._dateNav.currentDate.getDate()).toBe(15);
       card.remove();
     });
 
     it("hour-forward crosses day boundary", () => {
       const card = createAndMount();
-      card._currentDate = new Date("2026-03-15T23:00:00");
+      card._dateNav.currentDate = new Date("2026-03-15T23:00:00");
       card._render();
       clickButton(card, "hour-forward");
-      expect(card._currentDate.getHours()).toBe(0);
-      expect(card._currentDate.getDate()).toBe(16);
+      expect(card._dateNav.currentDate.getHours()).toBe(0);
+      expect(card._dateNav.currentDate.getDate()).toBe(16);
       card.remove();
     });
 
     it("hour-back crosses day boundary backward", () => {
       const card = createAndMount();
-      card._currentDate = new Date("2026-03-15T00:00:00");
+      card._dateNav.currentDate = new Date("2026-03-15T00:00:00");
       card._render();
       clickButton(card, "hour-back");
-      expect(card._currentDate.getHours()).toBe(23);
-      expect(card._currentDate.getDate()).toBe(14);
+      expect(card._dateNav.currentDate.getHours()).toBe(23);
+      expect(card._dateNav.currentDate.getDate()).toBe(14);
       card.remove();
     });
   });
@@ -617,21 +617,21 @@ describe("SolarViewCard", () => {
   describe("month-back navigation", () => {
     it("month-back rewinds by one month", () => {
       const card = createAndMount();
-      card._currentDate = new Date("2026-03-15T12:00:00");
+      card._dateNav.currentDate = new Date("2026-03-15T12:00:00");
       card._render();
       clickButton(card, "month-back");
-      expect(card._currentDate.getMonth()).toBe(1); // February (0-indexed)
-      expect(card._currentDate.getFullYear()).toBe(2026);
+      expect(card._dateNav.currentDate.getMonth()).toBe(1); // February (0-indexed)
+      expect(card._dateNav.currentDate.getFullYear()).toBe(2026);
       card.remove();
     });
 
     it("month-back crosses year boundary", () => {
       const card = createAndMount();
-      card._currentDate = new Date("2026-01-15T12:00:00");
+      card._dateNav.currentDate = new Date("2026-01-15T12:00:00");
       card._render();
       clickButton(card, "month-back");
-      expect(card._currentDate.getMonth()).toBe(11); // December
-      expect(card._currentDate.getFullYear()).toBe(2025);
+      expect(card._dateNav.currentDate.getMonth()).toBe(11); // December
+      expect(card._dateNav.currentDate.getFullYear()).toBe(2025);
       card.remove();
     });
   });
@@ -681,8 +681,10 @@ describe("SolarViewCard", () => {
       vi.useFakeTimers({ now: new Date("2026-02-15T12:00:00Z") });
       const card = createAndMount();
       clickButton(card, "replay");
-      expect(card._currentDate.toISOString()).toBe(new Date("2026-02-15T06:00:00Z").toISOString());
-      expect(card._isLiveMode).toBe(false);
+      expect(card._dateNav.currentDate.toISOString()).toBe(
+        new Date("2026-02-15T06:00:00Z").toISOString()
+      );
+      expect(card._dateNav.isLiveMode).toBe(false);
       card.remove();
     });
 
@@ -691,7 +693,9 @@ describe("SolarViewCard", () => {
       const card = createAndMount();
       clickButton(card, "replay");
       vi.advanceTimersByTime(138); // one interval tick
-      expect(card._currentDate.toISOString()).toBe(new Date("2026-02-15T06:10:00Z").toISOString());
+      expect(card._dateNav.currentDate.toISOString()).toBe(
+        new Date("2026-02-15T06:10:00Z").toISOString()
+      );
       card.remove();
     });
 
@@ -720,11 +724,11 @@ describe("SolarViewCard", () => {
       const card = createAndMount();
       clickButton(card, "replay");
       vi.advanceTimersByTime(15000); // upper bound on real time this may take
-      expect(card._isReplaying).toBe(false);
-      expect(card._isLiveMode).toBe(true);
+      expect(card._dateNav.isReplaying).toBe(false);
+      expect(card._dateNav.isLiveMode).toBe(true);
       // Live mode resumes, but the displayed date lands back on where the user
       // was before replay started, not on real "now".
-      expect(card._currentDate.toISOString()).toBe(now.toISOString());
+      expect(card._dateNav.currentDate.toISOString()).toBe(now.toISOString());
       card.remove();
     });
 
@@ -732,17 +736,21 @@ describe("SolarViewCard", () => {
       // Real "now" is Feb 15, but the user has navigated to a past date and paused there.
       vi.useFakeTimers({ now: new Date("2026-02-15T12:00:00Z") });
       const card = createAndMount();
-      card._currentDate = new Date("2026-01-01T06:00:00Z");
-      card._isLiveMode = false;
+      card._dateNav.currentDate = new Date("2026-01-01T06:00:00Z");
+      card._dateNav.isLiveMode = false;
       card._render();
 
       clickButton(card, "replay");
-      expect(card._currentDate.toISOString()).toBe(new Date("2026-01-01T00:00:00Z").toISOString());
+      expect(card._dateNav.currentDate.toISOString()).toBe(
+        new Date("2026-01-01T00:00:00Z").toISOString()
+      );
 
       vi.advanceTimersByTime(138 * 36);
       // Lands back exactly on the pre-replay date, not real now, and stays paused.
-      expect(card._currentDate.toISOString()).toBe(new Date("2026-01-01T06:00:00Z").toISOString());
-      expect(card._isLiveMode).toBe(false);
+      expect(card._dateNav.currentDate.toISOString()).toBe(
+        new Date("2026-01-01T06:00:00Z").toISOString()
+      );
+      expect(card._dateNav.isLiveMode).toBe(false);
       card.remove();
     });
 
@@ -751,21 +759,22 @@ describe("SolarViewCard", () => {
       const card = createAndMount();
       clickButton(card, "replay");
       vi.advanceTimersByTime(138 * 10);
-      const midDate = card._currentDate.toISOString();
+      const midDate = card._dateNav.currentDate.toISOString();
       clickButton(card, "replay"); // second click cancels
-      expect(card._isReplaying).toBe(false);
+      expect(card._dateNav.isReplaying).toBe(false);
       vi.advanceTimersByTime(138 * 26);
-      expect(card._currentDate.toISOString()).toBe(midDate);
+      expect(card._dateNav.currentDate.toISOString()).toBe(midDate);
       card.remove();
     });
 
     it("cleans up the replay timer on disconnect", () => {
       vi.useFakeTimers({ now: new Date("2026-02-15T12:00:00Z") });
       const card = createAndMount();
+      const timersBeforeReplay = vi.getTimerCount();
       clickButton(card, "replay");
-      expect(card._replayTimer).not.toBeNull();
+      expect(vi.getTimerCount()).toBe(timersBeforeReplay + 1);
       card.remove();
-      expect(card._replayTimer).toBeNull();
+      expect(vi.getTimerCount()).toBe(0);
     });
   });
 
@@ -886,15 +895,15 @@ describe("SolarViewCard", () => {
       vi.useFakeTimers({ now: new Date("2026-02-15T10:00:00") });
       const card = document.createElement("ha-planetary-solar-system-card-test");
       card.setConfig({ refresh_mins: 2 });
-      card._currentDate = new Date("2026-02-15T10:00:00");
+      card._dateNav.currentDate = new Date("2026-02-15T10:00:00");
       document.body.appendChild(card);
-      const dateBefore = card._formatDate(card._currentDate);
+      const dateBefore = card._formatDate(card._dateNav.currentDate);
       // At 60s nothing should have changed yet (interval is 120s)
       vi.advanceTimersByTime(60000);
-      expect(card._formatDate(card._currentDate)).toBe(dateBefore);
+      expect(card._formatDate(card._dateNav.currentDate)).toBe(dateBefore);
       // At 120s the timer should fire
       vi.advanceTimersByTime(60000);
-      expect(card._formatDate(card._currentDate)).toContain("26-02-15");
+      expect(card._formatDate(card._dateNav.currentDate)).toContain("26-02-15");
       card.remove();
     });
 
@@ -1270,11 +1279,11 @@ describe("SolarViewCard", () => {
     it("re-renders after 60s when showing today", () => {
       vi.useFakeTimers({ now: new Date("2026-02-15T10:00:00") });
       const card = document.createElement("ha-planetary-solar-system-card-test");
-      card._currentDate = new Date("2026-02-15T10:00:00");
+      card._dateNav.currentDate = new Date("2026-02-15T10:00:00");
       document.body.appendChild(card);
       vi.advanceTimersByTime(60000);
       // Date should have been updated to "now" (still Feb 15)
-      expect(card._formatDate(card._currentDate)).toContain("26-02-15");
+      expect(card._formatDate(card._dateNav.currentDate)).toContain("26-02-15");
       card.remove();
     });
 
@@ -1285,12 +1294,12 @@ describe("SolarViewCard", () => {
       // Simulate time passing while tab was hidden (timer throttled)
       vi.setSystemTime(new Date("2026-02-15T10:45:00"));
       // Card still shows stale time — timer never fired
-      expect(card._formatDate(card._currentDate)).toContain("10:00");
+      expect(card._formatDate(card._dateNav.currentDate)).toContain("10:00");
       // Tab becomes visible
       Object.defineProperty(document, "hidden", { value: false, configurable: true });
       document.dispatchEvent(new Event("visibilitychange"));
       // Card should now show current time
-      expect(card._formatDate(card._currentDate)).toContain("10:45");
+      expect(card._formatDate(card._dateNav.currentDate)).toContain("10:45");
       card.remove();
     });
 
@@ -1303,7 +1312,19 @@ describe("SolarViewCard", () => {
       Object.defineProperty(document, "hidden", { value: false, configurable: true });
       document.dispatchEvent(new Event("visibilitychange"));
       // Should still show the navigated-to date
-      expect(card._formatDate(card._currentDate)).not.toContain("26-02-15");
+      expect(card._formatDate(card._dateNav.currentDate)).not.toContain("26-02-15");
+      card.remove();
+    });
+
+    it("does not sync on visibilitychange while the tab is still hidden", () => {
+      vi.useFakeTimers({ now: new Date("2026-02-15T10:00:00") });
+      const card = document.createElement("ha-planetary-solar-system-card-test");
+      document.body.appendChild(card);
+      vi.setSystemTime(new Date("2026-02-15T10:45:00"));
+      Object.defineProperty(document, "hidden", { value: true, configurable: true });
+      document.dispatchEvent(new Event("visibilitychange"));
+      expect(card._formatDate(card._dateNav.currentDate)).toContain("10:00");
+      Object.defineProperty(document, "hidden", { value: false, configurable: true });
       card.remove();
     });
 
@@ -1322,7 +1343,7 @@ describe("SolarViewCard", () => {
       card._navigate(-45 * 86400000);
       vi.advanceTimersByTime(60000);
       // Should still show the navigated-to date, not auto-advance to today
-      expect(card._formatDate(card._currentDate)).not.toContain("26-02-15");
+      expect(card._formatDate(card._dateNav.currentDate)).not.toContain("26-02-15");
       card.remove();
     });
   });
@@ -1339,7 +1360,7 @@ describe("SolarViewCard", () => {
       card._lon = lon;
       card._timezone = "Europe/London";
       card._locationName = "London";
-      card._currentDate = date;
+      card._dateNav.currentDate = date;
       document.body.appendChild(card);
       return card;
     }

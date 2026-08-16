@@ -1,7 +1,7 @@
 import { MOON, MOON_PIXEL_OFFSET } from "../astronomy/planet-data.js";
 import type { CometVisualEllipse, Planet } from "../types.js";
 import { SATURN_RING_OUTER_RADIUS } from "./bodies.js";
-import { auToRadius } from "./svg-utils.js";
+import { auToRadius, ellipseFromApsides } from "./svg-utils.js";
 
 // ponytail: fixed heuristic margin, revisit if a future body needs a wider gap.
 const MIN_GAP = 8;
@@ -54,9 +54,8 @@ export function computePlanetVisualEllipse(
   const perihelionPx = auToRadius(au * (1 - e)) + packedOffset;
   const aphelionPx = auToRadius(au * (1 + e)) + packedOffset;
 
-  const aPx = (perihelionPx + aphelionPx) / 2;
-  const cPx = (aphelionPx - perihelionPx) / 2;
-  const bPx = Math.sqrt(aPx * aPx - cPx * cPx);
-  const ePx = cPx / aPx;
-  return { aPx, bPx, cPx, ePx, rotationDeg: planet.longitudeOfPerihelion };
+  return {
+    ...ellipseFromApsides(perihelionPx, aphelionPx),
+    rotationDeg: planet.longitudeOfPerihelion,
+  };
 }

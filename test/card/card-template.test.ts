@@ -1,6 +1,27 @@
 import { nothing, render } from "lit";
 import { describe, expect, it } from "vitest";
-import { buildImageStatusBar, buildStatusBar } from "../../src/card/card-template.js";
+import {
+  buildImageStatusBar,
+  buildStatusBar,
+  buildStatusBarView,
+  formatDate,
+} from "../../src/card/card-template.js";
+import type { GalleryViewModel } from "../../src/card/gallery-controller.js";
+
+function galleryViewModel(overrides: Partial<GalleryViewModel> = {}): GalleryViewModel {
+  return {
+    error: null,
+    panelSource: "none",
+    imageUrl: null,
+    imageDate: null,
+    imageLoaded: false,
+    showStrip: false,
+    thumbnails: [],
+    navButtonVisible: false,
+    navButtonActive: false,
+    ...overrides,
+  };
+}
 
 function renderToDOM(result) {
   const div = document.createElement("div");
@@ -130,6 +151,61 @@ describe("buildImageStatusBar", () => {
   it("shows 'loading…' instead of the date until the image has actually loaded", () => {
     const root = renderToDOM(
       buildImageStatusBar("sun", "26-08-12 11:55", new Date("2026-08-12T11:55:00Z"), now, false)
+    );
+    expect(root.querySelector(".status-bar span").textContent).toBe("SUN · SDO HMI · loading…");
+  });
+});
+
+describe("formatDate", () => {
+  it("formats as YY-MM-DD HH:MM with zero-padding", () => {
+    expect(formatDate(new Date(2026, 1, 5, 9, 3))).toBe("26-02-05 09:03");
+  });
+});
+
+describe("buildStatusBarView", () => {
+  const locationData = { lat: 51.5, lon: -0.1, timezone: "Europe/London" };
+  const currentDate = new Date("2026-03-05T12:00:00Z");
+
+  it("shows the gallery error when one is present, regardless of panelSource", () => {
+    const root = renderToDOM(
+      buildStatusBarView(
+        galleryViewModel({ error: "Feed unavailable", panelSource: "earth" }),
+        locationData,
+        "London",
+        currentDate
+      )
+    );
+    expect(root.querySelector(".status-bar span").textContent).toBe("Feed unavailable");
+  });
+
+  it("delegates to buildStatusBar when panelSource is 'none'", () => {
+    const root = renderToDOM(
+      buildStatusBarView(galleryViewModel(), locationData, "London", currentDate)
+    );
+    expect(root.querySelector(".status-bar span:first-child").textContent).toMatch(/^London \|/);
+  });
+
+  it("delegates to buildImageStatusBar with a formatted date when panelSource is an image source", () => {
+    const imageDate = new Date("2026-08-10T18:49:00Z");
+    const root = renderToDOM(
+      buildStatusBarView(
+        galleryViewModel({ panelSource: "earth", imageDate, imageLoaded: true }),
+        locationData,
+        "London",
+        currentDate
+      )
+    );
+    expect(root.querySelector(".status-bar span").textContent).toContain(formatDate(imageDate));
+  });
+
+  it("passes an empty date text to buildImageStatusBar when imageDate is null", () => {
+    const root = renderToDOM(
+      buildStatusBarView(
+        galleryViewModel({ panelSource: "sun", imageDate: null, imageLoaded: false }),
+        locationData,
+        "London",
+        currentDate
+      )
     );
     expect(root.querySelector(".status-bar span").textContent).toBe("SUN · SDO HMI · loading…");
   });

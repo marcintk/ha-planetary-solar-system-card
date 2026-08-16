@@ -44,16 +44,19 @@ export const IMAGE_SOURCE_LABELS: Record<ImageSource, string> = {
 
 // Labels for the gallery thumbnail strip.
 export const GALLERY_SOURCE_LABELS: Record<ImageSource, string> = {
-  earth: "DSCOVR▷E",
-  sun: "SDO▷S",
+  earth: "DSCOVR/E",
+  sun: "SDO/S",
 };
 
 export const GALLERY_SOURCES: ImageSource[] = ["earth", "sun"];
 
-// Short instrument name for the full-screen status bar, paired with the gallery source
-// label so the two stay in sync (e.g. "SDO▷S · SDO HMI · captured ..."). Kept separate
-// from IMAGE_SOURCE_LABELS, which stays fuller for the error banner ("SDO HMI Continuum
-// image unavailable").
+// Full-screen status bar leads with the target body, the probe name follows (e.g.
+// "EARTH · DSCOVR · captured ..."). Kept separate from IMAGE_SOURCE_LABELS, which stays
+// fuller for the error banner ("SDO HMI Continuum image unavailable").
+const IMAGE_STATUS_TARGET: Record<ImageSource, string> = {
+  earth: "EARTH",
+  sun: "SUN",
+};
 const IMAGE_STATUS_INSTRUMENT: Record<ImageSource, string> = {
   earth: "DSCOVR",
   sun: "SDO HMI",
@@ -70,6 +73,6 @@ export function buildImageStatusBar(
     ? `captured ${dateText} · ${formatRelativeAge(imageDate, now)}`
     : "loading…";
   return html`<div class="status-bar">
-    <span>${GALLERY_SOURCE_LABELS[mode]} · ${IMAGE_STATUS_INSTRUMENT[mode]} · ${status}</span>
+    <span>${IMAGE_STATUS_TARGET[mode]} · ${IMAGE_STATUS_INSTRUMENT[mode]} · ${status}</span>
   </div>`;
 }

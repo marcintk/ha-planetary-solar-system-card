@@ -25,9 +25,18 @@ exports[`cardStyles > matches snapshot 1`] = `
 "
   :host {
     display: block;
+    /* HA's grid-based views (sections/masonry) stretch grid items to fill their row by
+       default. Without this, the host box grows past the card's own content height,
+       leaving blank host background below the nav bar. */
+    align-self: start;
     color-scheme: light dark;
     background: var(--ha-card-background, var(--card-background-color, var(--primary-background-color, Canvas)));
     color: var(--primary-text-color, CanvasText);
+    /* :host is the same size as .card (see align-self above) and paints its own
+       background — without matching its radius+clip, that square background pokes out
+       past .card's rounded corners. */
+    border-radius: var(--ha-card-border-radius, 12px);
+    overflow: hidden;
   }
   .card {
     border-radius: var(--ha-card-border-radius, 12px);

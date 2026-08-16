@@ -95,18 +95,18 @@ describe("buildStatusBar", () => {
 describe("buildImageStatusBar", () => {
   const now = new Date("2026-08-12T12:00:00Z");
 
-  it("labels the earth source with DSCOVR▷E · DSCOVR, matching the gallery thumbnail", () => {
+  it("labels the earth source with EARTH · DSCOVR, target body first, probe name after", () => {
     const root = renderToDOM(
       buildImageStatusBar("earth", "26-08-10 18:49", new Date("2026-08-10T18:49:00Z"), now, true)
     );
-    expect(root.querySelector(".status-bar span").textContent).toContain("DSCOVR▷E · DSCOVR");
+    expect(root.querySelector(".status-bar span").textContent).toContain("EARTH · DSCOVR");
   });
 
-  it("labels the sun source with SDO▷S · SDO HMI, matching the gallery thumbnail", () => {
+  it("labels the sun source with SUN · SDO HMI, target body first, probe name after", () => {
     const root = renderToDOM(
       buildImageStatusBar("sun", "26-08-12 11:55", new Date("2026-08-12T11:55:00Z"), now, true)
     );
-    expect(root.querySelector(".status-bar span").textContent).toContain("SDO▷S · SDO HMI");
+    expect(root.querySelector(".status-bar span").textContent).toContain("SUN · SDO HMI");
   });
 
   it("includes the absolute date text and relative age, verb 'captured' for earth", () => {
@@ -114,7 +114,7 @@ describe("buildImageStatusBar", () => {
       buildImageStatusBar("earth", "26-08-11 06:00", new Date("2026-08-11T06:00:00Z"), now, true)
     );
     expect(root.querySelector(".status-bar span").textContent).toBe(
-      "DSCOVR▷E · DSCOVR · captured 26-08-11 06:00 · 30h ago"
+      "EARTH · DSCOVR · captured 26-08-11 06:00 · 30h ago"
     );
   });
 
@@ -123,7 +123,7 @@ describe("buildImageStatusBar", () => {
       buildImageStatusBar("sun", "26-08-12 11:55", new Date("2026-08-12T11:55:00Z"), now, true)
     );
     expect(root.querySelector(".status-bar span").textContent).toBe(
-      "SDO▷S · SDO HMI · captured 26-08-12 11:55 · 5m ago"
+      "SUN · SDO HMI · captured 26-08-12 11:55 · 5m ago"
     );
   });
 
@@ -131,6 +131,6 @@ describe("buildImageStatusBar", () => {
     const root = renderToDOM(
       buildImageStatusBar("sun", "26-08-12 11:55", new Date("2026-08-12T11:55:00Z"), now, false)
     );
-    expect(root.querySelector(".status-bar span").textContent).toBe("SDO▷S · SDO HMI · loading…");
+    expect(root.querySelector(".status-bar span").textContent).toBe("SUN · SDO HMI · loading…");
   });
 });

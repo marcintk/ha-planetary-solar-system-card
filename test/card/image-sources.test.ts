@@ -11,6 +11,7 @@ import {
 describe("image-sources", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
     clearImageCache();
   });
 
@@ -86,7 +87,10 @@ describe("image-sources", () => {
 
       const { url, date } = await fetchLatestEarthImageUrl();
 
-      expect(fetchMock).toHaveBeenCalledWith(`${EPIC_BASE_URL}/api/natural`);
+      expect(fetchMock).toHaveBeenCalledWith(
+        `${EPIC_BASE_URL}/api/natural`,
+        expect.objectContaining({ signal: expect.any(AbortSignal) })
+      );
       expect(url).toBe(
         `${EPIC_BASE_URL}/archive/natural/2026/08/10/jpg/epic_1b_20260810234950.jpg`
       );
@@ -131,6 +135,27 @@ describe("image-sources", () => {
     it("throws when the request fails", async () => {
       vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 500 }));
       await expect(fetchLatestEarthImageUrl()).rejects.toThrow();
+    });
+
+    it("throws when the response is rate-limited (429), same as any other non-OK status", async () => {
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 429 }));
+      await expect(fetchLatestEarthImageUrl()).rejects.toThrow("429");
+    });
+
+    it("aborts and rejects a request that hangs past the timeout, bounding an otherwise-indefinite stall", async () => {
+      // Stubs AbortSignal.timeout to fire immediately instead of waiting out the real
+      // 8s bound, so this test verifies the abort wiring without a real 8s sleep.
+      vi.spyOn(AbortSignal, "timeout").mockReturnValue(AbortSignal.abort(new Error("timeout")));
+      vi.stubGlobal(
+        "fetch",
+        vi.fn((_url: string, init?: { signal?: AbortSignal }) =>
+          init?.signal?.aborted
+            ? Promise.reject(init.signal.reason)
+            : Promise.reject(new Error("expected an aborted signal"))
+        )
+      );
+
+      await expect(fetchLatestEarthImageUrl()).rejects.toThrow("timeout");
     });
   });
 });

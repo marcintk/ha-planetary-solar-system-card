@@ -6,6 +6,11 @@ export const EPIC_BASE_URL = "https://epic.gsfc.nasa.gov";
 // 15 min, matching SUN_SLOT_MS below (polling faster than its own publish grid buys nothing).
 const GALLERY_CACHE_TTL_MS = 3600000;
 
+// Bounds a hung EPIC request — without it, a stalled fetch has no app-level ceiling and
+// blocks that gallery source indefinitely (only the browser's own network stack would
+// eventually give up, if ever).
+const EPIC_FETCH_TIMEOUT_MS = 8000;
+
 // SDO publishes HMI Continuum (visible-light sunspot disk) quicklook frames to a dated
 // browse archive on a fixed 15-min grid (:00/:15/:30/:45 UTC), named for their real capture
 // time — but sdo.gsfc.nasa.gov sends no CORS header, so unlike EPIC's JSON API we can't fetch
@@ -79,7 +84,9 @@ export async function fetchLatestEarthImageUrl(
     return cached.image;
   }
 
-  const response = await fetch(`${EPIC_BASE_URL}/api/natural`);
+  const response = await fetch(`${EPIC_BASE_URL}/api/natural`, {
+    signal: AbortSignal.timeout(EPIC_FETCH_TIMEOUT_MS),
+  });
   if (!response.ok) {
     throw new Error(`EPIC API request failed: ${response.status}`);
   }

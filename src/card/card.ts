@@ -31,6 +31,19 @@ const REPLAY_STEP_MS = REPLAY_WINDOW_MS / REPLAY_STEPS;
 const REPLAY_MAX_DURATION_MS = 5000;
 const REPLAY_INTERVAL_MS = Math.floor(REPLAY_MAX_DURATION_MS / REPLAY_STEPS);
 
+// Confirms a candidate image URL actually loads before anything commits to displaying it —
+// used by the background refresh (_refreshOpenImage) so a failed candidate never touches
+// the currently-shown image. Off-DOM: doesn't reuse the visible <img>, so a failed probe
+// can never flash a broken-image state onto it.
+function preloadImage(url: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const probe = new Image();
+    probe.onload = () => resolve();
+    probe.onerror = () => reject(new Error(`preload failed: ${url}`));
+    probe.src = url;
+  });
+}
+
 type ImagePanelMode = "none" | ImageSource;
 export type GalleryMode = "none" | "earth" | "sun" | "both" | "slide";
 const GALLERY_MODES: GalleryMode[] = ["none", "earth", "sun", "both", "slide"];
@@ -634,6 +647,10 @@ export class SolarViewCard extends LitElement {
   // fires in practice for sun: its URL is computed (not fetch-checked) from NASA's publish
   // cadence, so it can occasionally 404 if a slot hasn't been published yet. First failure
   // steps back one 15-min slot and retries once; only a second failure shows the banner.
+  // The background refresh (_refreshOpenImage) never reaches this handler for a bad
+  // candidate — it preloads before committing, so a failed refresh just leaves the current
+  // image in place. This only ever fires for the image actually assigned to the visible
+  // <img>, i.e. the initial open (nothing to fall back to yet).
   private _onImageLoadError(): void {
     if (this._imagePanelMode === "none") return;
     if (this._imagePanelMode === "sun" && !this._sunRetried) {
@@ -654,10 +671,11 @@ export class SolarViewCard extends LitElement {
   // loading — a computed sun slot can 404 (see _onImageLoadError) before we know that.
   // _imageLoaded gates the displayed text on the <img> load event instead of the fetch
   // resolving, so a bad guess shows "loading…" rather than a date for a slot that turns
-  // out not to exist. Only resets when the URL actually changes, so a cache-hit refresh
-  // (same URL, already loaded) doesn't flash back to "loading…" for no reason.
+  // out not to exist. Every call site only ever passes a genuinely new URL (a background
+  // refresh reusing the same URL never reaches here — see the early return in
+  // _refreshOpenImage), so this doesn't need to guard against a same-URL no-op call.
   private _applyImage(url: string, date: Date): void {
-    if (url !== this._imageUrl) this._imageLoaded = false;
+    this._imageLoaded = false;
     this._imageUrl = url;
     this._imageDate = date;
   }
@@ -694,19 +712,23 @@ export class SolarViewCard extends LitElement {
     this._render();
   }
 
-  // Keeps the open full-screen image fresh (hourly, same cadence as the gallery strip) on
-  // each auto-update tick, for as long as it stays open. Only called while
-  // _imagePanelMode !== "none" (see the tick handler). A failed refresh is silently skipped
-  // — the panel keeps showing the last good image rather than surfacing a transient
-  // background-fetch error.
+  // Keeps the open full-screen image fresh on each auto-update tick (cadence =
+  // refresh_mins), for as long as it stays open. Only called while
+  // _imagePanelMode !== "none" (see the tick handler). Never overrides the currently shown
+  // image with an unconfirmed one: the candidate is preloaded off-DOM first, so a fetch
+  // failure or a not-yet-published slot just leaves the current image in place instead of
+  // swapping to something that might not load (#94 follow-up).
   private async _refreshOpenImage(): Promise<void> {
     const mode = this._imagePanelMode;
     try {
       const { url, date } = mode === "earth" ? await fetchLatestEarthImageUrl() : getSunImageUrl();
+      if (url === this._imageUrl) return;
+      await preloadImage(url);
       this._applyImage(url, date);
+      this._imageLoaded = true;
       this._render();
     } catch {
-      // Keep showing the last good image.
+      // Keep showing the current image — candidate failed to fetch or load.
     }
   }
 

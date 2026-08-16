@@ -58,9 +58,16 @@ export function getSunImageUrl(maxAgeMs = SUN_SLOT_MS): SourcedImage {
 
 // One-step fallback for when the computed slot 404s (NASA's publish pipeline occasionally
 // lags past the buffer) — steps back exactly one 15-min slot and nothing further, so a
-// single stale request doesn't turn into an unbounded retry chain.
+// single stale request doesn't turn into an unbounded retry chain. Writes the corrected
+// slot back into the shared cache: without this, the cache still held the original
+// not-yet-published slot, so the next getSunImageUrl() call (the periodic background
+// refresh, on whatever cadence refresh_mins is set to — not necessarily 15 minutes) would
+// hand that same bad slot straight back out, reverting the already-corrected image and
+// failing again with no retry left (#94 follow-up).
 export function getPreviousSunSlot(currentSlot: Date): SourcedImage {
-  return buildSunSlotImage(new Date(currentSlot.getTime() - SUN_SLOT_MS));
+  const image = buildSunSlotImage(new Date(currentSlot.getTime() - SUN_SLOT_MS));
+  cache.set("sun", { image, fetchedAt: Date.now() });
+  return image;
 }
 
 export async function fetchLatestEarthImageUrl(

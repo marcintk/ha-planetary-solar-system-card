@@ -3,6 +3,7 @@ import {
   clearImageCache,
   EPIC_BASE_URL,
   fetchLatestEarthImageUrl,
+  getPreviousSunSlot,
   getSunImageUrl,
   SDO_BROWSE_BASE_URL,
 } from "../../src/card/image-sources.js";
@@ -48,6 +49,29 @@ describe("image-sources", () => {
       vi.spyOn(Date, "now").mockReturnValue(NOW + 16 * 60000);
       const second = getSunImageUrl(1000);
       expect(second).not.toEqual(first);
+    });
+  });
+
+  describe("getPreviousSunSlot", () => {
+    // Regression for the "reverts to the bad slot and gives up" bug: a computed slot can
+    // fail to load if NASA hasn't published it yet, and the card retries via
+    // getPreviousSunSlot — but that retry has to update the *shared* cache, or the next
+    // background refresh (getSunImageUrl(), on whatever cadence refresh_mins is set to —
+    // not 15 minutes) hands the same not-yet-published slot straight back out.
+    it("writes the corrected slot into the cache so a later getSunImageUrl() call reuses it", () => {
+      const NOW = Date.UTC(2026, 7, 15, 22, 42, 30);
+      vi.spyOn(Date, "now").mockReturnValue(NOW);
+
+      const original = getSunImageUrl(); // 22:15:00 (buffered slot)
+      const corrected = getPreviousSunSlot(original.date); // steps back to 22:00:00
+
+      // Moments later — well within the 15-min cache TTL — a background refresh
+      // (_refreshOpenImage) must see the corrected slot, not the original bad one.
+      vi.spyOn(Date, "now").mockReturnValue(NOW + 60000);
+      const refreshed = getSunImageUrl();
+
+      expect(refreshed).toEqual(corrected);
+      expect(refreshed).not.toEqual(original);
     });
   });
 

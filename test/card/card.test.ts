@@ -1415,6 +1415,58 @@ describe("SolarViewCard", () => {
       card.remove();
     });
 
+    // Stubs the off-DOM preload probe (_refreshOpenImage's preloadImage) to resolve or
+    // reject on the next microtask — mirrors how the beforeEach fetch stub controls
+    // fetchLatestEarthImageUrl, for the same kind of network-shaped dependency.
+    function stubImagePreload(succeeds) {
+      vi.stubGlobal(
+        "Image",
+        class {
+          set src(_url) {
+            queueMicrotask(() => (succeeds ? this.onload?.() : this.onerror?.()));
+          }
+        }
+      );
+    }
+
+    it("a background refresh does not replace the shown image if the new candidate fails to preload", async () => {
+      stubImagePreload(true);
+      vi.useFakeTimers();
+      const card = createAndMount({ refresh_mins: 1 });
+      await vi.advanceTimersByTimeAsync(0);
+      card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"]').click();
+      await vi.advanceTimersByTimeAsync(0);
+      const firstSrc = card.shadowRoot.querySelector("#image-view").src;
+
+      // Cross the 15-min slot boundary so the next refresh computes a genuinely different
+      // candidate URL, then make the preload probe fail for it.
+      stubImagePreload(false);
+      await vi.advanceTimersByTimeAsync(16 * 60000);
+
+      expect(card.shadowRoot.querySelector("#image-view").src).toBe(firstSrc);
+      expect(card._imagePanelMode).toBe("sun");
+      expect(card._imageError).toBeNull();
+      card.remove();
+      vi.useRealTimers();
+    });
+
+    it("a background refresh replaces the shown image once the new candidate is confirmed to preload", async () => {
+      stubImagePreload(true);
+      vi.useFakeTimers();
+      const card = createAndMount({ refresh_mins: 1 });
+      await vi.advanceTimersByTimeAsync(0);
+      card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"]').click();
+      await vi.advanceTimersByTimeAsync(0);
+      const firstSrc = card.shadowRoot.querySelector("#image-view").src;
+
+      await vi.advanceTimersByTimeAsync(16 * 60000);
+
+      expect(card.shadowRoot.querySelector("#image-view").src).not.toBe(firstSrc);
+      expect(card._imagePanelMode).toBe("sun");
+      card.remove();
+      vi.useRealTimers();
+    });
+
     it("an image load error while no panel is open is a no-op", async () => {
       const card = createAndMount();
       await flush();
@@ -1501,6 +1553,7 @@ describe("SolarViewCard", () => {
     });
 
     it("auto-update ticks refresh the open full image every 15 minutes while it stays open", async () => {
+      stubImagePreload(true);
       vi.useFakeTimers();
       const card = createAndMount({ refresh_mins: 16 });
       await vi.advanceTimersByTimeAsync(0);

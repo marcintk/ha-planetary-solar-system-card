@@ -136,11 +136,10 @@ location:
 
 `colors.background` (card background) defaults to the HA theme (`--ha-card-background`).
 
-`orbit`, `label`, `season_line`, `season_label`, and `cone_day` default to the theme's text color
-(adaptive to light/dark) at the opacity shown below — that opacity only applies to the default.
-Setting the key yourself replaces the color outright (any CSS color string: hex, `rgb()`, `rgba()`,
-etc.) with no opacity layered on top; include your own alpha (e.g. `rgba(..., 0.3)`) if you want
-transparency:
+`orbit`, `label`, `season_line`, and `season_label` default to the theme's text color (adaptive to
+light/dark) at the opacity shown below — that opacity only applies to the default. Setting the key
+yourself replaces the color outright (any CSS color string: hex, `rgb()`, `rgba()`, etc.) with no
+opacity layered on top; include your own alpha (e.g. `rgba(..., 0.3)`) if you want transparency:
 
 | Key                   | Default (opacity of theme text color) | Description                          |
 | --------------------- | ------------------------------------- | ------------------------------------ |
@@ -148,12 +147,15 @@ transparency:
 | `colors.label`        | 100%                                  | Planet and comet name labels         |
 | `colors.season_line`  | 25%                                   | Season quadrant divider lines        |
 | `colors.season_label` | 50%                                   | Season name labels (curved arc text) |
-| `colors.cone_day`     | 8%                                    | Visibility cone — Sun above horizon  |
 
-The visibility cone's twilight/night bands default to fixed colors, not theme-adaptive:
+The visibility cone shades by how far the Sun is below the horizon (see
+[Horizon Twilight Zones](#horizon-twilight-zones)). `cone_day` defaults to the theme's text color at
+8% opacity (same override rules as above); the twilight/night bands default to fixed colors, not
+theme-adaptive:
 
 | Key                                 | Default                     | Description                          |
 | ----------------------------------- | --------------------------- | ------------------------------------ |
+| `colors.cone_day`                   | 8% of theme text color      | Sun above horizon                    |
 | `colors.cone_twilight_civil`        | `rgba(255, 220, 160, 0.09)` | Civil twilight (0° to -6°)           |
 | `colors.cone_twilight_nautical`     | `rgba(90, 130, 180, 0.12)`  | Nautical twilight (-6° to -12°)      |
 | `colors.cone_twilight_astronomical` | `rgba(70, 50, 130, 0.18)`   | Astronomical twilight (-12° to -18°) |

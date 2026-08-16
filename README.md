@@ -155,6 +155,6 @@ location:
 
 | Key                  | Type                 | Default   | Description                                                                                                  |
 | -------------------- | -------------------- | --------- | ------------------------------------------------------------------------------------------------------------ |
+| `location.name`      | string               | HA config | Overrides the location label shown in the status bar                                                         |
 | `location.latitude`  | number (-90 to 90)   | HA config | Overrides HA's latitude for hemisphere/season/twilight math. Requires `location.longitude` too, else ignored |
 | `location.longitude` | number (-180 to 180) | HA config | Overrides HA's longitude. Requires `location.latitude` too, else ignored                                     |
-| `location.name`      | string               | HA config | Overrides the location label shown in the status bar                                                         |

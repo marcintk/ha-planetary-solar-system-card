@@ -714,7 +714,7 @@ describe("SolarViewCard", () => {
       card.remove();
     });
 
-    it("completes within 15 seconds of wall-clock time and lands on now with live mode resumed", () => {
+    it("completes within 15 seconds of wall-clock time, resumes live mode, and returns to the pre-replay date", () => {
       const now = new Date("2026-02-15T12:00:00Z");
       vi.useFakeTimers({ now });
       const card = createAndMount();
@@ -722,10 +722,9 @@ describe("SolarViewCard", () => {
       vi.advanceTimersByTime(15000); // upper bound on real time this may take
       expect(card._isReplaying).toBe(false);
       expect(card._isLiveMode).toBe(true);
-      // Finishes before the 15s mark, so the virtual clock (and _currentDate) has
-      // advanced by less than the full 15000ms window.
-      expect(card._currentDate.getTime()).toBeGreaterThanOrEqual(now.getTime());
-      expect(card._currentDate.getTime()).toBeLessThan(now.getTime() + 15000);
+      // Live mode resumes, but the displayed date lands back on where the user
+      // was before replay started, not on real "now".
+      expect(card._currentDate.toISOString()).toBe(now.toISOString());
       card.remove();
     });
 
@@ -802,6 +801,18 @@ describe("SolarViewCard", () => {
       const after = parseViewBox(card);
       expect(after.width).toBe(zoomed.width);
       expect(card._zoomLevel).toBe(3);
+      card.remove();
+    });
+
+    it("Today button recenters the sun after panning", () => {
+      const card = createAndMount();
+      const centered = parseViewBox(card);
+      card._viewState.centerX += 150;
+      card._viewState.centerY -= 75;
+      clickButton(card, "today");
+      const after = parseViewBox(card);
+      expect(after.minX).toBe(centered.minX);
+      expect(after.minY).toBe(centered.minY);
       card.remove();
     });
   });

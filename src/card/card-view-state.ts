@@ -95,4 +95,10 @@ export class ViewState {
   endDrag(): void {
     this.isDragging = false;
   }
+
+  /** Reset pan to center the sun in view, keeping current zoom level. */
+  recenter(): void {
+    this.centerX = VIEW_SIZE / 2;
+    this.centerY = VIEW_SIZE / 2;
+  }
 }

@@ -21,7 +21,12 @@ import {
 } from "./card-template.js";
 import { DEFAULT_ZOOM_LEVEL, MAX_ZOOM, MIN_ZOOM, ViewState } from "./card-view-state.js";
 import type { SourcedImage } from "./image-sources.js";
-import { fetchLatestEarthImageUrl, getPreviousSunSlot, getSunImageUrl } from "./image-sources.js";
+import {
+  FETCH_TIMEOUT_MS,
+  fetchLatestEarthImageUrl,
+  getPreviousSunSlot,
+  getSunImageUrl,
+} from "./image-sources.js";
 import { formatRelativeAge } from "./relative-time.js";
 import { ZoomAnimator } from "./zoom-animator.js";
 
@@ -31,24 +36,21 @@ const REPLAY_STEP_MS = REPLAY_WINDOW_MS / REPLAY_STEPS;
 const REPLAY_MAX_DURATION_MS = 5000;
 const REPLAY_INTERVAL_MS = Math.floor(REPLAY_MAX_DURATION_MS / REPLAY_STEPS);
 
-// Bounds a hung image load — decode() has no built-in timeout, so a stalled request against
-// either NASA host (Earth or Sun) would otherwise wait indefinitely with no way to fall back
-// or surface an error. Same 15s bound as the EPIC JSON fetch in image-sources.ts.
-const IMAGE_LOAD_TIMEOUT_MS = 15000;
-
 // Confirms a candidate image URL actually loads AND decodes before anything commits to
 // displaying it — so a failed or not-yet-published candidate never touches a visible <img>.
 // decode() (not the load event) is what actually guarantees this: load only means the bytes
 // downloaded, not that the browser has rasterized them yet — assigning to a live <img> right
 // after load can still stumble onto the broken-image glyph for a frame while it decodes.
 // Off-DOM: doesn't reuse the real <img> element, so a failed probe can never flash onto it.
+// Bounded by FETCH_TIMEOUT_MS (image-sources.ts) — decode() has no built-in timeout, so a
+// stalled load against either NASA host would otherwise wait indefinitely.
 function preloadImage(url: string): Promise<void> {
   const probe = new Image();
   probe.src = url;
   return Promise.race([
     probe.decode(),
     new Promise<never>((_resolve, reject) => {
-      setTimeout(() => reject(new Error("Image load timed out")), IMAGE_LOAD_TIMEOUT_MS);
+      setTimeout(() => reject(new Error("Image load timed out")), FETCH_TIMEOUT_MS);
     }),
   ]);
 }

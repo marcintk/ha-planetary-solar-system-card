@@ -1949,7 +1949,7 @@ describe("SolarViewCard", () => {
       const card = createAndMount({ gallery: { mode: "earth" } });
       await vi.advanceTimersByTimeAsync(0);
       card.shadowRoot.querySelector('.gallery-thumb[data-source="earth"]').click();
-      await vi.advanceTimersByTimeAsync(15000); // IMAGE_LOAD_TIMEOUT_MS in card.ts
+      await vi.advanceTimersByTimeAsync(15000); // FETCH_TIMEOUT_MS in image-sources.ts
       const img = card.shadowRoot.querySelector("#image-view");
       expect(img.classList.contains("visible")).toBe(false);
       expect(card._imagePanelMode).toBe("none");

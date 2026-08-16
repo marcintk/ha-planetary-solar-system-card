@@ -6,7 +6,17 @@ import {
   getSkyMode,
 } from "../astronomy/solar-position.js";
 import type { LocationData } from "../types.js";
+import type { GalleryViewModel } from "./gallery-controller.js";
 import { formatRelativeAge } from "./relative-time.js";
+
+export function formatDate(date: Date): string {
+  const y = String(date.getFullYear()).slice(-2);
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  const hh = String(date.getHours()).padStart(2, "0");
+  const mm = String(date.getMinutes()).padStart(2, "0");
+  return `${y}-${m}-${d} ${hh}:${mm}`;
+}
 
 export function buildStatusBar(
   locationData: LocationData | null,
@@ -75,4 +85,30 @@ export function buildImageStatusBar(
   return html`<div class="status-bar">
     <span>${IMAGE_STATUS_TARGET[mode]} · ${IMAGE_STATUS_INSTRUMENT[mode]} · ${status}</span>
   </div>`;
+}
+
+// Picks which status bar variant to show — error banner wins outright, then the image panel's
+// own status line, falling back to the location/sky status bar. Owns the branching card.ts's
+// render() used to reconstruct from GalleryViewModel's raw fields on every render.
+export function buildStatusBarView(
+  gallery: GalleryViewModel,
+  locationData: LocationData | null,
+  locationName: string | null,
+  currentDate: Date
+): TemplateResult | typeof nothing {
+  if (gallery.error) {
+    return html`<div class="status-bar">
+      <span>${gallery.error}</span>
+    </div>`;
+  }
+  if (gallery.panelSource === "none") {
+    return buildStatusBar(locationData, locationName, currentDate);
+  }
+  return buildImageStatusBar(
+    gallery.panelSource,
+    gallery.imageDate ? formatDate(gallery.imageDate) : "",
+    gallery.imageDate ?? new Date(),
+    new Date(),
+    gallery.imageLoaded
+  );
 }

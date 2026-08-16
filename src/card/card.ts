@@ -10,7 +10,7 @@ import type {
 import { parseCardConfig } from "./card-config.js";
 import { cardStyles } from "./card-styles.js";
 import type { ImageSource } from "./card-template.js";
-import { buildImageStatusBar, buildStatusBar, GALLERY_SOURCE_LABELS } from "./card-template.js";
+import { buildStatusBarView, formatDate, GALLERY_SOURCE_LABELS } from "./card-template.js";
 import { DateNav } from "./date-nav.js";
 import type { GalleryMode } from "./gallery-controller.js";
 import { GalleryController } from "./gallery-controller.js";
@@ -170,19 +170,12 @@ export class SolarViewCard extends LitElement {
     }
 
     const gallery = this._gallery.viewModel();
-    const statusBar = gallery.error
-      ? html`<div class="status-bar">
-          <span>${gallery.error}</span>
-        </div>`
-      : gallery.panelSource === "none"
-        ? buildStatusBar(this._locationData, this._effectiveLocationName, this._dateNav.currentDate)
-        : buildImageStatusBar(
-            gallery.panelSource,
-            gallery.imageDate ? this._formatDate(gallery.imageDate) : "",
-            gallery.imageDate ?? new Date(),
-            new Date(),
-            gallery.imageLoaded
-          );
+    const statusBar = buildStatusBarView(
+      gallery,
+      this._locationData,
+      this._effectiveLocationName,
+      this._dateNav.currentDate
+    );
     const zoomLevel = this._zoom.displayZoomLevel;
     const theme = resolveTheme(this._theme, this._colors.background);
 
@@ -325,12 +318,7 @@ export class SolarViewCard extends LitElement {
   }
 
   private _formatDate(date: Date): string {
-    const y = String(date.getFullYear()).slice(-2);
-    const m = String(date.getMonth() + 1).padStart(2, "0");
-    const d = String(date.getDate()).padStart(2, "0");
-    const hh = String(date.getHours()).padStart(2, "0");
-    const mm = String(date.getMinutes()).padStart(2, "0");
-    return `${y}-${m}-${d} ${hh}:${mm}`;
+    return formatDate(date);
   }
 
   private _navigate(deltaMs: number): void {

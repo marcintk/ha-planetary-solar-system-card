@@ -72,6 +72,20 @@ function resolveHeightStyle(height: CardConfig["height"]): string {
   return "";
 }
 
+// HASS and config.location update independently (hass setter vs. setConfig), so each source
+// is kept as one grouped field rather than losing either one to an eager merge — _locationData
+// and _locationName below resolve them on read, override winning per-field.
+interface HassLocation {
+  lat: number | null;
+  lon: number | null;
+  timezone: string | null;
+  name: string | null;
+}
+interface LocationOverride {
+  lat: number;
+  lon: number;
+}
+
 export class SolarViewCard extends LitElement {
   static styles = cardStyles;
 
@@ -80,13 +94,9 @@ export class SolarViewCard extends LitElement {
   private _zoomAnimator: ZoomAnimator | null;
   private _defaultZoomLevel: ZoomLevel;
   private _hemisphere: Hemisphere;
-  private _lat: number | null;
-  private _lon: number | null;
-  private _timezone: string | null;
-  private _locationName: string | null;
-  private _configLat: number | null;
-  private _configLon: number | null;
-  private _configLocationName: string | null;
+  private _hassLocation: HassLocation;
+  private _locationOverride: LocationOverride | null;
+  private _locationNameOverride: string | null;
   private _autoUpdateTimer: number | null;
   private _colors: Colors;
   private _refreshMs: number;
@@ -111,13 +121,9 @@ export class SolarViewCard extends LitElement {
     this._zoomAnimator = null;
     this._defaultZoomLevel = DEFAULT_ZOOM_LEVEL;
     this._hemisphere = "north";
-    this._lat = null;
-    this._lon = null;
-    this._configLat = null;
-    this._configLon = null;
-    this._configLocationName = null;
-    this._timezone = null;
-    this._locationName = null;
+    this._hassLocation = { lat: null, lon: null, timezone: null, name: null };
+    this._locationOverride = null;
+    this._locationNameOverride = null;
     this._autoUpdateTimer = null;
     this._colors = {};
     this._refreshMs = 60000;
@@ -135,39 +141,35 @@ export class SolarViewCard extends LitElement {
   // ---------------------------------------------------------------------------
   // Proxy getters
   // ---------------------------------------------------------------------------
-  get _effectiveLat(): number | null {
-    return this._configLat ?? this._lat;
-  }
-  get _effectiveLon(): number | null {
-    return this._configLon ?? this._lon;
+  get _locationData(): LocationData | null {
+    const lat = this._locationOverride?.lat ?? this._hassLocation.lat;
+    const lon = this._locationOverride?.lon ?? this._hassLocation.lon;
+    return lat != null && lon != null
+      ? { lat, lon, timezone: this._hassLocation.timezone ?? "UTC" }
+      : null;
   }
   get _effectiveLocationName(): string | null {
-    return this._configLocationName ?? this._locationName;
-  }
-  get _locationData(): LocationData | null {
-    const lat = this._effectiveLat;
-    const lon = this._effectiveLon;
-    return lat != null && lon != null ? { lat, lon, timezone: this._timezone ?? "UTC" } : null;
+    return this._locationNameOverride ?? this._hassLocation.name;
   }
   get _zoomLevel(): ZoomLevel | null {
     return this._viewState?.zoomLevel ?? null;
   }
 
   set hass(hass: HASSConfig) {
-    const lat = hass.config?.latitude;
-    const lon = hass.config?.longitude;
-    const timezone = hass.config?.time_zone;
-    const locationName = hass.config?.location_name;
+    const next: HassLocation = {
+      lat: hass.config?.latitude ?? null,
+      lon: hass.config?.longitude ?? null,
+      timezone: hass.config?.time_zone || null,
+      name: hass.config?.location_name || null,
+    };
+    const prev = this._hassLocation;
     if (
-      lat !== this._lat ||
-      lon !== this._lon ||
-      timezone !== this._timezone ||
-      locationName !== this._locationName
+      next.lat !== prev.lat ||
+      next.lon !== prev.lon ||
+      next.timezone !== prev.timezone ||
+      next.name !== prev.name
     ) {
-      this._lat = lat != null ? lat : null;
-      this._lon = lon != null ? lon : null;
-      this._timezone = timezone || null;
-      this._locationName = locationName || null;
+      this._hassLocation = next;
       this._render();
     }
   }
@@ -204,9 +206,8 @@ export class SolarViewCard extends LitElement {
       overrideLat <= 90 &&
       overrideLon >= -180 &&
       overrideLon <= 180;
-    this._configLat = hasOverride ? overrideLat : null;
-    this._configLon = hasOverride ? overrideLon : null;
-    this._configLocationName = config.location?.name || null;
+    this._locationOverride = hasOverride ? { lat: overrideLat, lon: overrideLon } : null;
+    this._locationNameOverride = config.location?.name || null;
     this._heightStyle = resolveHeightStyle(config.height);
 
     const galleryMode = GALLERY_MODES.includes(config.gallery?.mode as GalleryMode)
@@ -251,8 +252,9 @@ export class SolarViewCard extends LitElement {
   }
 
   render() {
-    if (this._effectiveLat != null) {
-      this._hemisphere = this._effectiveLat < 0 ? "south" : "north";
+    const lat = this._locationData?.lat;
+    if (lat != null) {
+      this._hemisphere = lat < 0 ? "south" : "north";
     }
 
     const statusBar = this._gallery.error

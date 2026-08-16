@@ -505,10 +505,12 @@ describe("SolarViewCard", () => {
           location_name: "London",
         },
       };
-      expect(card._lat).toBe(51.5);
-      expect(card._lon).toBe(-0.1);
-      expect(card._timezone).toBe("Europe/London");
-      expect(card._locationName).toBe("London");
+      expect(card._hassLocation).toEqual({
+        lat: 51.5,
+        lon: -0.1,
+        timezone: "Europe/London",
+        name: "London",
+      });
       const bar = card.shadowRoot.querySelector(".status-bar");
       expect(bar).not.toBeNull();
       card.remove();
@@ -542,12 +544,9 @@ describe("SolarViewCard", () => {
           location_name: "London",
         },
       };
-      expect(card._lat).toBe(51.5);
+      expect(card._hassLocation.lat).toBe(51.5);
       card.hass = { config: {} };
-      expect(card._lat).toBeNull();
-      expect(card._lon).toBeNull();
-      expect(card._timezone).toBeNull();
-      expect(card._locationName).toBeNull();
+      expect(card._hassLocation).toEqual({ lat: null, lon: null, timezone: null, name: null });
       card.remove();
     });
   });
@@ -565,8 +564,8 @@ describe("SolarViewCard", () => {
       };
       card.setConfig({ location: { latitude: -34.9, longitude: -56.2, name: "Montevideo" } });
       card._render();
-      expect(card._effectiveLat).toBe(-34.9);
-      expect(card._effectiveLon).toBe(-56.2);
+      expect(card._locationData?.lat).toBe(-34.9);
+      expect(card._locationData?.lon).toBe(-56.2);
       expect(card._hemisphere).toBe("south");
       expect(card._effectiveLocationName).toBe("Montevideo");
       card.remove();
@@ -577,8 +576,8 @@ describe("SolarViewCard", () => {
       card.hass = { config: { latitude: 51.5, longitude: -0.1 } };
       card.setConfig({ location: { latitude: -34.9 } });
       card._render();
-      expect(card._effectiveLat).toBe(51.5);
-      expect(card._effectiveLon).toBe(-0.1);
+      expect(card._locationData?.lat).toBe(51.5);
+      expect(card._locationData?.lon).toBe(-0.1);
       expect(card._hemisphere).toBe("north");
       card.remove();
     });
@@ -588,8 +587,8 @@ describe("SolarViewCard", () => {
       card.hass = { config: { latitude: 51.5, longitude: -0.1 } };
       card.setConfig({ location: { latitude: 200, longitude: -56.2 } });
       card._render();
-      expect(card._effectiveLat).toBe(51.5);
-      expect(card._effectiveLon).toBe(-0.1);
+      expect(card._locationData?.lat).toBe(51.5);
+      expect(card._locationData?.lon).toBe(-0.1);
       card.remove();
     });
 
@@ -598,8 +597,8 @@ describe("SolarViewCard", () => {
       card.hass = { config: { latitude: 51.5, longitude: -0.1 } };
       card.setConfig({ location: { latitude: -34.9, longitude: -200 } });
       card._render();
-      expect(card._effectiveLat).toBe(51.5);
-      expect(card._effectiveLon).toBe(-0.1);
+      expect(card._locationData?.lat).toBe(51.5);
+      expect(card._locationData?.lon).toBe(-0.1);
       card.remove();
     });
 
@@ -607,8 +606,8 @@ describe("SolarViewCard", () => {
       const card = createAndMount();
       card.hass = { config: { latitude: 51.5, longitude: -0.1, location_name: "London" } };
       card.setConfig({});
-      expect(card._effectiveLat).toBe(51.5);
-      expect(card._effectiveLon).toBe(-0.1);
+      expect(card._locationData?.lat).toBe(51.5);
+      expect(card._locationData?.lon).toBe(-0.1);
       expect(card._effectiveLocationName).toBe("London");
       card.remove();
     });
@@ -1146,8 +1145,7 @@ describe("SolarViewCard", () => {
   describe("southern hemisphere", () => {
     it("sets hemisphere to south when lat is negative", () => {
       const card = createAndMount();
-      card._lat = -33.9; // Sydney
-      card._lon = 151.2;
+      card._hassLocation = { lat: -33.9, lon: 151.2, timezone: null, name: null }; // Sydney
       card._render();
       expect(card._hemisphere).toBe("south");
       card.remove();
@@ -1356,10 +1354,7 @@ describe("SolarViewCard", () => {
       date = new Date("2026-03-05T12:00:00Z")
     ) {
       const card = document.createElement("ha-planetary-solar-system-card-test");
-      card._lat = lat;
-      card._lon = lon;
-      card._timezone = "Europe/London";
-      card._locationName = "London";
+      card._hassLocation = { lat, lon, timezone: "Europe/London", name: "London" };
       card._dateNav.currentDate = date;
       document.body.appendChild(card);
       return card;

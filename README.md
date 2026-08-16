@@ -18,9 +18,7 @@ Have an idea or found a bug?
 
 [**→ Try the interactive demo**](https://marcintk.github.io/ha-planetary-solar-system-card/)
 
-| Dark                                                                                                                                                                                | Light                                                                                                                                                                                 |
-| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [![Preview Dark](https://raw.githubusercontent.com/marcintk/ha-planetary-solar-system-card/main/docs/preview-dark.png)](https://marcintk.github.io/ha-planetary-solar-system-card/) | [![Preview Light](https://raw.githubusercontent.com/marcintk/ha-planetary-solar-system-card/main/docs/preview-light.png)](https://marcintk.github.io/ha-planetary-solar-system-card/) |
+[![Preview](https://raw.githubusercontent.com/marcintk/ha-planetary-solar-system-card/main/docs/preview.png)](https://marcintk.github.io/ha-planetary-solar-system-card/)
 
 ### Horizon Twilight Zones
 

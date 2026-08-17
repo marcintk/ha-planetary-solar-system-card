@@ -219,7 +219,7 @@ export const cardStyles = css`
     z-index: 1;
     box-sizing: border-box;
     pointer-events: none;
-    background: rgba(0, 0, 0, 0.75);
+    background: rgba(0, 0, 0, 0.55);
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
     color: #00e676;

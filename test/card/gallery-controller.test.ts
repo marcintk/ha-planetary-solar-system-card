@@ -307,27 +307,54 @@ describe("GalleryController.debugStats", () => {
     expect(gallery.debugStats).toEqual({ earth: zeroStats, sun: zeroStats });
   });
 
-  it("counts one tick and one network call per source, each refresh, with no cache gate", async () => {
+  it("gates the image preload on URL identity, skipping it once the URL is unchanged", async () => {
     const gallery = new GalleryController(() => {});
     gallery.configure("both", 60000);
     gallery.start();
     await vi.waitFor(() => expect(gallery.images.earth).toBeDefined());
 
     gallery.tick();
-    // Earth counts 2 network calls per tick — the EPIC API lookup plus the image preload —
-    // so 2 ticks means 4, while sun (no metadata API, just the preload) stays at 2.
-    await vi.waitFor(() => expect(gallery.debugStats.earth.network).toBe(4));
+    // Earth counts 2 network calls on the first tick — the EPIC API lookup plus the image
+    // preload — then only 1 more on the second tick: the API lookup still runs (it's the URL
+    // source of truth), but its URL is unchanged, so the preload is gated out. Sun (no
+    // metadata API, just the preload) is gated to 1 call across both ticks.
+    await vi.waitFor(() => expect(gallery.debugStats.earth.network).toBe(3));
 
-    // Today's known bug: nothing skips the network call even though the URL didn't
-    // change, so ticks and network stay in lockstep every tick. `redundant`
-    // surfaces exactly this — the second tick's resolved URL matches the first's.
     expect(gallery.debugStats.earth.ticks).toBe(2);
     expect(gallery.debugStats.sun.ticks).toBe(2);
-    expect(gallery.debugStats.sun.network).toBe(2);
+    expect(gallery.debugStats.sun.network).toBe(1);
     expect(gallery.debugStats.earth.elapsed).not.toBeNull();
     expect(gallery.debugStats.earth.redundant).toBe(1);
     expect(gallery.debugStats.sun.redundant).toBe(1);
     expect(gallery.debugStats.earth.lastAttemptAt).not.toBeNull();
+  });
+
+  it("skips a source still mid-fetch instead of stacking a second overlapping request", async () => {
+    let resolveFetch!: (value: { ok: true; json: () => Promise<unknown> }) => void;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockReturnValue(
+        new Promise((resolve) => {
+          resolveFetch = resolve;
+        })
+      )
+    );
+    const gallery = new GalleryController(() => {});
+    gallery.configure("earth", 60000);
+    gallery.start();
+    await vi.waitFor(() => expect(gallery.debugStats.earth.ticks).toBe(1));
+
+    // First fetch is still in flight (unresolved) — a second tick must not start another.
+    gallery.tick();
+    await Promise.resolve();
+    expect(gallery.debugStats.earth.ticks).toBe(1);
+
+    resolveFetch({ ok: true, json: () => Promise.resolve([{ identifier: "20260810234950" }]) });
+    await vi.waitFor(() => expect(gallery.images.earth).toBeDefined());
+
+    // Now that it settled, a subsequent tick is free to fetch again.
+    gallery.tick();
+    await vi.waitFor(() => expect(gallery.debugStats.earth.ticks).toBe(2));
   });
 
   it("counts a failed image preload as an attempt distinct from the EPIC API call", async () => {

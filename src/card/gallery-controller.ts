@@ -83,10 +83,13 @@ function timedPreload(url: string, debug: DebugAccumulator): Promise<void> {
 
 async function resolveDisplayImage(
   mode: ImageSource,
-  debug: DebugAccumulator
+  debug: DebugAccumulator,
+  knownUrl: string | undefined
 ): Promise<SourcedImage> {
   const candidate =
     mode === "earth" ? await timedAttempt(fetchLatestEarthImageUrl, debug) : getSunImageUrl();
+  // URL identity is already the cache — skip re-fetching bytes for an image we already have.
+  if (candidate.url === knownUrl) return candidate;
   try {
     await timedPreload(candidate.url, debug);
     return candidate;
@@ -122,6 +125,7 @@ export class GalleryController {
   private _onChange: () => void;
   private _debug: Record<ImageSource, DebugAccumulator>;
   private _debugStartedAt: number;
+  private _fetchInFlight: Partial<Record<ImageSource, boolean>>;
 
   constructor(onChange: () => void) {
     this._panelMode = "none";
@@ -138,6 +142,7 @@ export class GalleryController {
     this._onChange = onChange;
     this._debug = { earth: emptyDebugAccumulator(), sun: emptyDebugAccumulator() };
     this._debugStartedAt = Date.now();
+    this._fetchInFlight = {};
   }
 
   get panelMode(): ImagePanelMode {
@@ -360,15 +365,22 @@ export class GalleryController {
   // relevant cache has expired. This is the single place _images is written, so it's also
   // the single place that keeps an open full-screen panel in sync with the same source.
   private async refresh(): Promise<void> {
-    const sources = this._fetchSources;
+    // A source already mid-fetch from a previous tick is left alone rather than starting a
+    // second overlapping request for the same image — it keeps serving whatever's cached
+    // until the in-flight one settles.
+    const sources = this._fetchSources.filter((source) => !this._fetchInFlight[source]);
     const previousUrls: Partial<Record<ImageSource, string>> = {};
     for (const source of sources) {
       this._debug[source].ticks++;
       previousUrls[source] = this._images[source]?.url;
+      this._fetchInFlight[source] = true;
     }
     const results = await Promise.allSettled(
-      sources.map((source) => resolveDisplayImage(source, this._debug[source]))
+      sources.map((source) =>
+        resolveDisplayImage(source, this._debug[source], previousUrls[source])
+      )
     );
+    for (const source of sources) this._fetchInFlight[source] = false;
     for (let i = 0; i < results.length; i++) {
       const result = results[i];
       const source = sources[i];

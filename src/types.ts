@@ -113,6 +113,7 @@ export interface CardConfig {
   colors?: Colors;
   ecliptic_view?: string;
   show_version?: boolean;
+  debug?: boolean;
   gallery?: { mode?: string; slide_interval_secs?: number };
   location?: { latitude?: number; longitude?: number; name?: string };
 }

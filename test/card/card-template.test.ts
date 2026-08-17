@@ -1,12 +1,15 @@
 import { nothing, render } from "lit";
 import { describe, expect, it } from "vitest";
 import {
+  buildDebugOverlay,
   buildImageStatusBar,
   buildStatusBar,
   buildStatusBarView,
   formatDate,
 } from "../../src/card/card-template.js";
-import type { GalleryViewModel } from "../../src/card/gallery-controller.js";
+import type { GalleryViewModel, SourceDebugStats } from "../../src/card/gallery-controller.js";
+
+const zeroDebugStats: SourceDebugStats = { checks: 0, networkCalls: 0, avgFetchMs: null };
 
 function galleryViewModel(overrides: Partial<GalleryViewModel> = {}): GalleryViewModel {
   return {
@@ -19,6 +22,8 @@ function galleryViewModel(overrides: Partial<GalleryViewModel> = {}): GalleryVie
     thumbnails: [],
     navButtonVisible: false,
     navButtonActive: false,
+    debugStats: { earth: zeroDebugStats, sun: zeroDebugStats },
+    debugStartedAt: Date.now(),
     ...overrides,
   };
 }
@@ -153,6 +158,46 @@ describe("buildImageStatusBar", () => {
       buildImageStatusBar("sun", "26-08-12 11:55", new Date("2026-08-12T11:55:00Z"), now, false)
     );
     expect(root.querySelector(".status-bar span").textContent).toBe("SUN · SDO HMI · loading…");
+  });
+});
+
+describe("buildDebugOverlay", () => {
+  const stats = { earth: zeroDebugStats, sun: { checks: 4, networkCalls: 2, avgFetchMs: 123.4 } };
+
+  it("shows 0s on the very first render, right at startedAt", () => {
+    const startedAt = Date.now();
+    const root = renderToDOM(buildDebugOverlay(stats, startedAt));
+    expect(root.querySelector(".debug-caption").textContent).toBe("running for 0s");
+  });
+
+  it("shows seconds under a minute after startedAt", () => {
+    const root = renderToDOM(buildDebugOverlay(stats, Date.now() - 30_000));
+    expect(root.querySelector(".debug-caption").textContent).toBe("running for 30s");
+  });
+
+  it("shows minutes only under an hour", () => {
+    const root = renderToDOM(buildDebugOverlay(stats, Date.now() - 5 * 60_000));
+    expect(root.querySelector(".debug-caption").textContent).toBe("running for 5m");
+  });
+
+  it("shows hours and minutes when both are non-zero", () => {
+    const root = renderToDOM(buildDebugOverlay(stats, Date.now() - (2 * 60 + 5) * 60_000));
+    expect(root.querySelector(".debug-caption").textContent).toBe("running for 2h 5m");
+  });
+
+  it("shows whole hours with no minutes remainder", () => {
+    const root = renderToDOM(buildDebugOverlay(stats, Date.now() - 3 * 60 * 60_000));
+    expect(root.querySelector(".debug-caption").textContent).toBe("running for 3h");
+  });
+
+  it("renders a row per source with its stats, formatting a null avgFetchMs as '—'", () => {
+    const root = renderToDOM(buildDebugOverlay(stats, Date.now()));
+    const rows = root.querySelectorAll("tbody tr, table tr");
+    const cells = [...rows].slice(1).map((row) => [...row.children].map((td) => td.textContent));
+    expect(cells).toEqual([
+      ["SDO/S", "4", "2", "123ms"],
+      ["DSCOVR/E", "0", "0", "—"],
+    ]);
   });
 });
 

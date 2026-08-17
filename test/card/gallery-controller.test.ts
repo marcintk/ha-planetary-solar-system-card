@@ -289,3 +289,38 @@ describe("GalleryController.viewModel", () => {
     expect(gallery.viewModel().navButtonVisible).toBe(false);
   });
 });
+
+describe("GalleryController.debugStats", () => {
+  it("starts at zero for both sources", () => {
+    const gallery = new GalleryController(() => {});
+    expect(gallery.debugStats).toEqual({
+      earth: { checks: 0, networkCalls: 0, avgFetchMs: null },
+      sun: { checks: 0, networkCalls: 0, avgFetchMs: null },
+    });
+  });
+
+  it("counts one check and one network call per source per tick, with no cache gate", async () => {
+    const gallery = new GalleryController(() => {});
+    gallery.configure("both", 60000);
+    gallery.start();
+    await vi.waitFor(() => expect(gallery.images.earth).toBeDefined());
+
+    gallery.tick();
+    await vi.waitFor(() => expect(gallery.debugStats.earth.networkCalls).toBe(2));
+
+    // Today's known bug: nothing skips the network call even though the URL didn't
+    // change, so checks and networkCalls stay in lockstep every tick.
+    expect(gallery.debugStats.earth.checks).toBe(2);
+    expect(gallery.debugStats.sun.checks).toBe(2);
+    expect(gallery.debugStats.sun.networkCalls).toBe(2);
+    expect(gallery.debugStats.earth.avgFetchMs).not.toBeNull();
+  });
+
+  it("does not count sources outside the configured mode", async () => {
+    const gallery = new GalleryController(() => {});
+    gallery.configure("earth", 60000);
+    gallery.start();
+    await vi.waitFor(() => expect(gallery.debugStats.earth.checks).toBe(1));
+    expect(gallery.debugStats.sun.checks).toBe(0);
+  });
+});

@@ -13,6 +13,33 @@ export type GalleryMode = "none" | "earth" | "sun" | "both" | "slide";
 export const GALLERY_MODES: GalleryMode[] = ["none", "earth", "sun", "both", "slide"];
 export const DEFAULT_GALLERY_INTERVAL_MS = 60000;
 
+// Cumulative, since the card was mounted — not a rolling window. Lets debug:true answer "is
+// this source's own cache actually saving anything" at a glance: checks vs. networkCalls
+// equal means every tick is hitting the network regardless of cache state.
+export interface SourceDebugStats {
+  checks: number;
+  networkCalls: number;
+  avgFetchMs: number | null;
+}
+
+interface DebugAccumulator {
+  checks: number;
+  networkCalls: number;
+  fetchMsTotal: number;
+}
+
+function emptyDebugAccumulator(): DebugAccumulator {
+  return { checks: 0, networkCalls: 0, fetchMsTotal: 0 };
+}
+
+function toDebugStats(acc: DebugAccumulator): SourceDebugStats {
+  return {
+    checks: acc.checks,
+    networkCalls: acc.networkCalls,
+    avgFetchMs: acc.networkCalls > 0 ? acc.fetchMsTotal / acc.networkCalls : null,
+  };
+}
+
 // Render-ready shape for card.ts's template — raw data only (dates, urls, booleans), no
 // formatting, so formatRelativeAge/date-formatting stays in card.ts alongside its other
 // display logic. Collapses the branching card.ts's render() otherwise reconstructs from the
@@ -27,6 +54,8 @@ export interface GalleryViewModel {
   thumbnails: { source: ImageSource; url: string | null; date: Date | null }[];
   navButtonVisible: boolean;
   navButtonActive: boolean;
+  debugStats: Record<ImageSource, SourceDebugStats>;
+  debugStartedAt: number;
 }
 
 // Confirms a candidate image URL actually loads AND decodes before anything commits to
@@ -55,15 +84,25 @@ function preloadImage(url: string): Promise<void> {
 // step back, one retry. Used only by refresh() — every source's image, for both the gallery
 // strip and a full-screen panel, is resolved there and nowhere else, so a slow or failing
 // candidate is caught before it ever reaches a visible <img>.
-async function resolveDisplayImage(mode: ImageSource): Promise<SourcedImage> {
+async function timedPreload(url: string, debug: DebugAccumulator): Promise<void> {
+  const start = performance.now();
+  await preloadImage(url);
+  debug.networkCalls++;
+  debug.fetchMsTotal += performance.now() - start;
+}
+
+async function resolveDisplayImage(
+  mode: ImageSource,
+  debug: DebugAccumulator
+): Promise<SourcedImage> {
   const candidate = mode === "earth" ? await fetchLatestEarthImageUrl() : getSunImageUrl();
   try {
-    await preloadImage(candidate.url);
+    await timedPreload(candidate.url, debug);
     return candidate;
   } catch (err) {
     if (mode !== "sun") throw err;
     const fallback = getPreviousSunSlot(candidate.date);
-    await preloadImage(fallback.url);
+    await timedPreload(fallback.url, debug);
     return fallback;
   }
 }
@@ -89,6 +128,8 @@ export class GalleryController {
   private _autoDisplayedSource: ImageSource;
   private _autoSwitchTimer: number | null;
   private _onChange: () => void;
+  private _debug: Record<ImageSource, DebugAccumulator>;
+  private _debugStartedAt: number;
 
   constructor(onChange: () => void) {
     this._panelMode = "none";
@@ -103,6 +144,8 @@ export class GalleryController {
     this._autoDisplayedSource = "earth";
     this._autoSwitchTimer = null;
     this._onChange = onChange;
+    this._debug = { earth: emptyDebugAccumulator(), sun: emptyDebugAccumulator() };
+    this._debugStartedAt = Date.now();
   }
 
   get panelMode(): ImagePanelMode {
@@ -129,6 +172,9 @@ export class GalleryController {
   get images(): Partial<Record<ImageSource, SourcedImage>> {
     return this._images;
   }
+  get debugStats(): Record<ImageSource, SourceDebugStats> {
+    return { earth: toDebugStats(this._debug.earth), sun: toDebugStats(this._debug.sun) };
+  }
 
   // Sources rendered as thumbnails right now.
   get displaySources(): ImageSource[] {
@@ -150,6 +196,8 @@ export class GalleryController {
       })),
       navButtonVisible: this._mode !== "none",
       navButtonActive: this._open,
+      debugStats: this.debugStats,
+      debugStartedAt: this._debugStartedAt,
     };
   }
 
@@ -321,7 +369,10 @@ export class GalleryController {
   // the single place that keeps an open full-screen panel in sync with the same source.
   private async refresh(): Promise<void> {
     const sources = this._fetchSources;
-    const results = await Promise.allSettled(sources.map((source) => resolveDisplayImage(source)));
+    for (const source of sources) this._debug[source].checks++;
+    const results = await Promise.allSettled(
+      sources.map((source) => resolveDisplayImage(source, this._debug[source]))
+    );
     for (let i = 0; i < results.length; i++) {
       const result = results[i];
       const source = sources[i];

@@ -56,9 +56,12 @@ exports[`cardStyles > matches snapshot 1`] = `
     display: flex;
     flex-direction: column;
   }
-  .status-bar {
+  .status-bar-row {
     position: relative;
     flex: 0 0 auto;
+  }
+  .status-bar {
+    position: relative;
     background: var(--secondary-background-color, color-mix(in srgb, currentColor 10%, transparent));
     font-size: 10px;
     color: inherit;
@@ -229,6 +232,41 @@ exports[`cardStyles > matches snapshot 1`] = `
     display: flex;
     align-items: center;
     box-sizing: border-box;
+  }
+  .debug-overlay {
+    position: absolute;
+    left: 0;
+    top: 100%;
+    pointer-events: none;
+    background: rgba(0, 0, 0, 0.25);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    color: #00e676;
+    font-family: monospace;
+    font-size: 10px;
+    line-height: 1.3;
+    padding: 3px 6px;
+  }
+  .debug-caption {
+    color: #66bb9a;
+    margin-top: 2px;
+  }
+  .debug-overlay table {
+    border-collapse: collapse;
+  }
+  .debug-overlay th,
+  .debug-overlay td {
+    padding: 0 6px 0 0;
+    text-align: right;
+    white-space: nowrap;
+  }
+  .debug-overlay th:first-child,
+  .debug-overlay td:first-child {
+    text-align: left;
+  }
+  .debug-overlay th {
+    color: #66bb9a;
+    font-weight: normal;
   }
   .card-version {
     font-size: 9px;

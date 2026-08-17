@@ -12,6 +12,7 @@ import { cardStyles } from "./card-styles.js";
 import type { ImageSource } from "./card-template.js";
 import { buildStatusBarView, formatDate, GALLERY_SOURCE_LABELS } from "./card-template.js";
 import { DateNav } from "./date-nav.js";
+import { buildDebugOverlay } from "./debug.js";
 import type { GalleryMode } from "./gallery-controller.js";
 import { GalleryController } from "./gallery-controller.js";
 import { formatRelativeAge } from "./relative-time.js";
@@ -182,7 +183,10 @@ export class SolarViewCard extends LitElement {
     return html`
       <div class="card" style="background: ${theme.background}; color: ${theme.color}">
         <div class="solar-view-wrapper">
-          ${statusBar}
+          <div class="status-bar-row">
+            ${statusBar}
+            ${this._config?.debug ? buildDebugOverlay(gallery.debugStats, gallery.debugStartedAt) : nothing}
+          </div>
           <div
             id="solar-view"
             class=${gallery.panelSource === "none" ? "" : "hidden"}

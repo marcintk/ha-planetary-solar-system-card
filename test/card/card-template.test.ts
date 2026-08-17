@@ -6,7 +6,19 @@ import {
   buildStatusBarView,
   formatDate,
 } from "../../src/card/card-template.js";
+import type { SourceDebugStats } from "../../src/card/debug.js";
 import type { GalleryViewModel } from "../../src/card/gallery-controller.js";
+
+const zeroDebugStats: SourceDebugStats = {
+  ticks: 0,
+  attempts: 0,
+  network: 0,
+  failures: 0,
+  retries: 0,
+  redundant: 0,
+  elapsed: null,
+  lastAttemptAt: null,
+};
 
 function galleryViewModel(overrides: Partial<GalleryViewModel> = {}): GalleryViewModel {
   return {
@@ -19,6 +31,8 @@ function galleryViewModel(overrides: Partial<GalleryViewModel> = {}): GalleryVie
     thumbnails: [],
     navButtonVisible: false,
     navButtonActive: false,
+    debugStats: { earth: zeroDebugStats, sun: zeroDebugStats },
+    debugStartedAt: Date.now(),
     ...overrides,
   };
 }

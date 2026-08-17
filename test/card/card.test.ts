@@ -2,8 +2,8 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite
 import { SolarViewCard } from "../../src/card/card.js";
 import { formatDate } from "../../src/card/card-template.js";
 import { EPIC_BASE_URL } from "../../src/card/source-resolver-dscovrearth.js";
-import { getSunImageUrl } from "../../src/card/source-resolver-sdosun.js";
-import { urlCache } from "../../src/card/url-cache.js";
+import { getSunImageUrl, SUN_CACHE_TTL_MS } from "../../src/card/source-resolver-sdosun.js";
+import { UrlCache, urlCache } from "../../src/card/url-cache.js";
 
 beforeAll(() => {
   if (!customElements.get("ha-planetary-solar-system-card-test")) {
@@ -1578,11 +1578,10 @@ describe("SolarViewCard", () => {
       // Retried once, on an earlier slot — thumbnail shows the fallback.
       const sunImg = card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"] img');
       expect(sunImg.getAttribute("src")).not.toBe("");
-      // Retried slot is one 15-min step earlier than a fresh (un-retried) lookup would give
-      // — clear the cache first so this recomputes the primary slot instead of reading back
-      // the retried one the card just cached.
-      urlCache.clear();
-      const primarySlot = getSunImageUrl().date.getTime();
+      // Retried slot is one 15-min step earlier than a fresh (un-retried) lookup would give —
+      // recompute against a scratch cache so this reads the primary slot instead of the
+      // retried one the card just cached into the shared default.
+      const primarySlot = getSunImageUrl(SUN_CACHE_TTL_MS, new UrlCache()).date.getTime();
       expect(card._gallery.images.sun.date.getTime()).toBe(primarySlot - 15 * 60000);
       card.remove();
     });
@@ -1672,8 +1671,7 @@ describe("SolarViewCard", () => {
       card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"]').click();
 
       expect(card._gallery.panelMode).toBe("sun");
-      urlCache.clear();
-      const primarySlot = getSunImageUrl().date.getTime();
+      const primarySlot = getSunImageUrl(SUN_CACHE_TTL_MS, new UrlCache()).date.getTime();
       expect(card._gallery.imageDate.getTime()).toBe(primarySlot - 15 * 60000);
       card.remove();
     });

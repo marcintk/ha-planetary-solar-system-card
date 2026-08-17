@@ -1,16 +1,22 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   DscovrEarthResolver,
   EPIC_BASE_URL,
   fetchLatestEarthImageUrl,
 } from "../../src/card/source-resolver-dscovrearth.js";
-import { urlCache } from "../../src/card/url-cache.js";
+import { UrlCache } from "../../src/card/url-cache.js";
 
 describe("source-resolver-dscovrearth", () => {
+  // Each test gets its own UrlCache, so nothing here shares state with the module-level
+  // default (which production relies on for remount survival, but tests don't need).
+  let cache: UrlCache;
+
+  beforeEach(() => {
+    cache = new UrlCache();
+  });
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
-    urlCache.clear();
   });
 
   describe("fetchLatestEarthImageUrl", () => {
@@ -22,7 +28,7 @@ describe("source-resolver-dscovrearth", () => {
       });
       vi.stubGlobal("fetch", fetchMock);
 
-      const { url, date } = await fetchLatestEarthImageUrl();
+      const { url, date } = await fetchLatestEarthImageUrl(undefined, cache);
 
       expect(fetchMock).toHaveBeenCalledWith(
         `${EPIC_BASE_URL}/api/natural`,
@@ -41,8 +47,8 @@ describe("source-resolver-dscovrearth", () => {
       });
       vi.stubGlobal("fetch", fetchMock);
 
-      const first = await fetchLatestEarthImageUrl();
-      const second = await fetchLatestEarthImageUrl();
+      const first = await fetchLatestEarthImageUrl(undefined, cache);
+      const second = await fetchLatestEarthImageUrl(undefined, cache);
 
       expect(fetchMock).toHaveBeenCalledTimes(1);
       expect(second).toEqual(first);
@@ -55,8 +61,8 @@ describe("source-resolver-dscovrearth", () => {
       });
       vi.stubGlobal("fetch", fetchMock);
 
-      await fetchLatestEarthImageUrl();
-      await fetchLatestEarthImageUrl(0);
+      await fetchLatestEarthImageUrl(undefined, cache);
+      await fetchLatestEarthImageUrl(0, cache);
 
       expect(fetchMock).toHaveBeenCalledTimes(2);
     });
@@ -66,17 +72,17 @@ describe("source-resolver-dscovrearth", () => {
         "fetch",
         vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve([]) })
       );
-      await expect(fetchLatestEarthImageUrl()).rejects.toThrow();
+      await expect(fetchLatestEarthImageUrl(undefined, cache)).rejects.toThrow();
     });
 
     it("throws when the request fails", async () => {
       vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 500 }));
-      await expect(fetchLatestEarthImageUrl()).rejects.toThrow();
+      await expect(fetchLatestEarthImageUrl(undefined, cache)).rejects.toThrow();
     });
 
     it("throws when the response is rate-limited (429), same as any other non-OK status", async () => {
       vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 429 }));
-      await expect(fetchLatestEarthImageUrl()).rejects.toThrow("429");
+      await expect(fetchLatestEarthImageUrl(undefined, cache)).rejects.toThrow("429");
     });
 
     it("aborts and rejects a request that hangs past the timeout, bounding an otherwise-indefinite stall", async () => {
@@ -92,13 +98,13 @@ describe("source-resolver-dscovrearth", () => {
         )
       );
 
-      await expect(fetchLatestEarthImageUrl()).rejects.toThrow("timeout");
+      await expect(fetchLatestEarthImageUrl(undefined, cache)).rejects.toThrow("timeout");
     });
   });
 
   describe("DscovrEarthResolver.hydrate", () => {
     it("returns undefined when nothing has ever been cached", () => {
-      expect(new DscovrEarthResolver().hydrate()).toBeUndefined();
+      expect(new DscovrEarthResolver(cache).hydrate()).toBeUndefined();
     });
 
     it("returns the cached earth image while its 1-hour TTL is still fresh", async () => {
@@ -109,8 +115,8 @@ describe("source-resolver-dscovrearth", () => {
           json: () => Promise.resolve([{ identifier: "20260810234950" }]),
         })
       );
-      const first = await fetchLatestEarthImageUrl();
-      expect(new DscovrEarthResolver().hydrate()).toEqual(first);
+      const first = await fetchLatestEarthImageUrl(undefined, cache);
+      expect(new DscovrEarthResolver(cache).hydrate()).toEqual(first);
     });
   });
 });

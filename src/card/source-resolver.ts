@@ -1,6 +1,6 @@
 import type { ImageSource } from "./card-template.js";
 import type { DebugAccumulator } from "./debug.js";
-import type { SourcedImage } from "./url-cache.js";
+import type { SourcedImage, UrlCache } from "./url-cache.js";
 import { urlCache } from "./url-cache.js";
 
 // Bounds a hung network request — without it, a stalled fetch or image load has no
@@ -17,6 +17,13 @@ export const FETCH_TIMEOUT_MS = 15000;
 // extending this and providing those three, without touching the shared protocol.
 export abstract class SourceResolver {
   abstract readonly source: ImageSource;
+
+  // Defaults to the shared module-level cache so production (and any test that doesn't care
+  // about isolation) behaves exactly as before — HA remounting the card element rebuilds this
+  // resolver, but the module-level cache survives, which is what lets hydrate() below recover
+  // a still-fresh image instead of starting cold. Pass an explicit UrlCache only when a test
+  // needs its state isolated from every other test in the same file.
+  constructor(protected readonly cache: UrlCache = urlCache) {}
 
   protected abstract getCached(): SourcedImage | null;
   protected abstract fetchCandidateUrl(debug: DebugAccumulator): Promise<SourcedImage>;
@@ -37,7 +44,7 @@ export abstract class SourceResolver {
   // remount doesn't decode a URL the cache already confirmed current.
   hydrate(): SourcedImage | undefined {
     const cached = this.getCached();
-    if (cached) urlCache.markDecoded(this.source, cached.url);
+    if (cached) this.cache.markDecoded(this.source, cached.url);
     return cached ?? undefined;
   }
 
@@ -64,7 +71,7 @@ export abstract class SourceResolver {
     // when the TTL cache had just expired (`expired`): a real fetchCandidateUrl() call that
     // ended up confirming nothing changed. The cache-still-fresh case needs no counter of its
     // own — `cacheHits` already answers that question.
-    if (urlCache.isDecoded(this.source, candidate.url)) {
+    if (this.cache.isDecoded(this.source, candidate.url)) {
       if (!cached) urlDebug.expired++;
       return candidate;
     }
@@ -74,11 +81,11 @@ export abstract class SourceResolver {
     if (imgDebug !== urlDebug) imgDebug.refreshes++;
     try {
       await timedPreload(candidate.url, imgDebug);
-      urlCache.markDecoded(this.source, candidate.url);
+      this.cache.markDecoded(this.source, candidate.url);
       return candidate;
     } catch (err) {
       const recovered = await this.recover(err, candidate, imgDebug);
-      urlCache.markDecoded(this.source, recovered.url);
+      this.cache.markDecoded(this.source, recovered.url);
       return recovered;
     }
   }

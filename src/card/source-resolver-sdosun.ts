@@ -1,6 +1,6 @@
 import type { DebugAccumulator } from "./debug.js";
 import { SourceResolver, timedPreload } from "./source-resolver.js";
-import type { SourcedImage } from "./url-cache.js";
+import type { SourcedImage, UrlCache } from "./url-cache.js";
 import { urlCache } from "./url-cache.js";
 
 // SDO publishes HMI Continuum (visible-light sunspot disk) quicklook frames to a dated
@@ -24,11 +24,11 @@ export class SdoSunResolver extends SourceResolver {
   readonly source = "sun" as const;
 
   protected getCached(): SourcedImage | null {
-    return urlCache.get("sun", SUN_CACHE_TTL_MS);
+    return this.cache.get("sun", SUN_CACHE_TTL_MS);
   }
 
   protected fetchCandidateUrl(): Promise<SourcedImage> {
-    return Promise.resolve(getSunImageUrl());
+    return Promise.resolve(getSunImageUrl(SUN_CACHE_TTL_MS, this.cache));
   }
 
   protected async recover(
@@ -46,7 +46,7 @@ export class SdoSunResolver extends SourceResolver {
         // Committed only for the slot that actually loaded — an attempt that 404s never
         // touches the shared cache, so a concurrent reader (another refresh() tick racing
         // this retry loop) can never observe a still-unconfirmed guess between attempts.
-        urlCache.set("sun", slot);
+        this.cache.set("sun", slot);
         return slot;
       } catch (retryErr) {
         lastErr = retryErr;
@@ -56,14 +56,17 @@ export class SdoSunResolver extends SourceResolver {
   }
 }
 
-export function getSunImageUrl(maxAgeMs = SUN_CACHE_TTL_MS): SourcedImage {
-  const cached = urlCache.get("sun", maxAgeMs);
+export function getSunImageUrl(
+  maxAgeMs = SUN_CACHE_TTL_MS,
+  cache: UrlCache = urlCache
+): SourcedImage {
+  const cached = cache.get("sun", maxAgeMs);
   if (cached) return cached;
 
   const now = Date.now();
   const slotMs = Math.floor((now - SUN_PUBLISH_BUFFER_MS) / SUN_CACHE_TTL_MS) * SUN_CACHE_TTL_MS;
   const image = buildSunSlotImage(new Date(slotMs));
-  urlCache.set("sun", image);
+  cache.set("sun", image);
   return image;
 }
 

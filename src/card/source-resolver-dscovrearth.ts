@@ -1,6 +1,6 @@
 import type { DebugAccumulator } from "./debug.js";
 import { FETCH_TIMEOUT_MS, SourceResolver, timedAttempt } from "./source-resolver.js";
-import type { SourcedImage } from "./url-cache.js";
+import type { SourcedImage, UrlCache } from "./url-cache.js";
 import { urlCache } from "./url-cache.js";
 
 export const EPIC_BASE_URL = "https://epic.gsfc.nasa.gov";
@@ -15,18 +15,19 @@ export class DscovrEarthResolver extends SourceResolver {
   readonly source = "earth" as const;
 
   protected getCached(): SourcedImage | null {
-    return urlCache.get("earth", EARTH_CACHE_TTL_MS);
+    return this.cache.get("earth", EARTH_CACHE_TTL_MS);
   }
 
   protected fetchCandidateUrl(debug: DebugAccumulator): Promise<SourcedImage> {
-    return timedAttempt(fetchLatestEarthImageUrl, debug);
+    return timedAttempt(() => fetchLatestEarthImageUrl(EARTH_CACHE_TTL_MS, this.cache), debug);
   }
 }
 
 export async function fetchLatestEarthImageUrl(
-  maxAgeMs = EARTH_CACHE_TTL_MS
+  maxAgeMs = EARTH_CACHE_TTL_MS,
+  cache: UrlCache = urlCache
 ): Promise<SourcedImage> {
-  const cached = urlCache.get("earth", maxAgeMs);
+  const cached = cache.get("earth", maxAgeMs);
   if (cached) return cached;
 
   const response = await fetch(`${EPIC_BASE_URL}/api/natural`, {
@@ -60,6 +61,6 @@ export async function fetchLatestEarthImageUrl(
       )
     ),
   };
-  urlCache.set("earth", image);
+  cache.set("earth", image);
   return image;
 }

@@ -1,6 +1,7 @@
 import type { ImageSource } from "./card-template.js";
 import type { DebugAccumulator } from "./debug.js";
 import type { SourcedImage } from "./url-cache.js";
+import { urlCache } from "./url-cache.js";
 
 // Bounds a hung network request — without it, a stalled fetch or image load has no
 // app-level ceiling and blocks that gallery source indefinitely (only the browser's own
@@ -16,7 +17,6 @@ export const FETCH_TIMEOUT_MS = 15000;
 // extending this and providing those three, without touching the shared protocol.
 export abstract class SourceResolver {
   abstract readonly source: ImageSource;
-  private _decodedUrl: string | undefined;
 
   protected abstract getCached(): SourcedImage | null;
   protected abstract fetchCandidateUrl(debug: DebugAccumulator): Promise<SourcedImage>;
@@ -37,7 +37,7 @@ export abstract class SourceResolver {
   // remount doesn't decode a URL the cache already confirmed current.
   hydrate(): SourcedImage | undefined {
     const cached = this.getCached();
-    if (cached) this._decodedUrl = cached.url;
+    if (cached) urlCache.markDecoded(this.source, cached.url);
     return cached ?? undefined;
   }
 
@@ -46,7 +46,13 @@ export abstract class SourceResolver {
   // + retry). Earth's caller passes two distinct DebugAccumulators (its URL lookup is a real
   // EPIC API call, separate from the image byte fetch); sun's caller passes the same one
   // twice, since its candidate URL is pure math with nothing to separate out.
+  //
+  // Owns `refreshes` itself (bumped unconditionally below) rather than leaving it to the
+  // caller — every call here is one refresh attempt for this source, so the counter and the
+  // attempt it counts live in the same place instead of two files staying in sync by
+  // convention (ImageResolver used to bump this before ever calling resolve()).
   async resolve(urlDebug: DebugAccumulator, imgDebug: DebugAccumulator): Promise<SourcedImage> {
+    urlDebug.refreshes++;
     // Checked before any fetch is attempted, so `cacheHits` climbs on every refresh that's
     // served straight from cache — the direct answer to "is this source's TTL actually
     // skipping the network" that `refreshes` vs. `fetches` alone only implies.
@@ -58,21 +64,21 @@ export abstract class SourceResolver {
     // when the TTL cache had just expired (`expired`): a real fetchCandidateUrl() call that
     // ended up confirming nothing changed. The cache-still-fresh case needs no counter of its
     // own — `cacheHits` already answers that question.
-    if (candidate.url === this._decodedUrl) {
+    if (urlCache.isDecoded(this.source, candidate.url)) {
       if (!cached) urlDebug.expired++;
       return candidate;
     }
     // sun's imgDebug is the same object as urlDebug (see the accumulator comment above), so
-    // it's already been bumped by resolveAll()'s own refreshes++ — only earth's split-off img
-    // row needs its own count of "an image refresh was actually needed" here.
+    // it's already been bumped by the unconditional refreshes++ above — only earth's split-off
+    // img row needs its own count of "an image refresh was actually needed" here.
     if (imgDebug !== urlDebug) imgDebug.refreshes++;
     try {
       await timedPreload(candidate.url, imgDebug);
-      this._decodedUrl = candidate.url;
+      urlCache.markDecoded(this.source, candidate.url);
       return candidate;
     } catch (err) {
       const recovered = await this.recover(err, candidate, imgDebug);
-      this._decodedUrl = recovered.url;
+      urlCache.markDecoded(this.source, recovered.url);
       return recovered;
     }
   }

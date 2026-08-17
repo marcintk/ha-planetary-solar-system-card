@@ -7,8 +7,8 @@ import { formatDuration } from "./relative-time.js";
 // Cumulative, since the card was mounted — not a rolling window. Lets debug:true answer "is
 // this source's own cache actually saving anything" at a glance: ticks vs. network
 // equal means every tick is hitting the network regardless of cache state. `cacheHits` is the
-// direct answer to that question — it counts every tick resolveDisplayImage served straight
-// from image-sources.ts's cache, checked before any fetch is even attempted, so it should
+// direct answer to that question — it counts every tick SourceResolver.resolve() served straight
+// from that source's own cache, checked before any fetch is even attempted, so it should
 // climb steadily while `attempts` stays flat between a source's real TTL windows. `redundant`
 // is the sharper signal for the same question from the preload side — it counts preloads
 // whose resolved URL turned out identical to the image already displayed, i.e. bytes that
@@ -16,7 +16,7 @@ import { formatDuration } from "./relative-time.js";
 // "tried" from "succeeded", since a failed preload (sun's retry path) previously vanished from
 // the count entirely instead of showing up as a real network cost. `retries` counts how often
 // sun's primary 15-min-slot guess missed and fell back to the previous slot — a rising rate
-// here means SUN_PUBLISH_BUFFER_MS (image-sources.ts) needs widening. `lastAttemptAt` is the
+// here means SUN_PUBLISH_BUFFER_MS (source-resolver-sdosun.ts) needs widening. `lastAttemptAt` is the
 // raw timestamp of the most recent preload attempt, formatted at render time.
 export interface SourceDebugStats {
   ticks: number;

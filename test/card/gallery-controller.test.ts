@@ -53,8 +53,8 @@ describe("GalleryController defaults", () => {
 describe("GalleryController remount", () => {
   // Regression: a fresh GalleryController (e.g. HA rebuilding the card element) used to
   // start with no known URL, so the URL-identity gate always missed on its first tick and
-  // forced a redundant preload/decode of bytes image-sources.ts's own cache already held.
-  it("hydrates known images from image-sources.ts's cache instead of starting empty", async () => {
+  // forced a redundant preload/decode of bytes each source's own cache already held.
+  it("hydrates known images from each source's cache instead of starting empty", async () => {
     const first = new GalleryController(() => {});
     first.configure("both", 60000);
     first.start();
@@ -258,6 +258,24 @@ describe("GalleryController slide auto-switch", () => {
     await vi.advanceTimersByTimeAsync(5000);
     expect(gallery.displaySources).toEqual(before);
   });
+
+  it("switching onto a source never re-resolves its URL from cache/network, only redecodes it", async () => {
+    vi.useFakeTimers();
+    const gallery = new GalleryController(() => {});
+    gallery.configure("slide", 1000);
+    gallery.start();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(gallery.images.sun).toBeDefined();
+    const cacheHitsAfterFetch = gallery.debugStats.sun.cacheHits;
+
+    // The slide timer flips onto sun: it redecodes (a real DOM-sync attempt/network tick —
+    // see the comment on _advanceSlide) but must never re-run getCachedImage/getSunImageUrl,
+    // since it isn't resolving a new candidate at all, just displaying the one refresh()
+    // already resolved.
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(gallery.displaySources).toEqual(["sun"]);
+    expect(gallery.debugStats.sun.cacheHits).toBe(cacheHitsAfterFetch);
+  });
 });
 
 describe("GalleryController.viewModel", () => {
@@ -349,7 +367,7 @@ describe("GalleryController.debugStats", () => {
     await vi.waitFor(() => expect(gallery.debugStats.earth.redundant).toBe(1));
 
     // Earth counts 2 network calls total: the first tick's EPIC API lookup plus its image
-    // preload. The second tick's EPIC lookup hits image-sources.ts's own TTL cache (no real
+    // preload. The second tick's EPIC lookup hits image-cache.ts's own TTL cache (no real
     // fetch, so it isn't counted), and its preload is gated out since the URL is unchanged.
     // Sun (no metadata API, just the preload) is gated to 1 call across both ticks.
     expect(gallery.debugStats.earth.network).toBe(2);

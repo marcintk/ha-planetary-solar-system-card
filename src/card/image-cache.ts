@@ -9,8 +9,9 @@ interface CacheEntry {
 }
 
 // Generic TTL cache keyed by gallery source (one entry per key, overwrite-on-set — no
-// eviction beyond that). Owns only the freshness mechanism; image-sources.ts owns what a
-// stale entry means for a specific NASA feed (when to refetch, what TTL each source gets).
+// eviction beyond that). Owns only the freshness mechanism; each source's own resolver module
+// (source-resolver-dscovrearth.ts, source-resolver-sdosun.ts) owns what a stale entry means for its NASA
+// feed (when to refetch, what TTL it gets).
 export class ImageCache {
   private entries = new Map<string, CacheEntry>();
 

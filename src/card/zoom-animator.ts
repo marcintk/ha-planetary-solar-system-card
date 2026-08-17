@@ -3,10 +3,6 @@ import { type ViewState, ZOOM_LEVELS } from "./card-view-state.js";
 
 const ZOOM_ANIMATE_DURATION_MS = 2000;
 
-function easeInOutCubic(t: number): number {
-  return t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
-}
-
 export class ZoomAnimator {
   private _viewState: ViewState;
   private _onFrame: () => void;
@@ -59,4 +55,8 @@ export class ZoomAnimator {
       this._animationId = null;
     }
   }
+}
+
+function easeInOutCubic(t: number): number {
+  return t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
 }

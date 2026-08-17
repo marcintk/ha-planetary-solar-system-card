@@ -2,7 +2,8 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite
 import { SolarViewCard } from "../../src/card/card.js";
 import { formatDate } from "../../src/card/card-template.js";
 import { imageCache } from "../../src/card/image-cache.js";
-import { EPIC_BASE_URL, getSunImageUrl } from "../../src/card/image-sources.js";
+import { EPIC_BASE_URL } from "../../src/card/source-resolver-dscovrearth.js";
+import { getSunImageUrl } from "../../src/card/source-resolver-sdosun.js";
 
 beforeAll(() => {
   if (!customElements.get("ha-planetary-solar-system-card-test")) {
@@ -13,12 +14,12 @@ beforeAll(() => {
 // Any mounted card with gallery.mode != "none" now fetches in the background from
 // connectedCallback, even in describes that never stub fetch. Left unstubbed, that's a real
 // network call — works in CI (real internet) but not locally, and a slow one can resolve
-// after its own test ends and pollute image-sources.ts's module-level cache for a later
+// after its own test ends and pollute image-cache.ts's module-level cache for a later
 // test. Default fetch to a safe rejection for every test; individual tests override it with
 // their own vi.stubGlobal("fetch", ...) when they want specific behavior.
 //
 // Every image path (initial open, gallery thumbnail, background refresh) now preloads a
-// candidate off-DOM (resolveDisplayImage) before it's ever assigned to a visible <img>, via
+// candidate off-DOM (ImageResolver.resolve()) before it's ever assigned to a visible <img>, via
 // `new Image()`. Left unstubbed, that never resolves in jsdom (no real network), hanging
 // every await. Default it to succeed on the next microtask for every test; pass one boolean
 // per attempt to control retries (e.g. stubImagePreload(false, true) — first attempt fails,
@@ -1720,7 +1721,7 @@ describe("SolarViewCard", () => {
       card.remove();
     });
 
-    // resolveDisplayImage already confirmed this exact URL loads once, but the real <img>
+    // ImageResolver.resolve() already confirmed this exact URL loads once, but the real <img>
     // still fires its own load/error events once mounted in the DOM — an unrelated later
     // failure (e.g. the browser's cache evicting the entry) has no retry left to fall back
     // on, unlike the preload-time retry covered elsewhere.
@@ -1973,7 +1974,7 @@ describe("SolarViewCard", () => {
       const card = createAndMount({ gallery: { mode: "earth" } });
       await vi.advanceTimersByTimeAsync(0);
       card.shadowRoot.querySelector('.gallery-thumb[data-source="earth"]').click();
-      await vi.advanceTimersByTimeAsync(15000); // FETCH_TIMEOUT_MS in image-sources.ts
+      await vi.advanceTimersByTimeAsync(15000); // FETCH_TIMEOUT_MS in source-resolver.ts
       const img = card.shadowRoot.querySelector("#image-view");
       expect(img.classList.contains("visible")).toBe(false);
       expect(card._gallery.panelMode).toBe("none");

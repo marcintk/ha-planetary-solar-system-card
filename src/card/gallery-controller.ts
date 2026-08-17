@@ -2,14 +2,8 @@ import type { ImageSource } from "./card-template.js";
 import { GALLERY_SOURCES, IMAGE_SOURCE_LABELS } from "./card-template.js";
 import type { DebugAccumulator, SourceDebugStats } from "./debug.js";
 import { emptyDebugAccumulator, toDebugStats } from "./debug.js";
-import type { SourcedImage } from "./image-sources.js";
-import {
-  FETCH_TIMEOUT_MS,
-  fetchLatestEarthImageUrl,
-  getCachedImage,
-  getPreviousSunSlot,
-  getSunImageUrl,
-} from "./image-sources.js";
+import type { SourcedImage } from "./image-cache.js";
+import { ImageResolver, redecode } from "./image-resolver.js";
 
 export type ImagePanelMode = "none" | ImageSource;
 export type GalleryMode = "none" | "earth" | "sun" | "both" | "slide";
@@ -34,88 +28,13 @@ export interface GalleryViewModel {
   debugStartedAt: number;
 }
 
-// Confirms a candidate image URL actually loads AND decodes before anything commits to
-// displaying it — so a failed or not-yet-published candidate never touches a visible <img>.
-// decode() (not the load event) is what actually guarantees this: load only means the bytes
-// downloaded, not that the browser has rasterized them yet — assigning to a live <img> right
-// after load can still stumble onto the broken-image glyph for a frame while it decodes.
-// Off-DOM: doesn't reuse the real <img> element, so a failed probe can never flash onto it.
-// Bounded by FETCH_TIMEOUT_MS (image-sources.ts) — decode() has no built-in timeout, so a
-// stalled load against either NASA host would otherwise wait indefinitely.
-function preloadImage(url: string): Promise<void> {
-  const probe = new Image();
-  probe.src = url;
-  return Promise.race([
-    probe.decode(),
-    new Promise<never>((_resolve, reject) => {
-      setTimeout(() => reject(new Error("Image load timed out")), FETCH_TIMEOUT_MS);
-    }),
-  ]);
-}
-
-// Resolves a source to a candidate that's confirmed to actually load, preloading off-DOM
-// first. Earth's URL is already confirmed by a real API lookup (see
-// fetchLatestEarthImageUrl), so it never needs the retry; sun's URL is only computed from
-// NASA's publish cadence and can occasionally 404 if a slot hasn't been published yet — one
-// step back, one retry. Used only by refresh() — every source's image, for both the gallery
-// strip and a full-screen panel, is resolved there and nowhere else, so a slow or failing
-// candidate is caught before it ever reaches a visible <img>.
-// Shared by both the image-byte preload and (for earth) the EPIC JSON lookup that precedes
-// it — from the debug overlay's point of view, both are "an attempt at a real network call",
-// so they share one set of counters rather than needing their own column each.
-async function timedAttempt<T>(op: () => Promise<T>, debug: DebugAccumulator): Promise<T> {
-  debug.attempts++;
-  debug.lastAttemptAt = Date.now();
-  const start = performance.now();
-  try {
-    const result = await op();
-    debug.network++;
-    debug.fetchMsTotal += performance.now() - start;
-    return result;
-  } catch (err) {
-    debug.failures++;
-    throw err;
-  }
-}
-
-function timedPreload(url: string, debug: DebugAccumulator): Promise<void> {
-  return timedAttempt(() => preloadImage(url), debug);
-}
-
-async function resolveDisplayImage(
-  mode: ImageSource,
-  debug: DebugAccumulator,
-  knownUrl: string | undefined
-): Promise<SourcedImage> {
-  // Checked before any fetch is attempted, so `cacheHits` climbs on every tick that's
-  // served straight from image-sources.ts's cache — the direct answer to "is this source's
-  // TTL actually skipping the network" that `ticks` vs. `attempts` alone only implies.
-  const cached = getCachedImage(mode);
-  if (cached) debug.cacheHits++;
-  const candidate =
-    cached ??
-    (mode === "earth" ? await timedAttempt(fetchLatestEarthImageUrl, debug) : getSunImageUrl());
-  // URL identity is already the cache — skip re-fetching bytes for an image we already have.
-  if (candidate.url === knownUrl) return candidate;
-  try {
-    await timedPreload(candidate.url, debug);
-    return candidate;
-  } catch (err) {
-    if (mode !== "sun") throw err;
-    debug.retries++;
-    const fallback = getPreviousSunSlot(candidate.date);
-    await timedPreload(fallback.url, debug);
-    return fallback;
-  }
-}
-
 /**
  * Owns the gallery strip and full-screen image panel: which sources are fetched, which one
- * is displayed, and the retry protocol against image-sources.ts's cache. Previously this was
+ * is displayed, and the retry protocol against each source's own cache. Previously this was
  * 11 fields spread across card.ts, plus the fetch/preload retry logic split between card.ts's
- * resolveDisplayImage and image-sources.ts's cache mutation (#94) — one place now owns both
+ * ImageResolver and each source module's cache mutation (#94) — one place now owns both
  * the state and the protocol. onChange fires whenever card.ts needs to re-render (same
- * callback pattern as DateNav/ZoomAnimator).
+ * callback pattern as DateNavigation/ZoomAnimator).
  */
 export class GalleryController {
   private _panelMode: ImagePanelMode;
@@ -132,7 +51,7 @@ export class GalleryController {
   private _onChange: () => void;
   private _debug: Record<ImageSource, DebugAccumulator>;
   private _debugStartedAt: number;
-  private _fetchInFlight: Partial<Record<ImageSource, boolean>>;
+  private _resolver: ImageResolver;
 
   constructor(onChange: () => void) {
     this._panelMode = "none";
@@ -141,7 +60,6 @@ export class GalleryController {
     this._imageLoaded = false;
     this._error = null;
     this._open = false;
-    this._images = {};
     this._mode = "none";
     this._autoIntervalMs = DEFAULT_GALLERY_INTERVAL_MS;
     this._autoDisplayedSource = "earth";
@@ -149,14 +67,11 @@ export class GalleryController {
     this._onChange = onChange;
     this._debug = { earth: emptyDebugAccumulator(), sun: emptyDebugAccumulator() };
     this._debugStartedAt = Date.now();
-    this._fetchInFlight = {};
-    // Recovers image-sources.ts's still-fresh cache into this instance's own known-URL
+    this._resolver = new ImageResolver();
+    // Recovers each source's still-fresh cache into this instance's own known-URL
     // state — without this, a remount (this._images always starts empty) would otherwise
     // force a redundant preload of bytes the module cache already confirmed are current.
-    for (const source of GALLERY_SOURCES) {
-      const cached = getCachedImage(source);
-      if (cached) this._images[source] = cached;
-    }
+    this._images = this._resolver.hydrate(GALLERY_SOURCES);
   }
 
   get panelMode(): ImagePanelMode {
@@ -353,7 +268,13 @@ export class GalleryController {
     const known = this._images[next];
     if (known) {
       try {
-        await timedPreload(known.url, this._debug[next]);
+        // Deliberately unconditional, not routed through the resolver's URL-identity gate:
+        // this decode is a DOM-sync step (holds the label/thumbnail on the old source until
+        // the new one finishes decoding, so the reused <img> never flashes a stale bitmap),
+        // not a re-fetch — `known.url` was already resolved and confirmed by refresh()'s
+        // gated resolve() call, so this never reaches NASA again, only the browser's own
+        // (already-warm) image cache.
+        await redecode(known.url, this._debug[next]);
       } catch {
         // Already-validated URL failing a re-decode is transient; show it anyway rather
         // than getting stuck on the previous source forever.
@@ -363,7 +284,7 @@ export class GalleryController {
     this._onChange();
   }
 
-  // Every caller preloads (via resolveDisplayImage) before calling this, so the pixels are
+  // Every caller preloads (via ImageResolver.resolve()) before calling this, so the pixels are
   // already sitting in the browser's cache — _imageLoaded is set true right after, letting
   // the visible <img> paint from that cache instead of a live fetch.
   private _applyImage(url: string, date: Date): void {
@@ -377,29 +298,13 @@ export class GalleryController {
   // a panel stays open. Each source is cache-guarded (earth hourly, sun every 15min —
   // matching each source's own publish cadence), so this only hits the network once the
   // relevant cache has expired. This is the single place _images is written, so it's also
-  // the single place that keeps an open full-screen panel in sync with the same source.
+  // the single place that keeps an open full-screen panel in sync with the same source. The
+  // fetch/dedupe/retry mechanics live in ImageResolver — this only applies its settled
+  // results to view state (which image is shown, which error banner, when to re-render).
   private async refresh(): Promise<void> {
-    // A source already mid-fetch from a previous tick is left alone rather than starting a
-    // second overlapping request for the same image — it keeps serving whatever's cached
-    // until the in-flight one settles.
-    const sources = this._fetchSources.filter((source) => !this._fetchInFlight[source]);
-    const previousUrls: Partial<Record<ImageSource, string>> = {};
-    for (const source of sources) {
-      this._debug[source].ticks++;
-      previousUrls[source] = this._images[source]?.url;
-      this._fetchInFlight[source] = true;
-    }
-    const results = await Promise.allSettled(
-      sources.map((source) =>
-        resolveDisplayImage(source, this._debug[source], previousUrls[source])
-      )
-    );
-    for (const source of sources) this._fetchInFlight[source] = false;
-    for (let i = 0; i < results.length; i++) {
-      const result = results[i];
-      const source = sources[i];
+    const results = await this._resolver.resolveAll(this._fetchSources, this._debug);
+    for (const { source, result } of results) {
       if (result.status === "fulfilled") {
-        if (result.value.url === previousUrls[source]) this._debug[source].redundant++;
         this._images[source] = result.value;
         if (this._panelMode === source) {
           this._applyImage(result.value.url, result.value.date);

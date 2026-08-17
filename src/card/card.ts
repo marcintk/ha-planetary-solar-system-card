@@ -11,7 +11,7 @@ import { parseCardConfig } from "./card-config.js";
 import { cardStyles } from "./card-styles.js";
 import type { ImageSource } from "./card-template.js";
 import { buildStatusBarView, formatDate, GALLERY_SOURCE_LABELS } from "./card-template.js";
-import { DateNav } from "./date-nav.js";
+import { DateNavigation } from "./date-navigation.js";
 import { buildDebugOverlay } from "./debug.js";
 import type { GalleryMode } from "./gallery-controller.js";
 import { GalleryController } from "./gallery-controller.js";
@@ -39,7 +39,7 @@ interface LocationOverride {
 export class SolarViewCard extends LitElement {
   static styles = cardStyles;
 
-  private _dateNav: DateNav;
+  private _dateNav: DateNavigation;
   private _zoom: ZoomController;
   private _hemisphere: Hemisphere;
   private _hassLocation: HassLocation;
@@ -58,7 +58,7 @@ export class SolarViewCard extends LitElement {
 
   constructor() {
     super();
-    this._dateNav = new DateNav(() => this._render());
+    this._dateNav = new DateNavigation(() => this._render());
     this._zoom = new ZoomController(
       () => this._render(),
       () => this._solarView.applyViewState()

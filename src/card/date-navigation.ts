@@ -11,7 +11,7 @@ const REPLAY_INTERVAL_MS = Math.floor(REPLAY_MAX_DURATION_MS / REPLAY_STEPS);
  * are no longer representable. onChange fires after every mutation the caller needs to
  * react to (same callback pattern as ZoomAnimator's onFrame).
  */
-export class DateNav {
+export class DateNavigation {
   private _currentDate: Date;
   private _isLiveMode: boolean;
   private _isReplaying: boolean;

@@ -45,4 +45,30 @@ describe("UrlCache", () => {
     expect(cache.get("earth", 60000)).toBeNull();
     expect(cache.get("sun", 60000)).toBeNull();
   });
+
+  it("isDecoded is false until markDecoded is called for that key and url", () => {
+    const cache = new UrlCache();
+    expect(cache.isDecoded("earth", "https://example.com/a.jpg")).toBe(false);
+    cache.markDecoded("earth", "https://example.com/a.jpg");
+    expect(cache.isDecoded("earth", "https://example.com/a.jpg")).toBe(true);
+  });
+
+  it("isDecoded is false for a different url on the same key", () => {
+    const cache = new UrlCache();
+    cache.markDecoded("earth", "https://example.com/a.jpg");
+    expect(cache.isDecoded("earth", "https://example.com/b.jpg")).toBe(false);
+  });
+
+  it("decode state is independent per key", () => {
+    const cache = new UrlCache();
+    cache.markDecoded("earth", "https://example.com/a.jpg");
+    expect(cache.isDecoded("sun", "https://example.com/a.jpg")).toBe(false);
+  });
+
+  it("clear also resets decode state", () => {
+    const cache = new UrlCache();
+    cache.markDecoded("earth", "https://example.com/a.jpg");
+    cache.clear();
+    expect(cache.isDecoded("earth", "https://example.com/a.jpg")).toBe(false);
+  });
 });

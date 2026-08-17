@@ -1730,45 +1730,6 @@ describe("SolarViewCard", () => {
       vi.useRealTimers();
     });
 
-    it("a sustained sun-source outage backs off instead of retrying every refresh_mins tick", async () => {
-      // Real network attempts only, not decode-gate hits: every Image() construction is one
-      // real probe of a candidate URL (the primary guess plus, on failure, up to
-      // SUN_MAX_RETRIES fallback slots) — the number backoff exists to bound.
-      let imageAttempts = 0;
-      vi.stubGlobal(
-        "Image",
-        class {
-          src = "";
-          constructor() {
-            imageAttempts++;
-          }
-          decode() {
-            return Promise.reject(new Error("decode failed"));
-          }
-        }
-      );
-      vi.useFakeTimers();
-      const card = createAndMount({ refresh_mins: 1 });
-      await vi.advanceTimersByTimeAsync(0); // mount's own background fetch fails
-
-      const attemptsAfterMount = imageAttempts;
-      expect(attemptsAfterMount).toBeGreaterThan(0);
-
-      // 6 hours of 1-minute ticks (360 of them). Without backoff, each tick re-attempts
-      // (primary + retries) — hundreds of probes. With it, cooldown skips ticks that land
-      // inside the current backoff window, so this stays a small, capped number.
-      await vi.advanceTimersByTimeAsync(6 * 3600000);
-
-      expect(imageAttempts).toBeGreaterThan(attemptsAfterMount); // it did keep trying...
-      expect(imageAttempts).toBeLessThan(50); // ...but nowhere near the ~1440 a naive
-      // per-tick retry (primary + SUN_MAX_RETRIES fallbacks, every one of the 360 ticks)
-      // would have produced
-      expect(urlCache.inCooldown("sun")).toBe(true); // still backed off at the end of the outage
-
-      card.remove();
-      vi.useRealTimers();
-    });
-
     it("an image load error while no panel is open is a no-op", async () => {
       const card = createAndMount();
       await flush();

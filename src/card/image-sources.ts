@@ -1,10 +1,16 @@
+import type { ImageSource } from "./card-template.js";
+import type { SourcedImage } from "./image-cache.js";
+import { imageCache } from "./image-cache.js";
+
+export type { SourcedImage } from "./image-cache.js";
+
 export const EPIC_BASE_URL = "https://epic.gsfc.nasa.gov";
 // One cache TTL per source, shared by the gallery thumbnail's background poll, the
 // full-screen view's click-open fetch, and its own background refresh once open — so
 // clicking a thumbnail always reuses the exact image already loaded rather than computing
 // a slightly newer slot and forcing an extra network fetch. Earth: hourly. Sun: every
-// 15 min, matching SUN_SLOT_MS below (polling faster than its own publish grid buys nothing).
-const GALLERY_CACHE_TTL_MS = 3600000;
+// 15 min, matching SUN_CACHE_TTL_MS below (polling faster than its own publish grid buys nothing).
+const EARTH_CACHE_TTL_MS = 3600000;
 
 // Bounds a hung network request — without it, a stalled fetch or image load has no
 // app-level ceiling and blocks that gallery source indefinitely (only the browser's own
@@ -22,27 +28,17 @@ export const FETCH_TIMEOUT_MS = 15000;
 // the buffer only needs to cover the common case, not the worst case, before falling back to
 // the same "unavailable" state as any other failed source.
 export const SDO_BROWSE_BASE_URL = "https://sdo.gsfc.nasa.gov/assets/img/browse";
-export const SUN_SLOT_MS = 15 * 60000;
+export const SUN_CACHE_TTL_MS = 15 * 60000;
 const SUN_PUBLISH_BUFFER_MS = 15 * 60000;
 
-export interface SourcedImage {
-  url: string;
-  date: Date;
-}
-
-const cache = new Map<string, { image: SourcedImage; fetchedAt: number }>();
-
-export function clearImageCache(): void {
-  cache.clear();
-}
-
-// Lets a caller (gallery-controller's debug counters) tell a real network round-trip apart
-// from fetchLatestEarthImageUrl serving its own TTL cache — without this, every call looks
-// identical from the outside and the debug overlay's "ticks vs. network" comparison can never
-// show the cache actually working.
-export function isEarthCacheFresh(maxAgeMs = GALLERY_CACHE_TTL_MS): boolean {
-  const cached = cache.get("earth");
-  return cached != null && Date.now() - cached.fetchedAt < maxAgeMs;
+// Lets a freshly-constructed GalleryController (e.g. after HA remounts the card element)
+// recover the still-fresh URL this module already cached, instead of starting with no known
+// URL — without this, the URL-identity gate in gallery-controller.ts's resolveDisplayImage
+// always misses on the first tick after a remount (knownUrl undefined never equals a real
+// URL), forcing a redundant preload/decode of bytes this cache already confirmed are current.
+export function getCachedImage(source: ImageSource): SourcedImage | null {
+  const maxAgeMs = source === "earth" ? EARTH_CACHE_TTL_MS : SUN_CACHE_TTL_MS;
+  return imageCache.get(source, maxAgeMs);
 }
 
 function pad(n: number): string {
@@ -60,14 +56,14 @@ function buildSunSlotImage(slot: Date): SourcedImage {
   };
 }
 
-export function getSunImageUrl(maxAgeMs = SUN_SLOT_MS): SourcedImage {
-  const now = Date.now();
-  const cached = cache.get("sun");
-  if (cached && now - cached.fetchedAt < maxAgeMs) return cached.image;
+export function getSunImageUrl(maxAgeMs = SUN_CACHE_TTL_MS): SourcedImage {
+  const cached = imageCache.get("sun", maxAgeMs);
+  if (cached) return cached;
 
-  const slotMs = Math.floor((now - SUN_PUBLISH_BUFFER_MS) / SUN_SLOT_MS) * SUN_SLOT_MS;
+  const now = Date.now();
+  const slotMs = Math.floor((now - SUN_PUBLISH_BUFFER_MS) / SUN_CACHE_TTL_MS) * SUN_CACHE_TTL_MS;
   const image = buildSunSlotImage(new Date(slotMs));
-  cache.set("sun", { image, fetchedAt: now });
+  imageCache.set("sun", image);
   return image;
 }
 
@@ -80,19 +76,16 @@ export function getSunImageUrl(maxAgeMs = SUN_SLOT_MS): SourcedImage {
 // hand that same bad slot straight back out, reverting the already-corrected image and
 // failing again with no retry left (#94 follow-up).
 export function getPreviousSunSlot(currentSlot: Date): SourcedImage {
-  const image = buildSunSlotImage(new Date(currentSlot.getTime() - SUN_SLOT_MS));
-  cache.set("sun", { image, fetchedAt: Date.now() });
+  const image = buildSunSlotImage(new Date(currentSlot.getTime() - SUN_CACHE_TTL_MS));
+  imageCache.set("sun", image);
   return image;
 }
 
 export async function fetchLatestEarthImageUrl(
-  maxAgeMs = GALLERY_CACHE_TTL_MS
+  maxAgeMs = EARTH_CACHE_TTL_MS
 ): Promise<SourcedImage> {
-  const now = Date.now();
-  const cached = cache.get("earth");
-  if (cached && now - cached.fetchedAt < maxAgeMs) {
-    return cached.image;
-  }
+  const cached = imageCache.get("earth", maxAgeMs);
+  if (cached) return cached;
 
   const response = await fetch(`${EPIC_BASE_URL}/api/natural`, {
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
@@ -125,6 +118,6 @@ export async function fetchLatestEarthImageUrl(
       )
     ),
   };
-  cache.set("earth", { image, fetchedAt: now });
+  imageCache.set("earth", image);
   return image;
 }

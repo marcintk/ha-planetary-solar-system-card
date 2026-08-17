@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GalleryController } from "../../src/card/gallery-controller.js";
-import { clearImageCache } from "../../src/card/image-sources.js";
+import { imageCache } from "../../src/card/image-cache.js";
 
 // Every fetch path preloads a candidate off-DOM via `new Image()` before ever assigning it,
 // so a real network call and a real Image decode both need stubbing (same pattern as
@@ -37,7 +37,7 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.useRealTimers();
-  clearImageCache();
+  imageCache.clear();
 });
 
 describe("GalleryController defaults", () => {
@@ -47,6 +47,33 @@ describe("GalleryController defaults", () => {
     expect(gallery.panelMode).toBe("none");
     expect(gallery.mode).toBe("none");
     expect(gallery.images).toEqual({});
+  });
+});
+
+describe("GalleryController remount", () => {
+  // Regression: a fresh GalleryController (e.g. HA rebuilding the card element) used to
+  // start with no known URL, so the URL-identity gate always missed on its first tick and
+  // forced a redundant preload/decode of bytes image-sources.ts's own cache already held.
+  it("hydrates known images from image-sources.ts's cache instead of starting empty", async () => {
+    const first = new GalleryController(() => {});
+    first.configure("both", 60000);
+    first.start();
+    await vi.waitFor(() => expect(first.images.earth).toBeDefined());
+    await vi.waitFor(() => expect(first.images.sun).toBeDefined());
+
+    const remounted = new GalleryController(() => {});
+    expect(remounted.images.earth?.url).toBe(first.images.earth?.url);
+    expect(remounted.images.sun?.url).toBe(first.images.sun?.url);
+
+    remounted.configure("both", 60000);
+    remounted.start();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    // Nothing was known to have changed, so the URL-identity gate should skip the preload
+    // for both sources entirely rather than re-attempting it.
+    expect(remounted.debugStats.earth.attempts).toBe(0);
+    expect(remounted.debugStats.sun.attempts).toBe(0);
   });
 });
 
@@ -293,6 +320,7 @@ describe("GalleryController.viewModel", () => {
 describe("GalleryController.debugStats", () => {
   const zeroStats = {
     ticks: 0,
+    cacheHits: 0,
     attempts: 0,
     network: 0,
     failures: 0,
@@ -331,6 +359,12 @@ describe("GalleryController.debugStats", () => {
     expect(gallery.debugStats.earth.elapsed).not.toBeNull();
     expect(gallery.debugStats.sun.redundant).toBe(1);
     expect(gallery.debugStats.earth.lastAttemptAt).not.toBeNull();
+
+    // First tick found nothing cached (0 cache hits); the second tick's cache is still fresh
+    // for both sources (checked before any fetch is attempted), so it's the direct signal
+    // that TTL gating is actually working — unlike `network`, this can't be zero by luck.
+    expect(gallery.debugStats.earth.cacheHits).toBe(1);
+    expect(gallery.debugStats.sun.cacheHits).toBe(1);
   });
 
   it("skips a source still mid-fetch instead of stacking a second overlapping request", async () => {

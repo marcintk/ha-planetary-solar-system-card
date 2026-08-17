@@ -6,9 +6,9 @@ import type { SourcedImage } from "./image-sources.js";
 import {
   FETCH_TIMEOUT_MS,
   fetchLatestEarthImageUrl,
+  getCachedImage,
   getPreviousSunSlot,
   getSunImageUrl,
-  isEarthCacheFresh,
 } from "./image-sources.js";
 
 export type ImagePanelMode = "none" | ImageSource;
@@ -87,12 +87,14 @@ async function resolveDisplayImage(
   debug: DebugAccumulator,
   knownUrl: string | undefined
 ): Promise<SourcedImage> {
+  // Checked before any fetch is attempted, so `cacheHits` climbs on every tick that's
+  // served straight from image-sources.ts's cache — the direct answer to "is this source's
+  // TTL actually skipping the network" that `ticks` vs. `attempts` alone only implies.
+  const cached = getCachedImage(mode);
+  if (cached) debug.cacheHits++;
   const candidate =
-    mode === "earth"
-      ? isEarthCacheFresh()
-        ? await fetchLatestEarthImageUrl()
-        : await timedAttempt(fetchLatestEarthImageUrl, debug)
-      : getSunImageUrl();
+    cached ??
+    (mode === "earth" ? await timedAttempt(fetchLatestEarthImageUrl, debug) : getSunImageUrl());
   // URL identity is already the cache — skip re-fetching bytes for an image we already have.
   if (candidate.url === knownUrl) return candidate;
   try {
@@ -148,6 +150,13 @@ export class GalleryController {
     this._debug = { earth: emptyDebugAccumulator(), sun: emptyDebugAccumulator() };
     this._debugStartedAt = Date.now();
     this._fetchInFlight = {};
+    // Recovers image-sources.ts's still-fresh cache into this instance's own known-URL
+    // state — without this, a remount (this._images always starts empty) would otherwise
+    // force a redundant preload of bytes the module cache already confirmed are current.
+    for (const source of GALLERY_SOURCES) {
+      const cached = getCachedImage(source);
+      if (cached) this._images[source] = cached;
+    }
   }
 
   get panelMode(): ImagePanelMode {

@@ -6,6 +6,7 @@ import { buildDebugOverlay } from "../../src/card/debug.js";
 
 const zeroDebugStats: SourceDebugStats = {
   ticks: 0,
+  cacheHits: 0,
   attempts: 0,
   network: 0,
   failures: 0,
@@ -26,6 +27,7 @@ describe("buildDebugOverlay", () => {
     earth: zeroDebugStats,
     sun: {
       ticks: 4,
+      cacheHits: 2,
       attempts: 3,
       network: 2,
       failures: 1,
@@ -81,11 +83,12 @@ describe("buildDebugOverlay", () => {
     const rows = root.querySelectorAll("tbody tr, table tr");
     const cells = [...rows].slice(1).map((row) => [...row.children].map((td) => td.textContent));
     expect(cells).toEqual([
-      ["SDO/S", "4", "3", "2", "1", "2", "1", "123ms", "5m"],
-      ["DSCOVR/E", "0", "0", "0", "0", "0", "0", "—", "—"],
-      // total: ticks max()s (4 vs. 0) rather than summing, elapsed avg()s the non-null
-      // values (just sun's 123.4 here), last is always "—" — see summarizeDebugStats.
-      ["total", "4", "3", "2", "1", "2", "1", "123ms", "—"],
+      ["SDO/S", "4", "2", "3", "2", "1", "2", "1", "123ms", "5m"],
+      ["DSCOVR/E", "0", "0", "0", "0", "0", "0", "0", "—", "—"],
+      // total: ticks max()s (4 vs. 0) rather than summing, cacheHits/others sum, elapsed
+      // avg()s the non-null values (just sun's 123.4 here), last is always "—" — see
+      // summarizeDebugStats.
+      ["total", "4", "2", "3", "2", "1", "2", "1", "123ms", "—"],
     ]);
   });
 
@@ -108,6 +111,6 @@ describe("buildDebugOverlay", () => {
     const rows = [...root.querySelectorAll("table tr")].slice(1);
     const totalRow = [...rows[rows.length - 1].children].map((td) => td.textContent);
     // max(5, 5) = 5, not 10 — and elapsed averages to (100 + 200) / 2 = 150ms.
-    expect(totalRow).toEqual(["total", "5", "0", "0", "0", "0", "0", "150ms", "—"]);
+    expect(totalRow).toEqual(["total", "5", "0", "0", "0", "0", "0", "0", "150ms", "—"]);
   });
 });

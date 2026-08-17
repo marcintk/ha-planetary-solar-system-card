@@ -6,17 +6,21 @@ import { formatDuration } from "./relative-time.js";
 
 // Cumulative, since the card was mounted — not a rolling window. Lets debug:true answer "is
 // this source's own cache actually saving anything" at a glance: ticks vs. network
-// equal means every tick is hitting the network regardless of cache state. `redundant` is
-// the sharper signal for that same question — it counts preloads whose resolved URL turned
-// out identical to the image already displayed, i.e. bytes that were re-fetched and
-// re-decoded for nothing. `attempts` vs. `network`+`failures` separates "tried" from
-// "succeeded", since a failed preload (sun's retry path) previously vanished from the count
-// entirely instead of showing up as a real network cost. `retries` counts how often sun's
-// primary 15-min-slot guess missed and fell back to the previous slot — a rising rate here
-// means SUN_PUBLISH_BUFFER_MS (image-sources.ts) needs widening. `lastAttemptAt` is the raw
-// timestamp of the most recent preload attempt, formatted at render time.
+// equal means every tick is hitting the network regardless of cache state. `cacheHits` is the
+// direct answer to that question — it counts every tick resolveDisplayImage served straight
+// from image-sources.ts's cache, checked before any fetch is even attempted, so it should
+// climb steadily while `attempts` stays flat between a source's real TTL windows. `redundant`
+// is the sharper signal for the same question from the preload side — it counts preloads
+// whose resolved URL turned out identical to the image already displayed, i.e. bytes that
+// were re-fetched and re-decoded for nothing. `attempts` vs. `network`+`failures` separates
+// "tried" from "succeeded", since a failed preload (sun's retry path) previously vanished from
+// the count entirely instead of showing up as a real network cost. `retries` counts how often
+// sun's primary 15-min-slot guess missed and fell back to the previous slot — a rising rate
+// here means SUN_PUBLISH_BUFFER_MS (image-sources.ts) needs widening. `lastAttemptAt` is the
+// raw timestamp of the most recent preload attempt, formatted at render time.
 export interface SourceDebugStats {
   ticks: number;
+  cacheHits: number;
   attempts: number;
   network: number;
   failures: number;
@@ -28,6 +32,7 @@ export interface SourceDebugStats {
 
 export interface DebugAccumulator {
   ticks: number;
+  cacheHits: number;
   attempts: number;
   network: number;
   failures: number;
@@ -40,6 +45,7 @@ export interface DebugAccumulator {
 export function emptyDebugAccumulator(): DebugAccumulator {
   return {
     ticks: 0,
+    cacheHits: 0,
     attempts: 0,
     network: 0,
     failures: 0,
@@ -53,6 +59,7 @@ export function emptyDebugAccumulator(): DebugAccumulator {
 export function toDebugStats(acc: DebugAccumulator): SourceDebugStats {
   return {
     ticks: acc.ticks,
+    cacheHits: acc.cacheHits,
     attempts: acc.attempts,
     network: acc.network,
     failures: acc.failures,
@@ -78,6 +85,7 @@ function summarizeDebugStats(stats: Record<ImageSource, SourceDebugStats>): Sour
   const elapsedValues = [sun.elapsed, earth.elapsed].filter((ms): ms is number => ms != null);
   return {
     ticks: Math.max(sun.ticks, earth.ticks),
+    cacheHits: sun.cacheHits + earth.cacheHits,
     attempts: sun.attempts + earth.attempts,
     network: sun.network + earth.network,
     failures: sun.failures + earth.failures,
@@ -106,6 +114,7 @@ export function buildDebugOverlay(
       <tr>
         <th>source</th>
         <th>ticks</th>
+        <th>cache</th>
         <th>atmpt</th>
         <th>fetch</th>
         <th>fail</th>
@@ -119,6 +128,7 @@ export function buildDebugOverlay(
         return html`<tr>
           <td>${GALLERY_SOURCE_LABELS[source]}</td>
           <td>${s.ticks}</td>
+          <td>${s.cacheHits}</td>
           <td>${s.attempts}</td>
           <td>${s.network}</td>
           <td>${s.failures}</td>
@@ -133,6 +143,7 @@ export function buildDebugOverlay(
         return html`<tr class="debug-total">
           <td>total</td>
           <td>${total.ticks}</td>
+          <td>${total.cacheHits}</td>
           <td>${total.attempts}</td>
           <td>${total.network}</td>
           <td>${total.failures}</td>

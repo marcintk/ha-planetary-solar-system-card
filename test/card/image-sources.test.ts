@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { imageCache } from "../../src/card/image-cache.js";
 import {
-  clearImageCache,
   EPIC_BASE_URL,
   fetchLatestEarthImageUrl,
+  getCachedImage,
   getPreviousSunSlot,
   getSunImageUrl,
   SDO_BROWSE_BASE_URL,
@@ -12,7 +13,7 @@ describe("image-sources", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
-    clearImageCache();
+    imageCache.clear();
   });
 
   describe("getSunImageUrl", () => {
@@ -156,6 +157,42 @@ describe("image-sources", () => {
       );
 
       await expect(fetchLatestEarthImageUrl()).rejects.toThrow("timeout");
+    });
+  });
+
+  describe("getCachedImage", () => {
+    it("returns null when nothing has ever been cached for the source", () => {
+      expect(getCachedImage("sun")).toBeNull();
+    });
+
+    it("returns the cached sun image while its 15-min slot TTL is still fresh", () => {
+      const NOW = Date.UTC(2026, 7, 15, 22, 42, 30);
+      vi.spyOn(Date, "now").mockReturnValue(NOW);
+      const first = getSunImageUrl();
+
+      vi.spyOn(Date, "now").mockReturnValue(NOW + 60000);
+      expect(getCachedImage("sun")).toEqual(first);
+    });
+
+    it("returns null once the sun slot's TTL has elapsed", () => {
+      const NOW = Date.UTC(2026, 7, 15, 22, 42, 30);
+      vi.spyOn(Date, "now").mockReturnValue(NOW);
+      getSunImageUrl();
+
+      vi.spyOn(Date, "now").mockReturnValue(NOW + 15 * 60000 + 1);
+      expect(getCachedImage("sun")).toBeNull();
+    });
+
+    it("returns the cached earth image while its 1-hour TTL is still fresh", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          ok: true,
+          json: () => Promise.resolve([{ identifier: "20260810234950" }]),
+        })
+      );
+      const first = await fetchLatestEarthImageUrl();
+      expect(getCachedImage("earth")).toEqual(first);
     });
   });
 });

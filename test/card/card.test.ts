@@ -1,7 +1,8 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { SolarViewCard } from "../../src/card/card.js";
 import { formatDate } from "../../src/card/card-template.js";
-import { clearImageCache, EPIC_BASE_URL, getSunImageUrl } from "../../src/card/image-sources.js";
+import { imageCache } from "../../src/card/image-cache.js";
+import { EPIC_BASE_URL, getSunImageUrl } from "../../src/card/image-sources.js";
 
 beforeAll(() => {
   if (!customElements.get("ha-planetary-solar-system-card-test")) {
@@ -43,7 +44,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   vi.unstubAllGlobals();
-  clearImageCache();
+  imageCache.clear();
 });
 
 describe("SolarViewCard", () => {
@@ -1558,7 +1559,7 @@ describe("SolarViewCard", () => {
       // Retried slot is one 15-min step earlier than a fresh (un-retried) lookup would give
       // — clear the cache first so this recomputes the primary slot instead of reading back
       // the retried one the card just cached.
-      clearImageCache();
+      imageCache.clear();
       const primarySlot = getSunImageUrl().date.getTime();
       expect(card._gallery.images.sun.date.getTime()).toBe(primarySlot - 15 * 60000);
       card.remove();
@@ -1649,7 +1650,7 @@ describe("SolarViewCard", () => {
       card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"]').click();
 
       expect(card._gallery.panelMode).toBe("sun");
-      clearImageCache();
+      imageCache.clear();
       const primarySlot = getSunImageUrl().date.getTime();
       expect(card._gallery.imageDate.getTime()).toBe(primarySlot - 15 * 60000);
       card.remove();

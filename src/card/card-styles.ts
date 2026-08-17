@@ -235,7 +235,6 @@ export const cardStyles = css`
   .debug-overlay table {
     width: 100%;
     border-collapse: collapse;
-    table-layout: fixed;
   }
   .debug-overlay th,
   .debug-overlay td {

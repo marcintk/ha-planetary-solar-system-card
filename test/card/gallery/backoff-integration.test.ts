@@ -31,6 +31,9 @@ describe("gallery backoff integration", () => {
     return card;
   }
 
+  // Explicit timeout: this drives 360 simulated timer ticks through the real card, which
+  // reliably finishes in ~1.5s alone but can cross vitest's 5s default under full-suite
+  // parallel load (many other test files' workers competing for CPU).
   it("a sustained sun-source outage backs off instead of retrying every refresh_mins tick", async () => {
     // Real network attempts only, not decode-gate hits: every Image() construction is one
     // real probe of a candidate URL (the primary guess plus, on failure, up to
@@ -68,5 +71,5 @@ describe("gallery backoff integration", () => {
 
     card.remove();
     vi.useRealTimers();
-  });
+  }, 15000);
 });

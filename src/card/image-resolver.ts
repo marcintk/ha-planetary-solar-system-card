@@ -1,9 +1,10 @@
 import type { ImageSource } from "./card-template.js";
-import type { DebugAccumulator } from "./debug.js";
-import type { SourcedImage } from "./image-cache.js";
+import type { DebugAccumulator, DebugRowId } from "./debug.js";
+import { DEBUG_ROW_KEYS } from "./debug.js";
 import type { SourceResolver } from "./source-resolver.js";
 import { DscovrEarthResolver } from "./source-resolver-dscovrearth.js";
 import { SdoSunResolver } from "./source-resolver-sdosun.js";
+import type { SourcedImage } from "./url-cache.js";
 
 // The single gateway to a resolved sun/earth image — dispatches to the per-source resolver
 // (source-resolver-dscovrearth.ts / source-resolver-sdosun.ts) that owns that source's own TTL, decode-gate
@@ -34,15 +35,18 @@ export class ImageResolver {
   // "not requested" (skipped, still in flight) apart from "requested and failed".
   async resolveAll(
     sources: readonly ImageSource[],
-    debug: Record<ImageSource, DebugAccumulator>
+    debug: Record<DebugRowId, DebugAccumulator>
   ): Promise<{ source: ImageSource; result: PromiseSettledResult<SourcedImage> }[]> {
     const pending = sources.filter((source) => !this._inFlight[source]);
     for (const source of pending) {
-      debug[source].ticks++;
+      debug[DEBUG_ROW_KEYS[source].url].ticks++;
       this._inFlight[source] = true;
     }
     const settled = await Promise.allSettled(
-      pending.map((source) => this._resolvers[source].resolve(debug[source]))
+      pending.map((source) => {
+        const { url, img } = DEBUG_ROW_KEYS[source];
+        return this._resolvers[source].resolve(debug[url], debug[img]);
+      })
     );
     return pending.map((source, i) => {
       this._inFlight[source] = false;

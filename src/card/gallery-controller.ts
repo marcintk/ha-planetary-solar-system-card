@@ -1,9 +1,9 @@
 import type { ImageSource } from "./card-template.js";
 import { GALLERY_SOURCES, IMAGE_SOURCE_LABELS } from "./card-template.js";
-import type { DebugAccumulator, SourceDebugStats } from "./debug.js";
+import type { DebugAccumulator, DebugRowId, SourceDebugStats } from "./debug.js";
 import { emptyDebugAccumulator, toDebugStats } from "./debug.js";
-import type { SourcedImage } from "./image-cache.js";
 import { ImageResolver } from "./image-resolver.js";
+import type { SourcedImage } from "./url-cache.js";
 
 export type ImagePanelMode = "none" | ImageSource;
 export type GalleryMode = "none" | "earth" | "sun" | "both" | "slide";
@@ -24,7 +24,7 @@ export interface GalleryViewModel {
   thumbnails: { source: ImageSource; url: string | null; date: Date | null }[];
   navButtonVisible: boolean;
   navButtonActive: boolean;
-  debugStats: Record<ImageSource, SourceDebugStats>;
+  debugStats: Record<DebugRowId, SourceDebugStats>;
   debugStartedAt: number;
 }
 
@@ -49,7 +49,7 @@ export class GalleryController {
   private _autoDisplayedSource: ImageSource;
   private _autoSwitchTimer: number | null;
   private _onChange: () => void;
-  private _debug: Record<ImageSource, DebugAccumulator>;
+  private _debug: Record<DebugRowId, DebugAccumulator>;
   private _debugStartedAt: number;
   private _resolver: ImageResolver;
 
@@ -65,7 +65,11 @@ export class GalleryController {
     this._autoDisplayedSource = "earth";
     this._autoSwitchTimer = null;
     this._onChange = onChange;
-    this._debug = { earth: emptyDebugAccumulator(), sun: emptyDebugAccumulator() };
+    this._debug = {
+      sun: emptyDebugAccumulator(),
+      "earth-url": emptyDebugAccumulator(),
+      "earth-img": emptyDebugAccumulator(),
+    };
     this._debugStartedAt = Date.now();
     this._resolver = new ImageResolver();
     // Recovers each source's still-fresh cache into this instance's own known-URL
@@ -98,8 +102,12 @@ export class GalleryController {
   get images(): Partial<Record<ImageSource, SourcedImage>> {
     return this._images;
   }
-  get debugStats(): Record<ImageSource, SourceDebugStats> {
-    return { earth: toDebugStats(this._debug.earth), sun: toDebugStats(this._debug.sun) };
+  get debugStats(): Record<DebugRowId, SourceDebugStats> {
+    return {
+      sun: toDebugStats(this._debug.sun),
+      "earth-url": toDebugStats(this._debug["earth-url"]),
+      "earth-img": toDebugStats(this._debug["earth-img"]),
+    };
   }
 
   // Sources rendered as thumbnails right now.

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GalleryController } from "../../src/card/gallery-controller.js";
-import { imageCache } from "../../src/card/image-cache.js";
+import { urlCache } from "../../src/card/url-cache.js";
 
 // Every fetch path preloads a candidate off-DOM via `new Image()` before ever assigning it,
 // so a real network call and a real Image decode both need stubbing (same pattern as
@@ -37,7 +37,7 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.useRealTimers();
-  imageCache.clear();
+  urlCache.clear();
 });
 
 describe("GalleryController defaults", () => {
@@ -72,7 +72,8 @@ describe("GalleryController remount", () => {
 
     // Nothing was known to have changed, so the URL-identity gate should skip the preload
     // for both sources entirely rather than re-attempting it.
-    expect(remounted.debugStats.earth.attempts).toBe(0);
+    expect(remounted.debugStats["earth-url"].attempts).toBe(0);
+    expect(remounted.debugStats["earth-img"].attempts).toBe(0);
     expect(remounted.debugStats.sun.attempts).toBe(0);
   });
 });
@@ -342,13 +343,18 @@ describe("GalleryController.debugStats", () => {
     failures: 0,
     retries: 0,
     redundant: 0,
+    expired: 0,
     elapsed: null,
     lastAttemptAt: null,
   };
 
   it("starts at zero for both sources", () => {
     const gallery = new GalleryController(() => {});
-    expect(gallery.debugStats).toEqual({ earth: zeroStats, sun: zeroStats });
+    expect(gallery.debugStats).toEqual({
+      sun: zeroStats,
+      "earth-url": zeroStats,
+      "earth-img": zeroStats,
+    });
   });
 
   it("gates the image preload on URL identity, skipping it once the URL is unchanged", async () => {
@@ -361,25 +367,29 @@ describe("GalleryController.debugStats", () => {
     // Second tick's URL is unchanged for both sources, so it's the one signal guaranteed to
     // still move: `redundant` only increments once the second refresh() has fully settled,
     // unlike `network` (which no longer climbs on a same-URL tick — see below) or `ticks`
-    // (which increments synchronously before the awaited work even starts).
-    await vi.waitFor(() => expect(gallery.debugStats.earth.redundant).toBe(1));
+    // (which increments synchronously before the awaited work even starts). Both live on the
+    // url-phase row — see the DebugRowId split.
+    await vi.waitFor(() => expect(gallery.debugStats["earth-url"].redundant).toBe(1));
 
-    // Earth counts 2 network calls total: the first tick's EPIC API lookup plus its image
-    // preload. The second tick's EPIC lookup hits image-cache.ts's own TTL cache (no real
-    // fetch, so it isn't counted), and its preload is gated out since the URL is unchanged.
-    // Sun (no metadata API, just the preload) is gated to 1 call across both ticks.
-    expect(gallery.debugStats.earth.network).toBe(2);
-    expect(gallery.debugStats.earth.ticks).toBe(2);
+    // Earth's EPIC API lookup (url row) and image preload (img row) are counted separately.
+    // The second tick's EPIC lookup hits url-cache.ts's own TTL cache (no real fetch, so it
+    // isn't counted), and its preload is gated out since the URL is unchanged — so each row
+    // only ever sees 1 real network call across both ticks. Sun (no metadata API, just the
+    // preload) is gated to 1 call across both ticks too.
+    expect(gallery.debugStats["earth-url"].network).toBe(1);
+    expect(gallery.debugStats["earth-img"].network).toBe(1);
+    expect(gallery.debugStats["earth-url"].ticks).toBe(2);
     expect(gallery.debugStats.sun.ticks).toBe(2);
     expect(gallery.debugStats.sun.network).toBe(1);
-    expect(gallery.debugStats.earth.elapsed).not.toBeNull();
+    expect(gallery.debugStats["earth-url"].elapsed).not.toBeNull();
+    expect(gallery.debugStats["earth-img"].elapsed).not.toBeNull();
     expect(gallery.debugStats.sun.redundant).toBe(1);
-    expect(gallery.debugStats.earth.lastAttemptAt).not.toBeNull();
+    expect(gallery.debugStats["earth-img"].lastAttemptAt).not.toBeNull();
 
     // First tick found nothing cached (0 cache hits); the second tick's cache is still fresh
     // for both sources (checked before any fetch is attempted), so it's the direct signal
     // that TTL gating is actually working — unlike `network`, this can't be zero by luck.
-    expect(gallery.debugStats.earth.cacheHits).toBe(1);
+    expect(gallery.debugStats["earth-url"].cacheHits).toBe(1);
     expect(gallery.debugStats.sun.cacheHits).toBe(1);
   });
 
@@ -396,19 +406,19 @@ describe("GalleryController.debugStats", () => {
     const gallery = new GalleryController(() => {});
     gallery.configure("earth", 60000);
     gallery.start();
-    await vi.waitFor(() => expect(gallery.debugStats.earth.ticks).toBe(1));
+    await vi.waitFor(() => expect(gallery.debugStats["earth-url"].ticks).toBe(1));
 
     // First fetch is still in flight (unresolved) — a second tick must not start another.
     gallery.tick();
     await Promise.resolve();
-    expect(gallery.debugStats.earth.ticks).toBe(1);
+    expect(gallery.debugStats["earth-url"].ticks).toBe(1);
 
     resolveFetch({ ok: true, json: () => Promise.resolve([{ identifier: "20260810234950" }]) });
     await vi.waitFor(() => expect(gallery.images.earth).toBeDefined());
 
     // Now that it settled, a subsequent tick is free to fetch again.
     gallery.tick();
-    await vi.waitFor(() => expect(gallery.debugStats.earth.ticks).toBe(2));
+    await vi.waitFor(() => expect(gallery.debugStats["earth-url"].ticks).toBe(2));
   });
 
   it("counts a failed image preload as an attempt distinct from the EPIC API call", async () => {
@@ -416,12 +426,14 @@ describe("GalleryController.debugStats", () => {
     const gallery = new GalleryController(() => {});
     gallery.configure("earth", 60000);
     gallery.start();
-    await vi.waitFor(() => expect(gallery.debugStats.earth.failures).toBe(1));
+    await vi.waitFor(() => expect(gallery.debugStats["earth-img"].failures).toBe(1));
 
-    // 2 attempts (EPIC API lookup + image preload), only the API call succeeded.
-    expect(gallery.debugStats.earth.attempts).toBe(2);
-    expect(gallery.debugStats.earth.network).toBe(1);
-    expect(gallery.debugStats.earth.elapsed).not.toBeNull();
+    // Each phase is its own row now: 1 attempt on the url row (EPIC API lookup, succeeded),
+    // 1 attempt on the img row (image preload, failed).
+    expect(gallery.debugStats["earth-url"].attempts).toBe(1);
+    expect(gallery.debugStats["earth-url"].network).toBe(1);
+    expect(gallery.debugStats["earth-url"].elapsed).not.toBeNull();
+    expect(gallery.debugStats["earth-img"].attempts).toBe(1);
   });
 
   it("counts a retry when sun's primary slot guess fails and falls back", async () => {
@@ -440,7 +452,7 @@ describe("GalleryController.debugStats", () => {
     const gallery = new GalleryController(() => {});
     gallery.configure("earth", 60000);
     gallery.start();
-    await vi.waitFor(() => expect(gallery.debugStats.earth.ticks).toBe(1));
+    await vi.waitFor(() => expect(gallery.debugStats["earth-url"].ticks).toBe(1));
     expect(gallery.debugStats.sun.ticks).toBe(0);
   });
 });

@@ -1,9 +1,9 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { SolarViewCard } from "../../src/card/card.js";
 import { formatDate } from "../../src/card/card-template.js";
-import { imageCache } from "../../src/card/image-cache.js";
 import { EPIC_BASE_URL } from "../../src/card/source-resolver-dscovrearth.js";
 import { getSunImageUrl } from "../../src/card/source-resolver-sdosun.js";
+import { urlCache } from "../../src/card/url-cache.js";
 
 beforeAll(() => {
   if (!customElements.get("ha-planetary-solar-system-card-test")) {
@@ -14,7 +14,7 @@ beforeAll(() => {
 // Any mounted card with gallery.mode != "none" now fetches in the background from
 // connectedCallback, even in describes that never stub fetch. Left unstubbed, that's a real
 // network call — works in CI (real internet) but not locally, and a slow one can resolve
-// after its own test ends and pollute image-cache.ts's module-level cache for a later
+// after its own test ends and pollute url-cache.ts's module-level cache for a later
 // test. Default fetch to a safe rejection for every test; individual tests override it with
 // their own vi.stubGlobal("fetch", ...) when they want specific behavior.
 //
@@ -45,7 +45,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   vi.unstubAllGlobals();
-  imageCache.clear();
+  urlCache.clear();
 });
 
 describe("SolarViewCard", () => {
@@ -460,9 +460,9 @@ describe("SolarViewCard", () => {
       expect(rowText[1]).toContain("SDO/S");
       expect(rowText[2]).toContain("DSCOVR/E");
       expect(overlay.textContent).toContain("source");
-      expect(overlay.textContent).toContain("ticks");
-      expect(overlay.textContent).toContain("atmpt");
-      expect(overlay.textContent).toContain("same");
+      expect(overlay.textContent).toContain("refresh");
+      expect(overlay.textContent).toContain("fetch");
+      expect(overlay.textContent).toContain("expire");
       expect(overlay.textContent).toMatch(/\d+ms/);
       expect(overlay.textContent).toContain("since ");
       card.remove();
@@ -1581,7 +1581,7 @@ describe("SolarViewCard", () => {
       // Retried slot is one 15-min step earlier than a fresh (un-retried) lookup would give
       // — clear the cache first so this recomputes the primary slot instead of reading back
       // the retried one the card just cached.
-      imageCache.clear();
+      urlCache.clear();
       const primarySlot = getSunImageUrl().date.getTime();
       expect(card._gallery.images.sun.date.getTime()).toBe(primarySlot - 15 * 60000);
       card.remove();
@@ -1672,7 +1672,7 @@ describe("SolarViewCard", () => {
       card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"]').click();
 
       expect(card._gallery.panelMode).toBe("sun");
-      imageCache.clear();
+      urlCache.clear();
       const primarySlot = getSunImageUrl().date.getTime();
       expect(card._gallery.imageDate.getTime()).toBe(primarySlot - 15 * 60000);
       card.remove();

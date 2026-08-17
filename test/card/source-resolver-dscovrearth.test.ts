@@ -1,16 +1,16 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { imageCache } from "../../src/card/image-cache.js";
 import {
   DscovrEarthResolver,
   EPIC_BASE_URL,
   fetchLatestEarthImageUrl,
 } from "../../src/card/source-resolver-dscovrearth.js";
+import { urlCache } from "../../src/card/url-cache.js";
 
 describe("source-resolver-dscovrearth", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
-    imageCache.clear();
+    urlCache.clear();
   });
 
   describe("fetchLatestEarthImageUrl", () => {

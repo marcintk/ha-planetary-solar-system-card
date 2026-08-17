@@ -12,7 +12,7 @@ interface CacheEntry {
 // eviction beyond that). Owns only the freshness mechanism; each source's own resolver module
 // (source-resolver-dscovrearth.ts, source-resolver-sdosun.ts) owns what a stale entry means for its NASA
 // feed (when to refetch, what TTL it gets).
-export class ImageCache {
+export class UrlCache {
   private entries = new Map<string, CacheEntry>();
 
   get(key: string, maxAgeMs: number): SourcedImage | null {
@@ -29,4 +29,4 @@ export class ImageCache {
   }
 }
 
-export const imageCache = new ImageCache();
+export const urlCache = new UrlCache();

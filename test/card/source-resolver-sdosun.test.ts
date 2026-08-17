@@ -1,17 +1,17 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { imageCache } from "../../src/card/image-cache.js";
 import {
   getPreviousSunSlot,
   getSunImageUrl,
   SDO_BROWSE_BASE_URL,
   SdoSunResolver,
 } from "../../src/card/source-resolver-sdosun.js";
+import { urlCache } from "../../src/card/url-cache.js";
 
 describe("source-resolver-sdosun", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
-    imageCache.clear();
+    urlCache.clear();
   });
 
   describe("getSunImageUrl", () => {

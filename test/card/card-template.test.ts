@@ -16,6 +16,7 @@ const zeroDebugStats: SourceDebugStats = {
   failures: 0,
   retries: 0,
   redundant: 0,
+  expired: 0,
   elapsed: null,
   lastAttemptAt: null,
 };

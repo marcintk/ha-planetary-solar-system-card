@@ -1,6 +1,6 @@
 import type { ImageSource } from "./card-template.js";
 import type { DebugAccumulator } from "./debug.js";
-import type { SourcedImage } from "./image-cache.js";
+import type { SourcedImage } from "./url-cache.js";
 
 // Bounds a hung network request — without it, a stalled fetch or image load has no
 // app-level ceiling and blocks that gallery source indefinitely (only the browser's own
@@ -12,14 +12,14 @@ export const FETCH_TIMEOUT_MS = 15000;
 // One resolver instance per NASA source, each owning that source's own cache TTL, decode-gate
 // state, and candidate-fetch quirks (see source-resolver-dscovrearth.ts / source-resolver-sdosun.ts).
 // resolve() is the shared protocol (cache check, decode gate, preload, counters); getCached(),
-// fetchCandidate(), and recover() are the only per-source hooks — a new source plugs in by
+// fetchCandidateUrl(), and recover() are the only per-source hooks — a new source plugs in by
 // extending this and providing those three, without touching the shared protocol.
 export abstract class SourceResolver {
   abstract readonly source: ImageSource;
   private _decodedUrl: string | undefined;
 
   protected abstract getCached(): SourcedImage | null;
-  protected abstract fetchCandidate(debug: DebugAccumulator): Promise<SourcedImage>;
+  protected abstract fetchCandidateUrl(debug: DebugAccumulator): Promise<SourcedImage>;
 
   // Only sun overrides this: one-step fallback to the previous 15-min slot when the computed
   // one 404s. Earth's URL is already confirmed by a real API lookup, so the default (rethrow)
@@ -41,26 +41,37 @@ export abstract class SourceResolver {
     return cached ?? undefined;
   }
 
-  async resolve(debug: DebugAccumulator): Promise<SourcedImage> {
+  // Two accumulators, not one: `urlDebug` covers finding out what the candidate URL even is
+  // (cache check + fetchCandidateUrl()); `imgDebug` covers actually loading it (preload/decode
+  // + retry). Earth's caller passes two distinct DebugAccumulators (its URL lookup is a real
+  // EPIC API call, separate from the image byte fetch); sun's caller passes the same one
+  // twice, since its candidate URL is pure math with nothing to separate out.
+  async resolve(urlDebug: DebugAccumulator, imgDebug: DebugAccumulator): Promise<SourcedImage> {
     // Checked before any fetch is attempted, so `cacheHits` climbs on every tick that's
     // served straight from cache — the direct answer to "is this source's TTL actually
     // skipping the network" that `ticks` vs. `attempts` alone only implies.
     const cached = this.getCached();
-    if (cached) debug.cacheHits++;
-    const candidate = cached ?? (await this.fetchCandidate(debug));
+    if (cached) urlDebug.cacheHits++;
+    const candidate = cached ?? (await this.fetchCandidateUrl(urlDebug));
     // URL identity is already the cache — skip re-decoding an image already confirmed to
     // load, and count it as a redundant-avoided fetch (bytes that would've been re-fetched
-    // and re-decoded for nothing).
+    // and re-decoded for nothing). Split by whether the TTL cache was still fresh (`redundant`,
+    // free) or had just expired (`expired`, a real fetchCandidateUrl() call only to confirm
+    // nothing changed).
     if (candidate.url === this._decodedUrl) {
-      debug.redundant++;
+      if (cached) {
+        urlDebug.redundant++;
+      } else {
+        urlDebug.expired++;
+      }
       return candidate;
     }
     try {
-      await timedPreload(candidate.url, debug);
+      await timedPreload(candidate.url, imgDebug);
       this._decodedUrl = candidate.url;
       return candidate;
     } catch (err) {
-      const recovered = await this.recover(err, candidate, debug);
+      const recovered = await this.recover(err, candidate, imgDebug);
       this._decodedUrl = recovered.url;
       return recovered;
     }

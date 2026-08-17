@@ -1,7 +1,7 @@
 import type { DebugAccumulator } from "./debug.js";
-import type { SourcedImage } from "./image-cache.js";
-import { imageCache } from "./image-cache.js";
 import { SourceResolver, timedPreload } from "./source-resolver.js";
+import type { SourcedImage } from "./url-cache.js";
+import { urlCache } from "./url-cache.js";
 
 // SDO publishes HMI Continuum (visible-light sunspot disk) quicklook frames to a dated
 // browse archive on a fixed 15-min grid (:00/:15/:30/:45 UTC), named for their real capture
@@ -20,10 +20,10 @@ export class SdoSunResolver extends SourceResolver {
   readonly source = "sun" as const;
 
   protected getCached(): SourcedImage | null {
-    return imageCache.get("sun", SUN_CACHE_TTL_MS);
+    return urlCache.get("sun", SUN_CACHE_TTL_MS);
   }
 
-  protected fetchCandidate(): Promise<SourcedImage> {
+  protected fetchCandidateUrl(): Promise<SourcedImage> {
     return Promise.resolve(getSunImageUrl());
   }
 
@@ -40,13 +40,13 @@ export class SdoSunResolver extends SourceResolver {
 }
 
 export function getSunImageUrl(maxAgeMs = SUN_CACHE_TTL_MS): SourcedImage {
-  const cached = imageCache.get("sun", maxAgeMs);
+  const cached = urlCache.get("sun", maxAgeMs);
   if (cached) return cached;
 
   const now = Date.now();
   const slotMs = Math.floor((now - SUN_PUBLISH_BUFFER_MS) / SUN_CACHE_TTL_MS) * SUN_CACHE_TTL_MS;
   const image = buildSunSlotImage(new Date(slotMs));
-  imageCache.set("sun", image);
+  urlCache.set("sun", image);
   return image;
 }
 
@@ -60,7 +60,7 @@ export function getSunImageUrl(maxAgeMs = SUN_CACHE_TTL_MS): SourcedImage {
 // failing again with no retry left (#94 follow-up).
 export function getPreviousSunSlot(currentSlot: Date): SourcedImage {
   const image = buildSunSlotImage(new Date(currentSlot.getTime() - SUN_CACHE_TTL_MS));
-  imageCache.set("sun", image);
+  urlCache.set("sun", image);
   return image;
 }
 

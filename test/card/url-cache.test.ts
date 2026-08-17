@@ -1,18 +1,18 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ImageCache } from "../../src/card/image-cache.js";
+import { UrlCache } from "../../src/card/url-cache.js";
 
-describe("ImageCache", () => {
+describe("UrlCache", () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
   it("returns null for a key that was never set", () => {
-    const cache = new ImageCache();
+    const cache = new UrlCache();
     expect(cache.get("earth", 60000)).toBeNull();
   });
 
   it("returns the stored image while within maxAgeMs", () => {
-    const cache = new ImageCache();
+    const cache = new UrlCache();
     const image = { url: "https://example.com/a.jpg", date: new Date() };
     vi.spyOn(Date, "now").mockReturnValue(1000);
     cache.set("earth", image);
@@ -22,7 +22,7 @@ describe("ImageCache", () => {
   });
 
   it("returns null once maxAgeMs has elapsed", () => {
-    const cache = new ImageCache();
+    const cache = new UrlCache();
     const image = { url: "https://example.com/a.jpg", date: new Date() };
     vi.spyOn(Date, "now").mockReturnValue(1000);
     cache.set("earth", image);
@@ -32,13 +32,13 @@ describe("ImageCache", () => {
   });
 
   it("keys are independent of each other", () => {
-    const cache = new ImageCache();
+    const cache = new UrlCache();
     cache.set("earth", { url: "https://example.com/earth.jpg", date: new Date() });
     expect(cache.get("sun", 60000)).toBeNull();
   });
 
   it("clear empties every key", () => {
-    const cache = new ImageCache();
+    const cache = new UrlCache();
     cache.set("earth", { url: "https://example.com/a.jpg", date: new Date() });
     cache.set("sun", { url: "https://example.com/b.jpg", date: new Date() });
     cache.clear();

@@ -39,7 +39,6 @@ export class ImageResolver {
   ): Promise<{ source: ImageSource; result: PromiseSettledResult<SourcedImage> }[]> {
     const pending = sources.filter((source) => !this._inFlight[source]);
     for (const source of pending) {
-      debug[DEBUG_ROW_KEYS[source].url].refreshes++;
       this._inFlight[source] = true;
     }
     const settled = await Promise.allSettled(

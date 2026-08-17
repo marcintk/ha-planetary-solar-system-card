@@ -45,7 +45,7 @@ thumbnail opens it full-screen.
 | Thumbnail | Source                                                              | We poll     | Latest image is usually                 |
 | --------- | ------------------------------------------------------------------- | ----------- | --------------------------------------- |
 | DSCOVR/E  | [NASA EPIC](https://epic.gsfc.nasa.gov/) (DSCOVR, at Sun-Earth L1)  | Hourly      | ~1-2 days old (EPIC processing backlog) |
-| SDO/S     | [NASA SDO](https://sdo.gsfc.nasa.gov/) (geosynchronous Earth orbit) | Every 15min | ~15-30min old                           |
+| SDO/S     | [NASA SDO](https://sdo.gsfc.nasa.gov/) (geosynchronous Earth orbit) | Every 15min | ~20-35min old                           |
 
 Strict reverse-proxy CSP may block `epic.gsfc.nasa.gov` / `sdo.gsfc.nasa.gov` — not fixable
 card-side.

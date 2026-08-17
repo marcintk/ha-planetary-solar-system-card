@@ -11,7 +11,7 @@ import { parseCardConfig } from "./card-config.js";
 import { cardStyles } from "./card-styles.js";
 import type { ImageSource } from "./card-template.js";
 import { buildStatusBarView, formatDate, GALLERY_SOURCE_LABELS } from "./card-template.js";
-import { DateNav } from "./date-nav.js";
+import { DateNavigation } from "./date-navigation.js";
 import { buildDebugOverlay } from "./debug.js";
 import type { GalleryMode } from "./gallery-controller.js";
 import { GalleryController } from "./gallery-controller.js";
@@ -39,13 +39,14 @@ interface LocationOverride {
 export class SolarViewCard extends LitElement {
   static styles = cardStyles;
 
-  private _dateNav: DateNav;
+  private _dateNav: DateNavigation;
   private _zoom: ZoomController;
   private _hemisphere: Hemisphere;
   private _hassLocation: HassLocation;
   private _locationOverride: LocationOverride | null;
   private _locationNameOverride: string | null;
   private _autoUpdateTimer: number | null;
+  private _debugTimer: number | null;
   private _colors: Colors;
   private _refreshMs: number;
   private _eclipticView: boolean;
@@ -58,7 +59,7 @@ export class SolarViewCard extends LitElement {
 
   constructor() {
     super();
-    this._dateNav = new DateNav(() => this._render());
+    this._dateNav = new DateNavigation(() => this._render());
     this._zoom = new ZoomController(
       () => this._render(),
       () => this._solarView.applyViewState()
@@ -68,6 +69,7 @@ export class SolarViewCard extends LitElement {
     this._locationOverride = null;
     this._locationNameOverride = null;
     this._autoUpdateTimer = null;
+    this._debugTimer = null;
     this._colors = {};
     this._refreshMs = 60000;
     this._eclipticView = false;
@@ -136,6 +138,9 @@ export class SolarViewCard extends LitElement {
     if (this._autoUpdateTimer != null) {
       this._startAutoUpdateTimer();
     }
+    if (this._debugTimer != null || config.debug) {
+      this._startDebugTimer();
+    }
   }
 
   connectedCallback(): void {
@@ -145,6 +150,7 @@ export class SolarViewCard extends LitElement {
     // synchronous tests and delay the first frame in HA.
     this._render();
     this._startAutoUpdateTimer();
+    this._startDebugTimer();
     this._gallery.start();
     this._onVisibilityChange = () => {
       if (!document.hidden) this._dateNav.tick();
@@ -156,6 +162,8 @@ export class SolarViewCard extends LitElement {
     super.disconnectedCallback();
     clearInterval(this._autoUpdateTimer ?? undefined);
     this._autoUpdateTimer = null;
+    clearInterval(this._debugTimer ?? undefined);
+    this._debugTimer = null;
     this._gallery.stop();
     this._dateNav.stop();
     if (this._onVisibilityChange) {
@@ -319,6 +327,17 @@ export class SolarViewCard extends LitElement {
       this._zoom.tick();
       this._gallery.tick();
     }, interval) as unknown as number;
+  }
+
+  // Ages the debug overlay's "last" column live — without this it only updates on the next
+  // real state change (gallery tick, nav click, ...), which can lag minutes behind Date.now().
+  private _startDebugTimer(): void {
+    clearInterval(this._debugTimer ?? undefined);
+    if (!this._config?.debug) {
+      this._debugTimer = null;
+      return;
+    }
+    this._debugTimer = setInterval(() => this._render(), 1000) as unknown as number;
   }
 
   private _navigate(deltaMs: number): void {

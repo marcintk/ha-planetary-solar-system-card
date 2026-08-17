@@ -1,7 +1,9 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { SolarViewCard } from "../../src/card/card.js";
 import { formatDate } from "../../src/card/card-template.js";
-import { clearImageCache, EPIC_BASE_URL, getSunImageUrl } from "../../src/card/image-sources.js";
+import { EPIC_BASE_URL } from "../../src/card/source-resolver-dscovrearth.js";
+import { getSunImageUrl } from "../../src/card/source-resolver-sdosun.js";
+import { urlCache } from "../../src/card/url-cache.js";
 
 beforeAll(() => {
   if (!customElements.get("ha-planetary-solar-system-card-test")) {
@@ -12,12 +14,12 @@ beforeAll(() => {
 // Any mounted card with gallery.mode != "none" now fetches in the background from
 // connectedCallback, even in describes that never stub fetch. Left unstubbed, that's a real
 // network call — works in CI (real internet) but not locally, and a slow one can resolve
-// after its own test ends and pollute image-sources.ts's module-level cache for a later
+// after its own test ends and pollute url-cache.ts's module-level cache for a later
 // test. Default fetch to a safe rejection for every test; individual tests override it with
 // their own vi.stubGlobal("fetch", ...) when they want specific behavior.
 //
 // Every image path (initial open, gallery thumbnail, background refresh) now preloads a
-// candidate off-DOM (resolveDisplayImage) before it's ever assigned to a visible <img>, via
+// candidate off-DOM (ImageResolver.resolve()) before it's ever assigned to a visible <img>, via
 // `new Image()`. Left unstubbed, that never resolves in jsdom (no real network), hanging
 // every await. Default it to succeed on the next microtask for every test; pass one boolean
 // per attempt to control retries (e.g. stubImagePreload(false, true) — first attempt fails,
@@ -43,7 +45,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   vi.unstubAllGlobals();
-  clearImageCache();
+  urlCache.clear();
 });
 
 describe("SolarViewCard", () => {
@@ -451,16 +453,16 @@ describe("SolarViewCard", () => {
 
     it("shows sun/earth rows with cumulative stats when debug is true", async () => {
       const card = createAndMount({ debug: true, gallery: { mode: "both" } });
-      await vi.waitFor(() => expect(card._gallery.debugStats.sun.network).toBe(1));
+      await vi.waitFor(() => expect(card._gallery.debugStats.sun.elapsed).not.toBeNull());
       card._render();
       const overlay = card.shadowRoot.querySelector(".debug-overlay");
       const rowText = [...overlay.querySelectorAll("tr")].map((tr) => tr.textContent);
       expect(rowText[1]).toContain("SDO/S");
       expect(rowText[2]).toContain("DSCOVR/E");
       expect(overlay.textContent).toContain("source");
-      expect(overlay.textContent).toContain("ticks");
-      expect(overlay.textContent).toContain("atmpt");
-      expect(overlay.textContent).toContain("dup");
+      expect(overlay.textContent).toContain("refresh");
+      expect(overlay.textContent).toContain("fetch");
+      expect(overlay.textContent).toContain("expire");
       expect(overlay.textContent).toMatch(/\d+ms/);
       expect(overlay.textContent).toContain("since ");
       card.remove();
@@ -472,6 +474,27 @@ describe("SolarViewCard", () => {
       card._render();
       expect(card.shadowRoot.querySelector(".debug-overlay")).toBeNull();
       card.remove();
+    });
+
+    it("re-renders every second so the overlay's 'last' column ages live", () => {
+      vi.useFakeTimers();
+      const card = createAndMount({ debug: true, gallery: { mode: "both" } });
+      const renderSpy = vi.spyOn(card, "_render");
+      vi.advanceTimersByTime(3000);
+      expect(renderSpy).toHaveBeenCalledTimes(3);
+      card.remove();
+      vi.useRealTimers();
+    });
+
+    it("stops the 1s refresh once debug is turned off while mounted", () => {
+      vi.useFakeTimers();
+      const card = createAndMount({ debug: true, gallery: { mode: "both" } });
+      card.setConfig({ debug: false });
+      const renderSpy = vi.spyOn(card, "_render");
+      vi.advanceTimersByTime(3000);
+      expect(renderSpy).not.toHaveBeenCalled();
+      card.remove();
+      vi.useRealTimers();
     });
   });
 
@@ -1558,7 +1581,7 @@ describe("SolarViewCard", () => {
       // Retried slot is one 15-min step earlier than a fresh (un-retried) lookup would give
       // — clear the cache first so this recomputes the primary slot instead of reading back
       // the retried one the card just cached.
-      clearImageCache();
+      urlCache.clear();
       const primarySlot = getSunImageUrl().date.getTime();
       expect(card._gallery.images.sun.date.getTime()).toBe(primarySlot - 15 * 60000);
       card.remove();
@@ -1649,7 +1672,7 @@ describe("SolarViewCard", () => {
       card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"]').click();
 
       expect(card._gallery.panelMode).toBe("sun");
-      clearImageCache();
+      urlCache.clear();
       const primarySlot = getSunImageUrl().date.getTime();
       expect(card._gallery.imageDate.getTime()).toBe(primarySlot - 15 * 60000);
       card.remove();
@@ -1719,7 +1742,7 @@ describe("SolarViewCard", () => {
       card.remove();
     });
 
-    // resolveDisplayImage already confirmed this exact URL loads once, but the real <img>
+    // ImageResolver.resolve() already confirmed this exact URL loads once, but the real <img>
     // still fires its own load/error events once mounted in the DOM — an unrelated later
     // failure (e.g. the browser's cache evicting the entry) has no retry left to fall back
     // on, unlike the preload-time retry covered elsewhere.
@@ -1966,13 +1989,13 @@ describe("SolarViewCard", () => {
         }
       );
       // gallery.mode: "earth" keeps this isolated to earth's own timeout — "both" would
-      // also hang sun's preload (same stubbed Image), which retries once and so needs a
-      // second 15s wait before the shared Promise.allSettled in _refreshImageSources
-      // settles, unrelated to what this test is checking.
+      // also hang sun's preload (same stubbed Image), which retries up to SUN_MAX_RETRIES
+      // times and so needs several more 15s waits before the shared Promise.allSettled in
+      // _refreshImageSources settles, unrelated to what this test is checking.
       const card = createAndMount({ gallery: { mode: "earth" } });
       await vi.advanceTimersByTimeAsync(0);
       card.shadowRoot.querySelector('.gallery-thumb[data-source="earth"]').click();
-      await vi.advanceTimersByTimeAsync(15000); // FETCH_TIMEOUT_MS in image-sources.ts
+      await vi.advanceTimersByTimeAsync(15000); // FETCH_TIMEOUT_MS in source-resolver.ts
       const img = card.shadowRoot.querySelector("#image-view");
       expect(img.classList.contains("visible")).toBe(false);
       expect(card._gallery.panelMode).toBe("none");
@@ -1983,23 +2006,23 @@ describe("SolarViewCard", () => {
       vi.useRealTimers();
     });
 
-    it("falls back to the unavailable banner when the sun image load hangs on both the primary and retry attempts", async () => {
+    it("falls back to the unavailable banner when the sun image load hangs on the primary attempt and all retries", async () => {
       vi.useFakeTimers();
       vi.stubGlobal(
         "Image",
         class {
           src = "";
           decode() {
-            return new Promise(() => {}); // never settles on either attempt
+            return new Promise(() => {}); // never settles on any attempt
           }
         }
       );
       const card = createAndMount({ gallery: { mode: "sun" } });
       await vi.advanceTimersByTimeAsync(0);
       card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"]').click();
-      // Primary attempt times out, then the one retry (getPreviousSunSlot) also hangs and
-      // times out — two sequential 15s bounds before the banner surfaces.
-      await vi.advanceTimersByTimeAsync(30000);
+      // Primary attempt times out, then all SUN_MAX_RETRIES retries (getPreviousSunSlot) also
+      // hang and time out — 4 sequential 15s bounds before the banner surfaces.
+      await vi.advanceTimersByTimeAsync(60000);
       const img = card.shadowRoot.querySelector("#image-view");
       expect(img.classList.contains("visible")).toBe(false);
       expect(card._gallery.panelMode).toBe("none");
@@ -2101,45 +2124,6 @@ describe("SolarViewCard", () => {
       thumbs = card.shadowRoot.querySelectorAll(".gallery-thumb");
       expect(thumbs.length).toBe(1);
       expect(thumbs[0].dataset.source).toBe("sun");
-
-      card.remove();
-      vi.useRealTimers();
-    });
-
-    it("gallery.mode: slide keeps showing the previous source until the next image finishes decoding", async () => {
-      vi.useFakeTimers();
-      stubEarthFetch();
-      let holding = false;
-      let resolveDecode: () => void;
-      vi.stubGlobal(
-        "Image",
-        class {
-          src = "";
-          decode() {
-            if (holding) {
-              return new Promise((resolve) => {
-                resolveDecode = resolve;
-              });
-            }
-            return Promise.resolve();
-          }
-        }
-      );
-
-      const card = createAndMount({ gallery: { mode: "slide", slide_interval_secs: 30 } });
-      await vi.advanceTimersByTimeAsync(0);
-      expect(card.shadowRoot.querySelector(".gallery-thumb").dataset.source).toBe("earth");
-
-      holding = true;
-      await vi.advanceTimersByTimeAsync(30 * 1000);
-      // Next image's decode() is still pending — label and thumbnail stay on the old source.
-      expect(card.shadowRoot.querySelector(".gallery-thumb").dataset.source).toBe("earth");
-      expect(card.shadowRoot.querySelector(".gallery-label").textContent).toBe("DSCOVR/E");
-
-      resolveDecode();
-      await vi.advanceTimersByTimeAsync(0);
-      expect(card.shadowRoot.querySelector(".gallery-thumb").dataset.source).toBe("sun");
-      expect(card.shadowRoot.querySelector(".gallery-label").textContent).toBe("SDO/S");
 
       card.remove();
       vi.useRealTimers();

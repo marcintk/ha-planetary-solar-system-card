@@ -10,12 +10,11 @@ import type { SourceDebugStats } from "../../src/card/debug.js";
 import type { GalleryViewModel } from "../../src/card/gallery-controller.js";
 
 const zeroDebugStats: SourceDebugStats = {
-  ticks: 0,
-  attempts: 0,
-  network: 0,
+  refreshes: 0,
+  fetches: 0,
   failures: 0,
   retries: 0,
-  redundant: 0,
+  expired: 0,
   elapsed: null,
   lastAttemptAt: null,
 };

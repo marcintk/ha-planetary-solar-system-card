@@ -216,11 +216,10 @@ export const cardStyles = css`
     left: 0;
     right: 0;
     top: 100%;
+    z-index: 1;
     box-sizing: border-box;
     pointer-events: none;
-    background: rgba(0, 0, 0, 0.25);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
+    background: rgba(0, 0, 0, 0.55);
     color: #00e676;
     font-family: monospace;
     font-size: 10px;
@@ -234,7 +233,6 @@ export const cardStyles = css`
   .debug-overlay table {
     width: 100%;
     border-collapse: collapse;
-    table-layout: fixed;
   }
   .debug-overlay th,
   .debug-overlay td {

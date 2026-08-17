@@ -9,12 +9,16 @@ import { urlCache } from "./url-cache.js";
 // the directory listing from the browser to confirm which slot has actually been published.
 // Instead we compute the URL: floor "now minus a publish-latency buffer" to the last 15-min
 // slot. One buffer's worth of margin (one slot) covers the typical case; the resolver retries
-// once, a further slot back, if that guess 404s — so the buffer only needs to cover the
-// common case, not the worst case, before falling back to the same "unavailable" state as any
-// other failed source.
+// up to SUN_MAX_RETRIES further slots back if that guess 404s — covering up to
+// SUN_PUBLISH_BUFFER_MS + SUN_MAX_RETRIES * SUN_CACHE_TTL_MS of real publish lag — before
+// falling back to the same "unavailable" state as any other failed source. Deliberately
+// bounded, not unbounded backward search: a real multi-hour NASA outage should surface as
+// "unavailable" like any other failed source, not burn an ever-growing chain of 404s hunting
+// for an increasingly stale picture.
 export const SDO_BROWSE_BASE_URL = "https://sdo.gsfc.nasa.gov/assets/img/browse";
 export const SUN_CACHE_TTL_MS = 15 * 60000;
-const SUN_PUBLISH_BUFFER_MS = 15 * 60000;
+const SUN_PUBLISH_BUFFER_MS = 20 * 60000;
+const SUN_MAX_RETRIES = 3;
 
 export class SdoSunResolver extends SourceResolver {
   readonly source = "sun" as const;
@@ -28,14 +32,23 @@ export class SdoSunResolver extends SourceResolver {
   }
 
   protected async recover(
-    _err: unknown,
+    err: unknown,
     candidate: SourcedImage,
     debug: DebugAccumulator
   ): Promise<SourcedImage> {
-    debug.retries++;
-    const fallback = getPreviousSunSlot(candidate.date);
-    await timedPreload(fallback.url, debug);
-    return fallback;
+    let slot = candidate;
+    let lastErr = err;
+    for (let attempt = 0; attempt < SUN_MAX_RETRIES; attempt++) {
+      debug.retries++;
+      slot = getPreviousSunSlot(slot.date);
+      try {
+        await timedPreload(slot.url, debug);
+        return slot;
+      } catch (retryErr) {
+        lastErr = retryErr;
+      }
+    }
+    throw lastErr;
   }
 }
 
@@ -50,14 +63,14 @@ export function getSunImageUrl(maxAgeMs = SUN_CACHE_TTL_MS): SourcedImage {
   return image;
 }
 
-// One-step fallback for when the computed slot 404s (NASA's publish pipeline occasionally
-// lags past the buffer) — steps back exactly one 15-min slot and nothing further, so a
-// single stale request doesn't turn into an unbounded retry chain. Writes the corrected
-// slot back into the shared cache: without this, the cache still held the original
-// not-yet-published slot, so the next getSunImageUrl() call (the periodic background
-// refresh, on whatever cadence refresh_mins is set to — not necessarily 15 minutes) would
-// hand that same bad slot straight back out, reverting the already-corrected image and
-// failing again with no retry left (#94 follow-up).
+// One-step fallback for when a slot 404s (NASA's publish pipeline occasionally lags past the
+// buffer) — steps back exactly one 15-min slot per call; recover()'s loop bounds how many
+// times it's called (SUN_MAX_RETRIES), so this stays a fixed step rather than growing its own
+// unbounded chain. Writes the corrected slot back into the shared cache: without this, the
+// cache still held the original not-yet-published slot, so the next getSunImageUrl() call
+// (the periodic background refresh, on whatever cadence refresh_mins is set to — not
+// necessarily 15 minutes) would hand that same bad slot straight back out, reverting the
+// already-corrected image and failing again with no retry left (#94 follow-up).
 export function getPreviousSunSlot(currentSlot: Date): SourcedImage {
   const image = buildSunSlotImage(new Date(currentSlot.getTime() - SUN_CACHE_TTL_MS));
   urlCache.set("sun", image);

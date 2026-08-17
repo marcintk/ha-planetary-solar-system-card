@@ -83,9 +83,10 @@ describe("buildDebugOverlay", () => {
     const cells = [...rows].slice(1).map((row) => [...row.children].map((td) => td.textContent));
     expect(cells).toEqual([
       ["SDO/S", "4", "2", "5", "3", "1", "2", "123ms", "5m"],
-      ["DSCOVR/E url", "0", "0", "0", "0", "0", "0", "—", "—"],
-      // earth-img has no cache/URL-identity step of its own — those columns show "—", not 0.
-      ["DSCOVR/E img", "0", "—", "—", "0", "0", "0", "—", "—"],
+      // Neither earth row can retry (only sun's resolver ever does) — retry shows "—".
+      ["DSCOVR/E url", "0", "0", "0", "0", "0", "—", "—", "—"],
+      // earth-img also has no cache/URL-identity step of its own — those columns show "—" too.
+      ["DSCOVR/E img", "0", "—", "—", "0", "0", "—", "—", "—"],
       // total: refreshes max()s (4 vs. 0 vs. 0) rather than summing, cacheHits/others sum
       // the raw underlying values (not the dashed display), elapsed avg()s the non-null
       // values (just sun's 123.4 here), last is always "—" — see summarizeDebugStats.

@@ -145,7 +145,7 @@ export function buildDebugOverlay(
         <th>fetch</th>
         <th>fail</th>
         <th>retry</th>
-        <th>time</th>
+        <th>elapsed</th>
         <th>ago</th>
       </tr>
       ${DEBUG_ROWS.map((rowId) => {
@@ -154,6 +154,11 @@ export function buildDebugOverlay(
         // see the DebugRowId comment) — showing 0 there would misleadingly imply "checked
         // and found nothing", when really the question never applies to this row at all.
         const hasCacheStep = rowId !== "earth-img";
+        // Only sun's resolver ever retries (recover()'s one-slot-back fallback — see
+        // source-resolver-sdosun.ts) — earth's default recover() just rethrows, so 0 there
+        // would misleadingly suggest "checked, never needed one" rather than "not a thing
+        // that can happen on this row".
+        const canRetry = rowId === "sun";
         return html`<tr>
           <td>${DEBUG_ROW_LABELS[rowId]}</td>
           <td>${s.refreshes}</td>
@@ -161,7 +166,7 @@ export function buildDebugOverlay(
           <td>${hasCacheStep ? s.expired : "—"}</td>
           <td>${s.fetches}</td>
           <td>${s.failures}</td>
-          <td>${s.retries}</td>
+          <td>${canRetry ? s.retries : "—"}</td>
           <td>${formatMs(s.elapsed)}</td>
           <td>${s.lastAttemptAt == null ? "—" : formatDuration(Date.now() - s.lastAttemptAt)}</td>
         </tr>`;

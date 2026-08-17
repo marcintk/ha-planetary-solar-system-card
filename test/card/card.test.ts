@@ -1989,9 +1989,9 @@ describe("SolarViewCard", () => {
         }
       );
       // gallery.mode: "earth" keeps this isolated to earth's own timeout — "both" would
-      // also hang sun's preload (same stubbed Image), which retries once and so needs a
-      // second 15s wait before the shared Promise.allSettled in _refreshImageSources
-      // settles, unrelated to what this test is checking.
+      // also hang sun's preload (same stubbed Image), which retries up to SUN_MAX_RETRIES
+      // times and so needs several more 15s waits before the shared Promise.allSettled in
+      // _refreshImageSources settles, unrelated to what this test is checking.
       const card = createAndMount({ gallery: { mode: "earth" } });
       await vi.advanceTimersByTimeAsync(0);
       card.shadowRoot.querySelector('.gallery-thumb[data-source="earth"]').click();
@@ -2006,23 +2006,23 @@ describe("SolarViewCard", () => {
       vi.useRealTimers();
     });
 
-    it("falls back to the unavailable banner when the sun image load hangs on both the primary and retry attempts", async () => {
+    it("falls back to the unavailable banner when the sun image load hangs on the primary attempt and all retries", async () => {
       vi.useFakeTimers();
       vi.stubGlobal(
         "Image",
         class {
           src = "";
           decode() {
-            return new Promise(() => {}); // never settles on either attempt
+            return new Promise(() => {}); // never settles on any attempt
           }
         }
       );
       const card = createAndMount({ gallery: { mode: "sun" } });
       await vi.advanceTimersByTimeAsync(0);
       card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"]').click();
-      // Primary attempt times out, then the one retry (getPreviousSunSlot) also hangs and
-      // times out — two sequential 15s bounds before the banner surfaces.
-      await vi.advanceTimersByTimeAsync(30000);
+      // Primary attempt times out, then all SUN_MAX_RETRIES retries (getPreviousSunSlot) also
+      // hang and time out — 4 sequential 15s bounds before the banner surfaces.
+      await vi.advanceTimersByTimeAsync(60000);
       const img = card.shadowRoot.querySelector("#image-view");
       expect(img.classList.contains("visible")).toBe(false);
       expect(card._gallery.panelMode).toBe("none");

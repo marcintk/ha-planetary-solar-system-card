@@ -1,11 +1,30 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { emptyDebugAccumulator } from "../../src/card/debug.js";
 import {
-  getPreviousSunSlot,
   getSunImageUrl,
   SDO_BROWSE_BASE_URL,
   SdoSunResolver,
+  SUN_CACHE_TTL_MS,
 } from "../../src/card/source-resolver-sdosun.js";
 import { urlCache } from "../../src/card/url-cache.js";
+
+// Same pattern as gallery-controller.test.ts's stubImagePreload: recover()'s retry loop goes
+// through a real off-DOM `new Image()` decode, so a failing-then-succeeding sequence needs
+// stubbing to exercise the fallback without a real network call.
+function stubImageDecode(...results: boolean[]) {
+  let calls = 0;
+  vi.stubGlobal(
+    "Image",
+    class {
+      src = "";
+      decode() {
+        const succeeds = results.length ? results[Math.min(calls, results.length - 1)] : true;
+        calls++;
+        return succeeds ? Promise.resolve() : Promise.reject(new Error("decode failed"));
+      }
+    }
+  );
+}
 
 describe("source-resolver-sdosun", () => {
   afterEach(() => {
@@ -52,26 +71,41 @@ describe("source-resolver-sdosun", () => {
     });
   });
 
-  describe("getPreviousSunSlot", () => {
+  describe("SdoSunResolver.recover", () => {
     // Regression for the "reverts to the bad slot and gives up" bug: a computed slot can
-    // fail to load if NASA hasn't published it yet, and the card retries via
-    // getPreviousSunSlot — but that retry has to update the *shared* cache, or the next
-    // background refresh (getSunImageUrl(), on whatever cadence refresh_mins is set to —
-    // not 15 minutes) hands the same not-yet-published slot straight back out.
-    it("writes the corrected slot into the cache so a later getSunImageUrl() call reuses it", () => {
+    // fail to load if NASA hasn't published it yet, and the resolver retries one slot back —
+    // but that retry has to update the *shared* cache, or the next background refresh
+    // (getSunImageUrl(), on whatever cadence refresh_mins is set to — not 15 minutes) hands
+    // the same not-yet-published slot straight back out.
+    it("commits the corrected slot to the cache so a later getSunImageUrl() call reuses it", async () => {
       const NOW = Date.UTC(2026, 7, 15, 22, 42, 30);
       vi.spyOn(Date, "now").mockReturnValue(NOW);
+      stubImageDecode(false, true); // primary slot 404s, one-step-back fallback loads
 
-      const original = getSunImageUrl(); // 22:15:00 (buffered slot)
-      const corrected = getPreviousSunSlot(original.date); // steps back to 22:00:00
+      const debug = emptyDebugAccumulator();
+      const original = await new SdoSunResolver().resolve(debug, debug);
+      expect(original.date.toISOString()).toBe("2026-08-15T22:00:00.000Z"); // stepped back once
 
-      // Moments later — well within the 15-min cache TTL — a background refresh
-      // (_refreshOpenImage) must see the corrected slot, not the original bad one.
+      // Moments later — well within the 15-min cache TTL — a background refresh must see the
+      // corrected slot, not the original 22:15:00 guess that 404s.
       vi.spyOn(Date, "now").mockReturnValue(NOW + 60000);
       const refreshed = getSunImageUrl();
+      expect(refreshed).toEqual(original);
+    });
 
-      expect(refreshed).toEqual(corrected);
-      expect(refreshed).not.toEqual(original);
+    it("never commits a failed intermediate guess to the cache", async () => {
+      const NOW = Date.UTC(2026, 7, 15, 22, 42, 30);
+      vi.spyOn(Date, "now").mockReturnValue(NOW);
+      stubImageDecode(false, false, true); // two failed guesses before the fallback that loads
+
+      const debug = emptyDebugAccumulator();
+      await new SdoSunResolver().resolve(debug, debug);
+
+      // If a failed attempt had ever written to the cache, this read (issued mid-retry in a
+      // real concurrent tick) would have seen one of the two not-yet-published guesses.
+      expect(urlCache.get("sun", SUN_CACHE_TTL_MS)?.date.toISOString()).toBe(
+        "2026-08-15T21:45:00.000Z"
+      );
     });
   });
 

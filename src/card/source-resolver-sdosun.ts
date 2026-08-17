@@ -40,9 +40,13 @@ export class SdoSunResolver extends SourceResolver {
     let lastErr = err;
     for (let attempt = 0; attempt < SUN_MAX_RETRIES; attempt++) {
       debug.retries++;
-      slot = getPreviousSunSlot(slot.date);
+      slot = previousSunSlot(slot.date);
       try {
         await timedPreload(slot.url, debug);
+        // Committed only for the slot that actually loaded — an attempt that 404s never
+        // touches the shared cache, so a concurrent reader (another refresh() tick racing
+        // this retry loop) can never observe a still-unconfirmed guess between attempts.
+        urlCache.set("sun", slot);
         return slot;
       } catch (retryErr) {
         lastErr = retryErr;
@@ -66,15 +70,13 @@ export function getSunImageUrl(maxAgeMs = SUN_CACHE_TTL_MS): SourcedImage {
 // One-step fallback for when a slot 404s (NASA's publish pipeline occasionally lags past the
 // buffer) — steps back exactly one 15-min slot per call; recover()'s loop bounds how many
 // times it's called (SUN_MAX_RETRIES), so this stays a fixed step rather than growing its own
-// unbounded chain. Writes the corrected slot back into the shared cache: without this, the
-// cache still held the original not-yet-published slot, so the next getSunImageUrl() call
-// (the periodic background refresh, on whatever cadence refresh_mins is set to — not
-// necessarily 15 minutes) would hand that same bad slot straight back out, reverting the
-// already-corrected image and failing again with no retry left (#94 follow-up).
-export function getPreviousSunSlot(currentSlot: Date): SourcedImage {
-  const image = buildSunSlotImage(new Date(currentSlot.getTime() - SUN_CACHE_TTL_MS));
-  urlCache.set("sun", image);
-  return image;
+// unbounded chain. Pure — recover() commits the winning slot to the shared cache itself, once,
+// so the next getSunImageUrl() call (the periodic background refresh, on whatever cadence
+// refresh_mins is set to — not necessarily 15 minutes) reuses the corrected slot rather than
+// reverting to the original not-yet-published one (#94 follow-up), and no failed intermediate
+// guess is ever visible to a concurrent reader of the cache.
+function previousSunSlot(currentSlot: Date): SourcedImage {
+  return buildSunSlotImage(new Date(currentSlot.getTime() - SUN_CACHE_TTL_MS));
 }
 
 function pad(n: number): string {

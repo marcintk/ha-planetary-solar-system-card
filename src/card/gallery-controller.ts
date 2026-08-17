@@ -1,5 +1,7 @@
 import type { ImageSource } from "./card-template.js";
 import { GALLERY_SOURCES, IMAGE_SOURCE_LABELS } from "./card-template.js";
+import type { DebugAccumulator, SourceDebugStats } from "./debug.js";
+import { emptyDebugAccumulator, toDebugStats } from "./debug.js";
 import type { SourcedImage } from "./image-sources.js";
 import {
   FETCH_TIMEOUT_MS,
@@ -12,47 +14,6 @@ export type ImagePanelMode = "none" | ImageSource;
 export type GalleryMode = "none" | "earth" | "sun" | "both" | "slide";
 export const GALLERY_MODES: GalleryMode[] = ["none", "earth", "sun", "both", "slide"];
 export const DEFAULT_GALLERY_INTERVAL_MS = 60000;
-
-// Cumulative, since the card was mounted — not a rolling window. Lets debug:true answer "is
-// this source's own cache actually saving anything" at a glance: checks vs. networkCalls
-// equal means every tick is hitting the network regardless of cache state. `redundant` is
-// the sharper signal for that same question — it counts preloads whose resolved URL turned
-// out identical to the image already displayed, i.e. bytes that were re-fetched and
-// re-decoded for nothing. `attempts` vs. `networkCalls`+`failures` separates "tried" from
-// "succeeded", since a failed preload (sun's retry path) previously vanished from the count
-// entirely instead of showing up as a real network cost.
-export interface SourceDebugStats {
-  checks: number;
-  attempts: number;
-  networkCalls: number;
-  failures: number;
-  redundant: number;
-  avgFetchMs: number | null;
-}
-
-interface DebugAccumulator {
-  checks: number;
-  attempts: number;
-  networkCalls: number;
-  failures: number;
-  redundant: number;
-  fetchMsTotal: number;
-}
-
-function emptyDebugAccumulator(): DebugAccumulator {
-  return { checks: 0, attempts: 0, networkCalls: 0, failures: 0, redundant: 0, fetchMsTotal: 0 };
-}
-
-function toDebugStats(acc: DebugAccumulator): SourceDebugStats {
-  return {
-    checks: acc.checks,
-    attempts: acc.attempts,
-    networkCalls: acc.networkCalls,
-    failures: acc.failures,
-    redundant: acc.redundant,
-    avgFetchMs: acc.networkCalls > 0 ? acc.fetchMsTotal / acc.networkCalls : null,
-  };
-}
 
 // Render-ready shape for card.ts's template — raw data only (dates, urls, booleans), no
 // formatting, so formatRelativeAge/date-formatting stays in card.ts alongside its other
@@ -98,29 +59,40 @@ function preloadImage(url: string): Promise<void> {
 // step back, one retry. Used only by refresh() — every source's image, for both the gallery
 // strip and a full-screen panel, is resolved there and nowhere else, so a slow or failing
 // candidate is caught before it ever reaches a visible <img>.
-async function timedPreload(url: string, debug: DebugAccumulator): Promise<void> {
+// Shared by both the image-byte preload and (for earth) the EPIC JSON lookup that precedes
+// it — from the debug overlay's point of view, both are "an attempt at a real network call",
+// so they share one set of counters rather than needing their own column each.
+async function timedAttempt<T>(op: () => Promise<T>, debug: DebugAccumulator): Promise<T> {
   debug.attempts++;
+  debug.lastAttemptAt = Date.now();
   const start = performance.now();
   try {
-    await preloadImage(url);
-    debug.networkCalls++;
+    const result = await op();
+    debug.network++;
     debug.fetchMsTotal += performance.now() - start;
+    return result;
   } catch (err) {
     debug.failures++;
     throw err;
   }
 }
 
+function timedPreload(url: string, debug: DebugAccumulator): Promise<void> {
+  return timedAttempt(() => preloadImage(url), debug);
+}
+
 async function resolveDisplayImage(
   mode: ImageSource,
   debug: DebugAccumulator
 ): Promise<SourcedImage> {
-  const candidate = mode === "earth" ? await fetchLatestEarthImageUrl() : getSunImageUrl();
+  const candidate =
+    mode === "earth" ? await timedAttempt(fetchLatestEarthImageUrl, debug) : getSunImageUrl();
   try {
     await timedPreload(candidate.url, debug);
     return candidate;
   } catch (err) {
     if (mode !== "sun") throw err;
+    debug.retries++;
     const fallback = getPreviousSunSlot(candidate.date);
     await timedPreload(fallback.url, debug);
     return fallback;
@@ -391,7 +363,7 @@ export class GalleryController {
     const sources = this._fetchSources;
     const previousUrls: Partial<Record<ImageSource, string>> = {};
     for (const source of sources) {
-      this._debug[source].checks++;
+      this._debug[source].ticks++;
       previousUrls[source] = this._images[source]?.url;
     }
     const results = await Promise.allSettled(

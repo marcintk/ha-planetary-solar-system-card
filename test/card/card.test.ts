@@ -451,18 +451,18 @@ describe("SolarViewCard", () => {
 
     it("shows sun/earth rows with cumulative stats when debug is true", async () => {
       const card = createAndMount({ debug: true, gallery: { mode: "both" } });
-      await vi.waitFor(() => expect(card._gallery.debugStats.sun.networkCalls).toBe(1));
+      await vi.waitFor(() => expect(card._gallery.debugStats.sun.network).toBe(1));
       card._render();
       const overlay = card.shadowRoot.querySelector(".debug-overlay");
       const rowText = [...overlay.querySelectorAll("tr")].map((tr) => tr.textContent);
       expect(rowText[1]).toContain("SDO/S");
       expect(rowText[2]).toContain("DSCOVR/E");
       expect(overlay.textContent).toContain("source");
-      expect(overlay.textContent).toContain("checks");
-      expect(overlay.textContent).toContain("attempts");
-      expect(overlay.textContent).toContain("redundant");
+      expect(overlay.textContent).toContain("ticks");
+      expect(overlay.textContent).toContain("atmpt");
+      expect(overlay.textContent).toContain("dup");
       expect(overlay.textContent).toMatch(/\d+ms/);
-      expect(overlay.textContent).toContain("running for ");
+      expect(overlay.textContent).toContain("since ");
       card.remove();
     });
 

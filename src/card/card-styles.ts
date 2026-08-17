@@ -214,7 +214,9 @@ export const cardStyles = css`
   .debug-overlay {
     position: absolute;
     left: 0;
+    right: 0;
     top: 100%;
+    box-sizing: border-box;
     pointer-events: none;
     background: rgba(0, 0, 0, 0.25);
     backdrop-filter: blur(4px);
@@ -230,7 +232,9 @@ export const cardStyles = css`
     margin-top: 2px;
   }
   .debug-overlay table {
+    width: 100%;
     border-collapse: collapse;
+    table-layout: fixed;
   }
   .debug-overlay th,
   .debug-overlay td {
@@ -245,6 +249,10 @@ export const cardStyles = css`
   .debug-overlay th {
     color: #66bb9a;
     font-weight: normal;
+  }
+  .debug-total td {
+    border-top: 1px solid rgba(0, 230, 118, 0.3);
+    color: #66bb9a;
   }
   .card-version {
     font-size: 9px;

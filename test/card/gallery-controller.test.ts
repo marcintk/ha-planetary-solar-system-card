@@ -292,12 +292,14 @@ describe("GalleryController.viewModel", () => {
 
 describe("GalleryController.debugStats", () => {
   const zeroStats = {
-    checks: 0,
+    ticks: 0,
     attempts: 0,
-    networkCalls: 0,
+    network: 0,
     failures: 0,
+    retries: 0,
     redundant: 0,
-    avgFetchMs: null,
+    elapsed: null,
+    lastAttemptAt: null,
   };
 
   it("starts at zero for both sources", () => {
@@ -305,43 +307,59 @@ describe("GalleryController.debugStats", () => {
     expect(gallery.debugStats).toEqual({ earth: zeroStats, sun: zeroStats });
   });
 
-  it("counts one check and one network call per source per tick, with no cache gate", async () => {
+  it("counts one tick and one network call per source, each refresh, with no cache gate", async () => {
     const gallery = new GalleryController(() => {});
     gallery.configure("both", 60000);
     gallery.start();
     await vi.waitFor(() => expect(gallery.images.earth).toBeDefined());
 
     gallery.tick();
-    await vi.waitFor(() => expect(gallery.debugStats.earth.networkCalls).toBe(2));
+    // Earth counts 2 network calls per tick — the EPIC API lookup plus the image preload —
+    // so 2 ticks means 4, while sun (no metadata API, just the preload) stays at 2.
+    await vi.waitFor(() => expect(gallery.debugStats.earth.network).toBe(4));
 
     // Today's known bug: nothing skips the network call even though the URL didn't
-    // change, so checks and networkCalls stay in lockstep every tick. `redundant`
+    // change, so ticks and network stay in lockstep every tick. `redundant`
     // surfaces exactly this — the second tick's resolved URL matches the first's.
-    expect(gallery.debugStats.earth.checks).toBe(2);
-    expect(gallery.debugStats.sun.checks).toBe(2);
-    expect(gallery.debugStats.sun.networkCalls).toBe(2);
-    expect(gallery.debugStats.earth.avgFetchMs).not.toBeNull();
+    expect(gallery.debugStats.earth.ticks).toBe(2);
+    expect(gallery.debugStats.sun.ticks).toBe(2);
+    expect(gallery.debugStats.sun.network).toBe(2);
+    expect(gallery.debugStats.earth.elapsed).not.toBeNull();
     expect(gallery.debugStats.earth.redundant).toBe(1);
     expect(gallery.debugStats.sun.redundant).toBe(1);
+    expect(gallery.debugStats.earth.lastAttemptAt).not.toBeNull();
   });
 
-  it("counts a failed preload as an attempt without a network call", async () => {
+  it("counts a failed image preload as an attempt distinct from the EPIC API call", async () => {
     stubImagePreload(false);
     const gallery = new GalleryController(() => {});
     gallery.configure("earth", 60000);
     gallery.start();
     await vi.waitFor(() => expect(gallery.debugStats.earth.failures).toBe(1));
 
-    expect(gallery.debugStats.earth.attempts).toBe(1);
-    expect(gallery.debugStats.earth.networkCalls).toBe(0);
-    expect(gallery.debugStats.earth.avgFetchMs).toBeNull();
+    // 2 attempts (EPIC API lookup + image preload), only the API call succeeded.
+    expect(gallery.debugStats.earth.attempts).toBe(2);
+    expect(gallery.debugStats.earth.network).toBe(1);
+    expect(gallery.debugStats.earth.elapsed).not.toBeNull();
+  });
+
+  it("counts a retry when sun's primary slot guess fails and falls back", async () => {
+    stubImagePreload(false, true);
+    const gallery = new GalleryController(() => {});
+    gallery.configure("sun", 60000);
+    gallery.start();
+    await vi.waitFor(() => expect(gallery.debugStats.sun.retries).toBe(1));
+
+    expect(gallery.debugStats.sun.attempts).toBe(2);
+    expect(gallery.debugStats.sun.network).toBe(1);
+    expect(gallery.debugStats.sun.failures).toBe(1);
   });
 
   it("does not count sources outside the configured mode", async () => {
     const gallery = new GalleryController(() => {});
     gallery.configure("earth", 60000);
     gallery.start();
-    await vi.waitFor(() => expect(gallery.debugStats.earth.checks).toBe(1));
-    expect(gallery.debugStats.sun.checks).toBe(0);
+    await vi.waitFor(() => expect(gallery.debugStats.earth.ticks).toBe(1));
+    expect(gallery.debugStats.sun.ticks).toBe(0);
   });
 });

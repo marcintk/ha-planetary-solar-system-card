@@ -6,8 +6,8 @@ import {
   getSkyMode,
 } from "../astronomy/solar-position.js";
 import type { LocationData } from "../types.js";
-import type { GalleryViewModel, SourceDebugStats } from "./gallery-controller.js";
-import { formatDuration, formatRelativeAge } from "./relative-time.js";
+import type { GalleryViewModel } from "./gallery-controller.js";
+import { formatRelativeAge } from "./relative-time.js";
 
 export function formatDate(date: Date): string {
   const y = String(date.getFullYear()).slice(-2);
@@ -111,47 +111,4 @@ export function buildStatusBarView(
     new Date(),
     gallery.imageLoaded
   );
-}
-
-function formatMs(ms: number | null): string {
-  return ms == null ? "—" : `${Math.round(ms)}ms`;
-}
-
-// debug:true overlay — sun/earth's cumulative check vs. network-call counts, so checks ===
-// networkCalls is visible at a glance as "this source's cache isn't actually skipping the
-// network call". Cumulative since mount, not a rolling window — this card's timers are
-// coarse (minutes, not events-per-second) so a running total reads better than a windowed rate.
-// No image-size column: neither NASA host sends Timing-Allow-Origin or CORS headers on its
-// image path, so the browser withholds transfer size from JS for both — nothing to show.
-export function buildDebugOverlay(
-  stats: Record<ImageSource, SourceDebugStats>,
-  startedAt: number
-): TemplateResult {
-  const rows: ImageSource[] = ["sun", "earth"];
-  return html`<div class="debug-overlay">
-    <table>
-      <tr>
-        <th>source</th>
-        <th>checks</th>
-        <th>attempts</th>
-        <th>ok</th>
-        <th>fail</th>
-        <th>redundant</th>
-        <th>fetch-time</th>
-      </tr>
-      ${rows.map((source) => {
-        const s = stats[source];
-        return html`<tr>
-          <td>${GALLERY_SOURCE_LABELS[source]}</td>
-          <td>${s.checks}</td>
-          <td>${s.attempts}</td>
-          <td>${s.networkCalls}</td>
-          <td>${s.failures}</td>
-          <td>${s.redundant}</td>
-          <td>${formatMs(s.avgFetchMs)}</td>
-        </tr>`;
-      })}
-    </table>
-    <div class="debug-caption">running for ${formatDuration(Date.now() - startedAt)}</div>
-  </div>`;
 }

@@ -10,13 +10,9 @@ import type {
 import { parseCardConfig } from "./card-config.js";
 import { cardStyles } from "./card-styles.js";
 import type { ImageSource } from "./card-template.js";
-import {
-  buildDebugOverlay,
-  buildStatusBarView,
-  formatDate,
-  GALLERY_SOURCE_LABELS,
-} from "./card-template.js";
+import { buildStatusBarView, formatDate, GALLERY_SOURCE_LABELS } from "./card-template.js";
 import { DateNav } from "./date-nav.js";
+import { buildDebugOverlay } from "./debug.js";
 import type { GalleryMode } from "./gallery-controller.js";
 import { GalleryController } from "./gallery-controller.js";
 import { formatRelativeAge } from "./relative-time.js";

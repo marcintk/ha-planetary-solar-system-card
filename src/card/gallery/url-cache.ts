@@ -1,3 +1,5 @@
+import { Backoff } from "./backoff.js";
+
 export interface SourcedImage {
   url: string;
   date: Date;
@@ -19,13 +21,22 @@ interface CacheEntry {
 // expire while the recomputed candidate is still the same URL we've already decoded. Both live
 // here, not split into a second field on the caller, since both are "what do we already know
 // about this source's state" and a caller needing one usually needs the other in the same call.
+//
+// Delegates cooldown/backoff (inCooldown, getStale, recordFailure, recordSuccess) to Backoff
+// (backoff.ts) — a distinct clock (consecutive failures) answering a distinct question ("should
+// we even attempt the network"), kept as a separate class rather than more fields here.
 export class UrlCache {
   private entries = new Map<string, CacheEntry>();
   private decoded = new Map<string, string>();
+  private backoff = new Backoff();
 
   get(key: string, maxAgeMs: number): SourcedImage | null {
     const entry = this.entries.get(key);
     return entry != null && Date.now() - entry.fetchedAt < maxAgeMs ? entry.image : null;
+  }
+
+  getStale(key: string): SourcedImage | null {
+    return this.backoff.getStale(key);
   }
 
   set(key: string, image: SourcedImage): void {
@@ -40,9 +51,22 @@ export class UrlCache {
     this.decoded.set(key, url);
   }
 
+  inCooldown(key: string): boolean {
+    return this.backoff.inCooldown(key);
+  }
+
+  recordFailure(key: string, retryAfterMs?: number): void {
+    this.backoff.recordFailure(key, retryAfterMs);
+  }
+
+  recordSuccess(key: string, image: SourcedImage): void {
+    this.backoff.recordSuccess(key, image);
+  }
+
   clear(): void {
     this.entries.clear();
     this.decoded.clear();
+    this.backoff.clear();
   }
 }
 

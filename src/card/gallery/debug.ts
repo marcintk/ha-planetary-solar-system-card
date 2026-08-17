@@ -1,8 +1,8 @@
 import type { TemplateResult } from "lit";
 import { html } from "lit";
-import type { ImageSource } from "./card-template.js";
-import { formatDate } from "./card-template.js";
-import { formatDuration } from "./relative-time.js";
+import type { ImageSource } from "../card-template.js";
+import { formatDate } from "../card-template.js";
+import { formatDuration } from "../relative-time.js";
 
 // Earth's own resolve() makes two independent network calls (the EPIC JSON lookup for the
 // latest URL, then the image-byte preload/decode) that used to share one set of counters,

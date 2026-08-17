@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { UrlCache } from "../../src/card/url-cache.js";
+import { UrlCache } from "../../../src/card/gallery/url-cache.js";
 
 describe("UrlCache", () => {
   afterEach(() => {
@@ -70,5 +70,38 @@ describe("UrlCache", () => {
     cache.markDecoded("earth", "https://example.com/a.jpg");
     cache.clear();
     expect(cache.isDecoded("earth", "https://example.com/a.jpg")).toBe(false);
+  });
+
+  // Cooldown/backoff behavior itself is Backoff's responsibility (backoff.test.ts) — these
+  // just confirm UrlCache actually delegates to it rather than owning parallel state.
+  describe("cooldown/backoff delegation", () => {
+    it("getStale ignores a set() candidate that was never confirmed via recordSuccess", () => {
+      // Regression: sun's resolver optimistically writes a computed candidate to the TTL
+      // cache (set()) before it's confirmed to load — getStale must not treat that as a
+      // known-good fallback during a cooldown.
+      const cache = new UrlCache();
+      cache.set("sun", { url: "https://example.com/unconfirmed.jpg", date: new Date() });
+      expect(cache.getStale("sun")).toBeNull();
+    });
+
+    it("recordFailure puts a source in cooldown, recordSuccess clears it", () => {
+      const cache = new UrlCache();
+      cache.recordFailure("sun");
+      expect(cache.inCooldown("sun")).toBe(true);
+
+      cache.recordSuccess("sun", { url: "https://example.com/x.jpg", date: new Date() });
+      expect(cache.inCooldown("sun")).toBe(false);
+      expect(cache.getStale("sun")).toEqual({
+        url: "https://example.com/x.jpg",
+        date: expect.any(Date),
+      });
+    });
+
+    it("clear also resets cooldown/backoff state", () => {
+      const cache = new UrlCache();
+      cache.recordFailure("sun");
+      cache.clear();
+      expect(cache.inCooldown("sun")).toBe(false);
+    });
   });
 });

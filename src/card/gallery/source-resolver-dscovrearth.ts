@@ -4,6 +4,28 @@ import type { SourcedImage, UrlCache } from "./url-cache.js";
 import { urlCache } from "./url-cache.js";
 
 export const EPIC_BASE_URL = "https://epic.gsfc.nasa.gov";
+
+// Carries a server-supplied Retry-After (429 responses) so source-resolver.ts's cooldown can
+// honor it as a floor over its own computed backoff. EPIC is the only source that can surface
+// this — SDO's <img>-based loads expose no HTTP status or headers to the browser at all.
+export class EpicApiError extends Error {
+  constructor(
+    message: string,
+    readonly retryAfterMs?: number
+  ) {
+    super(message);
+  }
+}
+
+// Retry-After is either delta-seconds ("120") or an HTTP-date ("Wed, 21 Oct 2026 07:28:00
+// GMT") — RFC 9110 §10.2.3 allows both forms.
+function parseRetryAfterMs(header: string | null): number | undefined {
+  if (!header) return undefined;
+  const seconds = Number(header);
+  if (!Number.isNaN(seconds)) return seconds * 1000;
+  const dateMs = Date.parse(header);
+  return Number.isNaN(dateMs) ? undefined : Math.max(0, dateMs - Date.now());
+}
 // Shared by the gallery thumbnail's background poll, the full-screen view's click-open
 // fetch, and its own background refresh once open — so clicking a thumbnail always reuses
 // the exact image already loaded rather than computing a slightly newer one and forcing an
@@ -34,7 +56,10 @@ export async function fetchLatestEarthImageUrl(
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   });
   if (!response.ok) {
-    throw new Error(`EPIC API request failed: ${response.status}`);
+    throw new EpicApiError(
+      `EPIC API request failed: ${response.status}`,
+      parseRetryAfterMs(response.headers?.get("retry-after") ?? null)
+    );
   }
   const images = (await response.json()) as Array<{ identifier: string }>;
   const latest = images[images.length - 1];

@@ -6,8 +6,8 @@ import {
   buildStatusBarView,
   formatDate,
 } from "../../src/card/card-template.js";
-import type { SourceDebugStats } from "../../src/card/debug.js";
-import type { GalleryViewModel } from "../../src/card/gallery-controller.js";
+import type { SourceDebugStats } from "../../src/card/gallery/debug.js";
+import type { GalleryViewModel } from "../../src/card/gallery/gallery-controller.js";
 
 const zeroDebugStats: SourceDebugStats = {
   refreshes: 0,

@@ -1,10 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { emptyDebugAccumulator } from "../../../src/card/gallery/debug.js";
 import {
   DscovrEarthResolver,
   EPIC_BASE_URL,
+  EpicApiError,
   fetchLatestEarthImageUrl,
-} from "../../src/card/source-resolver-dscovrearth.js";
-import { UrlCache } from "../../src/card/url-cache.js";
+} from "../../../src/card/gallery/source-resolver-dscovrearth.js";
+import { UrlCache } from "../../../src/card/gallery/url-cache.js";
 
 describe("source-resolver-dscovrearth", () => {
   // Each test gets its own UrlCache, so nothing here shares state with the module-level
@@ -75,14 +77,71 @@ describe("source-resolver-dscovrearth", () => {
       await expect(fetchLatestEarthImageUrl(undefined, cache)).rejects.toThrow();
     });
 
-    it("throws when the request fails", async () => {
+    it("throws an EpicApiError when the request fails, even with no headers object on the response", async () => {
       vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 500 }));
-      await expect(fetchLatestEarthImageUrl(undefined, cache)).rejects.toThrow();
+      await expect(fetchLatestEarthImageUrl(undefined, cache)).rejects.toBeInstanceOf(EpicApiError);
     });
 
-    it("throws when the response is rate-limited (429), same as any other non-OK status", async () => {
-      vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 429 }));
-      await expect(fetchLatestEarthImageUrl(undefined, cache)).rejects.toThrow("429");
+    it("throws with no retryAfterMs when rate-limited without a Retry-After header", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({ ok: false, status: 429, headers: { get: () => null } })
+      );
+      try {
+        await fetchLatestEarthImageUrl(undefined, cache);
+        expect.unreachable();
+      } catch (err) {
+        expect(err).toBeInstanceOf(EpicApiError);
+        expect((err as EpicApiError).retryAfterMs).toBeUndefined();
+      }
+    });
+
+    it("carries a delta-seconds Retry-After header as retryAfterMs", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({ ok: false, status: 429, headers: { get: () => "120" } })
+      );
+      try {
+        await fetchLatestEarthImageUrl(undefined, cache);
+        expect.unreachable();
+      } catch (err) {
+        expect((err as EpicApiError).retryAfterMs).toBe(120000);
+      }
+    });
+
+    it("carries an HTTP-date Retry-After header as retryAfterMs", async () => {
+      vi.spyOn(Date, "now").mockReturnValue(Date.UTC(2026, 9, 21, 7, 26, 0));
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          ok: false,
+          status: 429,
+          headers: { get: () => "Wed, 21 Oct 2026 07:28:00 GMT" },
+        })
+      );
+      try {
+        await fetchLatestEarthImageUrl(undefined, cache);
+        expect.unreachable();
+      } catch (err) {
+        expect((err as EpicApiError).retryAfterMs).toBe(120000);
+      }
+    });
+
+    it("an unparseable Retry-After header (neither seconds nor a valid date) yields no retryAfterMs", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          ok: false,
+          status: 429,
+          headers: { get: () => "not-a-valid-retry-after" },
+        })
+      );
+      try {
+        await fetchLatestEarthImageUrl(undefined, cache);
+        expect.unreachable();
+      } catch (err) {
+        expect((err as EpicApiError).retryAfterMs).toBeUndefined();
+      }
     });
 
     it("aborts and rejects a request that hangs past the timeout, bounding an otherwise-indefinite stall", async () => {
@@ -99,6 +158,22 @@ describe("source-resolver-dscovrearth", () => {
       );
 
       await expect(fetchLatestEarthImageUrl(undefined, cache)).rejects.toThrow("timeout");
+    });
+  });
+
+  describe("DscovrEarthResolver.resolve cooldown", () => {
+    it("a 429 with Retry-After sets a cooldown at least as long as the header value", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({ ok: false, status: 429, headers: { get: () => "7200" } }) // 2 hours
+      );
+      vi.spyOn(Date, "now").mockReturnValue(0);
+
+      const debug = emptyDebugAccumulator();
+      await expect(new DscovrEarthResolver(cache).resolve(debug, debug)).rejects.toThrow();
+
+      vi.spyOn(Date, "now").mockReturnValue(3600000); // 1 hour later, under the 2-hour Retry-After
+      expect(cache.inCooldown("earth")).toBe(true);
     });
   });
 

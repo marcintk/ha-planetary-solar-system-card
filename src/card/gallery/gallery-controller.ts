@@ -1,5 +1,5 @@
-import type { ImageSource } from "./card-template.js";
-import { GALLERY_SOURCES, IMAGE_SOURCE_LABELS } from "./card-template.js";
+import type { ImageSource } from "../card-template.js";
+import { GALLERY_SOURCES, IMAGE_SOURCE_LABELS } from "../card-template.js";
 import type { DebugAccumulator, DebugRowId, SourceDebugStats } from "./debug.js";
 import { emptyDebugAccumulator, toDebugStats } from "./debug.js";
 import { ImageResolver } from "./image-resolver.js";

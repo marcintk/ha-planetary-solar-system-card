@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { emptyDebugAccumulator } from "../../src/card/debug.js";
+import { emptyDebugAccumulator } from "../../../src/card/gallery/debug.js";
 import {
   getSunImageUrl,
   SDO_BROWSE_BASE_URL,
   SdoSunResolver,
   SUN_CACHE_TTL_MS,
-} from "../../src/card/source-resolver-sdosun.js";
-import { UrlCache } from "../../src/card/url-cache.js";
+} from "../../../src/card/gallery/source-resolver-sdosun.js";
+import { UrlCache } from "../../../src/card/gallery/url-cache.js";
 
 // Same pattern as gallery-controller.test.ts's stubImagePreload: recover()'s retry loop goes
 // through a real off-DOM `new Image()` decode, so a failing-then-succeeding sequence needs
@@ -113,6 +113,70 @@ describe("source-resolver-sdosun", () => {
       expect(cache.get("sun", SUN_CACHE_TTL_MS)?.date.toISOString()).toBe(
         "2026-08-15T21:45:00.000Z"
       );
+    });
+  });
+
+  describe("resolve() cooldown/backoff", () => {
+    it("a source in cooldown returns the last known-good image without touching the network", async () => {
+      const NOW = Date.UTC(2026, 7, 15, 22, 42, 30);
+      vi.spyOn(Date, "now").mockReturnValue(NOW);
+      stubImageDecode(true);
+
+      const debug = emptyDebugAccumulator();
+      const good = await new SdoSunResolver(cache).resolve(debug, debug);
+      cache.recordFailure("sun"); // simulate a subsequent tick's failure putting it in cooldown
+
+      const imageCtor = vi.fn();
+      vi.stubGlobal(
+        "Image",
+        class {
+          src = "";
+          constructor() {
+            imageCtor();
+          }
+          decode() {
+            return Promise.resolve();
+          }
+        }
+      );
+
+      const served = await new SdoSunResolver(cache).resolve(debug, debug);
+      expect(served).toEqual(good);
+      expect(imageCtor).not.toHaveBeenCalled();
+    });
+
+    it("a source in cooldown with no prior success throws instead of returning nothing", async () => {
+      const NOW = Date.UTC(2026, 7, 15, 22, 42, 30);
+      vi.spyOn(Date, "now").mockReturnValue(NOW);
+      cache.recordFailure("sun");
+
+      const debug = emptyDebugAccumulator();
+      await expect(new SdoSunResolver(cache).resolve(debug, debug)).rejects.toThrow("cooldown");
+    });
+
+    it("a successful resolve once the cooldown expires clears it", async () => {
+      const NOW = Date.UTC(2026, 7, 15, 22, 42, 30);
+      vi.spyOn(Date, "now").mockReturnValue(NOW);
+      cache.recordFailure("sun");
+      cache.recordFailure("sun"); // 2nd failure doubles the backoff to 2 minutes
+      expect(cache.inCooldown("sun")).toBe(true);
+
+      vi.spyOn(Date, "now").mockReturnValue(NOW + 2 * 60000 + 1);
+      stubImageDecode(true);
+      const debug = emptyDebugAccumulator();
+      await new SdoSunResolver(cache).resolve(debug, debug);
+
+      expect(cache.inCooldown("sun")).toBe(false);
+    });
+
+    it("exhausting recover()'s retries records a failure that opens a cooldown", async () => {
+      const NOW = Date.UTC(2026, 7, 15, 22, 42, 30);
+      vi.spyOn(Date, "now").mockReturnValue(NOW);
+      stubImageDecode(false, false, false, false); // primary + all SUN_MAX_RETRIES fallbacks fail
+
+      const debug = emptyDebugAccumulator();
+      await expect(new SdoSunResolver(cache).resolve(debug, debug)).rejects.toThrow();
+      expect(cache.inCooldown("sun")).toBe(true);
     });
   });
 

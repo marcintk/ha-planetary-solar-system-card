@@ -36,6 +36,15 @@ export function clearImageCache(): void {
   cache.clear();
 }
 
+// Lets a caller (gallery-controller's debug counters) tell a real network round-trip apart
+// from fetchLatestEarthImageUrl serving its own TTL cache — without this, every call looks
+// identical from the outside and the debug overlay's "ticks vs. network" comparison can never
+// show the cache actually working.
+export function isEarthCacheFresh(maxAgeMs = GALLERY_CACHE_TTL_MS): boolean {
+  const cached = cache.get("earth");
+  return cached != null && Date.now() - cached.fetchedAt < maxAgeMs;
+}
+
 function pad(n: number): string {
   return String(n).padStart(2, "0");
 }

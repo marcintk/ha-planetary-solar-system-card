@@ -8,6 +8,7 @@ import {
   fetchLatestEarthImageUrl,
   getPreviousSunSlot,
   getSunImageUrl,
+  isEarthCacheFresh,
 } from "./image-sources.js";
 
 export type ImagePanelMode = "none" | ImageSource;
@@ -87,7 +88,11 @@ async function resolveDisplayImage(
   knownUrl: string | undefined
 ): Promise<SourcedImage> {
   const candidate =
-    mode === "earth" ? await timedAttempt(fetchLatestEarthImageUrl, debug) : getSunImageUrl();
+    mode === "earth"
+      ? isEarthCacheFresh()
+        ? await fetchLatestEarthImageUrl()
+        : await timedAttempt(fetchLatestEarthImageUrl, debug)
+      : getSunImageUrl();
   // URL identity is already the cache — skip re-fetching bytes for an image we already have.
   if (candidate.url === knownUrl) return candidate;
   try {

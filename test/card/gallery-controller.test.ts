@@ -314,17 +314,21 @@ describe("GalleryController.debugStats", () => {
     await vi.waitFor(() => expect(gallery.images.earth).toBeDefined());
 
     gallery.tick();
-    // Earth counts 2 network calls on the first tick — the EPIC API lookup plus the image
-    // preload — then only 1 more on the second tick: the API lookup still runs (it's the URL
-    // source of truth), but its URL is unchanged, so the preload is gated out. Sun (no
-    // metadata API, just the preload) is gated to 1 call across both ticks.
-    await vi.waitFor(() => expect(gallery.debugStats.earth.network).toBe(3));
+    // Second tick's URL is unchanged for both sources, so it's the one signal guaranteed to
+    // still move: `redundant` only increments once the second refresh() has fully settled,
+    // unlike `network` (which no longer climbs on a same-URL tick — see below) or `ticks`
+    // (which increments synchronously before the awaited work even starts).
+    await vi.waitFor(() => expect(gallery.debugStats.earth.redundant).toBe(1));
 
+    // Earth counts 2 network calls total: the first tick's EPIC API lookup plus its image
+    // preload. The second tick's EPIC lookup hits image-sources.ts's own TTL cache (no real
+    // fetch, so it isn't counted), and its preload is gated out since the URL is unchanged.
+    // Sun (no metadata API, just the preload) is gated to 1 call across both ticks.
+    expect(gallery.debugStats.earth.network).toBe(2);
     expect(gallery.debugStats.earth.ticks).toBe(2);
     expect(gallery.debugStats.sun.ticks).toBe(2);
     expect(gallery.debugStats.sun.network).toBe(1);
     expect(gallery.debugStats.earth.elapsed).not.toBeNull();
-    expect(gallery.debugStats.earth.redundant).toBe(1);
     expect(gallery.debugStats.sun.redundant).toBe(1);
     expect(gallery.debugStats.earth.lastAttemptAt).not.toBeNull();
   });

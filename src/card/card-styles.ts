@@ -220,8 +220,6 @@ export const cardStyles = css`
     box-sizing: border-box;
     pointer-events: none;
     background: rgba(0, 0, 0, 0.55);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
     color: #00e676;
     font-family: monospace;
     font-size: 10px;

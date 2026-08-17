@@ -46,6 +46,7 @@ export class SolarViewCard extends LitElement {
   private _locationOverride: LocationOverride | null;
   private _locationNameOverride: string | null;
   private _autoUpdateTimer: number | null;
+  private _debugTimer: number | null;
   private _colors: Colors;
   private _refreshMs: number;
   private _eclipticView: boolean;
@@ -68,6 +69,7 @@ export class SolarViewCard extends LitElement {
     this._locationOverride = null;
     this._locationNameOverride = null;
     this._autoUpdateTimer = null;
+    this._debugTimer = null;
     this._colors = {};
     this._refreshMs = 60000;
     this._eclipticView = false;
@@ -136,6 +138,9 @@ export class SolarViewCard extends LitElement {
     if (this._autoUpdateTimer != null) {
       this._startAutoUpdateTimer();
     }
+    if (this._debugTimer != null || config.debug) {
+      this._startDebugTimer();
+    }
   }
 
   connectedCallback(): void {
@@ -145,6 +150,7 @@ export class SolarViewCard extends LitElement {
     // synchronous tests and delay the first frame in HA.
     this._render();
     this._startAutoUpdateTimer();
+    this._startDebugTimer();
     this._gallery.start();
     this._onVisibilityChange = () => {
       if (!document.hidden) this._dateNav.tick();
@@ -156,6 +162,8 @@ export class SolarViewCard extends LitElement {
     super.disconnectedCallback();
     clearInterval(this._autoUpdateTimer ?? undefined);
     this._autoUpdateTimer = null;
+    clearInterval(this._debugTimer ?? undefined);
+    this._debugTimer = null;
     this._gallery.stop();
     this._dateNav.stop();
     if (this._onVisibilityChange) {
@@ -319,6 +327,17 @@ export class SolarViewCard extends LitElement {
       this._zoom.tick();
       this._gallery.tick();
     }, interval) as unknown as number;
+  }
+
+  // Ages the debug overlay's "last" column live — without this it only updates on the next
+  // real state change (gallery tick, nav click, ...), which can lag minutes behind Date.now().
+  private _startDebugTimer(): void {
+    clearInterval(this._debugTimer ?? undefined);
+    if (!this._config?.debug) {
+      this._debugTimer = null;
+      return;
+    }
+    this._debugTimer = setInterval(() => this._render(), 1000) as unknown as number;
   }
 
   private _navigate(deltaMs: number): void {

@@ -259,7 +259,7 @@ describe("GalleryController slide auto-switch", () => {
     expect(gallery.displaySources).toEqual(before);
   });
 
-  it("switching onto a source never re-resolves its URL from cache/network, only redecodes it", async () => {
+  it("switching onto a source never re-resolves its URL from cache/network", async () => {
     vi.useFakeTimers();
     const gallery = new GalleryController(() => {});
     gallery.configure("slide", 1000);
@@ -268,10 +268,8 @@ describe("GalleryController slide auto-switch", () => {
     expect(gallery.images.sun).toBeDefined();
     const cacheHitsAfterFetch = gallery.debugStats.sun.cacheHits;
 
-    // The slide timer flips onto sun: it redecodes (a real DOM-sync attempt/network tick —
-    // see the comment on _advanceSlide) but must never re-run getCachedImage/getSunImageUrl,
-    // since it isn't resolving a new candidate at all, just displaying the one refresh()
-    // already resolved.
+    // The slide timer flips displaySources purely as a local state change — it never touches
+    // the resolver, so cacheHits stays exactly where refresh() left it.
     await vi.advanceTimersByTimeAsync(1000);
     expect(gallery.displaySources).toEqual(["sun"]);
     expect(gallery.debugStats.sun.cacheHits).toBe(cacheHitsAfterFetch);

@@ -105,11 +105,3 @@ export async function timedAttempt<T>(op: () => Promise<T>, debug: DebugAccumula
 export function timedPreload(url: string, debug: DebugAccumulator): Promise<void> {
   return timedAttempt(() => preloadImage(url), debug);
 }
-
-// Exported for gallery-controller.ts's slide auto-switch: a DOM-sync redecode of a URL
-// already resolved and gate-confirmed elsewhere, not a second resolution path — see the call
-// site's own comment for why it's deliberately unconditional (never routes through resolve()'s
-// URL-identity gate).
-export function redecode(url: string, debug: DebugAccumulator): Promise<void> {
-  return timedPreload(url, debug);
-}

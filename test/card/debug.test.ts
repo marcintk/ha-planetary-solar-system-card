@@ -83,12 +83,12 @@ describe("buildDebugOverlay", () => {
     const rows = root.querySelectorAll("tbody tr, table tr");
     const cells = [...rows].slice(1).map((row) => [...row.children].map((td) => td.textContent));
     expect(cells).toEqual([
-      ["SDO/S", "4", "2", "3", "2", "1", "2", "1", "123ms", "5m"],
+      ["SDO/S", "4", "3", "2", "2", "1", "2", "1", "123ms", "5m"],
       ["DSCOVR/E", "0", "0", "0", "0", "0", "0", "0", "—", "—"],
       // total: ticks max()s (4 vs. 0) rather than summing, cacheHits/others sum, elapsed
       // avg()s the non-null values (just sun's 123.4 here), last is always "—" — see
       // summarizeDebugStats.
-      ["total", "4", "2", "3", "2", "1", "2", "1", "123ms", "—"],
+      ["total", "4", "3", "2", "2", "1", "2", "1", "123ms", "—"],
     ]);
   });
 

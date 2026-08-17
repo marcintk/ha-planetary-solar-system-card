@@ -114,22 +114,22 @@ export function buildDebugOverlay(
       <tr>
         <th>source</th>
         <th>ticks</th>
-        <th>cache</th>
         <th>atmpt</th>
+        <th>cache</th>
         <th>fetch</th>
         <th>fail</th>
         <th>retry</th>
-        <th>dup</th>
-        <th>time</th>
-        <th>last</th>
+        <th>same</th>
+        <th>elapsed</th>
+        <th>ago</th>
       </tr>
       ${rows.map((source) => {
         const s = stats[source];
         return html`<tr>
           <td>${GALLERY_SOURCE_LABELS[source]}</td>
           <td>${s.ticks}</td>
-          <td>${s.cacheHits}</td>
           <td>${s.attempts}</td>
+          <td>${s.cacheHits}</td>
           <td>${s.network}</td>
           <td>${s.failures}</td>
           <td>${s.retries}</td>
@@ -143,8 +143,8 @@ export function buildDebugOverlay(
         return html`<tr class="debug-total">
           <td>total</td>
           <td>${total.ticks}</td>
-          <td>${total.cacheHits}</td>
           <td>${total.attempts}</td>
+          <td>${total.cacheHits}</td>
           <td>${total.network}</td>
           <td>${total.failures}</td>
           <td>${total.retries}</td>

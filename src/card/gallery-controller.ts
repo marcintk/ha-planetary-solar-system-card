@@ -3,7 +3,7 @@ import { GALLERY_SOURCES, IMAGE_SOURCE_LABELS } from "./card-template.js";
 import type { DebugAccumulator, SourceDebugStats } from "./debug.js";
 import { emptyDebugAccumulator, toDebugStats } from "./debug.js";
 import type { SourcedImage } from "./image-cache.js";
-import { ImageResolver, redecode } from "./image-resolver.js";
+import { ImageResolver } from "./image-resolver.js";
 
 export type ImagePanelMode = "none" | ImageSource;
 export type GalleryMode = "none" | "earth" | "sun" | "both" | "slide";
@@ -256,31 +256,14 @@ export class GalleryController {
       return;
     }
     this._autoSwitchTimer = setInterval(() => {
-      void this._advanceSlide();
+      this._advanceSlide();
     }, this._autoIntervalMs) as unknown as number;
   }
 
-  // Re-decodes the next slide's image off-DOM before flipping the displayed source, so the
-  // label and the thumbnail <img> switch together — otherwise the label re-renders instantly
-  // while the reused <img> still shows the previous bitmap for a frame until it decodes.
-  private async _advanceSlide(): Promise<void> {
-    const next = this._autoDisplayedSource === "earth" ? "sun" : "earth";
-    const known = this._images[next];
-    if (known) {
-      try {
-        // Deliberately unconditional, not routed through the resolver's URL-identity gate:
-        // this decode is a DOM-sync step (holds the label/thumbnail on the old source until
-        // the new one finishes decoding, so the reused <img> never flashes a stale bitmap),
-        // not a re-fetch — `known.url` was already resolved and confirmed by refresh()'s
-        // gated resolve() call, so this never reaches NASA again, only the browser's own
-        // (already-warm) image cache.
-        await redecode(known.url, this._debug[next]);
-      } catch {
-        // Already-validated URL failing a re-decode is transient; show it anyway rather
-        // than getting stuck on the previous source forever.
-      }
-    }
-    this._autoDisplayedSource = next;
+  // Flips which source is shown in the "slide" strip. The reused <img> may show the previous
+  // bitmap for a frame while the new one decodes — cosmetic, not worth a pre-decode step.
+  private _advanceSlide(): void {
+    this._autoDisplayedSource = this._autoDisplayedSource === "earth" ? "sun" : "earth";
     this._onChange();
   }
 

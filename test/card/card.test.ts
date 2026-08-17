@@ -462,7 +462,7 @@ describe("SolarViewCard", () => {
       expect(overlay.textContent).toContain("source");
       expect(overlay.textContent).toContain("ticks");
       expect(overlay.textContent).toContain("atmpt");
-      expect(overlay.textContent).toContain("dup");
+      expect(overlay.textContent).toContain("same");
       expect(overlay.textContent).toMatch(/\d+ms/);
       expect(overlay.textContent).toContain("since ");
       card.remove();
@@ -474,6 +474,27 @@ describe("SolarViewCard", () => {
       card._render();
       expect(card.shadowRoot.querySelector(".debug-overlay")).toBeNull();
       card.remove();
+    });
+
+    it("re-renders every second so the overlay's 'last' column ages live", () => {
+      vi.useFakeTimers();
+      const card = createAndMount({ debug: true, gallery: { mode: "both" } });
+      const renderSpy = vi.spyOn(card, "_render");
+      vi.advanceTimersByTime(3000);
+      expect(renderSpy).toHaveBeenCalledTimes(3);
+      card.remove();
+      vi.useRealTimers();
+    });
+
+    it("stops the 1s refresh once debug is turned off while mounted", () => {
+      vi.useFakeTimers();
+      const card = createAndMount({ debug: true, gallery: { mode: "both" } });
+      card.setConfig({ debug: false });
+      const renderSpy = vi.spyOn(card, "_render");
+      vi.advanceTimersByTime(3000);
+      expect(renderSpy).not.toHaveBeenCalled();
+      card.remove();
+      vi.useRealTimers();
     });
   });
 
@@ -2103,45 +2124,6 @@ describe("SolarViewCard", () => {
       thumbs = card.shadowRoot.querySelectorAll(".gallery-thumb");
       expect(thumbs.length).toBe(1);
       expect(thumbs[0].dataset.source).toBe("sun");
-
-      card.remove();
-      vi.useRealTimers();
-    });
-
-    it("gallery.mode: slide keeps showing the previous source until the next image finishes decoding", async () => {
-      vi.useFakeTimers();
-      stubEarthFetch();
-      let holding = false;
-      let resolveDecode: () => void;
-      vi.stubGlobal(
-        "Image",
-        class {
-          src = "";
-          decode() {
-            if (holding) {
-              return new Promise((resolve) => {
-                resolveDecode = resolve;
-              });
-            }
-            return Promise.resolve();
-          }
-        }
-      );
-
-      const card = createAndMount({ gallery: { mode: "slide", slide_interval_secs: 30 } });
-      await vi.advanceTimersByTimeAsync(0);
-      expect(card.shadowRoot.querySelector(".gallery-thumb").dataset.source).toBe("earth");
-
-      holding = true;
-      await vi.advanceTimersByTimeAsync(30 * 1000);
-      // Next image's decode() is still pending — label and thumbnail stay on the old source.
-      expect(card.shadowRoot.querySelector(".gallery-thumb").dataset.source).toBe("earth");
-      expect(card.shadowRoot.querySelector(".gallery-label").textContent).toBe("DSCOVR/E");
-
-      resolveDecode();
-      await vi.advanceTimersByTimeAsync(0);
-      expect(card.shadowRoot.querySelector(".gallery-thumb").dataset.source).toBe("sun");
-      expect(card.shadowRoot.querySelector(".gallery-label").textContent).toBe("SDO/S");
 
       card.remove();
       vi.useRealTimers();

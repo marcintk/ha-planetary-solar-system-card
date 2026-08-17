@@ -216,6 +216,7 @@ export const cardStyles = css`
     left: 0;
     right: 0;
     top: 100%;
+    z-index: 1;
     box-sizing: border-box;
     pointer-events: none;
     background: rgba(0, 0, 0, 0.75);

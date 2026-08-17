@@ -5,8 +5,6 @@ import type { SourceResolver } from "./source-resolver.js";
 import { DscovrEarthResolver } from "./source-resolver-dscovrearth.js";
 import { SdoSunResolver } from "./source-resolver-sdosun.js";
 
-export { redecode } from "./source-resolver.js";
-
 // The single gateway to a resolved sun/earth image — dispatches to the per-source resolver
 // (source-resolver-dscovrearth.ts / source-resolver-sdosun.ts) that owns that source's own TTL, decode-gate
 // state, and fetch/retry quirks. One instance per GalleryController, so its state matches that

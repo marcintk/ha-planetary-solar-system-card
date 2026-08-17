@@ -5,13 +5,11 @@ import type { SourceDebugStats } from "../../src/card/debug.js";
 import { buildDebugOverlay } from "../../src/card/debug.js";
 
 const zeroDebugStats: SourceDebugStats = {
-  ticks: 0,
+  refreshes: 0,
   cacheHits: 0,
-  attempts: 0,
-  network: 0,
+  fetches: 0,
   failures: 0,
   retries: 0,
-  redundant: 0,
   expired: 0,
   elapsed: null,
   lastAttemptAt: null,
@@ -28,13 +26,11 @@ describe("buildDebugOverlay", () => {
     "earth-url": zeroDebugStats,
     "earth-img": zeroDebugStats,
     sun: {
-      ticks: 4,
+      refreshes: 4,
       cacheHits: 2,
-      attempts: 3,
-      network: 2,
+      fetches: 3,
       failures: 1,
       retries: 2,
-      redundant: 1,
       expired: 5,
       elapsed: 123.4,
       lastAttemptAt: Date.now() - 5 * 60_000,
@@ -88,10 +84,11 @@ describe("buildDebugOverlay", () => {
     expect(cells).toEqual([
       ["SDO/S", "4", "2", "5", "3", "1", "2", "123ms", "5m"],
       ["DSCOVR/E url", "0", "0", "0", "0", "0", "0", "—", "—"],
-      ["DSCOVR/E img", "0", "0", "0", "0", "0", "0", "—", "—"],
-      // total: ticks max()s (4 vs. 0 vs. 0) rather than summing, cacheHits/others sum,
-      // elapsed avg()s the non-null values (just sun's 123.4 here), last is always "—" — see
-      // summarizeDebugStats.
+      // earth-img has no cache/URL-identity step of its own — those columns show "—", not 0.
+      ["DSCOVR/E img", "0", "—", "—", "0", "0", "0", "—", "—"],
+      // total: refreshes max()s (4 vs. 0 vs. 0) rather than summing, cacheHits/others sum
+      // the raw underlying values (not the dashed display), elapsed avg()s the non-null
+      // values (just sun's 123.4 here), last is always "—" — see summarizeDebugStats.
       ["total", "4", "2", "5", "3", "1", "2", "123ms", "—"],
     ]);
   });
@@ -107,10 +104,10 @@ describe("buildDebugOverlay", () => {
     expect(sunRow[sunRow.length - 1]).toBe("45s");
   });
 
-  it("sums the total row's ticks with max() instead of add(), for lockstep both/slide modes", () => {
+  it("sums the total row's refreshes with max() instead of add(), for lockstep both/slide modes", () => {
     const lockstep = {
-      sun: { ...zeroDebugStats, ticks: 5, elapsed: 100 },
-      "earth-url": { ...zeroDebugStats, ticks: 5, elapsed: 200 },
+      sun: { ...zeroDebugStats, refreshes: 5, elapsed: 100 },
+      "earth-url": { ...zeroDebugStats, refreshes: 5, elapsed: 200 },
       "earth-img": zeroDebugStats,
     };
     const root = renderToDOM(buildDebugOverlay(lockstep, Date.now()));

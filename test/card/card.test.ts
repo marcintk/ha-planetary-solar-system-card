@@ -453,7 +453,7 @@ describe("SolarViewCard", () => {
 
     it("shows sun/earth rows with cumulative stats when debug is true", async () => {
       const card = createAndMount({ debug: true, gallery: { mode: "both" } });
-      await vi.waitFor(() => expect(card._gallery.debugStats.sun.network).toBe(1));
+      await vi.waitFor(() => expect(card._gallery.debugStats.sun.elapsed).not.toBeNull());
       card._render();
       const overlay = card.shadowRoot.querySelector(".debug-overlay");
       const rowText = [...overlay.querySelectorAll("tr")].map((tr) => tr.textContent);

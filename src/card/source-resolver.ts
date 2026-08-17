@@ -47,25 +47,25 @@ export abstract class SourceResolver {
   // EPIC API call, separate from the image byte fetch); sun's caller passes the same one
   // twice, since its candidate URL is pure math with nothing to separate out.
   async resolve(urlDebug: DebugAccumulator, imgDebug: DebugAccumulator): Promise<SourcedImage> {
-    // Checked before any fetch is attempted, so `cacheHits` climbs on every tick that's
+    // Checked before any fetch is attempted, so `cacheHits` climbs on every refresh that's
     // served straight from cache — the direct answer to "is this source's TTL actually
-    // skipping the network" that `ticks` vs. `attempts` alone only implies.
+    // skipping the network" that `refreshes` vs. `fetches` alone only implies.
     const cached = this.getCached();
     if (cached) urlDebug.cacheHits++;
     const candidate = cached ?? (await this.fetchCandidateUrl(urlDebug));
     // URL identity is already the cache — skip re-decoding an image already confirmed to
-    // load, and count it as a redundant-avoided fetch (bytes that would've been re-fetched
-    // and re-decoded for nothing). Split by whether the TTL cache was still fresh (`redundant`,
-    // free) or had just expired (`expired`, a real fetchCandidateUrl() call only to confirm
-    // nothing changed).
+    // load (bytes that would've been re-fetched and re-decoded for nothing). Only counted
+    // when the TTL cache had just expired (`expired`): a real fetchCandidateUrl() call that
+    // ended up confirming nothing changed. The cache-still-fresh case needs no counter of its
+    // own — `cacheHits` already answers that question.
     if (candidate.url === this._decodedUrl) {
-      if (cached) {
-        urlDebug.redundant++;
-      } else {
-        urlDebug.expired++;
-      }
+      if (!cached) urlDebug.expired++;
       return candidate;
     }
+    // sun's imgDebug is the same object as urlDebug (see the accumulator comment above), so
+    // it's already been bumped by resolveAll()'s own refreshes++ — only earth's split-off img
+    // row needs its own count of "an image refresh was actually needed" here.
+    if (imgDebug !== urlDebug) imgDebug.refreshes++;
     try {
       await timedPreload(candidate.url, imgDebug);
       this._decodedUrl = candidate.url;
@@ -99,12 +99,11 @@ function preloadImage(url: string): Promise<void> {
 // it — from the debug overlay's point of view, both are "an attempt at a real network call",
 // so they share one set of counters rather than needing their own column each.
 export async function timedAttempt<T>(op: () => Promise<T>, debug: DebugAccumulator): Promise<T> {
-  debug.attempts++;
+  debug.fetches++;
   debug.lastAttemptAt = Date.now();
   const start = performance.now();
   try {
     const result = await op();
-    debug.network++;
     debug.fetchMsTotal += performance.now() - start;
     return result;
   } catch (err) {

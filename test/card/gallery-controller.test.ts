@@ -291,12 +291,18 @@ describe("GalleryController.viewModel", () => {
 });
 
 describe("GalleryController.debugStats", () => {
+  const zeroStats = {
+    checks: 0,
+    attempts: 0,
+    networkCalls: 0,
+    failures: 0,
+    redundant: 0,
+    avgFetchMs: null,
+  };
+
   it("starts at zero for both sources", () => {
     const gallery = new GalleryController(() => {});
-    expect(gallery.debugStats).toEqual({
-      earth: { checks: 0, networkCalls: 0, avgFetchMs: null },
-      sun: { checks: 0, networkCalls: 0, avgFetchMs: null },
-    });
+    expect(gallery.debugStats).toEqual({ earth: zeroStats, sun: zeroStats });
   });
 
   it("counts one check and one network call per source per tick, with no cache gate", async () => {
@@ -309,11 +315,26 @@ describe("GalleryController.debugStats", () => {
     await vi.waitFor(() => expect(gallery.debugStats.earth.networkCalls).toBe(2));
 
     // Today's known bug: nothing skips the network call even though the URL didn't
-    // change, so checks and networkCalls stay in lockstep every tick.
+    // change, so checks and networkCalls stay in lockstep every tick. `redundant`
+    // surfaces exactly this — the second tick's resolved URL matches the first's.
     expect(gallery.debugStats.earth.checks).toBe(2);
     expect(gallery.debugStats.sun.checks).toBe(2);
     expect(gallery.debugStats.sun.networkCalls).toBe(2);
     expect(gallery.debugStats.earth.avgFetchMs).not.toBeNull();
+    expect(gallery.debugStats.earth.redundant).toBe(1);
+    expect(gallery.debugStats.sun.redundant).toBe(1);
+  });
+
+  it("counts a failed preload as an attempt without a network call", async () => {
+    stubImagePreload(false);
+    const gallery = new GalleryController(() => {});
+    gallery.configure("earth", 60000);
+    gallery.start();
+    await vi.waitFor(() => expect(gallery.debugStats.earth.failures).toBe(1));
+
+    expect(gallery.debugStats.earth.attempts).toBe(1);
+    expect(gallery.debugStats.earth.networkCalls).toBe(0);
+    expect(gallery.debugStats.earth.avgFetchMs).toBeNull();
   });
 
   it("does not count sources outside the configured mode", async () => {

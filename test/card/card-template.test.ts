@@ -9,7 +9,14 @@ import {
 } from "../../src/card/card-template.js";
 import type { GalleryViewModel, SourceDebugStats } from "../../src/card/gallery-controller.js";
 
-const zeroDebugStats: SourceDebugStats = { checks: 0, networkCalls: 0, avgFetchMs: null };
+const zeroDebugStats: SourceDebugStats = {
+  checks: 0,
+  attempts: 0,
+  networkCalls: 0,
+  failures: 0,
+  redundant: 0,
+  avgFetchMs: null,
+};
 
 function galleryViewModel(overrides: Partial<GalleryViewModel> = {}): GalleryViewModel {
   return {
@@ -162,7 +169,10 @@ describe("buildImageStatusBar", () => {
 });
 
 describe("buildDebugOverlay", () => {
-  const stats = { earth: zeroDebugStats, sun: { checks: 4, networkCalls: 2, avgFetchMs: 123.4 } };
+  const stats = {
+    earth: zeroDebugStats,
+    sun: { checks: 4, attempts: 3, networkCalls: 2, failures: 1, redundant: 1, avgFetchMs: 123.4 },
+  };
 
   it("shows 0s on the very first render, right at startedAt", () => {
     const startedAt = Date.now();
@@ -195,8 +205,8 @@ describe("buildDebugOverlay", () => {
     const rows = root.querySelectorAll("tbody tr, table tr");
     const cells = [...rows].slice(1).map((row) => [...row.children].map((td) => td.textContent));
     expect(cells).toEqual([
-      ["SDO/S", "4", "2", "123ms"],
-      ["DSCOVR/E", "0", "0", "—"],
+      ["SDO/S", "4", "3", "2", "1", "1", "123ms"],
+      ["DSCOVR/E", "0", "0", "0", "0", "0", "—"],
     ]);
   });
 });

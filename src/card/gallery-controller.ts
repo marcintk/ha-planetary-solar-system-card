@@ -15,27 +15,41 @@ export const DEFAULT_GALLERY_INTERVAL_MS = 60000;
 
 // Cumulative, since the card was mounted — not a rolling window. Lets debug:true answer "is
 // this source's own cache actually saving anything" at a glance: checks vs. networkCalls
-// equal means every tick is hitting the network regardless of cache state.
+// equal means every tick is hitting the network regardless of cache state. `redundant` is
+// the sharper signal for that same question — it counts preloads whose resolved URL turned
+// out identical to the image already displayed, i.e. bytes that were re-fetched and
+// re-decoded for nothing. `attempts` vs. `networkCalls`+`failures` separates "tried" from
+// "succeeded", since a failed preload (sun's retry path) previously vanished from the count
+// entirely instead of showing up as a real network cost.
 export interface SourceDebugStats {
   checks: number;
+  attempts: number;
   networkCalls: number;
+  failures: number;
+  redundant: number;
   avgFetchMs: number | null;
 }
 
 interface DebugAccumulator {
   checks: number;
+  attempts: number;
   networkCalls: number;
+  failures: number;
+  redundant: number;
   fetchMsTotal: number;
 }
 
 function emptyDebugAccumulator(): DebugAccumulator {
-  return { checks: 0, networkCalls: 0, fetchMsTotal: 0 };
+  return { checks: 0, attempts: 0, networkCalls: 0, failures: 0, redundant: 0, fetchMsTotal: 0 };
 }
 
 function toDebugStats(acc: DebugAccumulator): SourceDebugStats {
   return {
     checks: acc.checks,
+    attempts: acc.attempts,
     networkCalls: acc.networkCalls,
+    failures: acc.failures,
+    redundant: acc.redundant,
     avgFetchMs: acc.networkCalls > 0 ? acc.fetchMsTotal / acc.networkCalls : null,
   };
 }
@@ -85,10 +99,16 @@ function preloadImage(url: string): Promise<void> {
 // strip and a full-screen panel, is resolved there and nowhere else, so a slow or failing
 // candidate is caught before it ever reaches a visible <img>.
 async function timedPreload(url: string, debug: DebugAccumulator): Promise<void> {
+  debug.attempts++;
   const start = performance.now();
-  await preloadImage(url);
-  debug.networkCalls++;
-  debug.fetchMsTotal += performance.now() - start;
+  try {
+    await preloadImage(url);
+    debug.networkCalls++;
+    debug.fetchMsTotal += performance.now() - start;
+  } catch (err) {
+    debug.failures++;
+    throw err;
+  }
 }
 
 async function resolveDisplayImage(
@@ -342,7 +362,7 @@ export class GalleryController {
     const known = this._images[next];
     if (known) {
       try {
-        await preloadImage(known.url);
+        await timedPreload(known.url, this._debug[next]);
       } catch {
         // Already-validated URL failing a re-decode is transient; show it anyway rather
         // than getting stuck on the previous source forever.
@@ -369,7 +389,11 @@ export class GalleryController {
   // the single place that keeps an open full-screen panel in sync with the same source.
   private async refresh(): Promise<void> {
     const sources = this._fetchSources;
-    for (const source of sources) this._debug[source].checks++;
+    const previousUrls: Partial<Record<ImageSource, string>> = {};
+    for (const source of sources) {
+      this._debug[source].checks++;
+      previousUrls[source] = this._images[source]?.url;
+    }
     const results = await Promise.allSettled(
       sources.map((source) => resolveDisplayImage(source, this._debug[source]))
     );
@@ -377,6 +401,7 @@ export class GalleryController {
       const result = results[i];
       const source = sources[i];
       if (result.status === "fulfilled") {
+        if (result.value.url === previousUrls[source]) this._debug[source].redundant++;
         this._images[source] = result.value;
         if (this._panelMode === source) {
           this._applyImage(result.value.url, result.value.date);

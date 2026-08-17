@@ -133,7 +133,10 @@ export function buildDebugOverlay(
       <tr>
         <th>source</th>
         <th>checks</th>
-        <th>net-calls</th>
+        <th>attempts</th>
+        <th>ok</th>
+        <th>fail</th>
+        <th>redundant</th>
         <th>fetch-time</th>
       </tr>
       ${rows.map((source) => {
@@ -141,7 +144,10 @@ export function buildDebugOverlay(
         return html`<tr>
           <td>${GALLERY_SOURCE_LABELS[source]}</td>
           <td>${s.checks}</td>
+          <td>${s.attempts}</td>
           <td>${s.networkCalls}</td>
+          <td>${s.failures}</td>
+          <td>${s.redundant}</td>
           <td>${formatMs(s.avgFetchMs)}</td>
         </tr>`;
       })}

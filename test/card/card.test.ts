@@ -459,7 +459,8 @@ describe("SolarViewCard", () => {
       expect(rowText[2]).toContain("DSCOVR/E");
       expect(overlay.textContent).toContain("source");
       expect(overlay.textContent).toContain("checks");
-      expect(overlay.textContent).toContain("net-calls");
+      expect(overlay.textContent).toContain("attempts");
+      expect(overlay.textContent).toContain("redundant");
       expect(overlay.textContent).toMatch(/\d+ms/);
       expect(overlay.textContent).toContain("running for ");
       card.remove();

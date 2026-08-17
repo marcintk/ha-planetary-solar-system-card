@@ -1,9 +1,9 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { SolarViewCard } from "../../src/card/card.js";
 import { formatDate } from "../../src/card/card-template.js";
-import { EPIC_BASE_URL } from "../../src/card/source-resolver-dscovrearth.js";
-import { getSunImageUrl, SUN_CACHE_TTL_MS } from "../../src/card/source-resolver-sdosun.js";
-import { UrlCache, urlCache } from "../../src/card/url-cache.js";
+import { EPIC_BASE_URL } from "../../src/card/gallery/source-resolver-dscovrearth.js";
+import { getSunImageUrl, SUN_CACHE_TTL_MS } from "../../src/card/gallery/source-resolver-sdosun.js";
+import { UrlCache, urlCache } from "../../src/card/gallery/url-cache.js";
 
 beforeAll(() => {
   if (!customElements.get("ha-planetary-solar-system-card-test")) {

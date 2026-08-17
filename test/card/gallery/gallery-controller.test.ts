@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { GalleryController } from "../../src/card/gallery-controller.js";
-import { urlCache } from "../../src/card/url-cache.js";
+import { GalleryController } from "../../../src/card/gallery/gallery-controller.js";
+import { urlCache } from "../../../src/card/gallery/url-cache.js";
 
 // Every fetch path preloads a candidate off-DOM via `new Image()` before ever assigning it,
 // so a real network call and a real Image decode both need stubbing (same pattern as

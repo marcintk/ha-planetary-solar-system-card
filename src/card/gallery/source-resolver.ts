@@ -1,4 +1,4 @@
-import type { ImageSource } from "./card-template.js";
+import type { ImageSource } from "../card-template.js";
 import type { DebugAccumulator } from "./debug.js";
 import type { SourcedImage, UrlCache } from "./url-cache.js";
 import { urlCache } from "./url-cache.js";
@@ -60,35 +60,59 @@ export abstract class SourceResolver {
   // convention (ImageResolver used to bump this before ever calling resolve()).
   async resolve(urlDebug: DebugAccumulator, imgDebug: DebugAccumulator): Promise<SourcedImage> {
     urlDebug.refreshes++;
-    // Checked before any fetch is attempted, so `cacheHits` climbs on every refresh that's
-    // served straight from cache — the direct answer to "is this source's TTL actually
-    // skipping the network" that `refreshes` vs. `fetches` alone only implies.
-    const cached = this.getCached();
-    if (cached) urlDebug.cacheHits++;
-    const candidate = cached ?? (await this.fetchCandidateUrl(urlDebug));
-    // URL identity is already the cache — skip re-decoding an image already confirmed to
-    // load (bytes that would've been re-fetched and re-decoded for nothing). Only counted
-    // when the TTL cache had just expired (`expired`): a real fetchCandidateUrl() call that
-    // ended up confirming nothing changed. The cache-still-fresh case needs no counter of its
-    // own — `cacheHits` already answers that question.
-    if (this.cache.isDecoded(this.source, candidate.url)) {
-      if (!cached) urlDebug.expired++;
-      return candidate;
+    // A source that just failed repeatedly skips the network entirely for a backoff window
+    // (see UrlCache.recordFailure) — serving the last known-good image instead of hammering
+    // NASA every refresh_mins tick during an outage or rate-limit.
+    if (this.cache.inCooldown(this.source)) {
+      const stale = this.cache.getStale(this.source);
+      if (stale) return stale;
+      throw new Error(`${this.source} is in cooldown after repeated failures`);
     }
-    // sun's imgDebug is the same object as urlDebug (see the accumulator comment above), so
-    // it's already been bumped by the unconditional refreshes++ above — only earth's split-off
-    // img row needs its own count of "an image refresh was actually needed" here.
-    if (imgDebug !== urlDebug) imgDebug.refreshes++;
     try {
-      await timedPreload(candidate.url, imgDebug);
-      this.cache.markDecoded(this.source, candidate.url);
-      return candidate;
+      // Checked before any fetch is attempted, so `cacheHits` climbs on every refresh that's
+      // served straight from cache — the direct answer to "is this source's TTL actually
+      // skipping the network" that `refreshes` vs. `fetches` alone only implies.
+      const cached = this.getCached();
+      if (cached) urlDebug.cacheHits++;
+      const candidate = cached ?? (await this.fetchCandidateUrl(urlDebug));
+      // URL identity is already the cache — skip re-decoding an image already confirmed to
+      // load (bytes that would've been re-fetched and re-decoded for nothing). Only counted
+      // when the TTL cache had just expired (`expired`): a real fetchCandidateUrl() call that
+      // ended up confirming nothing changed. The cache-still-fresh case needs no counter of its
+      // own — `cacheHits` already answers that question.
+      if (this.cache.isDecoded(this.source, candidate.url)) {
+        if (!cached) urlDebug.expired++;
+        this.cache.recordSuccess(this.source, candidate);
+        return candidate;
+      }
+      // sun's imgDebug is the same object as urlDebug (see the accumulator comment above), so
+      // it's already been bumped by the unconditional refreshes++ above — only earth's
+      // split-off img row needs its own count of "an image refresh was actually needed" here.
+      if (imgDebug !== urlDebug) imgDebug.refreshes++;
+      try {
+        await timedPreload(candidate.url, imgDebug);
+        this.cache.markDecoded(this.source, candidate.url);
+        this.cache.recordSuccess(this.source, candidate);
+        return candidate;
+      } catch (err) {
+        const recovered = await this.recover(err, candidate, imgDebug);
+        this.cache.markDecoded(this.source, recovered.url);
+        this.cache.recordSuccess(this.source, recovered);
+        return recovered;
+      }
     } catch (err) {
-      const recovered = await this.recover(err, candidate, imgDebug);
-      this.cache.markDecoded(this.source, recovered.url);
-      return recovered;
+      this.cache.recordFailure(this.source, retryAfterMsFrom(err));
+      throw err;
     }
   }
+}
+
+// Duck-typed rather than an `instanceof EpicApiError` check, so this module doesn't need to
+// import a class that only one concrete source (EPIC) ever throws — sun's plain Errors simply
+// carry no retryAfterMs and fall through to pure exponential backoff.
+function retryAfterMsFrom(err: unknown): number | undefined {
+  const value = (err as { retryAfterMs?: unknown } | undefined)?.retryAfterMs;
+  return typeof value === "number" ? value : undefined;
 }
 
 // Confirms a candidate image URL actually loads AND decodes before anything commits to

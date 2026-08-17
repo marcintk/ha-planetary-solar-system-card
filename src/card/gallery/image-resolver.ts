@@ -1,4 +1,4 @@
-import type { ImageSource } from "./card-template.js";
+import type { ImageSource } from "../card-template.js";
 import type { DebugAccumulator, DebugRowId } from "./debug.js";
 import { DEBUG_ROW_KEYS } from "./debug.js";
 import type { SourceResolver } from "./source-resolver.js";

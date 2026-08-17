@@ -6,7 +6,7 @@ import {
   getSkyMode,
 } from "../astronomy/solar-position.js";
 import type { LocationData } from "../types.js";
-import type { GalleryViewModel } from "./gallery-controller.js";
+import type { GalleryViewModel } from "./gallery/gallery-controller.js";
 import { formatRelativeAge } from "./relative-time.js";
 
 export function formatDate(date: Date): string {

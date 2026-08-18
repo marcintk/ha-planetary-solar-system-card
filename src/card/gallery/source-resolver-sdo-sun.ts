@@ -24,11 +24,11 @@ export class SdoSunResolver extends SourceResolver {
   readonly source = "sun" as const;
 
   protected getCached(): SourcedImage | null {
-    return this.cache.get("sun", SUN_CACHE_TTL_MS);
+    return freshCachedSlot(this.cache);
   }
 
   protected fetchCandidateUrl(): Promise<SourcedImage> {
-    return Promise.resolve(getSunImageUrl(SUN_CACHE_TTL_MS, this.cache));
+    return Promise.resolve(getSunImageUrl(this.cache));
   }
 
   protected async recover(
@@ -56,15 +56,36 @@ export class SdoSunResolver extends SourceResolver {
   }
 }
 
-export function getSunImageUrl(
-  maxAgeMs = SUN_CACHE_TTL_MS,
-  cache: UrlCache = urlCache
-): SourcedImage {
-  const cached = cache.get("sun", maxAgeMs);
+// Anchored to the slot's own timestamp rather than a sliding "time since this call last ran"
+// window — a sliding TTL starts counting from whatever wall-clock instant a given card
+// instance happened to first populate its cache, so two cards that first asked at different
+// moments drift onto two different hold windows that never re-sync (#122). A slot only
+// actually goes stale once the *next* slot's publish-buffer window opens, and that instant is
+// a pure function of the slot itself — so every card holding the same slot expires it at the
+// exact same wall-clock moment, regardless of when each one fetched it.
+//
+// One exception: a slot committed by recover()'s one-step-back fallback is, by definition,
+// already past its own anchor the moment it's confirmed (that's *why* the primary guess 404'd
+// — real publish lag exceeded the buffer). Expiring it immediately per the anchor would send
+// every following refresh tick straight back into recover()'s retry loop, hammering NASA with
+// the same still-unpublished primary slot every tick instead of waiting it out. So when a
+// commit's own fetchedAt already lands past its slot's anchor, fall back to a plain
+// fetchedAt+TTL hold from that commit instant — the same protection the old sliding TTL gave
+// every commit, now scoped to only the case that actually needs it.
+function freshCachedSlot(cache: UrlCache): SourcedImage | null {
+  const entry = cache.getEntry("sun");
+  if (!entry) return null;
+  const anchor = entry.image.date.getTime() + SUN_CACHE_TTL_MS + SUN_PUBLISH_BUFFER_MS;
+  const validUntil = entry.fetchedAt >= anchor ? entry.fetchedAt + SUN_CACHE_TTL_MS : anchor;
+  return Date.now() < validUntil ? entry.image : null;
+}
+
+export function getSunImageUrl(cache: UrlCache = urlCache): SourcedImage {
+  const cached = freshCachedSlot(cache);
   if (cached) return cached;
 
-  const now = Date.now();
-  const slotMs = Math.floor((now - SUN_PUBLISH_BUFFER_MS) / SUN_CACHE_TTL_MS) * SUN_CACHE_TTL_MS;
+  const slotMs =
+    Math.floor((Date.now() - SUN_PUBLISH_BUFFER_MS) / SUN_CACHE_TTL_MS) * SUN_CACHE_TTL_MS;
   const image = buildSunSlotImage(new Date(slotMs));
   cache.set("sun", image);
   return image;

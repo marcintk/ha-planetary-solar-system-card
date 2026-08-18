@@ -41,7 +41,7 @@ export const DEBUG_ROW_KEYS: Record<ImageSource, { url: DebugRowId; img: DebugRo
 // failed preload (sun's retry path) previously vanished from the count entirely instead of
 // showing up as a real network cost. `retries` counts how often sun's primary 15-min-slot guess
 // missed and fell back to the previous slot — a rising rate here means SUN_PUBLISH_BUFFER_MS
-// (source-resolver-sdosun.ts) needs widening. `lastAttemptAt` is the raw timestamp of the most
+// (source-resolver-sdo-sun.ts) needs widening. `lastAttemptAt` is the raw timestamp of the most
 // recent preload attempt, formatted at render time.
 // Field order matches the overlay's column order (buildDebugOverlay below).
 export interface SourceDebugStats {
@@ -155,7 +155,7 @@ export function buildDebugOverlay(
         // and found nothing", when really the question never applies to this row at all.
         const hasCacheStep = rowId !== "earth-img";
         // Only sun's resolver ever retries (recover()'s one-slot-back fallback — see
-        // source-resolver-sdosun.ts) — earth's default recover() just rethrows, so 0 there
+        // source-resolver-sdo-sun.ts) — earth's default recover() just rethrows, so 0 there
         // would misleadingly suggest "checked, never needed one" rather than "not a thing
         // that can happen on this row".
         const canRetry = rowId === "sun";

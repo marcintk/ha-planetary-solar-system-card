@@ -126,6 +126,7 @@ location:
 | `colors`        | object                            | see below | Color overrides (see Colors)                                                                                               |
 | `ecliptic_view` | `"north"` \| `"south"`            | `"north"` | Viewing pole: `"north"` = counter-clockwise orbits; `"south"` = clockwise orbits                                           |
 | `show_version`  | boolean                           | `false`   | Show card version number centered in the top status bar                                                                    |
+| `debug`         | boolean                           | `false`   | Show a live overlay of gallery fetch/cache stats per NASA source (refreshes, cache hits, retries, failures)                |
 
 ### Colors
 

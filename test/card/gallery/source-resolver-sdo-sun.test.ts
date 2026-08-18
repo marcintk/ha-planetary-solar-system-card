@@ -5,7 +5,7 @@ import {
   SDO_BROWSE_BASE_URL,
   SdoSunResolver,
   SUN_CACHE_TTL_MS,
-} from "../../../src/card/gallery/source-resolver-sdosun.js";
+} from "../../../src/card/gallery/source-resolver-sdo-sun.js";
 import { UrlCache } from "../../../src/card/gallery/url-cache.js";
 
 // Same pattern as gallery-controller.test.ts's stubImagePreload: recover()'s retry loop goes
@@ -26,7 +26,7 @@ function stubImageDecode(...results: boolean[]) {
   );
 }
 
-describe("source-resolver-sdosun", () => {
+describe("source-resolver-sdo-sun", () => {
   // Each test gets its own UrlCache — SdoSunResolver/getSunImageUrl accept one explicitly, so
   // nothing here shares state with the module-level default (which production relies on for
   // remount survival, but tests don't need).
@@ -47,34 +47,57 @@ describe("source-resolver-sdosun", () => {
 
     it("computes the SDO browse-archive URL for the last published 15-min slot, buffered for publish latency", () => {
       vi.spyOn(Date, "now").mockReturnValue(NOW);
-      const { url, date } = getSunImageUrl(SUN_CACHE_TTL_MS, cache);
+      const { url, date } = getSunImageUrl(cache);
       expect(url).toBe(`${SDO_BROWSE_BASE_URL}/2026/08/15/20260815_221500_1024_HMIIC.jpg`);
       expect(date.toISOString()).toBe("2026-08-15T22:15:00.000Z");
     });
 
-    it("returns the cached result within the TTL instead of a fresh slot", () => {
+    it("returns the cached result while the slot's own buffer window is still open", () => {
       vi.spyOn(Date, "now").mockReturnValue(NOW);
-      const first = getSunImageUrl(SUN_CACHE_TTL_MS, cache);
-      vi.spyOn(Date, "now").mockReturnValue(NOW + 60000);
-      const second = getSunImageUrl(SUN_CACHE_TTL_MS, cache);
+      const first = getSunImageUrl(cache);
+      // first.date = 22:15:00; valid until 22:15 + 15m TTL + 20m buffer = 22:50:00.
+      vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-08-15T22:49:59.999Z"));
+      const second = getSunImageUrl(cache);
       expect(second).toEqual(first);
     });
 
-    it("recomputes with a fresh slot once the 15-min default TTL has elapsed", () => {
+    it("recomputes with a fresh slot once the slot's own buffer window has closed", () => {
       vi.spyOn(Date, "now").mockReturnValue(NOW);
-      const first = getSunImageUrl(SUN_CACHE_TTL_MS, cache);
-      vi.spyOn(Date, "now").mockReturnValue(NOW + 15 * 60000 + 1);
-      const second = getSunImageUrl(SUN_CACHE_TTL_MS, cache);
+      const first = getSunImageUrl(cache);
+      vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-08-15T22:50:00.001Z"));
+      const second = getSunImageUrl(cache);
       expect(second).not.toEqual(first);
     });
 
-    it("a shorter maxAgeMs expires the cache sooner", () => {
-      vi.spyOn(Date, "now").mockReturnValue(NOW);
-      const first = getSunImageUrl(SUN_CACHE_TTL_MS, cache);
-      // 16 min later, guaranteed to cross into the next published 15-min slot.
-      vi.spyOn(Date, "now").mockReturnValue(NOW + 16 * 60000);
-      const second = getSunImageUrl(1000, cache);
-      expect(second).not.toEqual(first);
+    it("expiry depends only on the cached slot's own date, never on when it was fetched", () => {
+      // The bug this fixes: the old sliding TTL counted from fetchedAt (whenever a card
+      // instance happened to populate its cache), so two cards holding the exact same slot
+      // but caching it at different real moments went stale at two different instants and
+      // never re-synced. Anchoring expiry to slot.date instead means validity is a pure
+      // function of the slot itself, regardless of fetchedAt.
+      const slot = {
+        url: "https://example.com/slot.jpg",
+        date: new Date(Date.UTC(2026, 7, 15, 22, 0, 0)),
+      };
+      const cacheA = new UrlCache();
+      const cacheB = new UrlCache();
+
+      vi.spyOn(Date, "now").mockReturnValue(Date.UTC(2026, 7, 15, 22, 1, 0));
+      cacheA.set("sun", slot); // fetchedAt 22:01
+
+      vi.spyOn(Date, "now").mockReturnValue(Date.UTC(2026, 7, 15, 22, 33, 0));
+      cacheB.set("sun", slot); // fetchedAt 22:33 — 32 minutes later than A
+
+      // Both hold the same slot until slot + 15m TTL + 20m buffer = 22:35:00, regardless of
+      // when each cache was actually populated.
+      vi.spyOn(Date, "now").mockReturnValue(Date.UTC(2026, 7, 15, 22, 34, 59));
+      expect(getSunImageUrl(cacheA)).toEqual(slot);
+      expect(getSunImageUrl(cacheB)).toEqual(slot);
+
+      vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-08-15T22:35:00.001Z"));
+      expect(getSunImageUrl(cacheA)).not.toEqual(slot);
+      expect(getSunImageUrl(cacheB)).not.toEqual(slot);
+      expect(getSunImageUrl(cacheA)).toEqual(getSunImageUrl(cacheB));
     });
   });
 
@@ -96,7 +119,7 @@ describe("source-resolver-sdosun", () => {
       // Moments later — well within the 15-min cache TTL — a background refresh must see the
       // corrected slot, not the original 22:15:00 guess that 404s.
       vi.spyOn(Date, "now").mockReturnValue(NOW + 60000);
-      const refreshed = getSunImageUrl(SUN_CACHE_TTL_MS, cache);
+      const refreshed = getSunImageUrl(cache);
       expect(refreshed).toEqual(original);
     });
 
@@ -187,10 +210,10 @@ describe("source-resolver-sdosun", () => {
 
       const cacheA = new UrlCache();
       const cacheB = new UrlCache();
-      const first = getSunImageUrl(SUN_CACHE_TTL_MS, cacheA);
+      const first = getSunImageUrl(cacheA);
       cacheB.set("sun", { url: "https://example.com/other.jpg", date: new Date(NOW) });
 
-      expect(getSunImageUrl(SUN_CACHE_TTL_MS, cacheA)).toEqual(first);
+      expect(getSunImageUrl(cacheA)).toEqual(first);
       expect(cacheB.get("sun", SUN_CACHE_TTL_MS)?.url).toBe("https://example.com/other.jpg");
     });
   });
@@ -200,21 +223,21 @@ describe("source-resolver-sdosun", () => {
       expect(new SdoSunResolver(cache).hydrate()).toBeUndefined();
     });
 
-    it("returns the cached sun image while its 15-min slot TTL is still fresh", () => {
+    it("returns the cached sun image while its slot's buffer window is still open", () => {
       const NOW = Date.UTC(2026, 7, 15, 22, 42, 30);
       vi.spyOn(Date, "now").mockReturnValue(NOW);
-      const first = getSunImageUrl(SUN_CACHE_TTL_MS, cache);
+      const first = getSunImageUrl(cache); // slot = 22:15:00, valid until 22:50:00
 
-      vi.spyOn(Date, "now").mockReturnValue(NOW + 60000);
+      vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-08-15T22:49:59.999Z"));
       expect(new SdoSunResolver(cache).hydrate()).toEqual(first);
     });
 
-    it("returns undefined once the sun slot's TTL has elapsed", () => {
+    it("returns undefined once the sun slot's buffer window has closed", () => {
       const NOW = Date.UTC(2026, 7, 15, 22, 42, 30);
       vi.spyOn(Date, "now").mockReturnValue(NOW);
-      getSunImageUrl(SUN_CACHE_TTL_MS, cache);
+      getSunImageUrl(cache); // slot = 22:15:00, valid until 22:50:00
 
-      vi.spyOn(Date, "now").mockReturnValue(NOW + 15 * 60000 + 1);
+      vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-08-15T22:50:00.001Z"));
       expect(new SdoSunResolver(cache).hydrate()).toBeUndefined();
     });
   });

@@ -5,10 +5,10 @@ import {
   EPIC_BASE_URL,
   EpicApiError,
   fetchLatestEarthImageUrl,
-} from "../../../src/card/gallery/source-resolver-dscovrearth.js";
+} from "../../../src/card/gallery/source-resolver-dscovr-earth.js";
 import { UrlCache } from "../../../src/card/gallery/url-cache.js";
 
-describe("source-resolver-dscovrearth", () => {
+describe("source-resolver-dscovr-earth", () => {
   // Each test gets its own UrlCache, so nothing here shares state with the module-level
   // default (which production relies on for remount survival, but tests don't need).
   let cache: UrlCache;

@@ -6,12 +6,12 @@ import { urlCache } from "./url-cache.js";
 // Bounds a hung network request — without it, a stalled fetch or image load has no
 // app-level ceiling and blocks that gallery source indefinitely (only the browser's own
 // network stack would eventually give up, if ever). Shared by the EPIC JSON fetch
-// (source-resolver-dscovrearth.ts) and the image-decode preload below, so both NASA hosts are
+// (source-resolver-dscovr-earth.ts) and the image-decode preload below, so both NASA hosts are
 // bounded the same way.
 export const FETCH_TIMEOUT_MS = 15000;
 
 // One resolver instance per NASA source, each owning that source's own cache TTL, decode-gate
-// state, and candidate-fetch quirks (see source-resolver-dscovrearth.ts / source-resolver-sdosun.ts).
+// state, and candidate-fetch quirks (see source-resolver-dscovr-earth.ts / source-resolver-sdo-sun.ts).
 // resolve() is the shared protocol (cache check, decode gate, preload, counters); getCached(),
 // fetchCandidateUrl(), and recover() are the only per-source hooks — a new source plugs in by
 // extending this and providing those three, without touching the shared protocol.

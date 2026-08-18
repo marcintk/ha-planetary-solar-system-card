@@ -5,6 +5,7 @@ import {
   SDO_BROWSE_BASE_URL,
   SdoSunResolver,
   SUN_CACHE_TTL_MS,
+  SUN_RECOVERY_HOLD_MS,
 } from "../../../src/card/gallery/source-resolver-sdo-sun.js";
 import { UrlCache } from "../../../src/card/gallery/url-cache.js";
 
@@ -116,11 +117,30 @@ describe("source-resolver-sdo-sun", () => {
       const original = await new SdoSunResolver(cache).resolve(debug, debug);
       expect(original.date.toISOString()).toBe("2026-08-15T22:00:00.000Z"); // stepped back once
 
-      // Moments later — well within the 15-min cache TTL — a background refresh must see the
-      // corrected slot, not the original 22:15:00 guess that 404s.
+      // Moments later — well within the shorter recovery hold — a background refresh must see
+      // the corrected slot, not the original 22:15:00 guess that 404s.
       vi.spyOn(Date, "now").mockReturnValue(NOW + 60000);
       const refreshed = getSunImageUrl(cache);
       expect(refreshed).toEqual(original);
+    });
+
+    it("retries the primary slot once the shorter recovery hold elapses, not the full 15-min TTL", async () => {
+      // The bug this fixes: a recovered slot used to hold for a full 15 minutes (borrowed from
+      // the primary TTL) before retrying, even though real-world publish lag typically clears
+      // within a few minutes — so a card could sit on a stale recovered image long after the
+      // real slot published. The recovery hold is now its own, shorter window.
+      const NOW = Date.UTC(2026, 7, 15, 22, 42, 30);
+      vi.spyOn(Date, "now").mockReturnValue(NOW);
+      stubImageDecode(false, true); // primary slot 404s, one-step-back fallback loads
+
+      const debug = emptyDebugAccumulator();
+      const original = await new SdoSunResolver(cache).resolve(debug, debug);
+      expect(original.date.toISOString()).toBe("2026-08-15T22:00:00.000Z");
+
+      // Past the recovery hold, but well short of the old 15-min TTL that used to protect it.
+      vi.spyOn(Date, "now").mockReturnValue(NOW + SUN_RECOVERY_HOLD_MS + 1);
+      const refreshed = getSunImageUrl(cache);
+      expect(refreshed).not.toEqual(original);
     });
 
     it("never commits a failed intermediate guess to the cache", async () => {

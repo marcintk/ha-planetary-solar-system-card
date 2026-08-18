@@ -19,6 +19,12 @@ export const SDO_BROWSE_BASE_URL = "https://sdo.gsfc.nasa.gov/assets/img/browse"
 export const SUN_CACHE_TTL_MS = 15 * 60000;
 const SUN_PUBLISH_BUFFER_MS = 20 * 60000;
 const SUN_MAX_RETRIES = 3;
+// Shorter than SUN_CACHE_TTL_MS on purpose: a recovered slot means the primary guess 404'd
+// because real publish lag exceeded SUN_PUBLISH_BUFFER_MS, but that lag has been observed to
+// clear within a few minutes of the buffer window closing — holding the recovered slot for the
+// full 15-min primary cadence trades away freshness the real world doesn't need. Still bounded
+// (not 0) so a genuine multi-slot outage doesn't retry every single refresh_mins tick.
+export const SUN_RECOVERY_HOLD_MS = 5 * 60000;
 
 export class SdoSunResolver extends SourceResolver {
   readonly source = "sun" as const;
@@ -70,13 +76,14 @@ export class SdoSunResolver extends SourceResolver {
 // every following refresh tick straight back into recover()'s retry loop, hammering NASA with
 // the same still-unpublished primary slot every tick instead of waiting it out. So when a
 // commit's own fetchedAt already lands past its slot's anchor, fall back to a plain
-// fetchedAt+TTL hold from that commit instant — the same protection the old sliding TTL gave
-// every commit, now scoped to only the case that actually needs it.
+// fetchedAt+SUN_RECOVERY_HOLD_MS hold from that commit instant — protection against
+// hammering, scoped to only the case that actually needs it, sized shorter than the primary
+// TTL since real publish lag typically clears faster than that (see SUN_RECOVERY_HOLD_MS).
 function freshCachedSlot(cache: UrlCache): SourcedImage | null {
   const entry = cache.getEntry("sun");
   if (!entry) return null;
   const anchor = entry.image.date.getTime() + SUN_CACHE_TTL_MS + SUN_PUBLISH_BUFFER_MS;
-  const validUntil = entry.fetchedAt >= anchor ? entry.fetchedAt + SUN_CACHE_TTL_MS : anchor;
+  const validUntil = entry.fetchedAt >= anchor ? entry.fetchedAt + SUN_RECOVERY_HOLD_MS : anchor;
   return Date.now() < validUntil ? entry.image : null;
 }
 

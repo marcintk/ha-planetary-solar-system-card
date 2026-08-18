@@ -5,14 +5,14 @@ export interface SourcedImage {
   date: Date;
 }
 
-interface CacheEntry {
+export interface CacheEntry {
   image: SourcedImage;
   fetchedAt: number;
 }
 
 // Generic TTL cache keyed by gallery source (one entry per key, overwrite-on-set — no
 // eviction beyond that). Owns only the freshness mechanism; each source's own resolver module
-// (source-resolver-dscovrearth.ts, source-resolver-sdosun.ts) owns what a stale entry means for its NASA
+// (source-resolver-dscovr-earth.ts, source-resolver-sdo-sun.ts) owns what a stale entry means for its NASA
 // feed (when to refetch, what TTL it gets).
 //
 // Also owns decode identity per key: which URL that source last confirmed loads. TTL freshness
@@ -33,6 +33,14 @@ export class UrlCache {
   get(key: string, maxAgeMs: number): SourcedImage | null {
     const entry = this.entries.get(key);
     return entry != null && Date.now() - entry.fetchedAt < maxAgeMs ? entry.image : null;
+  }
+
+  // Raw read exposing the fetch instant alongside the image, bypassing `get`'s TTL filter —
+  // sun's resolver needs both to tell a normal in-window commit from an overdue recovery
+  // commit apart (see source-resolver-sdo-sun.ts's freshCachedSlot), something a single
+  // TTL-filtered read can't distinguish.
+  getEntry(key: string): CacheEntry | null {
+    return this.entries.get(key) ?? null;
   }
 
   getStale(key: string): SourcedImage | null {

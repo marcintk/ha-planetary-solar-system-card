@@ -2,12 +2,12 @@ import type { ImageSource } from "../card-template.js";
 import type { DebugAccumulator, DebugRowId } from "./debug.js";
 import { DEBUG_ROW_KEYS } from "./debug.js";
 import type { SourceResolver } from "./source-resolver.js";
-import { DscovrEarthResolver } from "./source-resolver-dscovrearth.js";
-import { SdoSunResolver } from "./source-resolver-sdosun.js";
+import { DscovrEarthResolver } from "./source-resolver-dscovr-earth.js";
+import { SdoSunResolver } from "./source-resolver-sdo-sun.js";
 import type { SourcedImage } from "./url-cache.js";
 
 // The single gateway to a resolved sun/earth image — dispatches to the per-source resolver
-// (source-resolver-dscovrearth.ts / source-resolver-sdosun.ts) that owns that source's own TTL, decode-gate
+// (source-resolver-dscovr-earth.ts / source-resolver-sdo-sun.ts) that owns that source's own TTL, decode-gate
 // state, and fetch/retry quirks. One instance per GalleryController, so its state matches that
 // controller's own lifecycle (remounts get a fresh instance). Adding a new source means adding
 // a SourceResolver subclass and an entry in `_resolvers` — GalleryController's call sites don't

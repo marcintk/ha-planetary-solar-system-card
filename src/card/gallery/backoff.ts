@@ -16,7 +16,7 @@ export class Backoff {
   private cooldowns = new Map<string, number>();
   // Separate from UrlCache's TTL entries: sun's candidate URL is written there
   // optimistically, before its preload/decode confirms it actually loads (see
-  // getSunImageUrl in source-resolver-sdosun.ts) — so that cache can hold a
+  // getSunImageUrl in source-resolver-sdo-sun.ts) — so that cache can hold a
   // still-unconfirmed, possibly-bad guess. `lastConfirmed` is only ever written via
   // recordSuccess() after a real decode success, so it's safe to serve during a cooldown.
   private lastConfirmed = new Map<string, SourcedImage>();

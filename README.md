@@ -13,13 +13,9 @@ Sun, with live NASA imagery of Earth and the Sun. Navigate time, zoom, and pan i
 Have an idea or found a bug?
 [Open a GitHub issue](https://github.com/marcintk/ha-planetary-solar-system-card/issues/new).
 
-[![HACS](https://img.shields.io/badge/HACS-Default-41BDF5.svg)](https://hacs.xyz)
-[![GitHub Release](https://img.shields.io/github/release/marcintk/ha-planetary-solar-system-card.svg)](https://github.com/marcintk/ha-planetary-solar-system-card/releases)
-[![License](https://img.shields.io/github/license/marcintk/ha-planetary-solar-system-card.svg)](https://github.com/marcintk/ha-planetary-solar-system-card/blob/main/LICENSE)
-![Maintenance](https://img.shields.io/maintenance/yes/2026)
-[![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen)](https://github.com/marcintk/ha-planetary-solar-system-card/actions/workflows/build-and-test.yml)
-[![Lines of code](https://sloc.xyz/github/marcintk/ha-planetary-solar-system-card/?category=code)](https://github.com/marcintk/ha-planetary-solar-system-card)
-[![CI](https://github.com/marcintk/ha-planetary-solar-system-card/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/marcintk/ha-planetary-solar-system-card/actions/workflows/build-and-test.yml)
+[![hacs_badge][hacs-shield]][hacs] [![GitHub Release][releases-shield]][releases]
+[![License][license-shield]](LICENSE) ![Maintenance][maintenance-shield] [![CI][ci-shield]][ci]
+[![Coverage][coverage-shield]][ci]
 
 ## Horizon Twilight Zones
 
@@ -160,3 +156,19 @@ location:
 | `location.name`      | string               | HA config | Overrides the location label shown in the status bar                                                         |
 | `location.latitude`  | number (-90 to 90)   | HA config | Overrides HA's latitude for hemisphere/season/twilight math. Requires `location.longitude` too, else ignored |
 | `location.longitude` | number (-180 to 180) | HA config | Overrides HA's longitude. Requires `location.latitude` too, else ignored                                     |
+
+<!-- Badge reference links -->
+
+[releases]: https://github.com/marcintk/ha-planetary-solar-system-card/releases
+[ci]:
+  https://github.com/marcintk/ha-planetary-solar-system-card/actions/workflows/build-and-test.yml
+[hacs]: https://hacs.xyz
+[hacs-shield]: https://img.shields.io/badge/HACS-Default-41BDF5.svg?style=for-the-badge
+[releases-shield]:
+  https://img.shields.io/github/release/marcintk/ha-planetary-solar-system-card.svg?style=for-the-badge
+[license-shield]:
+  https://img.shields.io/github/license/marcintk/ha-planetary-solar-system-card.svg?style=for-the-badge
+[maintenance-shield]: https://img.shields.io/maintenance/yes/2026?style=for-the-badge
+[ci-shield]:
+  https://img.shields.io/github/actions/workflow/status/marcintk/ha-planetary-solar-system-card/build-and-test.yml?style=for-the-badge&label=CI
+[coverage-shield]: https://img.shields.io/badge/coverage-100%25-brightgreen?style=for-the-badge

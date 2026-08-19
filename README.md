@@ -15,7 +15,7 @@ Have an idea or found a bug?
 
 [![hacs_badge][hacs-shield]][hacs] [![GitHub Release][releases-shield]][releases]
 [![License][license-shield]](LICENSE) ![Maintenance][maintenance-shield] [![CI][ci-shield]][ci]
-[![Coverage][coverage-shield]][ci]
+[![Coverage][coverage-shield]][ci] [![Lines of code][sloc-shield]][repo]
 
 ## Horizon Twilight Zones
 
@@ -159,16 +159,16 @@ location:
 
 <!-- Badge reference links -->
 
+[repo]: https://github.com/marcintk/ha-planetary-solar-system-card
 [releases]: https://github.com/marcintk/ha-planetary-solar-system-card/releases
 [ci]:
   https://github.com/marcintk/ha-planetary-solar-system-card/actions/workflows/build-and-test.yml
 [hacs]: https://hacs.xyz
-[hacs-shield]: https://img.shields.io/badge/HACS-Default-41BDF5.svg?style=for-the-badge
-[releases-shield]:
-  https://img.shields.io/github/release/marcintk/ha-planetary-solar-system-card.svg?style=for-the-badge
-[license-shield]:
-  https://img.shields.io/github/license/marcintk/ha-planetary-solar-system-card.svg?style=for-the-badge
-[maintenance-shield]: https://img.shields.io/maintenance/yes/2026?style=for-the-badge
+[hacs-shield]: https://img.shields.io/badge/HACS-Default-41BDF5.svg
+[releases-shield]: https://img.shields.io/github/release/marcintk/ha-planetary-solar-system-card.svg
+[license-shield]: https://img.shields.io/github/license/marcintk/ha-planetary-solar-system-card.svg
+[maintenance-shield]: https://img.shields.io/maintenance/yes/2026
 [ci-shield]:
-  https://img.shields.io/github/actions/workflow/status/marcintk/ha-planetary-solar-system-card/build-and-test.yml?style=for-the-badge&label=CI
-[coverage-shield]: https://img.shields.io/badge/coverage-100%25-brightgreen?style=for-the-badge
+  https://img.shields.io/github/actions/workflow/status/marcintk/ha-planetary-solar-system-card/build-and-test.yml?label=CI
+[coverage-shield]: https://img.shields.io/badge/coverage-100%25-brightgreen
+[sloc-shield]: https://sloc.xyz/github/marcintk/ha-planetary-solar-system-card/?category=code

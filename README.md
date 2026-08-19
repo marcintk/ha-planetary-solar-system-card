@@ -32,10 +32,9 @@ the standard astronomical twilight definitions:
 
 ## Live Imagery
 
-A thumbnail strip alongside the solar view can show near-real-time photos of Earth and the Sun from
-two NASA probes. It's off by default — enable and configure it with `gallery.*` options (see
-[Gallery](#gallery) in Configuration). Once enabled, ☷ toggles the strip on/off and clicking a
-thumbnail opens it full-screen.
+Near-real-time photos of Earth and the Sun from two NASA probes, in a thumbnail strip beside the
+solar view. Off by default — turn it on with `gallery.*` (see [Gallery](#gallery)). Once on, ☷
+toggles the strip and clicking a thumbnail opens it full-screen.
 
 | Thumbnail | Source            | Watches                      | We poll | Typical age |
 | --------- | ----------------- | ---------------------------- | ------- | ----------- |
@@ -43,9 +42,14 @@ thumbnail opens it full-screen.
 | SDO/S     | [NASA SDO][sdo]   | The Sun, from geosync orbit  | 15 min  | 20-55 min   |
 
 Both lags are NASA's publish pipeline, not the card holding images back: EPIC processes a day or two
-behind, and SDO's browse archive often posts a 15-min frame 30+ minutes late, so the card falls back
-to the previous frame. Strict reverse-proxy CSP may block `epic.gsfc.nasa.gov` / `sdo.gsfc.nasa.gov`
-— not fixable card-side.
+behind, and SDO's archive often posts a 15-min frame 30+ minutes late, so the card falls back one
+frame.
+
+> **Thumbnails stuck on "unavailable"?** The browser fetches these images straight from NASA, so a
+> reverse proxy in front of Home Assistant (Nginx Proxy Manager, Cloudflare Tunnel, Traefik) can
+> block them with a strict `Content-Security-Policy`. Add `epic.gsfc.nasa.gov` and
+> `sdo.gsfc.nasa.gov` to that policy's `img-src`. Nothing card-side can work around it — the block
+> happens before the card sees a response.
 
 ## Installation
 

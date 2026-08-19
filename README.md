@@ -17,6 +17,51 @@ Have an idea or found a bug?
 [![License][license-shield]](LICENSE) ![Maintenance][maintenance-shield] [![CI][ci-shield]][ci]
 [![Coverage][coverage-shield]][ci] [![Lines of code][sloc-shield]][repo]
 
+## Installation
+
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.][my-hacs-shield]][my-hacs]
+
+Click the badge to open this card in your own HACS, or find it manually: HACS → Frontend → search
+**Planetary Solar System Card**. Then Install, reload your browser, and add the card to your
+dashboard.
+
+Without HACS: drop `card.js` from the [latest release][latest-release] into
+`<config>/www/ha-planetary-solar-system-card/`, then register
+`/local/ha-planetary-solar-system-card/card.js` as a **JavaScript Module** under Settings →
+Dashboards → Resources.
+
+## Usage
+
+Add the card to your dashboard:
+
+```yaml
+type: custom:ha-planetary-solar-system-card
+default_zoom: 2
+```
+
+```yaml
+type: custom:ha-planetary-solar-system-card
+colors:
+  background: "#0d1117"
+  season_line: "rgba(100, 200, 255, 0.2)"
+  season_label: "#e0e0ff"
+```
+
+```yaml
+type: custom:ha-planetary-solar-system-card
+gallery:
+  mode: slide
+  slide_interval_secs: 30
+```
+
+```yaml
+type: custom:ha-planetary-solar-system-card
+location:
+  latitude: 51.5074
+  longitude: -0.1278
+  name: London
+```
+
 ## Horizon Twilight Zones
 
 The visibility cone at Earth's orbit shades by how far the Sun is below your local horizon, using
@@ -50,58 +95,6 @@ frame.
 > block them with a strict `Content-Security-Policy`. Add `epic.gsfc.nasa.gov` and
 > `sdo.gsfc.nasa.gov` to that policy's `img-src`. Nothing card-side can work around it — the block
 > happens before the card sees a response.
-
-## Installation
-
-### Via HACS (recommended)
-
-[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.][my-hacs-shield]][my-hacs]
-
-Click the badge to open this card in your own HACS, or find it manually: HACS → Frontend → search
-**Planetary Solar System Card**. Then Install, reload your browser, and add the card to your
-dashboard (see Configuration below).
-
-### Manual
-
-1. Download `card.js` from the
-   [latest release](https://github.com/marcintk/ha-planetary-solar-system-card/releases/latest)
-2. Copy it to `<config>/www/ha-planetary-solar-system-card/card.js` (create the folder if needed)
-3. In Home Assistant → Settings → Dashboards → Resources → **Add resource**
-   - URL: `/local/ha-planetary-solar-system-card/card.js`
-   - Type: **JavaScript Module**
-4. Reload your browser
-
-## Usage
-
-Add the card to your dashboard:
-
-```yaml
-type: custom:ha-planetary-solar-system-card
-default_zoom: 2
-```
-
-```yaml
-type: custom:ha-planetary-solar-system-card
-colors:
-  background: "#0d1117"
-  season_line: "rgba(100, 200, 255, 0.2)"
-  season_label: "#e0e0ff"
-```
-
-```yaml
-type: custom:ha-planetary-solar-system-card
-gallery:
-  mode: slide
-  slide_interval_secs: 30
-```
-
-```yaml
-type: custom:ha-planetary-solar-system-card
-location:
-  latitude: 51.5074
-  longitude: -0.1278
-  name: London
-```
 
 ## Configuration
 
@@ -172,6 +165,7 @@ location:
 [sdo]: https://sdo.gsfc.nasa.gov/
 [repo]: https://github.com/marcintk/ha-planetary-solar-system-card
 [releases]: https://github.com/marcintk/ha-planetary-solar-system-card/releases
+[latest-release]: https://github.com/marcintk/ha-planetary-solar-system-card/releases/latest
 [ci]:
   https://github.com/marcintk/ha-planetary-solar-system-card/actions/workflows/build-and-test.yml
 [hacs]: https://hacs.xyz

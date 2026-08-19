@@ -1,5 +1,13 @@
 # Planetary Solar System Card
 
+[![Planetary Solar System Card](docs/hero.png)](https://marcintk.github.io/ha-planetary-solar-system-card/)
+
+Home Assistant custom Lovelace card showing all 8 planets, Moon and comet Halley aligned around the
+Sun. Navigate time, zoom, and pan interactively.
+
+Have an idea or found a bug?
+[Open a GitHub issue](https://github.com/marcintk/ha-planetary-solar-system-card/issues/new).
+
 [![HACS](https://img.shields.io/badge/HACS-Default-41BDF5.svg)](https://hacs.xyz)
 [![GitHub Release](https://img.shields.io/github/release/marcintk/ha-planetary-solar-system-card.svg)](https://github.com/marcintk/ha-planetary-solar-system-card/releases)
 [![License](https://img.shields.io/github/license/marcintk/ha-planetary-solar-system-card.svg)](https://github.com/marcintk/ha-planetary-solar-system-card/blob/main/LICENSE)
@@ -8,17 +16,9 @@
 [![Lines of code](https://sloc.xyz/github/marcintk/ha-planetary-solar-system-card/?category=code)](https://github.com/marcintk/ha-planetary-solar-system-card)
 [![CI](https://github.com/marcintk/ha-planetary-solar-system-card/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/marcintk/ha-planetary-solar-system-card/actions/workflows/build-and-test.yml)
 
-Home Assistant custom Lovelace card showing all 8 planets, Moon and comet Halley aligned around the
-Sun. Navigate time, zoom, and pan interactively.
-
-Have an idea or found a bug?
-[Open a GitHub issue](https://github.com/marcintk/ha-planetary-solar-system-card/issues/new).
-
 ## Preview
 
 [**→ Try the interactive demo**](https://marcintk.github.io/ha-planetary-solar-system-card/)
-
-[![Preview](docs/preview.png)](https://marcintk.github.io/ha-planetary-solar-system-card/)
 
 ### Horizon Twilight Zones
 

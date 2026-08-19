@@ -25,7 +25,7 @@ Click the badge to open this card in your own HACS, or find it manually: HACS �
 **Planetary Solar System Card**. Then Install, reload your browser, and add the card to your
 dashboard.
 
-Without HACS: drop `card.js` from the [latest release][latest-release] into
+**Manual (w/o HACS):** drop `card.js` from the [latest release][latest-release] into
 `<config>/www/ha-planetary-solar-system-card/`, then register
 `/local/ha-planetary-solar-system-card/card.js` as a **JavaScript Module** under Settings →
 Dashboards → Resources.

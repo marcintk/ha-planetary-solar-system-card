@@ -4,6 +4,7 @@
 
 Home Assistant custom Lovelace card showing all 8 planets, Moon and comet Halley aligned around the
 Sun. Navigate time, zoom, and pan interactively.
+[**→ Try the interactive demo**](https://marcintk.github.io/ha-planetary-solar-system-card/)
 
 Have an idea or found a bug?
 [Open a GitHub issue](https://github.com/marcintk/ha-planetary-solar-system-card/issues/new).
@@ -16,11 +17,7 @@ Have an idea or found a bug?
 [![Lines of code](https://sloc.xyz/github/marcintk/ha-planetary-solar-system-card/?category=code)](https://github.com/marcintk/ha-planetary-solar-system-card)
 [![CI](https://github.com/marcintk/ha-planetary-solar-system-card/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/marcintk/ha-planetary-solar-system-card/actions/workflows/build-and-test.yml)
 
-## Preview
-
-[**→ Try the interactive demo**](https://marcintk.github.io/ha-planetary-solar-system-card/)
-
-### Horizon Twilight Zones
+## Horizon Twilight Zones
 
 The visibility cone at Earth's orbit shades by how far the Sun is below your local horizon, using
 the standard astronomical twilight definitions:
@@ -33,7 +30,7 @@ the standard astronomical twilight definitions:
 | Astronomical twilight | -12° to -18°  | Sky background glow, faint stars washed out                      |
 | Night                 | < -18°        | Full dark; the Sun no longer lights the sky                      |
 
-### Live Imagery
+## Live Imagery
 
 A thumbnail strip alongside the solar view can show near-real-time photos of Earth and the Sun,
 sourced from two NASA probes: [DSCOVR](https://epic.gsfc.nasa.gov/), parked at the Sun-Earth L1

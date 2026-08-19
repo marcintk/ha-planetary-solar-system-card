@@ -32,20 +32,20 @@ the standard astronomical twilight definitions:
 
 ## Live Imagery
 
-A thumbnail strip alongside the solar view can show near-real-time photos of Earth and the Sun,
-sourced from two NASA probes: [DSCOVR](https://epic.gsfc.nasa.gov/), parked at the Sun-Earth L1
-point watching Earth's sunlit side, and [SDO](https://sdo.gsfc.nasa.gov/), in geosynchronous orbit
-watching the Sun. It's off by default — enable and configure it with `gallery.*` options (see
+A thumbnail strip alongside the solar view can show near-real-time photos of Earth and the Sun from
+two NASA probes. It's off by default — enable and configure it with `gallery.*` options (see
 [Gallery](#gallery) in Configuration). Once enabled, ☷ toggles the strip on/off and clicking a
 thumbnail opens it full-screen.
 
-| Thumbnail | Source            | We poll | Typical age |
-| --------- | ----------------- | ------- | ----------- |
-| DSCOVR/E  | [NASA EPIC][epic] | Hourly  | 1-2 days    |
-| SDO/S     | [NASA SDO][sdo]   | 15 min  | 20-35 min   |
+| Thumbnail | Source            | Watches                      | We poll | Typical age |
+| --------- | ----------------- | ---------------------------- | ------- | ----------- |
+| DSCOVR/E  | [NASA EPIC][epic] | Earth's sunlit side, from L1 | Hourly  | 1-2 days    |
+| SDO/S     | [NASA SDO][sdo]   | The Sun, from geosync orbit  | 15 min  | 20-55 min   |
 
-EPIC's lag is processing backlog on NASA's side, not the card holding images back. Strict
-reverse-proxy CSP may block `epic.gsfc.nasa.gov` / `sdo.gsfc.nasa.gov` — not fixable card-side.
+Both lags are NASA's publish pipeline, not the card holding images back: EPIC processes a day or two
+behind, and SDO's browse archive often posts a 15-min frame 30+ minutes late, so the card falls back
+to the previous frame. Strict reverse-proxy CSP may block `epic.gsfc.nasa.gov` / `sdo.gsfc.nasa.gov`
+— not fixable card-side.
 
 ## Installation
 

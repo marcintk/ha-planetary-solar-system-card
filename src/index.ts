@@ -8,5 +8,5 @@ window.customCards.push({
   type: "ha-planetary-solar-system-card",
   name: "Solar View Card",
   description: "Planetary solar system visualization card",
-  preview: false,
+  preview: true,
 });

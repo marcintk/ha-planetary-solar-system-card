@@ -1,72 +1,34 @@
 # Planetary Solar System Card
 
-[![HACS](https://img.shields.io/badge/HACS-Default-41BDF5.svg)](https://hacs.xyz)
-[![GitHub Release](https://img.shields.io/github/release/marcintk/ha-planetary-solar-system-card.svg)](https://github.com/marcintk/ha-planetary-solar-system-card/releases)
-[![License](https://img.shields.io/github/license/marcintk/ha-planetary-solar-system-card.svg)](https://github.com/marcintk/ha-planetary-solar-system-card/blob/main/LICENSE)
-![Maintenance](https://img.shields.io/maintenance/yes/2026)
-[![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen)](https://github.com/marcintk/ha-planetary-solar-system-card/actions/workflows/build-and-test.yml)
-[![Lines of code](https://sloc.xyz/github/marcintk/ha-planetary-solar-system-card/?category=code)](https://github.com/marcintk/ha-planetary-solar-system-card)
-[![CI](https://github.com/marcintk/ha-planetary-solar-system-card/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/marcintk/ha-planetary-solar-system-card/actions/workflows/build-and-test.yml)
+<!-- docs/hero.png is unreferenced on purpose: it is the 1280x640 GitHub social-preview asset,
+     uploaded manually under Settings -> General -> Social preview. -->
+
+[![Planetary Solar System Card](docs/demo.gif)](https://marcintk.github.io/ha-planetary-solar-system-card/)
 
 Home Assistant custom Lovelace card showing all 8 planets, Moon and comet Halley aligned around the
-Sun. Navigate time, zoom, and pan interactively.
+Sun, with live NASA imagery of Earth and the Sun. Navigate time, zoom, and pan interactively.
+
+[![Try the interactive demo](https://img.shields.io/badge/▶%20Try%20the%20interactive%20demo-41BDF5?style=for-the-badge)](https://marcintk.github.io/ha-planetary-solar-system-card/)
 
 Have an idea or found a bug?
 [Open a GitHub issue](https://github.com/marcintk/ha-planetary-solar-system-card/issues/new).
 
-## Preview
-
-[**→ Try the interactive demo**](https://marcintk.github.io/ha-planetary-solar-system-card/)
-
-[![Preview](docs/preview.png)](https://marcintk.github.io/ha-planetary-solar-system-card/)
-
-### Horizon Twilight Zones
-
-The visibility cone at Earth's orbit shades by how far the Sun is below your local horizon, using
-the standard astronomical twilight definitions:
-
-| Zone                  | Sun elevation | Meaning                                                          |
-| --------------------- | ------------- | ---------------------------------------------------------------- |
-| Day                   | ≥ 0°          | Sun is up                                                        |
-| Civil twilight        | 0° to -6°     | Bright enough for outdoor activity without lights                |
-| Nautical twilight     | -6° to -12°   | Horizon still visible at sea; too dark for most outdoor activity |
-| Astronomical twilight | -12° to -18°  | Sky background glow, faint stars washed out                      |
-| Night                 | < -18°        | Full dark; the Sun no longer lights the sky                      |
-
-### Live Imagery
-
-A thumbnail strip alongside the solar view can show near-real-time photos of Earth and the Sun,
-sourced from two NASA probes: [DSCOVR](https://epic.gsfc.nasa.gov/), parked at the Sun-Earth L1
-point watching Earth's sunlit side, and [SDO](https://sdo.gsfc.nasa.gov/), in geosynchronous orbit
-watching the Sun. It's off by default — enable and configure it with `gallery.*` options (see
-[Gallery](#gallery) in Configuration). Once enabled, ☷ toggles the strip on/off and clicking a
-thumbnail opens it full-screen.
-
-| Thumbnail | Source                                                              | We poll     | Latest image is usually                 |
-| --------- | ------------------------------------------------------------------- | ----------- | --------------------------------------- |
-| DSCOVR/E  | [NASA EPIC](https://epic.gsfc.nasa.gov/) (DSCOVR, at Sun-Earth L1)  | Hourly      | ~1-2 days old (EPIC processing backlog) |
-| SDO/S     | [NASA SDO](https://sdo.gsfc.nasa.gov/) (geosynchronous Earth orbit) | Every 15min | ~20-35min old                           |
-
-Strict reverse-proxy CSP may block `epic.gsfc.nasa.gov` / `sdo.gsfc.nasa.gov` — not fixable
-card-side.
+[![hacs_badge][hacs-shield]][hacs] [![GitHub Release][releases-shield]][releases]
+[![License][license-shield]](LICENSE) ![Maintenance][maintenance-shield] [![CI][ci-shield]][ci]
+[![Coverage][coverage-shield]][ci] [![Lines of code][sloc-shield]][repo]
 
 ## Installation
 
-### Via HACS (recommended)
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.][my-hacs-shield]][my-hacs]
 
-1. In HACS → Frontend → search **Planetary Solar System Card** → Install
-2. Reload your browser
-3. Add the card to your dashboard (see Configuration below)
+Click the badge to open this card in your own HACS, or find it manually: HACS → Frontend → search
+**Planetary Solar System Card**. Then Install, reload your browser, and add the card to your
+dashboard.
 
-### Manual
-
-1. Download `card.js` from the
-   [latest release](https://github.com/marcintk/ha-planetary-solar-system-card/releases/latest)
-2. Copy it to `<config>/www/ha-planetary-solar-system-card/card.js` (create the folder if needed)
-3. In Home Assistant → Settings → Dashboards → Resources → **Add resource**
-   - URL: `/local/ha-planetary-solar-system-card/card.js`
-   - Type: **JavaScript Module**
-4. Reload your browser
+**Manual (w/o HACS):** drop `card.js` from the [latest release][latest-release] into
+`<config>/www/ha-planetary-solar-system-card/`, then register
+`/local/ha-planetary-solar-system-card/card.js` as a **JavaScript Module** under Settings →
+Dashboards → Resources.
 
 ## Usage
 
@@ -99,6 +61,40 @@ location:
   longitude: -0.1278
   name: London
 ```
+
+## Horizon Twilight Zones
+
+The visibility cone at Earth's orbit shades by how far the Sun is below your local horizon, using
+the standard astronomical twilight definitions:
+
+| Zone                  | Sun elevation | Meaning                                                          |
+| --------------------- | ------------- | ---------------------------------------------------------------- |
+| Day                   | ≥ 0°          | Sun is up                                                        |
+| Civil twilight        | 0° to -6°     | Bright enough for outdoor activity without lights                |
+| Nautical twilight     | -6° to -12°   | Horizon still visible at sea; too dark for most outdoor activity |
+| Astronomical twilight | -12° to -18°  | Sky background glow, faint stars washed out                      |
+| Night                 | < -18°        | Full dark; the Sun no longer lights the sky                      |
+
+## Live Imagery
+
+Near-real-time photos of Earth and the Sun from two NASA probes, in a thumbnail strip beside the
+solar view. Off by default — turn it on with `gallery.*` (see [Gallery](#gallery)). Once on, ☷
+toggles the strip and clicking a thumbnail opens it full-screen.
+
+| Thumbnail | Source            | Watches                      | We poll | Typical age |
+| --------- | ----------------- | ---------------------------- | ------- | ----------- |
+| DSCOVR/E  | [NASA EPIC][epic] | Earth's sunlit side, from L1 | Hourly  | 1-2 days    |
+| SDO/S     | [NASA SDO][sdo]   | The Sun, from geosync orbit  | 15 min  | 20-55 min   |
+
+Both lags are NASA's publish pipeline, not the card holding images back: EPIC processes a day or two
+behind, and SDO's archive often posts a 15-min frame 30+ minutes late, so the card falls back one
+frame.
+
+> **Thumbnails stuck on "unavailable"?** The browser fetches these images straight from NASA, so a
+> reverse proxy in front of Home Assistant (Nginx Proxy Manager, Cloudflare Tunnel, Traefik) can
+> block them with a strict `Content-Security-Policy`. Add `epic.gsfc.nasa.gov` and
+> `sdo.gsfc.nasa.gov` to that policy's `img-src`. Nothing card-side can work around it — the block
+> happens before the card sees a response.
 
 ## Configuration
 
@@ -159,3 +155,25 @@ location:
 | `location.name`      | string               | HA config | Overrides the location label shown in the status bar                                                         |
 | `location.latitude`  | number (-90 to 90)   | HA config | Overrides HA's latitude for hemisphere/season/twilight math. Requires `location.longitude` too, else ignored |
 | `location.longitude` | number (-180 to 180) | HA config | Overrides HA's longitude. Requires `location.latitude` too, else ignored                                     |
+
+<!-- Reference links -->
+
+[my-hacs]:
+  https://my.home-assistant.io/redirect/hacs_repository/?owner=marcintk&repository=ha-planetary-solar-system-card&category=plugin
+[my-hacs-shield]: https://my.home-assistant.io/badges/hacs_repository.svg
+[epic]: https://epic.gsfc.nasa.gov/
+[sdo]: https://sdo.gsfc.nasa.gov/
+[repo]: https://github.com/marcintk/ha-planetary-solar-system-card
+[releases]: https://github.com/marcintk/ha-planetary-solar-system-card/releases
+[latest-release]: https://github.com/marcintk/ha-planetary-solar-system-card/releases/latest
+[ci]:
+  https://github.com/marcintk/ha-planetary-solar-system-card/actions/workflows/build-and-test.yml
+[hacs]: https://hacs.xyz
+[hacs-shield]: https://img.shields.io/badge/HACS-Default-41BDF5.svg
+[releases-shield]: https://img.shields.io/github/release/marcintk/ha-planetary-solar-system-card.svg
+[license-shield]: https://img.shields.io/github/license/marcintk/ha-planetary-solar-system-card.svg
+[maintenance-shield]: https://img.shields.io/maintenance/yes/2026
+[ci-shield]:
+  https://img.shields.io/github/actions/workflow/status/marcintk/ha-planetary-solar-system-card/build-and-test.yml?label=CI
+[coverage-shield]: https://img.shields.io/badge/coverage-100%25-brightgreen
+[sloc-shield]: https://sloc.xyz/github/marcintk/ha-planetary-solar-system-card/?category=code

@@ -23,6 +23,8 @@ describe("src/index.js bootstrap", () => {
     expect(entry).toBeDefined();
     expect(entry.name).toBe("Solar View Card");
     expect(typeof entry.description).toBe("string");
+    // HA card picker renders a live preview only when this is true
+    expect(entry.preview).toBe(true);
   });
 
   it("appends to a pre-existing window.customCards array", async () => {

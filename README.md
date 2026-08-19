@@ -39,13 +39,13 @@ watching the Sun. It's off by default — enable and configure it with `gallery.
 [Gallery](#gallery) in Configuration). Once enabled, ☷ toggles the strip on/off and clicking a
 thumbnail opens it full-screen.
 
-| Thumbnail | Source                                                              | We poll     | Latest image is usually                 |
-| --------- | ------------------------------------------------------------------- | ----------- | --------------------------------------- |
-| DSCOVR/E  | [NASA EPIC](https://epic.gsfc.nasa.gov/) (DSCOVR, at Sun-Earth L1)  | Hourly      | ~1-2 days old (EPIC processing backlog) |
-| SDO/S     | [NASA SDO](https://sdo.gsfc.nasa.gov/) (geosynchronous Earth orbit) | Every 15min | ~20-35min old                           |
+| Thumbnail | Source            | We poll | Typical age |
+| --------- | ----------------- | ------- | ----------- |
+| DSCOVR/E  | [NASA EPIC][epic] | Hourly  | 1-2 days    |
+| SDO/S     | [NASA SDO][sdo]   | 15 min  | 20-35 min   |
 
-Strict reverse-proxy CSP may block `epic.gsfc.nasa.gov` / `sdo.gsfc.nasa.gov` — not fixable
-card-side.
+EPIC's lag is processing backlog on NASA's side, not the card holding images back. Strict
+reverse-proxy CSP may block `epic.gsfc.nasa.gov` / `sdo.gsfc.nasa.gov` — not fixable card-side.
 
 ## Installation
 
@@ -157,8 +157,10 @@ location:
 | `location.latitude`  | number (-90 to 90)   | HA config | Overrides HA's latitude for hemisphere/season/twilight math. Requires `location.longitude` too, else ignored |
 | `location.longitude` | number (-180 to 180) | HA config | Overrides HA's longitude. Requires `location.latitude` too, else ignored                                     |
 
-<!-- Badge reference links -->
+<!-- Reference links -->
 
+[epic]: https://epic.gsfc.nasa.gov/
+[sdo]: https://sdo.gsfc.nasa.gov/
 [repo]: https://github.com/marcintk/ha-planetary-solar-system-card
 [releases]: https://github.com/marcintk/ha-planetary-solar-system-card/releases
 [ci]:

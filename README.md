@@ -51,9 +51,11 @@ to the previous frame. Strict reverse-proxy CSP may block `epic.gsfc.nasa.gov` /
 
 ### Via HACS (recommended)
 
-1. In HACS → Frontend → search **Planetary Solar System Card** → Install
-2. Reload your browser
-3. Add the card to your dashboard (see Configuration below)
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.][my-hacs-shield]][my-hacs]
+
+Click the badge to open this card in your own HACS, or find it manually: HACS → Frontend → search
+**Planetary Solar System Card**. Then Install, reload your browser, and add the card to your
+dashboard (see Configuration below).
 
 ### Manual
 
@@ -159,6 +161,9 @@ location:
 
 <!-- Reference links -->
 
+[my-hacs]:
+  https://my.home-assistant.io/redirect/hacs_repository/?owner=marcintk&repository=ha-planetary-solar-system-card&category=plugin
+[my-hacs-shield]: https://my.home-assistant.io/badges/hacs_repository.svg
 [epic]: https://epic.gsfc.nasa.gov/
 [sdo]: https://sdo.gsfc.nasa.gov/
 [repo]: https://github.com/marcintk/ha-planetary-solar-system-card

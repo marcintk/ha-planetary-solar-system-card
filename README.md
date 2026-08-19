@@ -1,9 +1,12 @@
 # Planetary Solar System Card
 
-[![Planetary Solar System Card](docs/hero.png)](https://marcintk.github.io/ha-planetary-solar-system-card/)
+<!-- docs/hero.png is unreferenced on purpose: it is the 1280x640 GitHub social-preview asset,
+     uploaded manually under Settings -> General -> Social preview. -->
+
+[![Planetary Solar System Card](docs/demo.gif)](https://marcintk.github.io/ha-planetary-solar-system-card/)
 
 Home Assistant custom Lovelace card showing all 8 planets, Moon and comet Halley aligned around the
-Sun. Navigate time, zoom, and pan interactively.
+Sun, with live NASA imagery of Earth and the Sun. Navigate time, zoom, and pan interactively.
 
 [![Try the interactive demo](https://img.shields.io/badge/▶%20Try%20the%20interactive%20demo-41BDF5?style=for-the-badge)](https://marcintk.github.io/ha-planetary-solar-system-card/)
 

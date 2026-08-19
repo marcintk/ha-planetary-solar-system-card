@@ -3,7 +3,7 @@
 <!-- docs/hero.png is unreferenced on purpose: it is the 1280x640 GitHub social-preview asset,
      uploaded manually under Settings -> General -> Social preview. -->
 
-[![Planetary Solar System Card](docs/demo.gif)](https://marcintk.github.io/ha-planetary-solar-system-card/)
+[![Planetary Solar System Card][demo-gif]](https://marcintk.github.io/ha-planetary-solar-system-card/)
 
 Home Assistant custom Lovelace card showing all 8 planets, Moon and comet Halley aligned around the
 Sun, with live NASA imagery of Earth and the Sun. Navigate time, zoom, and pan interactively.
@@ -14,7 +14,7 @@ Have an idea or found a bug?
 [Open a GitHub issue](https://github.com/marcintk/ha-planetary-solar-system-card/issues/new).
 
 [![hacs_badge][hacs-shield]][hacs] [![GitHub Release][releases-shield]][releases]
-[![License][license-shield]](LICENSE) ![Maintenance][maintenance-shield] [![CI][ci-shield]][ci]
+[![License][license-shield]][license] ![Maintenance][maintenance-shield] [![CI][ci-shield]][ci]
 [![Coverage][coverage-shield]][ci] [![Lines of code][sloc-shield]][repo]
 
 ## Installation
@@ -164,6 +164,9 @@ frame.
 [epic]: https://epic.gsfc.nasa.gov/
 [sdo]: https://sdo.gsfc.nasa.gov/
 [repo]: https://github.com/marcintk/ha-planetary-solar-system-card
+[license]: https://github.com/marcintk/ha-planetary-solar-system-card/blob/main/LICENSE
+[demo-gif]:
+  https://raw.githubusercontent.com/marcintk/ha-planetary-solar-system-card/main/docs/demo.gif
 [releases]: https://github.com/marcintk/ha-planetary-solar-system-card/releases
 [latest-release]: https://github.com/marcintk/ha-planetary-solar-system-card/releases/latest
 [ci]:

@@ -123,6 +123,59 @@ describe("renderOffscreenMarkers", () => {
   });
 });
 
+describe("renderOffscreenMarkers with a non-square card", () => {
+  // The SVG viewBox stays square; preserveAspectRatio="xMidYMid meet" letterboxes it
+  // inside a non-square element. The visible region in viewBox units is therefore
+  // wider (or taller) than viewState.width, and markers belong on ITS edges.
+  function markerPoint(polygon) {
+    const [tip, b1, b2] = polygon
+      .getAttribute("points")
+      .split(" ")
+      .map((pt) => pt.split(",").map(Number));
+    return { x: (tip[0] + (b1[0] + b2[0]) / 2) / 2, y: (tip[1] + (b1[1] + b2[1]) / 2) / 2 };
+  }
+
+  it("puts the marker on the card edge, not the square viewBox edge, when wide", () => {
+    // aspect 2 -> visible half-width is 800, so the inset left edge is at 400-800+10.
+    const vs = makeViewState(1); // 800x800 viewBox, centre (400,400)
+    const positions = [{ name: "Left", x: -5000, y: 400, color: "#ff0000" }];
+    const group = renderOffscreenMarkers(positions, vs, 2);
+    const { x, y } = markerPoint(group.querySelector("polygon"));
+    expect(x).toBeCloseTo(-390, 6);
+    expect(y).toBeCloseTo(400, 6);
+  });
+
+  it("puts the marker on the card edge when tall", () => {
+    // aspect 0.5 -> visible half-height is 800, so the inset top edge is at 400-800+10.
+    const vs = makeViewState(1);
+    const positions = [{ name: "Up", x: 400, y: -5000, color: "#ff0000" }];
+    const group = renderOffscreenMarkers(positions, vs, 0.5);
+    const { x, y } = markerPoint(group.querySelector("polygon"));
+    expect(x).toBeCloseTo(400, 6);
+    expect(y).toBeCloseTo(-390, 6);
+  });
+
+  it("draws no marker for a body visible in the letterbox band", () => {
+    // x=-200 is outside the square viewBox but inside the widened visible region,
+    // so the body is on screen and must not get an offscreen marker drawn over it.
+    const vs = makeViewState(1);
+    const positions = [{ name: "InBand", x: -200, y: 400, color: "#ff0000" }];
+    expect(renderOffscreenMarkers(positions, vs, 2).children.length).toBe(0);
+  });
+
+  it("treats a missing or degenerate aspect as square", () => {
+    const vs = makeViewState(1);
+    const positions = [{ name: "Left", x: -5000, y: 400, color: "#ff0000" }];
+    const square = markerPoint(renderOffscreenMarkers(positions, vs).querySelector("polygon"));
+    expect(square.x).toBeCloseTo(10, 6);
+    // 0x0 elements (jsdom, HA pre-layout) yield NaN/0 aspect; must not poison coordinates
+    for (const bad of [Number.NaN, 0]) {
+      const p = markerPoint(renderOffscreenMarkers(positions, vs, bad).querySelector("polygon"));
+      expect(p.x).toBeCloseTo(10, 6);
+    }
+  });
+});
+
 describe("renderSolarSystem().updateMarkers", () => {
   it("appends a marker group to the returned svg for the given pan/zoom", () => {
     const { svg, updateMarkers } = renderSolarSystem(new Date("2025-06-15"));

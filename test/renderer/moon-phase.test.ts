@@ -10,17 +10,36 @@ describe("renderMoonPhaseDisc", () => {
     expect(svg.parentNode).toBeNull();
   });
 
-  it("centres the disc in the viewBox with no overflow", () => {
+  it("centres the disc horizontally with no overflow", () => {
     const svg = renderMoonPhaseDisc(new Date("2024-01-15"), "north");
 
     const disc = svg.querySelector("circle");
     const cx = Number(disc.getAttribute("cx"));
-    const cy = Number(disc.getAttribute("cy"));
     const r = Number(disc.getAttribute("r"));
     expect(cx).toBe(50);
-    expect(cy).toBe(50);
     expect(cx - r).toBeGreaterThanOrEqual(0);
-    expect(cy + r).toBeLessThanOrEqual(100);
+    expect(cx + r).toBeLessThanOrEqual(100);
+  });
+
+  // The phase caption is HTML overlaid on the bottom of the tile. The disc has to sit clear
+  // of it, or the longest names read against the lit limb instead of the black backdrop.
+  it("keeps the disc out of the bottom caption band", () => {
+    const svg = renderMoonPhaseDisc(new Date("2024-01-25T18:00:00Z"), "north"); // Full Moon
+    const disc = svg.querySelector("circle");
+    const cy = Number(disc.getAttribute("cy"));
+    const r = Number(disc.getAttribute("r"));
+
+    expect(cy + r).toBeLessThanOrEqual(82);
+    // ...and the lit path, which at Full Moon spans the disc's full height.
+    const d = svg.querySelector("path").getAttribute("d");
+    const ys = [...d.matchAll(/[ ,](-?\d+(?:\.\d+)?)(?=[ ]|$)/g)].map((m) => Number(m[1]));
+    expect(Math.max(...ys)).toBeLessThanOrEqual(82);
+  });
+
+  it("still fills most of the tile above the caption", () => {
+    const svg = renderMoonPhaseDisc(new Date("2024-01-15"), "north");
+    const r = Number(svg.querySelector("circle").getAttribute("r"));
+    expect(r).toBeGreaterThanOrEqual(34);
   });
 
   // The phase name is rendered as HTML in the gallery tile, so it must not also be baked

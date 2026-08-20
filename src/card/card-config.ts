@@ -12,7 +12,7 @@ export interface ParsedCardConfig {
   colors: Colors;
   theme: "auto" | "dark" | "light";
   eclipticView: boolean;
-  locationOverride: { lat: number; lon: number } | null;
+  locationOverride: { lat: number; lon: number; timezone: string } | null;
   locationNameOverride: string | null;
   heightStyle: string;
   galleryMode: GalleryMode;
@@ -37,6 +37,16 @@ function resolveHeightStyle(height: CardConfig["height"]): string {
     }
   }
   return "";
+}
+
+// An overridden location must not keep reading clocks in HA's timezone, but no IANA timezone
+// database ships in the bundle. Etc/GMT±N zones are built into every browser's Intl data, so a
+// fixed UTC offset from longitude (15° per hour) needs zero deps. No DST, and wrong near zone
+// borders — acceptable: the card shows sky state, not appointment times.
+// The sign is POSIX-inverted: Etc/GMT+6 means UTC-6.
+function offsetZoneFromLongitude(lon: number): string {
+  const offset = Math.round(lon / 15);
+  return `Etc/GMT${offset <= 0 ? "+" : "-"}${Math.abs(offset)}`;
 }
 
 // Pure validate/default pass over CardConfig — the single place each field's fallback and
@@ -69,7 +79,9 @@ export function parseCardConfig(config: CardConfig): ParsedCardConfig {
     overrideLat <= 90 &&
     overrideLon >= -180 &&
     overrideLon <= 180;
-  const locationOverride = hasOverride ? { lat: overrideLat, lon: overrideLon } : null;
+  const locationOverride = hasOverride
+    ? { lat: overrideLat, lon: overrideLon, timezone: offsetZoneFromLongitude(overrideLon) }
+    : null;
   const locationNameOverride = config.location?.name || null;
 
   const heightStyle = resolveHeightStyle(config.height);

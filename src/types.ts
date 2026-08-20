@@ -34,6 +34,10 @@ export interface LocationData {
   lat: number;
   lon: number;
   timezone: string;
+  // True when `timezone` was derived from an overridden longitude rather than taken from HA's
+  // own config — the status bar labels the zone in that case, so a readout in a zone the user
+  // isn't sitting in can't be mistaken for local time.
+  zoneDerived: boolean;
 }
 
 export interface Colors {

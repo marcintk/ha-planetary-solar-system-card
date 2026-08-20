@@ -87,6 +87,7 @@ describe("parseCardConfig", () => {
       ).toEqual({
         lat: 10,
         lon: 20,
+        timezone: "Etc/GMT-1",
       });
     });
     it("rejects out-of-range or missing values", () => {
@@ -97,6 +98,18 @@ describe("parseCardConfig", () => {
         parseCardConfig({ location: { latitude: 10, longitude: 181 } }).locationOverride
       ).toBeNull();
       expect(parseCardConfig({ location: { latitude: 10 } }).locationOverride).toBeNull();
+    });
+    it("derives a longitude-based fixed-offset timezone", () => {
+      // Etc/GMT sign is POSIX-inverted: Etc/GMT+6 is UTC-6.
+      expect(
+        parseCardConfig({ location: { latitude: 30, longitude: -90 } }).locationOverride
+      ).toEqual({ lat: 30, lon: -90, timezone: "Etc/GMT+6" });
+      expect(
+        parseCardConfig({ location: { latitude: 35, longitude: 139.7 } }).locationOverride
+      ).toEqual({ lat: 35, lon: 139.7, timezone: "Etc/GMT-9" });
+      expect(
+        parseCardConfig({ location: { latitude: 51.5, longitude: -0.1278 } }).locationOverride
+      ).toEqual({ lat: 51.5, lon: -0.1278, timezone: "Etc/GMT+0" });
     });
     it("parses locationNameOverride independently", () => {
       expect(parseCardConfig({ location: { name: "Home" } }).locationNameOverride).toBe("Home");

@@ -659,6 +659,26 @@ describe("SolarViewCard", () => {
       card.remove();
     });
 
+    it("config.location override switches timezone to a longitude-derived offset zone", () => {
+      const card = createAndMount();
+      card.hass = { config: { latitude: 41.9, longitude: -87.6, time_zone: "America/Chicago" } };
+      card.setConfig({ location: { latitude: 51.5, longitude: -0.1278, name: "London" } });
+      card._render();
+      expect(card._locationData?.timezone).toBe("Etc/GMT+0");
+      expect(card._locationData?.zoneDerived).toBe(true);
+      card.remove();
+    });
+
+    it("no config.location keeps HA's timezone", () => {
+      const card = createAndMount();
+      card.hass = { config: { latitude: 41.9, longitude: -87.6, time_zone: "America/Chicago" } };
+      card.setConfig({});
+      card._render();
+      expect(card._locationData?.timezone).toBe("America/Chicago");
+      expect(card._locationData?.zoneDerived).toBe(false);
+      card.remove();
+    });
+
     it("no config.location falls back to HA lat/lon/name", () => {
       const card = createAndMount();
       card.hass = { config: { latitude: 51.5, longitude: -0.1, location_name: "London" } };

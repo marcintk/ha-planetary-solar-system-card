@@ -35,6 +35,9 @@ export function buildStatusBar(
         hour: "2-digit",
         minute: "2-digit",
         hour12: false,
+        // A longitude-derived zone isn't HA's own, so name it — "18:42" alone would read as
+        // local time to someone whose HA sits in a different zone.
+        timeZoneName: locationData.zoneDerived ? "shortOffset" : undefined,
       })
     : null;
 

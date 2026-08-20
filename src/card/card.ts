@@ -34,6 +34,7 @@ interface HassLocation {
 interface LocationOverride {
   lat: number;
   lon: number;
+  timezone: string;
 }
 
 export class SolarViewCard extends LitElement {
@@ -84,10 +85,16 @@ export class SolarViewCard extends LitElement {
   // Proxy getters
   // ---------------------------------------------------------------------------
   get _locationData(): LocationData | null {
-    const lat = this._locationOverride?.lat ?? this._hassLocation.lat;
-    const lon = this._locationOverride?.lon ?? this._hassLocation.lon;
+    const override = this._locationOverride;
+    const lat = override?.lat ?? this._hassLocation.lat;
+    const lon = override?.lon ?? this._hassLocation.lon;
     return lat != null && lon != null
-      ? { lat, lon, timezone: this._hassLocation.timezone ?? "UTC" }
+      ? {
+          lat,
+          lon,
+          timezone: override?.timezone ?? this._hassLocation.timezone ?? "UTC",
+          zoneDerived: override != null,
+        }
       : null;
   }
   get _effectiveLocationName(): string | null {

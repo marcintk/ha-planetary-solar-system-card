@@ -156,6 +156,14 @@ frame.
 | `location.latitude`  | number (-90 to 90)   | HA config | Overrides HA's latitude for hemisphere/season/twilight math. Requires `location.longitude` too, else ignored |
 | `location.longitude` | number (-180 to 180) | HA config | Overrides HA's longitude. Requires `location.latitude` too, else ignored                                     |
 
+When `location.latitude`/`location.longitude` are set, displayed clock times (the `Next:` sunrise/
+sunset/twilight readout) switch from HA's timezone to a fixed UTC offset derived from the longitude
+(15° per hour), and the status bar appends that offset — e.g. `Next: Sunset (18:42 GMT+1)`. The
+offset is an approximation: it has no daylight saving time and is wrong near timezone borders or in
+countries spanning several solar hours. Sky state, twilight bands and the observer needle are
+computed from latitude/longitude directly and are unaffected. With no `location` override set, times
+use HA's own timezone exactly as before.
+
 <!-- Reference links -->
 
 [my-hacs]:

@@ -10,7 +10,7 @@ const INDICATOR_Y = 720;
 const DISC_COLOR = "#cccccc";
 const SHADOW_COLOR = "#1a1a2e";
 const LABEL_COLOR = "#aaaaaa";
-const LABEL_FONT_SIZE = "14";
+const LABEL_FONT_SIZE = "18";
 
 /**
  * Render a moon phase indicator (disc + label) and append it to the SVG.

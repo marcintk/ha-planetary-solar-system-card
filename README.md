@@ -151,24 +151,12 @@ frame.
 
 `location` (object, unset by default) — overrides HA's configured location:
 
-| Key                  | Type                 | Default   | Description                                                                                                  |
-| -------------------- | -------------------- | --------- | ------------------------------------------------------------------------------------------------------------ |
-| `location.name`      | string               | HA config | Overrides the location label shown in the status bar                                                         |
-| `location.latitude`  | number (-90 to 90)   | HA config | Overrides HA's latitude for hemisphere/season/twilight math. Requires `location.longitude` too, else ignored |
-| `location.longitude` | number (-180 to 180) | HA config | Overrides HA's longitude. Requires `location.latitude` too, else ignored                                     |
-| `location.timezone`  | string (IANA)        | estimated | Timezone for displayed clock times, e.g. `Europe/Warsaw`. Unrecognised values fall back to the estimate      |
-
-With `location.latitude`/`location.longitude` set, clock times (the `Next:` readout) follow the
-configured location instead of HA's timezone, and the status bar names the zone it used —
-`Next: Sunset (20:20 GMT+2)`.
-
-Set `location.timezone` to a canonical [IANA name][iana] (`Europe/Warsaw`, `America/Chicago` — not
-`CST6CDT`) for exact times, daylight saving included. Left unset, the zone is estimated from
-longitude alone: no DST and no half-hour zones, so Krakow runs an hour behind each summer,
-Montevideo an hour behind year-round, and Bangalore 30 minutes behind always.
-
-Sky state, twilight bands and the observer needle come from latitude/longitude directly and are
-unaffected. With no `location` override set, times use HA's own timezone exactly as before.
+| Key                  | Type                 | Default   | Description                                                                                                                                                                                          |
+| -------------------- | -------------------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `location.name`      | string               | HA config | Overrides the location label shown in the status bar                                                                                                                                                 |
+| `location.latitude`  | number (-90 to 90)   | HA config | Overrides HA's latitude for hemisphere/season/twilight math. Requires `location.longitude` too, else ignored                                                                                         |
+| `location.longitude` | number (-180 to 180) | HA config | Overrides HA's longitude. Requires `location.latitude` too, else ignored                                                                                                                             |
+| `location.timezone`  | string (IANA)        | estimated | Timezone for the clock times in the status bar — [find the name here][iana], e.g. `Europe/Warsaw`. Unset or unrecognised, it is estimated from the longitude: no daylight saving, no half-hour zones |
 
 <!-- Reference links -->
 

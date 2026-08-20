@@ -65,24 +65,24 @@ export class ZoomController {
     periodicZoomMax: number,
     animate: boolean
   ): void {
+    const defaultChanged = defaultZoomLevel !== this._defaultZoomLevel;
     this._defaultZoomLevel = defaultZoomLevel;
     this._periodicZoomChange = periodicZoomChange;
     this._periodicZoomMax = periodicZoomMax;
     this._animate = animate;
+    // ensureInitialized() won't move an already-built view, so a later setConfig (Lovelace
+    // editor preview) has to. Only on an actual change, so an unrelated config edit can't
+    // stomp a hand-set zoom; instant, not via _apply() — a config jump isn't a zoom gesture.
+    if (defaultChanged && this._viewState) {
+      this._viewState.setZoomLevel(defaultZoomLevel);
+      this._onChange();
+    }
   }
 
   ensureInitialized(): void {
     if (this._viewState) return;
     this._viewState = new ViewState(this._defaultZoomLevel);
     this._zoomAnimator = new ZoomAnimator(this._viewState, () => this._onViewBoxChange());
-  }
-
-  // ponytail: test-seeding only — forces the next ensureInitialized() to build a fresh
-  // ViewState (e.g. to verify a new default_zoom takes effect), which no production call
-  // site needs since the real view is only ever initialized once per connection.
-  reset(): void {
-    this._viewState = null;
-    this._zoomAnimator = null;
   }
 
   recenter(): void {

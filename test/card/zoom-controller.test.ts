@@ -285,3 +285,60 @@ describe("ZoomController manual interaction suspends the periodic cycle", () => 
     expect(onChange).not.toHaveBeenCalled();
   });
 });
+
+describe("ZoomController.isDefaultView", () => {
+  it("is true before the view initializes and after a manual zoom is undone", () => {
+    const zoom = new ZoomController(
+      () => {},
+      () => {}
+    );
+    zoom.configure(2, false, 4, false);
+    expect(zoom.isDefaultView).toBe(true); // nothing has moved yet
+
+    zoom.ensureInitialized();
+    expect(zoom.isDefaultView).toBe(true);
+
+    zoom.zoomIn();
+    expect(zoom.isDefaultView).toBe(false);
+
+    zoom.resetToDefault();
+    expect(zoom.isDefaultView).toBe(true);
+  });
+
+  it("panning makes the view non-default until recenter", () => {
+    const zoom = new ZoomController(
+      () => {},
+      () => {}
+    );
+    zoom.configure(1, false, 4, false);
+    zoom.ensureInitialized();
+
+    zoom.startDrag(200, 200);
+    zoom.updateDrag(250, 180, { width: 400, height: 400, x: 0, y: 0 } as DOMRect);
+    zoom.endDrag();
+    expect(zoom.isDefaultView).toBe(false);
+
+    zoom.recenter();
+    expect(zoom.isDefaultView).toBe(true);
+  });
+
+  it("ending a real drag re-renders once so the nav bar can repaint", () => {
+    const onChange = vi.fn();
+    const zoom = new ZoomController(onChange, () => {});
+    zoom.ensureInitialized();
+
+    zoom.startDrag(200, 200);
+    zoom.updateDrag(250, 200, { width: 400, height: 400, x: 0, y: 0 } as DOMRect);
+    expect(onChange).not.toHaveBeenCalled(); // per-frame updates stay on the cheap path
+    zoom.endDrag();
+    expect(onChange).toHaveBeenCalledTimes(1);
+  });
+
+  it("ending a drag that never started does not re-render", () => {
+    const onChange = vi.fn();
+    const zoom = new ZoomController(onChange, () => {});
+    zoom.ensureInitialized();
+    zoom.endDrag();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+});

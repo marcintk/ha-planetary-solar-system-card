@@ -116,7 +116,8 @@ frame.
 | `periodic_zoom_max`    | number  | `4`     | Maximum zoom level for auto-cycle (2–4)                                 |
 
 The **today** button resets the whole view: back to `default_zoom`, the Sun re-centred, and the date
-live again.
+live again. It highlights in the accent colour whenever the view has drifted from that default —
+zoomed, panned, or showing a date other than now — so there's always a visible way back.
 
 With `periodic_zoom_change` enabled, zooming, panning, or stepping the date pauses the auto-cycle so
 a refresh tick can't move a view you aimed yourself. The **today** button hands the view back and

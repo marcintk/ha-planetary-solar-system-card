@@ -1094,6 +1094,69 @@ describe("SolarViewCard", () => {
     });
   });
 
+  describe("Now button highlights when the view is off-default", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    function nowBtn(card) {
+      return card.shadowRoot.querySelector('button[data-action="today"]');
+    }
+
+    it("is not highlighted on a fresh, live, default view", () => {
+      const card = createAndMount();
+      expect(nowBtn(card).classList.contains("active")).toBe(false);
+      card.remove();
+    });
+
+    it("highlights after a manual zoom, clears on Home", () => {
+      const card = createAndMount();
+      clickButton(card, "zoom-in");
+      expect(nowBtn(card).classList.contains("active")).toBe(true);
+
+      clickButton(card, "today");
+      expect(nowBtn(card).classList.contains("active")).toBe(false);
+      card.remove();
+    });
+
+    it("highlights after panning, clears on Home", () => {
+      const card = createAndMount();
+      const svg = card.shadowRoot.querySelector("#solar-view svg");
+      svg.setPointerCapture = () => {};
+      svg.releasePointerCapture = () => {};
+      svg.dispatchEvent(new PointerEvent("pointerdown", { clientX: 200, clientY: 200 }));
+      svg.dispatchEvent(new PointerEvent("pointermove", { clientX: 260, clientY: 170 }));
+      svg.dispatchEvent(new PointerEvent("pointerup", { clientX: 260, clientY: 170 }));
+      expect(nowBtn(card).classList.contains("active")).toBe(true);
+
+      clickButton(card, "today");
+      expect(nowBtn(card).classList.contains("active")).toBe(false);
+      card.remove();
+    });
+
+    it("highlights after stepping the date, clears on Home", () => {
+      const card = createAndMount();
+      clickButton(card, "day-forward");
+      expect(nowBtn(card).classList.contains("active")).toBe(true);
+
+      clickButton(card, "today");
+      expect(nowBtn(card).classList.contains("active")).toBe(false);
+      card.remove();
+    });
+
+    it("highlights while the periodic auto-cycle has moved the zoom off default", () => {
+      vi.useFakeTimers();
+      const card = document.createElement("ha-planetary-solar-system-card-test");
+      card.setConfig({ periodic_zoom_change: true });
+      document.body.appendChild(card);
+      expect(nowBtn(card).classList.contains("active")).toBe(false);
+
+      vi.advanceTimersByTime(60000);
+      expect(nowBtn(card).classList.contains("active")).toBe(true);
+      card.remove();
+    });
+  });
+
   describe("manual interaction suspends the periodic zoom cycle", () => {
     afterEach(() => {
       vi.useRealTimers();

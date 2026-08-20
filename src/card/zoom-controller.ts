@@ -51,6 +51,16 @@ export class ZoomController {
   get isDragging(): boolean {
     return this._viewState?.isDragging ?? false;
   }
+  /**
+   * Whether the view still sits where Home would put it. Drives the "Now" button's highlight.
+   * True before the view initializes — nothing has moved yet. Date liveness is DateNavigation's
+   * half of the same question, checked alongside this at the call site.
+   */
+  get isDefaultView(): boolean {
+    const viewState = this._viewState;
+    if (!viewState) return true;
+    return viewState.zoomLevel === this._defaultZoomLevel && viewState.isCentered;
+  }
   get periodicZoomChange(): boolean {
     return this._periodicZoomChange;
   }
@@ -159,7 +169,12 @@ export class ZoomController {
   }
 
   endDrag(): void {
-    this._viewState?.endDrag();
+    // Per-frame drag updates take the cheap path (viewBox only), which never repaints the nav
+    // bar — so the "Now" highlight would lag a pan until some unrelated later render. One full
+    // re-render on pointerup, not per frame, keeps it honest at negligible cost.
+    if (!this._viewState?.isDragging) return;
+    this._viewState.endDrag();
+    this._onChange();
   }
 
   private _apply(viewState: ViewState, fromWidth: number): void {

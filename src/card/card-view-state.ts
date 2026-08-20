@@ -96,6 +96,11 @@ export class ViewState implements PanZoomState {
     this.isDragging = false;
   }
 
+  /** True while pan sits exactly where recenter() would put it. */
+  get isCentered(): boolean {
+    return this.centerX === VIEW_SIZE / 2 && this.centerY === VIEW_SIZE / 2;
+  }
+
   /** Reset pan to center the sun in view, keeping current zoom level. */
   recenter(): void {
     this.centerX = VIEW_SIZE / 2;

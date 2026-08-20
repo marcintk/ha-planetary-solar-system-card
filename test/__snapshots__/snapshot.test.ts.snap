@@ -188,6 +188,12 @@ exports[`cardStyles > matches snapshot 1`] = `
     filter: grayscale(1);
     display: inline-block;
   }
+  /* "Now" lights up while the view sits off-default, so there's a visible way back. */
+  button[data-action="today"].active {
+    background: var(--accent-color, #f59e0b);
+    border-color: var(--accent-color, #f59e0b);
+    color: #fff;
+  }
   button[data-action="show-earth"].active {
     background: #3b82f6;
     border-color: #3b82f6;

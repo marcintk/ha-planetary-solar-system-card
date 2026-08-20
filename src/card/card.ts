@@ -22,6 +22,18 @@ import { ZoomController } from "./zoom-controller.js";
 
 export type { GalleryMode };
 
+// Nav actions that pause the periodic zoom auto-cycle until Home. Zoom and drag flag themselves
+// inside ZoomController; these are the ones it can't see. Deliberately absent: "today" (the way
+// back), "replay" (a time animation, not a camera move), "gallery" (a different panel).
+const SUSPENDS_AUTO_ZOOM = new Set([
+  "hour-back",
+  "hour-forward",
+  "day-back",
+  "day-forward",
+  "month-back",
+  "month-forward",
+]);
+
 // HASS and config.location update independently (hass setter vs. setConfig), so each source
 // is kept as one grouped field rather than losing either one to an eager merge — _locationData
 // and _locationName below resolve them on read, override winning per-field.
@@ -249,7 +261,7 @@ export class SolarViewCard extends LitElement {
             <button data-action="month-back" title="Back 1 month" ?disabled=${this._dateNav.isReplaying} @click=${this._onNavClick}>⋘</button>
             <button data-action="day-back" title="Back 1 day" ?disabled=${this._dateNav.isReplaying} @click=${this._onNavClick}>≪</button>
             <button data-action="hour-back" title="Back 1 hour" ?disabled=${this._dateNav.isReplaying} @click=${this._onNavClick}>&lt;</button>
-            <button data-action="today" ?disabled=${this._dateNav.isReplaying} @click=${this._onNavClick}>Now</button>
+            <button data-action="today" title="Back to the default view" class=${this._zoom.isDefaultView && this._dateNav.isLiveMode ? "" : "active"} ?disabled=${this._dateNav.isReplaying} @click=${this._onNavClick}>Now</button>
             <button data-action="hour-forward" title="Forward 1 hour" ?disabled=${this._dateNav.isReplaying} @click=${this._onNavClick}>&gt;</button>
             <button data-action="day-forward" title="Forward 1 day" ?disabled=${this._dateNav.isReplaying} @click=${this._onNavClick}>≫</button>
             <button data-action="month-forward" title="Forward 1 month" ?disabled=${this._dateNav.isReplaying} @click=${this._onNavClick}>⋙</button>
@@ -331,7 +343,9 @@ export class SolarViewCard extends LitElement {
     const interval = this._refreshMs;
     this._autoUpdateTimer = setInterval(() => {
       this._dateNav.tick();
-      this._zoom.tick();
+      // dateNav.tick() already no-ops while replaying; the zoom cycle would happily zoom
+      // mid-animation. A deferral, not the until-Home suspension — the next tick cycles again.
+      if (!this._dateNav.isReplaying) this._zoom.tick();
       this._gallery.tick();
     }, interval) as unknown as number;
   }
@@ -352,8 +366,10 @@ export class SolarViewCard extends LitElement {
   }
 
   private _goToday(): void {
-    // Recenter before goLive() so its render picks up the recentered viewState.
+    // "Home" means one thing: default_zoom + centred pan + live date. Both view resets run
+    // before goLive() so its render picks up the restored viewState.
     this._zoom.recenter();
+    this._zoom.resetToDefault();
     this._dateNav.goLive();
   }
 
@@ -367,6 +383,7 @@ export class SolarViewCard extends LitElement {
   }
 
   private _handleNavAction(action: string | undefined): void {
+    if (action && SUSPENDS_AUTO_ZOOM.has(action)) this._zoom.suspendAutoCycle();
     switch (action) {
       case "replay":
         this._dateNav.toggleReplay();

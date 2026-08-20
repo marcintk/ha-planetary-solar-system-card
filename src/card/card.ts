@@ -343,7 +343,9 @@ export class SolarViewCard extends LitElement {
     const interval = this._refreshMs;
     this._autoUpdateTimer = setInterval(() => {
       this._dateNav.tick();
-      this._zoom.tick();
+      // dateNav.tick() already no-ops while replaying; the zoom cycle would happily zoom
+      // mid-animation. A deferral, not the until-Home suspension — the next tick cycles again.
+      if (!this._dateNav.isReplaying) this._zoom.tick();
       this._gallery.tick();
     }, interval) as unknown as number;
   }

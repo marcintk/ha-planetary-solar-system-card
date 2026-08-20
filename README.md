@@ -51,6 +51,7 @@ colors:
 type: custom:ha-planetary-solar-system-card
 gallery:
   mode: slide
+  sources: [moon, earth, sun]
   slide_interval_secs: 30
 ```
 
@@ -78,14 +79,19 @@ the standard astronomical twilight definitions:
 
 ## Live Imagery
 
-Near-real-time photos of Earth and the Sun from two NASA probes, in a thumbnail strip beside the
-solar view. Off by default — turn it on with `gallery.*` (see [Gallery](#gallery)). Once on, ☷
-toggles the strip and clicking a thumbnail opens it full-screen.
+A thumbnail strip beside the solar view. ☷ toggles it; clicking a NASA thumbnail opens it
+full-screen. Which tiles appear — and in what left-to-right order — is `gallery.sources` (see
+[Gallery](#gallery)).
 
-| Thumbnail | Source            | Watches                      | We poll | Typical age |
-| --------- | ----------------- | ---------------------------- | ------- | ----------- |
-| DSCOVR/E  | [NASA EPIC][epic] | Earth's sunlit side, from L1 | Hourly  | 1-2 days    |
-| SDO/S     | [NASA SDO][sdo]   | The Sun, from geosync orbit  | 15 min  | 20-55 min   |
+| Thumbnail | Source            | Watches                      | We poll  | Typical age |
+| --------- | ----------------- | ---------------------------- | -------- | ----------- |
+| Moon      | Drawn locally     | Tonight's moon phase         | No fetch | Live        |
+| DSCOVR/E  | [NASA EPIC][epic] | Earth's sunlit side, from L1 | Hourly   | 1-2 days    |
+| SDO/S     | [NASA SDO][sdo]   | The Sun, from geosync orbit  | 15 min   | 20-55 min   |
+
+The moon tile is computed on your dashboard from the displayed date, so it costs no network request
+and cannot fail — which is why it is the only source shown by default. The NASA sources are opt-in.
+The moon tile has no full-screen view; its caption is the phase name.
 
 Both lags are NASA's publish pipeline, not the card holding images back: EPIC processes a day or two
 behind, and SDO's archive often posts a 15-min frame 30+ minutes late, so the card falls back one
@@ -150,10 +156,23 @@ the cycle resumes. Replay and the gallery don't pause it.
 
 `gallery` (object, unset by default) — Live Imagery gallery options:
 
-| Key                           | Type   | Default  | Description                                                                                                        |
-| ----------------------------- | ------ | -------- | ------------------------------------------------------------------------------------------------------------------ |
-| `gallery.mode`                | string | `"none"` | `"none"` hides the gallery button. `"earth"`/`"sun"`/`"both"` show that thumbnail. `"slide"` flips between the two |
-| `gallery.slide_interval_secs` | number | `60`     | How often `slide` mode flips the displayed thumbnail                                                               |
+| Key                           | Type     | Default    | Description                                                                                                          |
+| ----------------------------- | -------- | ---------- | -------------------------------------------------------------------------------------------------------------------- |
+| `gallery.mode`                | string   | `"closed"` | `"closed"` starts the strip collapsed, `"open"` shows it, `"slide"` shows one tile at a time and rotates             |
+| `gallery.sources`             | string[] | `["moon"]` | Which tiles to show, in left-to-right order. Any of `moon`, `earth`, `sun`. Unknown names and duplicates are dropped |
+| `gallery.slide_interval_secs` | number   | `60`       | How often `slide` mode advances to the next source                                                                   |
+
+The ☷ button is always available; `mode` only decides whether the strip starts open. Only `earth`
+and `sun` hit the network, so the default gallery makes no requests at all.
+
+```yaml
+gallery:
+  mode: open
+  sources: [moon, earth, sun]
+```
+
+Configs written before `sources` existed keep working: `mode: none` stays collapsed on moon,
+`earth`/`sun`/`both` open on those sources, and `slide` rotates earth and sun as before.
 
 ### Location
 

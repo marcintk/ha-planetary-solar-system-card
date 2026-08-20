@@ -127,18 +127,25 @@ export const cardStyles = css`
     display: block;
   }
   /* Moon is drawn locally, not fetched — a <div> holding an <svg>, not an <img>, and with
-     no full-screen view to open it gets no pointer affordance. Black backdrop rather than
-     the transparent default, so the tile reads like the Earth/Sun photos beside it instead
-     of showing the card through it. */
+     no full-screen view to open it gets no pointer affordance. */
   .gallery-thumb-moon {
     cursor: default;
-    background: #000;
   }
+  /* The black backdrop belongs on the disc, not the tile. The tile border is a translucent
+     15% currentColor, so it composites against whatever sits behind it: transparent on the
+     fetched tiles, where it picks up the card and reads as a visible edge. Painting the tile
+     itself black made that border 15% white over black — invisible — so the moon's dark area
+     ran the full 104px while its neighbours' stopped at 102px inside their borders, and the
+     tile looked taller than tiles that measure exactly the same. Here the black fills the
+     content box instead, the same region the img occupies. */
   .moon-disc,
   .moon-disc svg {
     width: 100%;
     height: 100%;
     display: block;
+  }
+  .moon-disc {
+    background: #000;
   }
   .gallery-info {
     position: absolute;
@@ -147,16 +154,27 @@ export const cardStyles = css`
     right: 2px;
     display: flex;
     justify-content: space-between;
+    /* Bottom-align rather than stretch: a stretched span puts its line box at the top, so
+       any disagreement about the box's height moves the text instead of staying put. */
+    align-items: flex-end;
+    /* font-size and line-height are pinned on the container, not just the spans, because
+       the tiles are built from different elements — a <div> for the moon, a <button> for the
+       fetched sources — and a <button> takes its font from the UA stylesheet (13.333px)
+       while the <div> inherits the card's (16px). Left to inherit, the caption's height is
+       decided by the element type and the engine's default line-height, which is how the
+       moon's caption ended up sitting higher than its neighbours'.
+       Scales with the tile (see container-type above) instead of a fixed 8px, so the longest
+       phase name still fits on a narrow card and stays legible on a wide one. */
+    font-size: clamp(6px, 9cqw, 9px);
+    line-height: 1;
+    font-family: sans-serif;
     pointer-events: none;
   }
   .gallery-label,
   .gallery-age {
-    /* Scales with the tile (see container-type above) instead of a fixed 8px, so the longest
-       phase name still fits on a narrow card and stays legible on a wide one. */
-    font-size: clamp(6px, 9cqw, 9px);
+    font: inherit;
     color: #fff;
     text-shadow: 0 0 2px #000;
-    font-family: sans-serif;
     white-space: nowrap;
   }
   .nav {

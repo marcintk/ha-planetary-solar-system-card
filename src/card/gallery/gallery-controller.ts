@@ -23,7 +23,6 @@ export interface GalleryViewModel {
   showStrip: boolean;
   thumbnails: { source: ImageSource; url: string | null; date: Date | null }[];
   navButtonVisible: boolean;
-  navButtonActive: boolean;
   debugStats: Record<DebugRowId, SourceDebugStats>;
   debugStartedAt: number;
 }
@@ -129,7 +128,6 @@ export class GalleryController {
         date: this._images[source]?.date ?? null,
       })),
       navButtonVisible: this._mode !== "none",
-      navButtonActive: this._open,
       debugStats: this.debugStats,
       debugStartedAt: this._debugStartedAt,
     };

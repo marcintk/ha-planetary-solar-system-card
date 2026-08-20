@@ -172,16 +172,6 @@ export const cardStyles = css`
     border-color: var(--accent-color, #f59e0b);
     color: #fff;
   }
-  button[data-action="show-earth"].active {
-    background: #3b82f6;
-    border-color: #3b82f6;
-    color: #fff;
-  }
-  button[data-action="show-sun"].active {
-    background: #f97316;
-    border-color: #f97316;
-    color: #fff;
-  }
   .btn-group {
     display: flex;
     flex-wrap: wrap;

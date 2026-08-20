@@ -1,12 +1,5 @@
 import { html, LitElement, nothing } from "lit";
-import type {
-  CardConfig,
-  Colors,
-  HASSConfig,
-  Hemisphere,
-  LocationData,
-  ZoomLevel,
-} from "../types.js";
+import type { CardConfig, Colors, HASSConfig, Hemisphere, LocationData } from "../types.js";
 import { parseCardConfig } from "./card-config.js";
 import { cardStyles } from "./card-styles.js";
 import type { ImageSource } from "./card-template.js";
@@ -111,9 +104,6 @@ export class SolarViewCard extends LitElement {
   }
   get _effectiveLocationName(): string | null {
     return this._locationNameOverride ?? this._hassLocation.name;
-  }
-  get _zoomLevel(): ZoomLevel | null {
-    return this._zoom.zoomLevel;
   }
 
   set hass(hass: HASSConfig) {
@@ -282,7 +272,6 @@ export class SolarViewCard extends LitElement {
                     <button
                       data-action="gallery"
                       title="Show image gallery"
-                      class=${gallery.navButtonActive ? "active" : ""}
                       @click=${this._onNavClick}
                     >
                       <span class="icon">☷</span>

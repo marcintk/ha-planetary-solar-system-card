@@ -55,9 +55,6 @@ describe("SolarViewCard gallery", () => {
     it("gallery button shows and strip is open by default when gallery.mode: both", () => {
       const card = mountWithGallery();
       expect(card.shadowRoot.querySelector('button[data-action="gallery"]')).toBeTruthy();
-      expect(
-        card.shadowRoot.querySelector('button[data-action="gallery"]').classList.contains("active")
-      ).toBe(true);
       expect(card.shadowRoot.querySelector(".gallery")).toBeTruthy();
       card.remove();
     });
@@ -130,15 +127,9 @@ describe("SolarViewCard gallery", () => {
       clickButton(card, "gallery");
       await flush();
       expect(card.shadowRoot.querySelector(".gallery")).toBeNull();
-      expect(
-        card.shadowRoot.querySelector('button[data-action="gallery"]').classList.contains("active")
-      ).toBe(false);
       clickButton(card, "gallery");
       await flush();
       expect(card.shadowRoot.querySelector(".gallery")).toBeTruthy();
-      expect(
-        card.shadowRoot.querySelector('button[data-action="gallery"]').classList.contains("active")
-      ).toBe(true);
       card.remove();
     });
 

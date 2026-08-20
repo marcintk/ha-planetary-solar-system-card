@@ -46,9 +46,9 @@ describe("SolarViewCard view", () => {
     it("zoom in steps to next level", () => {
       const card = createAndMount();
       // Default is level 1 (800)
-      expect(card._zoomLevel).toBe(1);
+      expect(card._zoom.zoomLevel).toBe(1);
       clickButton(card, "zoom-in");
-      expect(card._zoomLevel).toBe(2);
+      expect(card._zoom.zoomLevel).toBe(2);
       const { width } = parseViewBox(card);
       expect(width).toBe(640);
       card.remove();
@@ -58,9 +58,9 @@ describe("SolarViewCard view", () => {
       const card = createAndMount();
       // Default is level 1, zoom in first then zoom out
       clickButton(card, "zoom-in");
-      expect(card._zoomLevel).toBe(2);
+      expect(card._zoom.zoomLevel).toBe(2);
       clickButton(card, "zoom-out");
-      expect(card._zoomLevel).toBe(1);
+      expect(card._zoom.zoomLevel).toBe(1);
       const { width } = parseViewBox(card);
       expect(width).toBe(800);
       card.remove();
@@ -69,7 +69,7 @@ describe("SolarViewCard view", () => {
     it("zoom in is clamped at level 4 (viewBox 320)", () => {
       const card = createAndMount();
       for (let i = 0; i < 20; i++) clickButton(card, "zoom-in");
-      expect(card._zoomLevel).toBe(4);
+      expect(card._zoom.zoomLevel).toBe(4);
       const { width, height } = parseViewBox(card);
       expect(width).toBe(320);
       expect(height).toBe(320);
@@ -79,7 +79,7 @@ describe("SolarViewCard view", () => {
     it("zoom out is clamped at level 1 (viewBox 800)", () => {
       const card = createAndMount();
       for (let i = 0; i < 20; i++) clickButton(card, "zoom-out");
-      expect(card._zoomLevel).toBe(1);
+      expect(card._zoom.zoomLevel).toBe(1);
       const { width } = parseViewBox(card);
       expect(width).toBe(800);
       card.remove();
@@ -204,10 +204,10 @@ describe("SolarViewCard view", () => {
       const card = createAndMount();
       clickButton(card, "zoom-in");
       clickButton(card, "zoom-in");
-      expect(card._zoomLevel).toBe(3);
+      expect(card._zoom.zoomLevel).toBe(3);
       clickButton(card, "today");
       const after = parseViewBox(card);
-      expect(card._zoomLevel).toBe(1);
+      expect(card._zoom.zoomLevel).toBe(1);
       expect(after.width).toBe(800);
       card.remove();
     });
@@ -230,7 +230,7 @@ describe("SolarViewCard view", () => {
       const card = document.createElement("ha-planetary-solar-system-card-test");
       card.setConfig({ default_zoom: 4 });
       document.body.appendChild(card);
-      expect(card._zoomLevel).toBe(4);
+      expect(card._zoom.zoomLevel).toBe(4);
       const { width } = parseViewBox(card);
       expect(width).toBe(320);
       card.remove();
@@ -240,7 +240,7 @@ describe("SolarViewCard view", () => {
       const card = document.createElement("ha-planetary-solar-system-card-test");
       card.setConfig({});
       document.body.appendChild(card);
-      expect(card._zoomLevel).toBe(1);
+      expect(card._zoom.zoomLevel).toBe(1);
       const { width } = parseViewBox(card);
       expect(width).toBe(800);
       card.remove();
@@ -252,9 +252,9 @@ describe("SolarViewCard view", () => {
       document.body.appendChild(card);
       clickButton(card, "zoom-in");
       clickButton(card, "zoom-in");
-      expect(card._zoomLevel).toBe(4);
+      expect(card._zoom.zoomLevel).toBe(4);
       clickButton(card, "today");
-      expect(card._zoomLevel).toBe(2);
+      expect(card._zoom.zoomLevel).toBe(2);
       const { width } = parseViewBox(card);
       expect(width).toBe(640);
       card.remove();
@@ -466,9 +466,9 @@ describe("SolarViewCard view", () => {
     it("setConfig after the card has rendered moves the live view (issue #125)", () => {
       const card = document.createElement("ha-planetary-solar-system-card-test");
       document.body.appendChild(card);
-      expect(card._zoomLevel).toBe(1);
+      expect(card._zoom.zoomLevel).toBe(1);
       card.setConfig({ default_zoom: 3 });
-      expect(card._zoomLevel).toBe(3);
+      expect(card._zoom.zoomLevel).toBe(3);
       expect(parseViewBox(card).width).toBe(480);
       card.remove();
     });

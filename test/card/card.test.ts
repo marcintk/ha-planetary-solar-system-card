@@ -877,15 +877,15 @@ describe("SolarViewCard", () => {
       card.remove();
     });
 
-    it("Today button preserves zoom and view width", () => {
+    it("Today button restores the default zoom and view width", () => {
       const card = createAndMount();
       clickButton(card, "zoom-in");
       clickButton(card, "zoom-in");
-      const zoomed = parseViewBox(card);
+      expect(card._zoomLevel).toBe(3);
       clickButton(card, "today");
       const after = parseViewBox(card);
-      expect(after.width).toBe(zoomed.width);
-      expect(card._zoomLevel).toBe(3);
+      expect(card._zoomLevel).toBe(1);
+      expect(after.width).toBe(800);
       card.remove();
     });
 
@@ -923,7 +923,7 @@ describe("SolarViewCard", () => {
       card.remove();
     });
 
-    it("Today button preserves zoom level even with configured default", () => {
+    it("Today button restores the configured default zoom", () => {
       const card = document.createElement("ha-planetary-solar-system-card-test");
       card.setConfig({ default_zoom: 2 });
       document.body.appendChild(card);
@@ -931,9 +931,9 @@ describe("SolarViewCard", () => {
       clickButton(card, "zoom-in");
       expect(card._zoomLevel).toBe(4);
       clickButton(card, "today");
-      expect(card._zoomLevel).toBe(4);
+      expect(card._zoomLevel).toBe(2);
       const { width } = parseViewBox(card);
-      expect(width).toBe(320);
+      expect(width).toBe(640);
       card.remove();
     });
   });
@@ -1061,31 +1061,105 @@ describe("SolarViewCard", () => {
       card.remove();
     });
 
-    it("manual zoom-in continues cycle from user level", () => {
+    it("a refresh tick leaves a hand-set zoom level alone", () => {
       vi.useFakeTimers();
       const card = document.createElement("ha-planetary-solar-system-card-test");
       card.setConfig({ periodic_zoom_change: true });
       document.body.appendChild(card);
-      // Manually zoom in to level 2
       clickButton(card, "zoom-in");
       expect(card._zoomLevel).toBe(2);
-      // Next tick should go to 3
+
       vi.advanceTimersByTime(60000);
-      expect(card._zoomLevel).toBe(3);
+      expect(card._zoomLevel).toBe(2);
+      vi.advanceTimersByTime(60000);
+      expect(card._zoomLevel).toBe(2);
       card.remove();
     });
 
-    it("Now button does not interrupt auto-cycle", () => {
+    it("Now button resumes the auto-cycle from the default zoom", () => {
       vi.useFakeTimers();
       const card = document.createElement("ha-planetary-solar-system-card-test");
       card.setConfig({ periodic_zoom_change: true });
       document.body.appendChild(card);
+      clickButton(card, "zoom-in");
+      clickButton(card, "zoom-in");
       vi.advanceTimersByTime(60000);
-      expect(card._zoomLevel).toBe(2);
+      expect(card._zoomLevel).toBe(3); // suspended by the manual zooms
+
       clickButton(card, "today");
-      expect(card._zoomLevel).toBe(2);
+      expect(card._zoomLevel).toBe(1);
       vi.advanceTimersByTime(60000);
-      expect(card._zoomLevel).toBe(3);
+      expect(card._zoomLevel).toBe(2);
+      card.remove();
+    });
+  });
+
+  describe("manual interaction suspends the periodic zoom cycle", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    function mountCycling() {
+      const card = document.createElement("ha-planetary-solar-system-card-test");
+      card.setConfig({ periodic_zoom_change: true });
+      document.body.appendChild(card);
+      return card;
+    }
+
+    for (const action of [
+      "hour-back",
+      "hour-forward",
+      "day-back",
+      "day-forward",
+      "month-back",
+      "month-forward",
+    ]) {
+      it(`${action} suspends the cycle until Home`, () => {
+        vi.useFakeTimers();
+        const card = mountCycling();
+        clickButton(card, action);
+        vi.advanceTimersByTime(60000);
+        expect(card._zoomLevel).toBe(1);
+
+        clickButton(card, "today");
+        vi.advanceTimersByTime(60000);
+        expect(card._zoomLevel).toBe(2);
+        card.remove();
+      });
+    }
+
+    it("dragging the view suspends the cycle", () => {
+      vi.useFakeTimers();
+      const card = mountCycling();
+      const svg = card.shadowRoot.querySelector("#solar-view svg");
+      svg.setPointerCapture = () => {};
+      svg.releasePointerCapture = () => {};
+      svg.dispatchEvent(new PointerEvent("pointerdown", { clientX: 200, clientY: 200 }));
+      svg.dispatchEvent(new PointerEvent("pointermove", { clientX: 250, clientY: 200 }));
+      svg.dispatchEvent(new PointerEvent("pointerup", { clientX: 250, clientY: 200 }));
+
+      vi.advanceTimersByTime(60000);
+      expect(card._zoomLevel).toBe(1);
+      card.remove();
+    });
+
+    it("replay does not suspend the cycle", () => {
+      vi.useFakeTimers();
+      const card = mountCycling();
+      clickButton(card, "replay");
+      vi.advanceTimersByTime(60000);
+      expect(card._zoomLevel).toBe(2);
+      card.remove();
+    });
+
+    it("opening the gallery does not suspend the cycle", () => {
+      vi.useFakeTimers();
+      const card = document.createElement("ha-planetary-solar-system-card-test");
+      card.setConfig({ periodic_zoom_change: true, gallery: { mode: "both" } });
+      document.body.appendChild(card);
+      clickButton(card, "gallery");
+      vi.advanceTimersByTime(60000);
+      expect(card._zoomLevel).toBe(2);
       card.remove();
     });
   });

@@ -108,12 +108,19 @@ frame.
 
 ### Zoom
 
-| Option                 | Type    | Default | Description                             |
-| ---------------------- | ------- | ------- | --------------------------------------- |
-| `default_zoom`         | number  | `1`     | Starting zoom level                     |
-| `zoom_animate`         | boolean | `true`  | Animate zoom transitions                |
-| `periodic_zoom_change` | boolean | `false` | Cycle zoom levels on each refresh tick  |
-| `periodic_zoom_max`    | number  | `4`     | Maximum zoom level for auto-cycle (2–4) |
+| Option                 | Type    | Default | Description                                                             |
+| ---------------------- | ------- | ------- | ----------------------------------------------------------------------- |
+| `default_zoom`         | number  | `1`     | Starting zoom level, and the level the **today** button returns to      |
+| `zoom_animate`         | boolean | `true`  | Animate zoom transitions                                                |
+| `periodic_zoom_change` | boolean | `false` | Cycle zoom levels on each refresh tick, until you aim the view yourself |
+| `periodic_zoom_max`    | number  | `4`     | Maximum zoom level for auto-cycle (2–4)                                 |
+
+The **today** button resets the whole view: back to `default_zoom`, the Sun re-centred, and the date
+live again.
+
+With `periodic_zoom_change` enabled, zooming, panning, or stepping the date pauses the auto-cycle so
+a refresh tick can't move a view you aimed yourself. The **today** button hands the view back and
+the cycle resumes. Replay and the gallery don't pause it.
 
 ### Appearance
 

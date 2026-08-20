@@ -19,6 +19,7 @@ export class ZoomController {
   private _periodicZoomChange: boolean;
   private _periodicZoomMax: number;
   private _animate: boolean;
+  private _userInteracted: boolean;
   private _onChange: () => void;
   private _onViewBoxChange: () => void;
 
@@ -29,6 +30,7 @@ export class ZoomController {
     this._periodicZoomChange = false;
     this._periodicZoomMax = MAX_ZOOM;
     this._animate = false;
+    this._userInteracted = false;
     this._onChange = onChange;
     this._onViewBoxChange = onViewBoxChange;
   }
@@ -89,10 +91,34 @@ export class ZoomController {
     this._viewState?.recenter();
   }
 
+  /**
+   * Marks the view as user-driven, pausing the periodic auto-cycle until Home. Called for
+   * gestures that live outside this controller (date navigation) — zoom and drag flag
+   * themselves. Replay and the gallery deliberately don't: neither aims the camera.
+   */
+  suspendAutoCycle(): void {
+    this._userInteracted = true;
+  }
+
+  /**
+   * Home: back to default_zoom and hand the view back to the auto-cycle. Distinct from
+   * rebuilding the ViewState — that would drop an in-flight animation and reset pan, which
+   * recenter() already owns.
+   */
+  resetToDefault(): void {
+    this._userInteracted = false;
+    const viewState = this._viewState;
+    if (!viewState || viewState.zoomLevel === this._defaultZoomLevel) return;
+    const prevWidth = viewState.width;
+    viewState.setZoomLevel(this._defaultZoomLevel);
+    this._apply(viewState, prevWidth);
+  }
+
   zoomIn(): void {
     const viewState = this._viewState;
     if (!viewState) return;
     const prevWidth = viewState.width;
+    this._userInteracted = true;
     if (viewState.zoomIn()) this._apply(viewState, prevWidth);
   }
 
@@ -100,12 +126,14 @@ export class ZoomController {
     const viewState = this._viewState;
     if (!viewState) return;
     const prevWidth = viewState.width;
+    this._userInteracted = true;
     if (viewState.zoomOut()) this._apply(viewState, prevWidth);
   }
 
-  // Auto-update tick: advances the periodic auto-cycle only while it's enabled.
+  // Auto-update tick: a refresh is a data update, not a reason to move a camera someone
+  // deliberately aimed — so it advances only while the cycle is on and the user hasn't taken over.
   tick(): void {
-    if (this._periodicZoomChange) this.advancePeriodic();
+    if (this._periodicZoomChange && !this._userInteracted) this.advancePeriodic();
   }
 
   advancePeriodic(): void {
@@ -123,6 +151,9 @@ export class ZoomController {
 
   updateDrag(clientX: number, clientY: number, rect: DOMRect): void {
     if (!this._viewState?.isDragging) return;
+    // Flagged here rather than in startDrag: pointerdown fires on every tap of the SVG,
+    // planet clicks included. Only a pointer that actually moved the pan counts as taking over.
+    this._userInteracted = true;
     this._viewState.updateDrag(clientX, clientY, rect);
     this._onViewBoxChange();
   }

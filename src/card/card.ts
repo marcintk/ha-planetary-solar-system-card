@@ -22,6 +22,18 @@ import { ZoomController } from "./zoom-controller.js";
 
 export type { GalleryMode };
 
+// Nav actions that pause the periodic zoom auto-cycle until Home. Zoom and drag flag themselves
+// inside ZoomController; these are the ones it can't see. Deliberately absent: "today" (the way
+// back), "replay" (a time animation, not a camera move), "gallery" (a different panel).
+const SUSPENDS_AUTO_ZOOM = new Set([
+  "hour-back",
+  "hour-forward",
+  "day-back",
+  "day-forward",
+  "month-back",
+  "month-forward",
+]);
+
 // HASS and config.location update independently (hass setter vs. setConfig), so each source
 // is kept as one grouped field rather than losing either one to an eager merge — _locationData
 // and _locationName below resolve them on read, override winning per-field.
@@ -352,8 +364,10 @@ export class SolarViewCard extends LitElement {
   }
 
   private _goToday(): void {
-    // Recenter before goLive() so its render picks up the recentered viewState.
+    // "Home" means one thing: default_zoom + centred pan + live date. Both view resets run
+    // before goLive() so its render picks up the restored viewState.
     this._zoom.recenter();
+    this._zoom.resetToDefault();
     this._dateNav.goLive();
   }
 
@@ -367,6 +381,7 @@ export class SolarViewCard extends LitElement {
   }
 
   private _handleNavAction(action: string | undefined): void {
+    if (action && SUSPENDS_AUTO_ZOOM.has(action)) this._zoom.suspendAutoCycle();
     switch (action) {
       case "replay":
         this._dateNav.toggleReplay();

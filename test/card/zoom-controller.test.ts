@@ -179,3 +179,109 @@ describe("ZoomController drag lifecycle", () => {
     expect(zoom.zoomLevel).toBe(zoomLevelBefore);
   });
 });
+
+describe("ZoomController manual interaction suspends the periodic cycle", () => {
+  it("tick is a no-op after a manual zoom", () => {
+    const zoom = new ZoomController(
+      () => {},
+      () => {}
+    );
+    zoom.configure(1, true, 4, false);
+    zoom.ensureInitialized();
+
+    zoom.zoomIn(); // user zoomed by hand
+    expect(zoom.zoomLevel).toBe(2);
+
+    zoom.tick();
+    expect(zoom.zoomLevel).toBe(2); // the auto-cycle must not yank it to 3
+  });
+
+  it("tick is a no-op after the user drags the view", () => {
+    const zoom = new ZoomController(
+      () => {},
+      () => {}
+    );
+    zoom.configure(1, true, 4, false);
+    zoom.ensureInitialized();
+
+    zoom.startDrag(200, 200);
+    zoom.updateDrag(250, 200, { width: 400, height: 400, x: 0, y: 0 } as DOMRect);
+    zoom.endDrag();
+
+    zoom.tick();
+    expect(zoom.zoomLevel).toBe(1);
+  });
+
+  it("a tap that never moves the view leaves the cycle running", () => {
+    const zoom = new ZoomController(
+      () => {},
+      () => {}
+    );
+    zoom.configure(1, true, 4, false);
+    zoom.ensureInitialized();
+
+    zoom.startDrag(200, 200); // pointerdown fires on any tap, planet clicks included
+    zoom.endDrag();
+
+    zoom.tick();
+    expect(zoom.zoomLevel).toBe(2);
+  });
+
+  it("suspendAutoCycle stops the cycle without moving the view", () => {
+    const zoom = new ZoomController(
+      () => {},
+      () => {}
+    );
+    zoom.configure(1, true, 4, false);
+    zoom.ensureInitialized();
+
+    zoom.suspendAutoCycle();
+    expect(zoom.zoomLevel).toBe(1);
+    zoom.tick();
+    expect(zoom.zoomLevel).toBe(1);
+  });
+
+  it("resetToDefault restores default_zoom and lets the cycle resume", () => {
+    const onChange = vi.fn();
+    const zoom = new ZoomController(onChange, () => {});
+    zoom.configure(2, true, 4, false);
+    zoom.ensureInitialized();
+
+    zoom.zoomIn();
+    zoom.zoomIn();
+    expect(zoom.zoomLevel).toBe(4);
+    onChange.mockClear();
+
+    zoom.resetToDefault();
+    expect(zoom.zoomLevel).toBe(2);
+    expect(onChange).toHaveBeenCalledTimes(1);
+
+    zoom.tick();
+    expect(zoom.zoomLevel).toBe(3); // cycle running again
+  });
+
+  it("resetToDefault clears the flag even when zoom is already at the default", () => {
+    const onChange = vi.fn();
+    const zoom = new ZoomController(onChange, () => {});
+    zoom.configure(1, true, 4, false);
+    zoom.ensureInitialized();
+
+    zoom.startDrag(200, 200);
+    zoom.updateDrag(250, 200, { width: 400, height: 400, x: 0, y: 0 } as DOMRect);
+    zoom.endDrag();
+    onChange.mockClear();
+
+    zoom.resetToDefault();
+    expect(onChange).not.toHaveBeenCalled(); // nothing to move, so nothing to re-render
+    zoom.tick();
+    expect(zoom.zoomLevel).toBe(2);
+  });
+
+  it("resetToDefault is safe before the view initializes", () => {
+    const onChange = vi.fn();
+    const zoom = new ZoomController(onChange, () => {});
+    zoom.configure(2, true, 4, false);
+    expect(() => zoom.resetToDefault()).not.toThrow();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+});

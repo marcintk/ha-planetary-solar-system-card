@@ -7,8 +7,13 @@ const LABEL_FONT_SIZE = 9;
 export const MARKER_GROUP_ID = "offscreen-markers";
 
 /**
- * Compute the intersection of a ray from (cx, cy) to (px, py) with a rectangle.
- * Returns { x, y } on the rectangle edge, inset by margin.
+ * Compute the intersection of a ray from (cx, cy) to (px, py) with a rectangle
+ * inset by `margin`, using the standard ray/box slab exit. Corner-correct by
+ * construction: a ray leaving through a corner yields the same `t` on both
+ * slabs, so no rounding can reject it.
+ *
+ * ponytail: no guard for (px, py) === (cx, cy) — the caller skips every body
+ * inside the viewport, and the centre is always inside.
  */
 function edgeIntersection(
   cx: number,
@@ -24,45 +29,13 @@ function edgeIntersection(
   const dx = px - cx;
   const dy = py - cy;
 
-  const inLeft = left + margin;
-  const inTop = top + margin;
-  const inRight = right - margin;
-  const inBottom = bottom - margin;
+  const tx =
+    dx === 0 ? Number.POSITIVE_INFINITY : ((dx > 0 ? right - margin : left + margin) - cx) / dx;
+  const ty =
+    dy === 0 ? Number.POSITIVE_INFINITY : ((dy > 0 ? bottom - margin : top + margin) - cy) / dy;
+  const t = Math.min(tx, ty);
 
-  let tMin = Number.POSITIVE_INFINITY;
-
-  // Check each edge
-  if (dx !== 0) {
-    const tLeft = (inLeft - cx) / dx;
-    if (tLeft > 0 && tLeft < tMin) {
-      const yAt = cy + dy * tLeft;
-      if (yAt >= inTop && yAt <= inBottom) tMin = tLeft;
-    }
-    const tRight = (inRight - cx) / dx;
-    if (tRight > 0 && tRight < tMin) {
-      const yAt = cy + dy * tRight;
-      if (yAt >= inTop && yAt <= inBottom) tMin = tRight;
-    }
-  }
-  if (dy !== 0) {
-    const tTop = (inTop - cy) / dy;
-    if (tTop > 0 && tTop < tMin) {
-      const xAt = cx + dx * tTop;
-      /* v8 ignore next */
-      if (xAt >= inLeft && xAt <= inRight) tMin = tTop;
-    }
-    const tBottom = (inBottom - cy) / dy;
-    if (tBottom > 0 && tBottom < tMin) {
-      const xAt = cx + dx * tBottom;
-      if (xAt >= inLeft && xAt <= inRight) tMin = tBottom;
-    }
-  }
-
-  if (tMin === Number.POSITIVE_INFINITY) {
-    return { x: cx, y: cy };
-  }
-
-  return { x: cx + dx * tMin, y: cy + dy * tMin };
+  return { x: cx + dx * t, y: cy + dy * t };
 }
 
 /**

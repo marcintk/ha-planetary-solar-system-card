@@ -75,9 +75,27 @@ describe("renderOffscreenMarkers", () => {
     expect(group.children.length).toBe(0);
   });
 
-  it("places marker when edge intersection falls back to center (degenerate viewport)", () => {
-    // A 1×1 viewport means the inset box (margin=10) degenerates, causing
-    // edgeIntersection to return the fallback { x: cx, y: cy } (POSITIVE_INFINITY path).
+  it("places marker on the inset corner for a body on the exact viewport diagonal", () => {
+    // (-143,-143) from centre (400,400) is an exact 45° ray; the old per-edge
+    // test rejected both corner candidates to floating-point rounding and fell
+    // back to drawing the marker at the centre of the card.
+    const vs = makeViewState(1); // 800×800, left/top = 0, inset corner = (10,10)
+    const positions = [{ name: "Diagonal", x: -143, y: -143, color: "#ff00ff" }];
+    const group = renderOffscreenMarkers(positions, vs);
+    const polygon = group.querySelector("polygon");
+    expect(polygon).not.toBeNull();
+    const points = polygon
+      .getAttribute("points")
+      .split(" ")
+      .map((pt) => pt.split(",").map(Number));
+    for (const [x, y] of points) {
+      expect(Math.hypot(x - 10, y - 10)).toBeLessThan(10);
+    }
+  });
+
+  it("still places a marker for a degenerate viewport smaller than the margin", () => {
+    // A 1×1 viewport means the inset box (margin=10) is inverted, so the slab
+    // exit yields a negative t. A marker is still produced, never NaN.
     const vs = makeViewState(1, 400, 400, 1); // 1×1 viewport, center at 400,400
     const positions = [{ name: "Far", x: 0, y: 0, color: "#ff0000" }];
     const group = renderOffscreenMarkers(positions, vs);

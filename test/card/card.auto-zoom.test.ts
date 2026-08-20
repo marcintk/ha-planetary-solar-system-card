@@ -31,9 +31,9 @@ describe("SolarViewCard auto_zoom", () => {
       const card = document.createElement("ha-planetary-solar-system-card-test");
       card.setConfig({ periodic_zoom_change: false });
       document.body.appendChild(card);
-      expect(card._zoomLevel).toBe(1);
+      expect(card._zoom.zoomLevel).toBe(1);
       vi.advanceTimersByTime(60000);
-      expect(card._zoomLevel).toBe(1);
+      expect(card._zoom.zoomLevel).toBe(1);
       card.remove();
     });
 
@@ -42,11 +42,11 @@ describe("SolarViewCard auto_zoom", () => {
       const card = document.createElement("ha-planetary-solar-system-card-test");
       card.setConfig({ periodic_zoom_change: true });
       document.body.appendChild(card);
-      expect(card._zoomLevel).toBe(1);
+      expect(card._zoom.zoomLevel).toBe(1);
       vi.advanceTimersByTime(60000);
-      expect(card._zoomLevel).toBe(2);
+      expect(card._zoom.zoomLevel).toBe(2);
       vi.advanceTimersByTime(60000);
-      expect(card._zoomLevel).toBe(3);
+      expect(card._zoom.zoomLevel).toBe(3);
       card.remove();
     });
 
@@ -55,9 +55,9 @@ describe("SolarViewCard auto_zoom", () => {
       const card = document.createElement("ha-planetary-solar-system-card-test");
       card.setConfig({ periodic_zoom_change: true, default_zoom: 4 });
       document.body.appendChild(card);
-      expect(card._zoomLevel).toBe(4);
+      expect(card._zoom.zoomLevel).toBe(4);
       vi.advanceTimersByTime(60000);
-      expect(card._zoomLevel).toBe(1);
+      expect(card._zoom.zoomLevel).toBe(1);
       card.remove();
     });
 
@@ -79,12 +79,12 @@ describe("SolarViewCard auto_zoom", () => {
       card.setConfig({ periodic_zoom_change: true });
       document.body.appendChild(card);
       clickButton(card, "zoom-in");
-      expect(card._zoomLevel).toBe(2);
+      expect(card._zoom.zoomLevel).toBe(2);
 
       vi.advanceTimersByTime(60000);
-      expect(card._zoomLevel).toBe(2);
+      expect(card._zoom.zoomLevel).toBe(2);
       vi.advanceTimersByTime(60000);
-      expect(card._zoomLevel).toBe(2);
+      expect(card._zoom.zoomLevel).toBe(2);
       card.remove();
     });
 
@@ -96,12 +96,12 @@ describe("SolarViewCard auto_zoom", () => {
       clickButton(card, "zoom-in");
       clickButton(card, "zoom-in");
       vi.advanceTimersByTime(60000);
-      expect(card._zoomLevel).toBe(3); // suspended by the manual zooms
+      expect(card._zoom.zoomLevel).toBe(3); // suspended by the manual zooms
 
       clickButton(card, "today");
-      expect(card._zoomLevel).toBe(1);
+      expect(card._zoom.zoomLevel).toBe(1);
       vi.advanceTimersByTime(60000);
-      expect(card._zoomLevel).toBe(2);
+      expect(card._zoom.zoomLevel).toBe(2);
       card.remove();
     });
   });
@@ -131,11 +131,11 @@ describe("SolarViewCard auto_zoom", () => {
         const card = mountCycling();
         clickButton(card, action);
         vi.advanceTimersByTime(60000);
-        expect(card._zoomLevel).toBe(1);
+        expect(card._zoom.zoomLevel).toBe(1);
 
         clickButton(card, "today");
         vi.advanceTimersByTime(60000);
-        expect(card._zoomLevel).toBe(2);
+        expect(card._zoom.zoomLevel).toBe(2);
         card.remove();
       });
     }
@@ -146,7 +146,7 @@ describe("SolarViewCard auto_zoom", () => {
       dragView(card, 50, 0);
 
       vi.advanceTimersByTime(60000);
-      expect(card._zoomLevel).toBe(1);
+      expect(card._zoom.zoomLevel).toBe(1);
       card.remove();
     });
 
@@ -155,7 +155,7 @@ describe("SolarViewCard auto_zoom", () => {
       const card = mountCycling();
       clickButton(card, "replay");
       vi.advanceTimersByTime(60000);
-      expect(card._zoomLevel).toBe(2);
+      expect(card._zoom.zoomLevel).toBe(2);
       card.remove();
     });
 
@@ -166,7 +166,7 @@ describe("SolarViewCard auto_zoom", () => {
       document.body.appendChild(card);
       clickButton(card, "gallery");
       vi.advanceTimersByTime(60000);
-      expect(card._zoomLevel).toBe(2);
+      expect(card._zoom.zoomLevel).toBe(2);
       card.remove();
     });
   });
@@ -181,13 +181,13 @@ describe("SolarViewCard auto_zoom", () => {
       const card = document.createElement("ha-planetary-solar-system-card-test");
       card.setConfig({ periodic_zoom_change: true, periodic_zoom_max: 3 });
       document.body.appendChild(card);
-      expect(card._zoomLevel).toBe(1);
+      expect(card._zoom.zoomLevel).toBe(1);
       vi.advanceTimersByTime(60000);
-      expect(card._zoomLevel).toBe(2);
+      expect(card._zoom.zoomLevel).toBe(2);
       vi.advanceTimersByTime(60000);
-      expect(card._zoomLevel).toBe(3);
+      expect(card._zoom.zoomLevel).toBe(3);
       vi.advanceTimersByTime(60000);
-      expect(card._zoomLevel).toBe(1);
+      expect(card._zoom.zoomLevel).toBe(1);
       card.remove();
     });
 
@@ -199,9 +199,9 @@ describe("SolarViewCard auto_zoom", () => {
       vi.advanceTimersByTime(60000);
       vi.advanceTimersByTime(60000);
       vi.advanceTimersByTime(60000);
-      expect(card._zoomLevel).toBe(4);
+      expect(card._zoom.zoomLevel).toBe(4);
       vi.advanceTimersByTime(60000);
-      expect(card._zoomLevel).toBe(1);
+      expect(card._zoom.zoomLevel).toBe(1);
       card.remove();
     });
 
@@ -222,9 +222,9 @@ describe("SolarViewCard auto_zoom", () => {
       const card = document.createElement("ha-planetary-solar-system-card-test");
       card.setConfig({ periodic_zoom_change: false, periodic_zoom_max: 3 });
       document.body.appendChild(card);
-      expect(card._zoomLevel).toBe(1);
+      expect(card._zoom.zoomLevel).toBe(1);
       vi.advanceTimersByTime(60000);
-      expect(card._zoomLevel).toBe(1);
+      expect(card._zoom.zoomLevel).toBe(1);
       card.remove();
     });
   });

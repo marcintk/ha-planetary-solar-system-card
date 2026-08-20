@@ -334,7 +334,7 @@ describe("SolarViewCard", () => {
     it("return safe defaults when _viewState is null", () => {
       const card = document.createElement("ha-planetary-solar-system-card-test");
       // Card created but never mounted — _viewState is null
-      expect(card._zoomLevel).toBeNull();
+      expect(card._zoom.zoomLevel).toBeNull();
     });
   });
 

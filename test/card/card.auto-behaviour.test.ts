@@ -29,11 +29,11 @@ describe("SolarViewCard automatic behaviour", () => {
     // Both behaviours are observed through what one refresh tick does, never through a flag:
     // auto_cycle is alive if the tick pulled the date to now, auto_zoom if it moved the level.
     function runOneTick(card) {
-      const zoomBefore = card._zoomLevel;
+      const zoomBefore = card._zoom.zoomLevel;
       vi.advanceTimersByTime(TICK_MS);
       return {
         autoCycleAlive: card._dateNav.currentDate.getTime() === Date.now(),
-        autoZoomAlive: card._zoomLevel !== zoomBefore,
+        autoZoomAlive: card._zoom.zoomLevel !== zoomBefore,
       };
     }
 
@@ -114,7 +114,7 @@ describe("SolarViewCard automatic behaviour", () => {
         startReplayJustBeforeATick(card);
 
         expect(card._dateNav.isReplaying).toBe(true);
-        expect(card._zoomLevel).toBe(1); // the cycle must not zoom mid-animation
+        expect(card._zoom.zoomLevel).toBe(1); // the cycle must not zoom mid-animation
         // The date belongs to the replay while it runs, not to the refresh tick.
         expect(card._dateNav.currentDate.getTime()).toBeLessThan(START.getTime());
         card.remove();
@@ -128,7 +128,7 @@ describe("SolarViewCard automatic behaviour", () => {
         vi.advanceTimersByTime(59900); // lands exactly on the next tick, replay long finished
         expect(card._dateNav.isReplaying).toBe(false);
         expect(card._dateNav.currentDate.getTime()).toBe(Date.now());
-        expect(card._zoomLevel).not.toBe(1);
+        expect(card._zoom.zoomLevel).not.toBe(1);
         card.remove();
       });
     });

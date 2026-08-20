@@ -294,7 +294,6 @@ describe("GalleryController.viewModel", () => {
     expect(vm.error).toBeNull();
     expect(vm.panelSource).toBe("none");
     expect(vm.navButtonVisible).toBe(true);
-    expect(vm.navButtonActive).toBe(false);
   });
 
   it("reflects an open strip with no panel", () => {
@@ -303,7 +302,6 @@ describe("GalleryController.viewModel", () => {
     const vm = gallery.viewModel();
     expect(vm.showStrip).toBe(true);
     expect(vm.panelSource).toBe("none");
-    expect(vm.navButtonActive).toBe(true);
     expect(vm.thumbnails.map((t) => t.source)).toEqual(["earth", "sun"]);
   });
 

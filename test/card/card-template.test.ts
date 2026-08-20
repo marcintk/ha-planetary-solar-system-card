@@ -29,7 +29,6 @@ function galleryViewModel(overrides: Partial<GalleryViewModel> = {}): GalleryVie
     showStrip: false,
     thumbnails: [],
     navButtonVisible: false,
-    navButtonActive: false,
     debugStats: { earth: zeroDebugStats, sun: zeroDebugStats },
     debugStartedAt: Date.now(),
     ...overrides,

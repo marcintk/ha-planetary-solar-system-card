@@ -158,40 +158,17 @@ frame.
 | `location.longitude` | number (-180 to 180) | HA config | Overrides HA's longitude. Requires `location.latitude` too, else ignored                                     |
 | `location.timezone`  | string (IANA)        | estimated | Timezone for displayed clock times, e.g. `Europe/Warsaw`. Unrecognised values fall back to the estimate      |
 
-When `location.latitude`/`location.longitude` are set, displayed clock times (the `Next:` sunrise/
-sunset/twilight readout) stop following Home Assistant's timezone and follow the configured location
-instead. The status bar names the zone it used, so a time in a zone you are not sitting in can't be
-mistaken for your own clock:
+With `location.latitude`/`location.longitude` set, clock times (the `Next:` readout) follow the
+configured location instead of HA's timezone, and the status bar names the zone it used —
+`Next: Sunset (20:20 GMT+2)`.
 
-```yaml
-location:
-  name: Krakow, Poland
-  latitude: 50.0614
-  longitude: 19.9366
-  timezone: Europe/Warsaw
-```
+Set `location.timezone` to a canonical [IANA name][iana] (`Europe/Warsaw`, `America/Chicago` — not
+`CST6CDT`) for exact times, daylight saving included. Left unset, the zone is estimated from
+longitude alone: no DST and no half-hour zones, so Krakow runs an hour behind each summer,
+Montevideo an hour behind year-round, and Bangalore 30 minutes behind always.
 
-Set `location.timezone` to an [IANA zone name][iana] and times are exact, daylight saving included —
-`Next: Sunset (20:20 GMT+2)` in summer, `(16:37 GMT+1)` in winter. Use the canonical `Area/City`
-form (`America/Chicago`, not `CST6CDT` or `US/Central`); only the canonical names carry the full
-history of rule changes, which matters because the card navigates by month and year. A value the
-browser does not recognise is ignored in favour of the estimate below.
-
-**Without** `location.timezone`, the zone is _estimated_ from the longitude alone — one hour per
-15°. That is a rough guess, because real timezones follow borders rather than meridians:
-
-| Location                         | Estimated | Actual                | Error  |
-| -------------------------------- | --------- | --------------------- | ------ |
-| Krakow, Poland (lon 19.94)       | `GMT+1`   | `GMT+1` / `GMT+2` DST | 0–1 h  |
-| Montevideo, Uruguay (lon -56.16) | `GMT-4`   | `GMT-3` all year      | 1 h    |
-| Bangalore, India (lon 77.59)     | `GMT+5`   | `GMT+5:30`            | 30 min |
-
-The estimate has no daylight saving time, cannot express half-hour zones, and is worst in countries
-spanning several solar hours. Set `location.timezone` when the clock matters.
-
-Sky state, twilight bands and the observer needle are computed from latitude/longitude directly and
-are never affected by any of this. With no `location` override set, times use HA's own timezone
-exactly as before.
+Sky state, twilight bands and the observer needle come from latitude/longitude directly and are
+unaffected. With no `location` override set, times use HA's own timezone exactly as before.
 
 <!-- Reference links -->
 

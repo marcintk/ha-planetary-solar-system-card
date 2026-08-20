@@ -38,7 +38,7 @@ export function renderSolarSystem(
 ): {
   svg: SVGSVGElement;
   positions: ViewPosition[];
-  updateMarkers: (viewState: PanZoomState) => void;
+  updateMarkers: (viewState: PanZoomState, aspect?: number) => void;
 } {
   const eclipticViewDirection = eclipticView ? 1 : -1;
 
@@ -191,10 +191,10 @@ export function renderSolarSystem(
   // caller's current pan/zoom — cheap enough to call on every drag/zoom tick without rebuilding
   // the rest of the SVG. Owns the marker group's DOM lifecycle (replace-by-id) so callers never
   // need to know MARKER_GROUP_ID or reach into the SVG themselves.
-  function updateMarkers(viewState: PanZoomState): void {
+  function updateMarkers(viewState: PanZoomState, aspect?: number): void {
     const old = svg.getElementById(MARKER_GROUP_ID);
     if (old) old.remove();
-    svg.appendChild(renderOffscreenMarkers(positions, viewState));
+    svg.appendChild(renderOffscreenMarkers(positions, viewState, aspect));
   }
 
   return { svg, positions, updateMarkers };

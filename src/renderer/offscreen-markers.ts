@@ -107,21 +107,34 @@ function createLabel(
 
 /**
  * Render off-screen markers for planets/Moon outside the current viewport.
- * @param {Array<{name: string, x: number, y: number, color: string}>} positions
- * @param {object} viewState - ViewState instance with centerX, centerY, width, height
- * @returns {SVGGElement} A <g> group containing all markers
+ *
+ * The viewBox is always square, but the card's box is not once `config.height`
+ * reshapes it. Under preserveAspectRatio="xMidYMid meet" the square content
+ * letterboxes, and the bands are still drawable — the outer <svg> clips to its
+ * element box, not to the viewBox. So the marker rect is the *visible* region in
+ * viewBox units, which decides both where a marker is drawn and whether a body
+ * counts as off-screen at all (#135).
+ *
+ * @param positions - bodies to consider, in viewBox coordinates
+ * @param viewState - pan/zoom state; `width` is the square viewBox extent
+ * @param aspect - the card element's width / height. Absent, non-finite or <= 0
+ *   (jsdom, and HA's pre-layout first paint, both measure 0x0) falls back to square.
  */
 export function renderOffscreenMarkers(
   positions: ViewPosition[],
-  viewState: PanZoomState
+  viewState: PanZoomState,
+  aspect = 1
 ): SVGGElement {
   const group = createSvgElement("g", { id: MARKER_GROUP_ID });
 
   const w = viewState.width;
-  const left = viewState.centerX - w / 2;
-  const top = viewState.centerY - w / 2;
-  const right = left + w;
-  const bottom = top + w;
+  const ratio = Number.isFinite(aspect) && aspect > 0 ? aspect : 1;
+  const halfW = (w / 2) * Math.max(1, ratio);
+  const halfH = (w / 2) * Math.max(1, 1 / ratio);
+  const left = viewState.centerX - halfW;
+  const top = viewState.centerY - halfH;
+  const right = viewState.centerX + halfW;
+  const bottom = viewState.centerY + halfH;
 
   for (const pos of positions) {
     // Skip bodies that opt out of offscreen markers (e.g. Moon)

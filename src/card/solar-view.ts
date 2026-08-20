@@ -10,7 +10,7 @@ import type { ZoomController } from "./zoom-controller.js";
 export class SolarView {
   private _zoom: ZoomController;
   private _svg: SVGSVGElement | null;
-  private _updateMarkers: ((viewState: PanZoomState) => void) | null;
+  private _updateMarkers: ((viewState: PanZoomState, aspect?: number) => void) | null;
 
   constructor(zoom: ZoomController) {
     this._zoom = zoom;
@@ -44,7 +44,11 @@ export class SolarView {
     const panZoomState = this._zoom.panZoomState;
     if (!panZoomState) return;
     if (this._svg) this._svg.setAttribute("viewBox", this._zoom.viewBox as string);
-    this._updateMarkers?.(panZoomState);
+    // Markers hug the card's edges, which the square viewBox no longer matches once
+    // config.height reshapes the box (#135). Measured here rather than cached: the
+    // element is the only thing that knows its rendered aspect.
+    const rect = this._svg?.getBoundingClientRect();
+    this._updateMarkers?.(panZoomState, rect?.height ? rect.width / rect.height : 1);
   }
 
   private _bindPointerEvents(svg: SVGSVGElement): void {

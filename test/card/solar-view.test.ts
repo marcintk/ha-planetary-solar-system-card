@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { SolarView } from "../../src/card/solar-view.js";
 import { ZoomController } from "../../src/card/zoom-controller.js";
+import { MARKER_GROUP_ID } from "../../src/renderer/offscreen-markers.js";
 
 function mountedView(): { view: SolarView; zoom: ZoomController; container: HTMLElement } {
   const zoom = new ZoomController(
@@ -48,6 +49,37 @@ describe("SolarView.applyViewState", () => {
     zoom.ensureInitialized();
     const view = new SolarView(zoom);
     expect(() => view.applyViewState()).not.toThrow();
+  });
+
+  it("widens the marker rect to the card's aspect ratio (#135)", () => {
+    // A 2:1 card letterboxes the square viewBox, so a body in the side band is
+    // on screen and must lose its marker; markers move out to the card edges.
+    const { view, container } = mountedView();
+    const svg = container.querySelector("svg") as SVGSVGElement;
+    const rectFor = (w: number, h: number) => () =>
+      ({ width: w, height: h, x: 0, y: 0, top: 0, left: 0 }) as DOMRect;
+
+    svg.getBoundingClientRect = rectFor(400, 400);
+    view.applyViewState();
+    const square = svg.getElementById(MARKER_GROUP_ID).children.length;
+
+    svg.getBoundingClientRect = rectFor(800, 400);
+    view.applyViewState();
+    const wide = svg.getElementById(MARKER_GROUP_ID).children.length;
+
+    expect(square).toBeGreaterThan(0);
+    expect(wide).toBeLessThan(square);
+  });
+
+  it("falls back to square when the element has not been laid out yet", () => {
+    // jsdom and HA's first paint both measure 0x0; width/height would be NaN.
+    const { view, container } = mountedView();
+    const svg = container.querySelector("svg") as SVGSVGElement;
+    svg.getBoundingClientRect = () =>
+      ({ width: 0, height: 0, x: 0, y: 0, top: 0, left: 0 }) as DOMRect;
+    view.applyViewState();
+    const points = svg.getElementById(MARKER_GROUP_ID).querySelector("polygon");
+    expect(points?.getAttribute("points")).not.toContain("NaN");
   });
 
   it("sets the svg viewBox from the zoom controller", () => {

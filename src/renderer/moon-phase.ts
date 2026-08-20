@@ -7,13 +7,11 @@ import { createSvgElement, SVG_NS } from "./svg-utils.js";
 // system the circle and terminator arc are drawn in.
 const DISC_SIZE = 100;
 
-const CENTER_X = DISC_SIZE / 2;
-// Lifted above centre, and small enough, that the disc clears the phase caption overlaid on
-// the bottom of the tile — at 48 it ran under the text and the longest names read against
-// the lit limb rather than the black backdrop.
-const CENTER_Y = 42;
-// Kept a whole number: the terminator arc bakes it straight into the path's `A <r> <r>`
-// command, and a fractional radius makes those strings needlessly noisy to read and diff.
+const CENTER = DISC_SIZE / 2;
+// Sized so a centred disc still clears the phase caption overlaid on the bottom of the tile:
+// at 48 it ran under the text and the longest names read against the lit limb rather than
+// the black backdrop. Kept a whole number too — the terminator arc bakes it straight into
+// the path's `A <r> <r>` command, and a fractional radius makes those strings noisy to diff.
 const INDICATOR_RADIUS = 36;
 const DISC_COLOR = "#cccccc";
 const SHADOW_COLOR = "#1a1a2e";
@@ -36,8 +34,8 @@ export function renderMoonPhaseDisc(date: Date, hemisphere: Hemisphere): SVGSVGE
   // Background disc (dark)
   svg.appendChild(
     createSvgElement("circle", {
-      cx: CENTER_X,
-      cy: CENTER_Y,
+      cx: CENTER,
+      cy: CENTER,
       r: INDICATOR_RADIUS,
       fill: SHADOW_COLOR,
     })
@@ -50,8 +48,8 @@ export function renderMoonPhaseDisc(date: Date, hemisphere: Hemisphere): SVGSVGE
     // For waning (phase > 0.5 in north), left side lit.
     // Southern hemisphere mirrors the illumination side.
     const r = INDICATOR_RADIUS;
-    const top = CENTER_Y - r;
-    const bottom = CENTER_Y + r;
+    const top = CENTER - r;
+    const bottom = CENTER + r;
 
     // Terminator bulge: at illumination 0.5 the terminator is straight (rx=0),
     // below 0.5 it bulges toward shadow, above 0.5 it bulges toward light.
@@ -77,11 +75,11 @@ export function renderMoonPhaseDisc(date: Date, hemisphere: Hemisphere): SVGSVGE
     }
 
     const d = [
-      `M ${CENTER_X} ${top}`,
+      `M ${CENTER} ${top}`,
       // Semicircular arc on the lit side
-      `A ${r} ${r} 0 0 ${semiSweep} ${CENTER_X} ${bottom}`,
+      `A ${r} ${r} 0 0 ${semiSweep} ${CENTER} ${bottom}`,
       // Terminator arc back to top
-      `A ${rx} ${r} 0 0 ${terminatorSweep} ${CENTER_X} ${top}`,
+      `A ${rx} ${r} 0 0 ${terminatorSweep} ${CENTER} ${top}`,
       "Z",
     ].join(" ");
 

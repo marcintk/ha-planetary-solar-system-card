@@ -10,30 +10,40 @@ describe("renderMoonPhaseDisc", () => {
     expect(svg.parentNode).toBeNull();
   });
 
-  it("centres the disc horizontally with no overflow", () => {
+  it("centres the disc in the tile, equal margin on all four sides", () => {
     const svg = renderMoonPhaseDisc(new Date("2024-01-15"), "north");
 
     const disc = svg.querySelector("circle");
     const cx = Number(disc.getAttribute("cx"));
+    const cy = Number(disc.getAttribute("cy"));
     const r = Number(disc.getAttribute("r"));
-    expect(cx).toBe(50);
-    expect(cx - r).toBeGreaterThanOrEqual(0);
-    expect(cx + r).toBeLessThanOrEqual(100);
+    expect([cx, cy]).toEqual([50, 50]);
+    // left, right, top and bottom margins all equal — no overflow, no drift.
+    expect([cx - r, 100 - (cx + r), cy - r, 100 - (cy + r)]).toEqual([
+      50 - r,
+      50 - r,
+      50 - r,
+      50 - r,
+    ]);
+    expect(cx - r).toBeGreaterThan(0);
   });
 
-  // The phase caption is HTML overlaid on the bottom of the tile. The disc has to sit clear
-  // of it, or the longest names read against the lit limb instead of the black backdrop.
-  it("keeps the disc out of the bottom caption band", () => {
+  // The phase caption is HTML overlaid on the bottom of the tile, measured in Chromium as
+  // starting 86.8 units down (72.19px of an 83.19px tile). A centred disc only clears that
+  // because it is small enough; grow the radius and the longest names start reading against
+  // the lit limb instead of the black backdrop.
+  it("keeps the disc clear of the bottom caption band", () => {
+    const CAPTION_TOP = 86.8;
     const svg = renderMoonPhaseDisc(new Date("2024-01-25T18:00:00Z"), "north"); // Full Moon
     const disc = svg.querySelector("circle");
     const cy = Number(disc.getAttribute("cy"));
     const r = Number(disc.getAttribute("r"));
 
-    expect(cy + r).toBeLessThanOrEqual(82);
+    expect(cy + r).toBeLessThanOrEqual(CAPTION_TOP);
     // ...and the lit path, which at Full Moon spans the disc's full height.
     const d = svg.querySelector("path").getAttribute("d");
     const ys = [...d.matchAll(/[ ,](-?\d+(?:\.\d+)?)(?=[ ]|$)/g)].map((m) => Number(m[1]));
-    expect(Math.max(...ys)).toBeLessThanOrEqual(82);
+    expect(Math.max(...ys)).toBeLessThanOrEqual(CAPTION_TOP);
   });
 
   it("still fills most of the tile above the caption", () => {

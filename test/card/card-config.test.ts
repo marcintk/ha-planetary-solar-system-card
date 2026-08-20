@@ -16,7 +16,8 @@ describe("parseCardConfig", () => {
       locationOverride: null,
       locationNameOverride: null,
       heightStyle: "",
-      galleryMode: "none",
+      galleryMode: "closed",
+      gallerySources: ["moon"],
       galleryIntervalMs: 60000,
     });
   });
@@ -153,10 +154,57 @@ describe("parseCardConfig", () => {
 
   describe("gallery", () => {
     it("uses a recognised gallery mode", () => {
-      expect(parseCardConfig({ gallery: { mode: "sun" } }).galleryMode).toBe("sun");
+      expect(parseCardConfig({ gallery: { mode: "open" } }).galleryMode).toBe("open");
+      expect(parseCardConfig({ gallery: { mode: "slide" } }).galleryMode).toBe("slide");
     });
-    it("falls back to 'none' for an unrecognised mode", () => {
-      expect(parseCardConfig({ gallery: { mode: "bogus" } }).galleryMode).toBe("none");
+    it("falls back to 'closed' for an unrecognised mode", () => {
+      expect(parseCardConfig({ gallery: { mode: "bogus" } }).galleryMode).toBe("closed");
+    });
+
+    describe("sources", () => {
+      it("keeps recognised sources in the order given", () => {
+        expect(
+          parseCardConfig({ gallery: { sources: ["sun", "moon", "earth"] } }).gallerySources
+        ).toEqual(["sun", "moon", "earth"]);
+      });
+      it("drops unknown entries and de-duplicates, keeping first position", () => {
+        expect(
+          parseCardConfig({ gallery: { sources: ["moon", "mars", "earth", "moon"] } })
+            .gallerySources
+        ).toEqual(["moon", "earth"]);
+      });
+      it("falls back to ['moon'] when nothing valid remains", () => {
+        expect(parseCardConfig({ gallery: { sources: ["mars"] } }).gallerySources).toEqual([
+          "moon",
+        ]);
+        expect(parseCardConfig({ gallery: { sources: [] } }).gallerySources).toEqual(["moon"]);
+        expect(
+          parseCardConfig({ gallery: { sources: "earth" as unknown as string[] } }).gallerySources
+        ).toEqual(["moon"]);
+      });
+    });
+
+    // Pre-#140 configs used a single `mode` string that conflated presentation with source
+    // selection. Without this mapping they would fail the mode check and silently fall back
+    // to the default, quietly changing what an existing dashboard shows.
+    describe("legacy mode strings", () => {
+      it.each([
+        ["none", "closed", ["moon"]],
+        ["earth", "open", ["earth"]],
+        ["sun", "open", ["sun"]],
+        ["both", "open", ["earth", "sun"]],
+        ["slide", "slide", ["earth", "sun"]],
+      ])("maps %s to %s with %j", (legacy, mode, sources) => {
+        const parsed = parseCardConfig({ gallery: { mode: legacy } });
+        expect(parsed.galleryMode).toBe(mode);
+        expect(parsed.gallerySources).toEqual(sources);
+      });
+
+      it("an explicit sources list wins over a legacy mode's implied sources", () => {
+        const parsed = parseCardConfig({ gallery: { mode: "both", sources: ["moon"] } });
+        expect(parsed.galleryMode).toBe("open");
+        expect(parsed.gallerySources).toEqual(["moon"]);
+      });
     });
     it("converts slide_interval_secs to milliseconds", () => {
       expect(parseCardConfig({ gallery: { slide_interval_secs: 5 } }).galleryIntervalMs).toBe(5000);

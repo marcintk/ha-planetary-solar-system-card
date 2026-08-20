@@ -50,20 +50,33 @@ export function buildStatusBar(
   </div>`;
 }
 
+// Sources backed by a fetched NASA image: they have a URL, a capture date, a cache/backoff
+// cycle, and can open full-screen. Every Record<ImageSource, ...> below is keyed on exactly
+// these, which is why moon — drawn locally, never fetched, never full-screen — is NOT one.
 export type ImageSource = "earth" | "sun";
+
+// Anything that can occupy a slot in the gallery strip. Moon is display-only: it has no URL
+// and no panel, so it appears here and nowhere else.
+export type GallerySource = ImageSource | "moon";
 
 export const IMAGE_SOURCE_LABELS: Record<ImageSource, string> = {
   earth: "DSCOVR Earth",
   sun: "SDO HMI Continuum",
 };
 
-// Labels for the gallery thumbnail strip.
+// Labels for the gallery thumbnail strip. Moon has none: its tile shows the phase name
+// across the full width instead, and a moon disc captioned "Moon" says nothing twice.
 export const GALLERY_SOURCE_LABELS: Record<ImageSource, string> = {
   earth: "DSCOVR/E",
   sun: "SDO/S",
 };
 
-export const GALLERY_SOURCES: ImageSource[] = ["earth", "sun"];
+// Sources that need fetching/hydrating — the network-backed ones only.
+export const IMAGE_SOURCES: ImageSource[] = ["earth", "sun"];
+
+// Every name accepted in `gallery.sources`. Order here is only the validation set; the
+// user's own list order is what decides layout.
+export const GALLERY_SOURCES: GallerySource[] = ["moon", "earth", "sun"];
 
 // Full-screen status bar leads with the target body, the probe name follows (e.g.
 // "EARTH · DSCOVR · captured ..."). Kept separate from IMAGE_SOURCE_LABELS, which stays

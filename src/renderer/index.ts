@@ -15,7 +15,6 @@ import {
 } from "./bodies.js";
 import { computeCometVisualEllipse, renderCometBody, renderCometOrbit } from "./comets.js";
 import { type LabelTarget, renderDynamicLabels } from "./labels.js";
-import { renderMoonPhaseIndicator } from "./moon-phase.js";
 import { calculateObserverAngle, renderDayNightSplit, renderObserverNeedle } from "./observer.js";
 import { MARKER_GROUP_ID, renderOffscreenMarkers } from "./offscreen-markers.js";
 import { computePlanetVisualEllipse, packOrbitRadii } from "./orbit-packing.js";
@@ -183,9 +182,6 @@ export function renderSolarSystem(
     locationData?.lon
   );
   renderObserverNeedle(svg, earthX, earthY, observerAngle, EARTH.size, eclipticViewDirection);
-
-  // Moon phase indicator (rendered last so it appears on top)
-  renderMoonPhaseIndicator(svg, date, hemisphere);
 
   // Re-derives which bodies' markers belong offscreen from this render's positions and the
   // caller's current pan/zoom — cheap enough to call on every drag/zoom tick without rebuilding

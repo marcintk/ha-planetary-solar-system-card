@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { EPIC_BASE_URL } from "../../src/card/gallery/source-resolver-dscovr-earth.js";
 import { getSunImageUrl } from "../../src/card/gallery/source-resolver-sdo-sun.js";
 import { UrlCache } from "../../src/card/gallery/url-cache.js";
-import { clickButton, setupCardTest, stubImagePreload } from "./helpers.js";
+import { clickButton, createAndMount, setupCardTest, stubImagePreload } from "./helpers.js";
 
 setupCardTest();
 
@@ -37,18 +37,58 @@ describe("SolarViewCard gallery", () => {
       vi.useRealTimers();
     });
 
-    it("gallery button is hidden by default (no config)", () => {
+    // Moon costs no network and cannot fail, so the button is always offered — the default
+    // "closed" mode keeps the strip itself out of the way until the user asks for it.
+    it("gallery button shows by default with the strip collapsed (no config)", () => {
       const card = document.createElement("ha-planetary-solar-system-card-test");
       document.body.appendChild(card);
-      expect(card.shadowRoot.querySelector('button[data-action="gallery"]')).toBeNull();
+      expect(card.shadowRoot.querySelector('button[data-action="gallery"]')).toBeTruthy();
+      expect(card.shadowRoot.querySelector(".gallery")).toBeNull();
       card.remove();
     });
 
-    it("gallery button is hidden when gallery.mode: none", () => {
+    it("opening the default gallery shows a moon tile and fetches nothing", async () => {
+      const fetchMock = vi.fn();
+      vi.stubGlobal("fetch", fetchMock);
       const card = document.createElement("ha-planetary-solar-system-card-test");
-      card.setConfig({ gallery: { mode: "none" } });
       document.body.appendChild(card);
-      expect(card.shadowRoot.querySelector('button[data-action="gallery"]')).toBeNull();
+      clickButton(card, "gallery");
+      await flush();
+
+      const tiles = card.shadowRoot.querySelectorAll(".gallery > *");
+      expect(tiles.length).toBe(1);
+      expect(tiles[0].getAttribute("data-source")).toBe("moon");
+      expect(tiles[0].querySelector("svg.moon-phase-disc")).toBeTruthy();
+      expect(fetchMock).not.toHaveBeenCalled();
+      card.remove();
+    });
+
+    it("the moon tile is not clickable — there is no full-screen moon", () => {
+      const card = createAndMount({ gallery: { mode: "open", sources: ["moon"] } });
+      const tile = card.shadowRoot.querySelector('[data-source="moon"]');
+      expect(tile.tagName).toBe("DIV");
+      card.remove();
+    });
+
+    it("captions the moon tile with the phase name for the displayed date", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2024-01-25T18:00:00Z")); // Full Moon
+      const card = createAndMount({ gallery: { mode: "open", sources: ["moon"] } });
+      expect(card.shadowRoot.querySelector('[data-source="moon"]').textContent).toContain(
+        "Full Moon"
+      );
+      card.remove();
+      vi.useRealTimers();
+    });
+
+    it("renders tiles in the configured sources order", () => {
+      const card = createAndMount({
+        gallery: { mode: "open", sources: ["sun", "moon", "earth"] },
+      });
+      const order = [...card.shadowRoot.querySelectorAll(".gallery > *")].map((t) =>
+        t.getAttribute("data-source")
+      );
+      expect(order).toEqual(["sun", "moon", "earth"]);
       card.remove();
     });
 
@@ -652,14 +692,16 @@ describe("SolarViewCard gallery", () => {
       vi.useRealTimers();
     });
 
-    it("gallery.mode: none never shows the gallery button and never fetches", async () => {
+    // Legacy "none" maps to {closed, [moon]}: the strip stays shut, so the background
+    // refresh has nothing to fetch — the whole point of leaving it collapsed by default.
+    it("a collapsed gallery never fetches, however long it ticks", async () => {
       vi.useFakeTimers();
       const fetchMock = stubEarthFetch();
       const card = document.createElement("ha-planetary-solar-system-card-test");
       card.setConfig({ gallery: { mode: "none" }, refresh_mins: 1 });
       document.body.appendChild(card);
       await vi.advanceTimersByTimeAsync(6 * 60000);
-      expect(card.shadowRoot.querySelector('button[data-action="gallery"]')).toBeNull();
+      expect(card.shadowRoot.querySelector(".gallery")).toBeNull();
       expect(fetchMock).not.toHaveBeenCalled();
       card.remove();
       vi.useRealTimers();

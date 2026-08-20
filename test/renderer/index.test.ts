@@ -637,16 +637,11 @@ describe("renderSolarSystem", () => {
     expect(dots[0].getAttribute("r")).toBe("2");
   });
 
-  it("renders moon phase indicator group", () => {
-    const container = document.createElement("div");
-    renderInto(container, new Date("2026-02-14"));
-
-    const svg = container.querySelector("svg");
-    const indicator = svg.querySelector("g.moon-phase-indicator");
-    expect(indicator).not.toBeNull();
-    expect(indicator.querySelector("circle")).not.toBeNull();
-    expect(indicator.querySelector("text")).not.toBeNull();
-    expect(indicator.querySelector("text").textContent.length).toBeGreaterThan(0);
+  // Moved to the gallery strip in #140 — the orbiting moon marker stays, the phase disc
+  // does not, so the solar view never draws the moon twice.
+  it("does not render a moon phase indicator", () => {
+    const { svg } = renderSolarSystem(new Date("2024-01-15T12:00:00Z"), "north", null, {}, false);
+    expect(svg.querySelector("g.moon-phase-indicator")).toBeNull();
   });
 });
 

@@ -112,11 +112,25 @@ export const cardStyles = css`
     background: transparent;
     overflow: hidden;
     cursor: pointer;
+    /* Makes the tile itself the query container, so the caption below can size against the
+       tile's real width rather than a fixed px guess that only fits on a wide card. */
+    container-type: inline-size;
   }
   .gallery-thumb img {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    display: block;
+  }
+  /* Moon is drawn locally, not fetched — a <div> holding an <svg>, not an <img>, and with
+     no full-screen view to open it gets no pointer affordance. */
+  .gallery-thumb-moon {
+    cursor: default;
+  }
+  .moon-disc,
+  .moon-disc svg {
+    width: 100%;
+    height: 100%;
     display: block;
   }
   .gallery-info {
@@ -128,12 +142,20 @@ export const cardStyles = css`
     justify-content: space-between;
     pointer-events: none;
   }
+  /* Moon has no label span — the phase name gets the tile's full width, which the longest
+     of them ("Waxing Crescent") needs. */
+  .gallery-thumb-moon .gallery-info {
+    justify-content: center;
+  }
   .gallery-label,
   .gallery-age {
-    font-size: 8px;
+    /* Scales with the tile (see container-type above) instead of a fixed 8px, so the longest
+       phase name still fits on a narrow card and stays legible on a wide one. */
+    font-size: clamp(6px, 9cqw, 9px);
     color: #fff;
     text-shadow: 0 0 2px #000;
     font-family: sans-serif;
+    white-space: nowrap;
   }
   .nav {
     display: flex;

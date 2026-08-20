@@ -1,37 +1,38 @@
 import { getMoonPhase } from "../astronomy/moon-phase.js";
 import type { Hemisphere } from "../types.js";
-import { createSvgElement } from "./svg-utils.js";
+import { createSvgElement, SVG_NS } from "./svg-utils.js";
 
-const INDICATOR_RADIUS = 45;
-// Placed so the disc keeps a 10px left margin and the label baseline stays at y=779,
-// same footprint the 30px disc occupied before it was enlarged.
-const INDICATOR_X = 55;
-const INDICATOR_Y = 720;
+// User-space size of the disc's own viewBox. Nothing depends on the number in px terms —
+// the <svg> scales to whatever the gallery tile gives it — it only fixes the coordinate
+// system the circle and terminator arc are drawn in.
+const DISC_SIZE = 100;
+
+const CENTER = DISC_SIZE / 2;
+// A hair inside the box so the disc's edge is never clipped by the tile's rounded corners.
+const INDICATOR_RADIUS = 48;
 const DISC_COLOR = "#cccccc";
 const SHADOW_COLOR = "#1a1a2e";
-const LABEL_COLOR = "#aaaaaa";
-const LABEL_FONT_SIZE = "18";
 
 /**
- * Render a moon phase indicator (disc + label) and append it to the SVG.
- * @param {SVGElement} svg
- * @param {Date} date
- * @param {string} hemisphere - "north" or "south"
+ * Draw the moon's lit fraction as a standalone, self-contained <svg>.
+ *
+ * Returns a detached element rather than appending to a caller's SVG (as it did while it
+ * lived in the solar view): its one consumer is now the gallery strip, which mounts it into
+ * its own tile. The phase name is deliberately absent — the tile renders it as HTML, where
+ * it can wrap and scale with the tile instead of being frozen into SVG user units.
  */
-export function renderMoonPhaseIndicator(
-  svg: SVGElement,
-  date: Date,
-  hemisphere: Hemisphere
-): void {
-  const { phase, phaseName, illumination } = getMoonPhase(date);
+export function renderMoonPhaseDisc(date: Date, hemisphere: Hemisphere): SVGSVGElement {
+  const { phase, illumination } = getMoonPhase(date);
 
-  const g = createSvgElement("g", { class: "moon-phase-indicator" });
+  const svg = document.createElementNS(SVG_NS, "svg");
+  svg.setAttribute("viewBox", `0 0 ${DISC_SIZE} ${DISC_SIZE}`);
+  svg.setAttribute("class", "moon-phase-disc");
 
   // Background disc (dark)
-  g.appendChild(
+  svg.appendChild(
     createSvgElement("circle", {
-      cx: INDICATOR_X,
-      cy: INDICATOR_Y,
+      cx: CENTER,
+      cy: CENTER,
       r: INDICATOR_RADIUS,
       fill: SHADOW_COLOR,
     })
@@ -44,8 +45,8 @@ export function renderMoonPhaseIndicator(
     // For waning (phase > 0.5 in north), left side lit.
     // Southern hemisphere mirrors the illumination side.
     const r = INDICATOR_RADIUS;
-    const top = INDICATOR_Y - r;
-    const bottom = INDICATOR_Y + r;
+    const top = CENTER - r;
+    const bottom = CENTER + r;
 
     // Terminator bulge: at illumination 0.5 the terminator is straight (rx=0),
     // below 0.5 it bulges toward shadow, above 0.5 it bulges toward light.
@@ -71,15 +72,15 @@ export function renderMoonPhaseIndicator(
     }
 
     const d = [
-      `M ${INDICATOR_X} ${top}`,
+      `M ${CENTER} ${top}`,
       // Semicircular arc on the lit side
-      `A ${r} ${r} 0 0 ${semiSweep} ${INDICATOR_X} ${bottom}`,
+      `A ${r} ${r} 0 0 ${semiSweep} ${CENTER} ${bottom}`,
       // Terminator arc back to top
-      `A ${rx} ${r} 0 0 ${terminatorSweep} ${INDICATOR_X} ${top}`,
+      `A ${rx} ${r} 0 0 ${terminatorSweep} ${CENTER} ${top}`,
       "Z",
     ].join(" ");
 
-    g.appendChild(
+    svg.appendChild(
       createSvgElement("path", {
         d,
         fill: DISC_COLOR,
@@ -87,17 +88,5 @@ export function renderMoonPhaseIndicator(
     );
   }
 
-  // Phase name label below the disc
-  const label = createSvgElement("text", {
-    x: INDICATOR_X - INDICATOR_RADIUS,
-    y: INDICATOR_Y + INDICATOR_RADIUS + 14,
-    fill: LABEL_COLOR,
-    "font-size": LABEL_FONT_SIZE,
-    "font-family": "sans-serif",
-    "text-anchor": "start",
-  });
-  label.textContent = phaseName;
-  g.appendChild(label);
-
-  svg.appendChild(g);
+  return svg;
 }

@@ -118,6 +118,6 @@ export interface CardConfig {
   ecliptic_view?: string;
   show_version?: boolean;
   debug?: boolean;
-  gallery?: { mode?: string; slide_interval_secs?: number };
+  gallery?: { mode?: string; sources?: string[]; slide_interval_secs?: number };
   location?: { latitude?: number; longitude?: number; name?: string; timezone?: string };
 }

@@ -1,121 +1,66 @@
 import { describe, expect, it } from "vitest";
-import { renderMoonPhaseIndicator } from "../../src/renderer/moon-phase.js";
-import { SVG_NS } from "../../src/renderer/svg-utils.js";
+import { renderMoonPhaseDisc } from "../../src/renderer/moon-phase.js";
 
-function createSvg() {
-  return document.createElementNS(SVG_NS, "svg");
-}
+describe("renderMoonPhaseDisc", () => {
+  it("returns a self-contained square <svg> that scales to its container", () => {
+    const svg = renderMoonPhaseDisc(new Date("2024-01-15"), "north");
 
-describe("renderMoonPhaseIndicator", () => {
-  it("draws the disc at least 1.5x the original 30px radius", () => {
-    const svg = createSvg();
-    renderMoonPhaseIndicator(svg, new Date("2024-01-15"), "north");
-
-    const disc = svg.querySelector("g.moon-phase-indicator circle");
-    expect(Number(disc.getAttribute("r"))).toBeGreaterThanOrEqual(45);
+    expect(svg.tagName).toBe("svg");
+    expect(svg.getAttribute("viewBox")).toBe("0 0 100 100");
+    expect(svg.parentNode).toBeNull();
   });
 
-  it("keeps the disc and its label inside the 800x800 viewBox", () => {
-    const svg = createSvg();
-    renderMoonPhaseIndicator(svg, new Date("2024-01-15"), "north");
+  it("centres the disc in the viewBox with no overflow", () => {
+    const svg = renderMoonPhaseDisc(new Date("2024-01-15"), "north");
 
-    const g = svg.querySelector("g.moon-phase-indicator");
-    const disc = g.querySelector("circle");
+    const disc = svg.querySelector("circle");
     const cx = Number(disc.getAttribute("cx"));
     const cy = Number(disc.getAttribute("cy"));
     const r = Number(disc.getAttribute("r"));
+    expect(cx).toBe(50);
+    expect(cy).toBe(50);
     expect(cx - r).toBeGreaterThanOrEqual(0);
-    expect(cy + r).toBeLessThanOrEqual(800);
-
-    const label = g.querySelector("text");
-    expect(Number(label.getAttribute("x"))).toBeGreaterThanOrEqual(0);
-    expect(Number(label.getAttribute("y"))).toBeLessThanOrEqual(800);
+    expect(cy + r).toBeLessThanOrEqual(100);
   });
 
-  it("appends a <g> group with class moon-phase-indicator", () => {
-    const svg = createSvg();
-    renderMoonPhaseIndicator(svg, new Date("2024-01-15"), "north");
-
-    const g = svg.querySelector("g.moon-phase-indicator");
-    expect(g).not.toBeNull();
-  });
-
-  it("group contains a circle (moon disc)", () => {
-    const svg = createSvg();
-    renderMoonPhaseIndicator(svg, new Date("2024-01-15"), "north");
-
-    const g = svg.querySelector("g.moon-phase-indicator");
-    expect(g.querySelector("circle")).not.toBeNull();
-  });
-
-  it("group contains a text element with a phase name", () => {
-    const svg = createSvg();
-    renderMoonPhaseIndicator(svg, new Date("2024-01-15"), "north");
-
-    const g = svg.querySelector("g.moon-phase-indicator");
-    const text = g.querySelector("text");
-    expect(text).not.toBeNull();
-    expect(text.textContent.length).toBeGreaterThan(0);
+  // The phase name is rendered as HTML in the gallery tile, so it must not also be baked
+  // into the SVG — that would double it up and re-introduce the 800x800-viewBox layout
+  // assumptions the disc no longer has.
+  it("draws no text label", () => {
+    const svg = renderMoonPhaseDisc(new Date("2024-01-15"), "north");
+    expect(svg.querySelector("text")).toBeNull();
   });
 
   it("renders Full Moon with an illuminated path", () => {
-    const svg = createSvg();
     // 2024-01-25 is a Full Moon
-    renderMoonPhaseIndicator(svg, new Date("2024-01-25T18:00:00Z"), "north");
-
-    const g = svg.querySelector("g.moon-phase-indicator");
-    const path = g.querySelector("path");
-    expect(path).not.toBeNull();
-    expect(g.querySelector("text").textContent).toBe("Full Moon");
+    const svg = renderMoonPhaseDisc(new Date("2024-01-25T18:00:00Z"), "north");
+    expect(svg.querySelector("path")).not.toBeNull();
   });
 
   it("renders New Moon with no illumination path", () => {
-    const svg = createSvg();
-    // 2024-01-11 is a New Moon
-    renderMoonPhaseIndicator(svg, new Date("2024-01-11T12:00:00Z"), "north");
-
-    const g = svg.querySelector("g.moon-phase-indicator");
-    // New Moon has illumination < 0.01, so no path should be drawn
-    const path = g.querySelector("path");
-    expect(path).toBeNull();
-    expect(g.querySelector("text").textContent).toBe("New Moon");
+    // 2024-01-11 is a New Moon: illumination < 0.01, so no lit path at all
+    const svg = renderMoonPhaseDisc(new Date("2024-01-11T12:00:00Z"), "north");
+    expect(svg.querySelector("path")).toBeNull();
   });
 
   it("northern hemisphere waxing crescent has semicircle sweeping right", () => {
-    const svg = createSvg();
     // ~4 days after New Moon = Waxing Crescent
-    renderMoonPhaseIndicator(svg, new Date("2024-01-15T12:00:00Z"), "north");
+    const svg = renderMoonPhaseDisc(new Date("2024-01-15T12:00:00Z"), "north");
 
-    const g = svg.querySelector("g.moon-phase-indicator");
-    const path = g.querySelector("path");
-    expect(path).not.toBeNull();
-    // The semicircle arc sweep flag should be 1 (right side lit)
-    const d = path.getAttribute("d");
-    // First arc: A r r 0 0 <sweep> ... — sweep=1 means clockwise = right side
+    const d = svg.querySelector("path").getAttribute("d");
+    // First arc: A r r 0 0 <sweep> ... — sweep=1 means clockwise = right side lit
     const arcMatch = d.match(/A (\d+) (\d+) 0 0 (\d)/);
     expect(arcMatch).not.toBeNull();
     expect(arcMatch[3]).toBe("1");
   });
 
   it("southern hemisphere waxing crescent has semicircle sweeping left", () => {
-    const svg = createSvg();
-    renderMoonPhaseIndicator(svg, new Date("2024-01-15T12:00:00Z"), "south");
+    const svg = renderMoonPhaseDisc(new Date("2024-01-15T12:00:00Z"), "south");
 
-    const g = svg.querySelector("g.moon-phase-indicator");
-    const path = g.querySelector("path");
-    expect(path).not.toBeNull();
-    const d = path.getAttribute("d");
+    const d = svg.querySelector("path").getAttribute("d");
     const arcMatch = d.match(/A (\d+) (\d+) 0 0 (\d)/);
     expect(arcMatch).not.toBeNull();
     // sweep=0 means counter-clockwise = left side lit
     expect(arcMatch[3]).toBe("0");
-  });
-
-  it("text label uses start text-anchor", () => {
-    const svg = createSvg();
-    renderMoonPhaseIndicator(svg, new Date("2024-06-15"), "north");
-
-    const text = svg.querySelector("g.moon-phase-indicator text");
-    expect(text.getAttribute("text-anchor")).toBe("start");
   });
 });

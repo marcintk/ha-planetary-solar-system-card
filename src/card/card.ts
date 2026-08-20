@@ -1,4 +1,6 @@
 import { html, LitElement, nothing } from "lit";
+import { getMoonPhase } from "../astronomy/moon-phase.js";
+import { renderMoonPhaseDisc } from "../renderer/moon-phase.js";
 import type { CardConfig, Colors, HASSConfig, Hemisphere, LocationData } from "../types.js";
 import { parseCardConfig } from "./card-config.js";
 import { cardStyles } from "./card-styles.js";
@@ -142,7 +144,7 @@ export class SolarViewCard extends LitElement {
     this._locationOverride = parsed.locationOverride;
     this._locationNameOverride = parsed.locationNameOverride;
     this._heightStyle = parsed.heightStyle;
-    this._gallery.configure(parsed.galleryMode, parsed.galleryIntervalMs);
+    this._gallery.configure(parsed.galleryMode, parsed.gallerySources, parsed.galleryIntervalMs);
 
     if (this._autoUpdateTimer != null) {
       this._startAutoUpdateTimer();
@@ -222,25 +224,36 @@ export class SolarViewCard extends LitElement {
           ${
             gallery.showStrip
               ? html`<div class="gallery">
-                  ${gallery.thumbnails.map(
-                    ({ source, url, date }) => html`<button
-                      class="gallery-thumb"
-                      data-source=${source}
-                      title=${`Show ${GALLERY_SOURCE_LABELS[source]}`}
-                      @click=${this._onGalleryClick}
-                    >
-                      <img
-                        src=${url ?? nothing}
-                        alt=""
-                        @error=${source === "sun" ? this._onSunThumbError : undefined}
-                      />
-                      <div class="gallery-info">
-                        <span class="gallery-label">${GALLERY_SOURCE_LABELS[source]}</span>
-                        <span class="gallery-age"
-                          >${date ? formatRelativeAge(date, new Date()) : "loading…"}</span
+                  ${gallery.thumbnails.map(({ source, url, date }) =>
+                    // Moon is a <div>, not a <button>: it is drawn locally and has no
+                    // full-screen view to open, so making it look clickable would promise
+                    // something no click can deliver. Its SVG is mounted imperatively in
+                    // updated() — same split as #solar-view.
+                    source === "moon"
+                      ? html`<div class="gallery-thumb gallery-thumb-moon" data-source="moon">
+                          <div class="moon-disc"></div>
+                          <div class="gallery-info">
+                            <span class="gallery-age">${getMoonPhase(this._dateNav.currentDate).phaseName}</span>
+                          </div>
+                        </div>`
+                      : html`<button
+                          class="gallery-thumb"
+                          data-source=${source}
+                          title=${`Show ${GALLERY_SOURCE_LABELS[source]}`}
+                          @click=${this._onGalleryClick}
                         >
-                      </div>
-                    </button>`
+                          <img
+                            src=${url ?? nothing}
+                            alt=""
+                            @error=${source === "sun" ? this._onSunThumbError : undefined}
+                          />
+                          <div class="gallery-info">
+                            <span class="gallery-label">${GALLERY_SOURCE_LABELS[source]}</span>
+                            <span class="gallery-age"
+                              >${date ? formatRelativeAge(date, new Date()) : "loading…"}</span
+                            >
+                          </div>
+                        </button>`
                   )}
                 </div>`
               : nothing
@@ -265,20 +278,12 @@ export class SolarViewCard extends LitElement {
             <span class="zoom-level">${zoomLevel}</span>
             <button data-action="zoom-in" title="Zoom in" @click=${this._onNavClick}>+</button>
           </span>
-          ${
-            gallery.navButtonVisible
-              ? html`<span class="nav-spacer"></span>
-                  <span class="btn-group">
-                    <button
-                      data-action="gallery"
-                      title="Show image gallery"
-                      @click=${this._onNavClick}
-                    >
-                      <span class="icon">☷</span>
-                    </button>
-                  </span>`
-              : nothing
-          }
+          <span class="nav-spacer"></span>
+          <span class="btn-group">
+            <button data-action="gallery" title="Show image gallery" @click=${this._onNavClick}>
+              <span class="icon">☷</span>
+            </button>
+          </span>
           ${this._config?.show_version ? html`<span class="card-version">v${__CARD_VERSION__}</span>` : nothing}
         </div>
       </div>
@@ -302,6 +307,7 @@ export class SolarViewCard extends LitElement {
     }
 
     this._solarView.applyViewState();
+    this._mountMoonDisc();
     const theme = resolveTheme(this._theme, this._colors.background);
     this.style.background = theme.background;
     this.style.color = theme.color;
@@ -312,6 +318,16 @@ export class SolarViewCard extends LitElement {
         this.style.setProperty(varName, theme.vars[varName]);
       }
     }
+  }
+
+  // The moon disc is raw SVG DOM, not a Lit template — same imperative split as #solar-view
+  // (see CLAUDE.md): Lit owns an empty container, this repopulates it. Rebuilt wholesale on
+  // every update rather than patched, because the terminator geometry changes with the date
+  // and the element is a handful of nodes.
+  private _mountMoonDisc(): void {
+    const container = (this.shadowRoot as ShadowRoot).querySelector(".moon-disc");
+    if (!container) return;
+    container.replaceChildren(renderMoonPhaseDisc(this._dateNav.currentDate, this._hemisphere));
   }
 
   /**

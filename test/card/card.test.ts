@@ -1471,9 +1471,17 @@ describe("SolarViewCard", () => {
       document.body.appendChild(card);
       expect(parseViewBox(card).width).toBe(800);
       // Reconfigure with new default zoom — should re-render instantly
-      card._zoom.reset(); // force fresh ViewState on next render
       card.setConfig({ zoom_animate: true, default_zoom: 3 });
-      card._render();
+      expect(parseViewBox(card).width).toBe(480);
+      card.remove();
+    });
+
+    it("setConfig after the card has rendered moves the live view (issue #125)", () => {
+      const card = document.createElement("ha-planetary-solar-system-card-test");
+      document.body.appendChild(card);
+      expect(card._zoomLevel).toBe(1);
+      card.setConfig({ default_zoom: 3 });
+      expect(card._zoomLevel).toBe(3);
       expect(parseViewBox(card).width).toBe(480);
       card.remove();
     });

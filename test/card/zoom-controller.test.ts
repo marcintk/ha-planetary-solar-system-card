@@ -54,23 +54,35 @@ describe("ZoomController.ensureInitialized", () => {
     zoom.configure(2, false, 4, false);
     zoom.ensureInitialized();
     expect(zoom.zoomLevel).toBe(2);
-    zoom.configure(4, false, 4, false); // shouldn't rebuild an already-initialized view
-    zoom.ensureInitialized();
+    zoom.ensureInitialized(); // shouldn't rebuild an already-initialized view
     expect(zoom.zoomLevel).toBe(2);
   });
+});
 
-  it("reset() forces the next ensureInitialized() to rebuild at the current default", () => {
-    const zoom = new ZoomController(
-      () => {},
-      () => {}
-    );
+describe("ZoomController.configure after initialization", () => {
+  it("applies a changed default_zoom to the live view and notifies once", () => {
+    const onChange = vi.fn();
+    const zoom = new ZoomController(onChange, () => {});
     zoom.configure(1, false, 4, false);
     zoom.ensureInitialized();
     expect(zoom.zoomLevel).toBe(1);
+
     zoom.configure(3, false, 4, false);
-    zoom.reset();
-    zoom.ensureInitialized();
     expect(zoom.zoomLevel).toBe(3);
+    expect(onChange).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves a hand-set zoom alone when default_zoom is unchanged", () => {
+    const onChange = vi.fn();
+    const zoom = new ZoomController(onChange, () => {});
+    zoom.configure(1, false, 4, false);
+    zoom.ensureInitialized();
+    zoom.zoomIn(); // user zoomed by hand
+    onChange.mockClear();
+
+    zoom.configure(1, true, 3, false); // unrelated config edit
+    expect(zoom.zoomLevel).toBe(2);
+    expect(onChange).not.toHaveBeenCalled();
   });
 });
 

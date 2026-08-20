@@ -2,10 +2,25 @@ import { describe, expect, it } from "vitest";
 import { getMoonPhase } from "../../src/astronomy/moon-phase.js";
 
 describe("getMoonPhase", () => {
+  // Published phase instants (UTC). Ground truth, not derived from the model.
+  const PHASE_INSTANTS: [string, string, number][] = [
+    ["New Moon", "2024-01-11T11:57:00Z", 0],
+    ["First Quarter", "2024-01-18T03:53:00Z", 0.25],
+    ["Full Moon", "2024-01-25T17:54:00Z", 0.5],
+    ["Last Quarter", "2024-02-02T23:18:00Z", 0.75],
+  ];
+  const ONE_HOUR = 1 / (29.53059 * 24); // one hour, as a fraction of a synodic cycle
+
+  it.each(PHASE_INSTANTS)("puts %s within an hour of its published instant", (_, utc, target) => {
+    const offset = getMoonPhase(new Date(utc)).phase - target;
+    expect(Math.abs(offset - Math.round(offset))).toBeLessThan(ONE_HOUR);
+  });
+
   it("returns phase near 0 for a known New Moon date", () => {
     // 2024-01-11 was a New Moon
     const result = getMoonPhase(new Date("2024-01-11T12:00:00Z"));
-    expect(result.phase).toBeLessThan(0.05);
+    // 12:00 is minutes after the instant, so phase wraps just below 1.
+    expect(Math.min(result.phase, 1 - result.phase)).toBeLessThan(0.05);
     expect(result.phaseName).toBe("New Moon");
     expect(result.illumination).toBeLessThan(0.05);
   });

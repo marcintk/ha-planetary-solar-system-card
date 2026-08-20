@@ -7,6 +7,31 @@ function createSvg() {
 }
 
 describe("renderMoonPhaseIndicator", () => {
+  it("draws the disc at least 1.5x the original 30px radius", () => {
+    const svg = createSvg();
+    renderMoonPhaseIndicator(svg, new Date("2024-01-15"), "north");
+
+    const disc = svg.querySelector("g.moon-phase-indicator circle");
+    expect(Number(disc.getAttribute("r"))).toBeGreaterThanOrEqual(45);
+  });
+
+  it("keeps the disc and its label inside the 800x800 viewBox", () => {
+    const svg = createSvg();
+    renderMoonPhaseIndicator(svg, new Date("2024-01-15"), "north");
+
+    const g = svg.querySelector("g.moon-phase-indicator");
+    const disc = g.querySelector("circle");
+    const cx = Number(disc.getAttribute("cx"));
+    const cy = Number(disc.getAttribute("cy"));
+    const r = Number(disc.getAttribute("r"));
+    expect(cx - r).toBeGreaterThanOrEqual(0);
+    expect(cy + r).toBeLessThanOrEqual(800);
+
+    const label = g.querySelector("text");
+    expect(Number(label.getAttribute("x"))).toBeGreaterThanOrEqual(0);
+    expect(Number(label.getAttribute("y"))).toBeLessThanOrEqual(800);
+  });
+
   it("appends a <g> group with class moon-phase-indicator", () => {
     const svg = createSvg();
     renderMoonPhaseIndicator(svg, new Date("2024-01-15"), "north");

@@ -12,7 +12,9 @@ const CENTER_X = DISC_SIZE / 2;
 // the bottom of the tile — at 48 it ran under the text and the longest names read against
 // the lit limb rather than the black backdrop.
 const CENTER_Y = 42;
-const INDICATOR_RADIUS = 38;
+// Kept a whole number: the terminator arc bakes it straight into the path's `A <r> <r>`
+// command, and a fractional radius makes those strings needlessly noisy to read and diff.
+const INDICATOR_RADIUS = 36;
 const DISC_COLOR = "#cccccc";
 const SHADOW_COLOR = "#1a1a2e";
 

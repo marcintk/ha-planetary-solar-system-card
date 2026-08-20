@@ -5,7 +5,13 @@ import type { CardConfig, Colors, HASSConfig, Hemisphere, LocationData } from ".
 import { parseCardConfig } from "./card-config.js";
 import { cardStyles } from "./card-styles.js";
 import type { ImageSource } from "./card-template.js";
-import { buildStatusBarView, formatDate, GALLERY_SOURCE_LABELS } from "./card-template.js";
+import {
+  buildGalleryCaption,
+  buildMoonTitle,
+  buildStatusBarView,
+  formatDate,
+  GALLERY_SOURCE_LABELS,
+} from "./card-template.js";
 import { DateNavigation } from "./date-navigation.js";
 import { buildDebugOverlay } from "./gallery/debug.js";
 import type { GalleryMode } from "./gallery/gallery-controller.js";
@@ -230,11 +236,19 @@ export class SolarViewCard extends LitElement {
                     // something no click can deliver. Its SVG is mounted imperatively in
                     // updated() — same split as #solar-view.
                     source === "moon"
-                      ? html`<div class="gallery-thumb gallery-thumb-moon" data-source="moon">
+                      ? html`<div
+                          class="gallery-thumb gallery-thumb-moon"
+                          data-source="moon"
+                          title=${buildMoonTitle(
+                            this._dateNav.currentDate,
+                            this._dateNav.isLiveMode
+                          )}
+                        >
                           <div class="moon-disc"></div>
-                          <div class="gallery-info">
-                            <span class="gallery-age">${getMoonPhase(this._dateNav.currentDate).phaseName}</span>
-                          </div>
+                          ${buildGalleryCaption(
+                            GALLERY_SOURCE_LABELS.moon,
+                            getMoonPhase(this._dateNav.currentDate).phaseName
+                          )}
                         </div>`
                       : html`<button
                           class="gallery-thumb"
@@ -247,12 +261,10 @@ export class SolarViewCard extends LitElement {
                             alt=""
                             @error=${source === "sun" ? this._onSunThumbError : undefined}
                           />
-                          <div class="gallery-info">
-                            <span class="gallery-label">${GALLERY_SOURCE_LABELS[source]}</span>
-                            <span class="gallery-age"
-                              >${date ? formatRelativeAge(date, new Date()) : "loading…"}</span
-                            >
-                          </div>
+                          ${buildGalleryCaption(
+                            GALLERY_SOURCE_LABELS[source],
+                            date ? formatRelativeAge(date, new Date()) : "loading…"
+                          )}
                         </button>`
                   )}
                 </div>`

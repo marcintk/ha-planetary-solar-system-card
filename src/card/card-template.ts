@@ -1,5 +1,6 @@
 import type { TemplateResult } from "lit";
 import { html, nothing } from "lit";
+import { getMoonPhase } from "../astronomy/moon-phase.js";
 import {
   computeNextTransitionTime,
   computeSolarElevationDeg,
@@ -64,12 +65,43 @@ export const IMAGE_SOURCE_LABELS: Record<ImageSource, string> = {
   sun: "SDO HMI Continuum",
 };
 
-// Labels for the gallery thumbnail strip. Moon has none: its tile shows the phase name
-// across the full width instead, and a moon disc captioned "Moon" says nothing twice.
-export const GALLERY_SOURCE_LABELS: Record<ImageSource, string> = {
+// Labels for the gallery thumbnail strip — the left half of every tile's caption.
+export const GALLERY_SOURCE_LABELS: Record<GallerySource, string> = {
+  moon: "MOON",
   earth: "DSCOVR/E",
   sun: "SDO/S",
 };
+
+/**
+ * Tooltip for the moon tile — the counterpart to the NASA tiles' "Show <source>", which
+ * would be a lie here since nothing opens.
+ *
+ * Says "tonight" only while the view is live. The date-nav buttons can put the card on any
+ * date, and the disc follows them, so a fixed "Tonight's Moon" would quietly misdescribe
+ * every navigated view. Illumination is the one thing the caption has no room for, which is
+ * what makes this worth a tooltip rather than a repeat of the phase name.
+ */
+export function buildMoonTitle(date: Date, isLiveMode: boolean): string {
+  const { phaseName, illumination } = getMoonPhase(date);
+  const when = isLiveMode ? "Tonight's Moon" : `Moon on ${formatDate(date)}`;
+  return `${when} — ${phaseName}, ${Math.round(illumination * 100)}% illuminated`;
+}
+
+/**
+ * The caption overlaid on a gallery thumbnail: source on the left, detail on the right.
+ *
+ * Shared by every tile rather than written out per branch. The moon tile is built from a
+ * different element than the fetched ones (a <div>, since it has no full-screen view), and
+ * when each branch spelled its own caption out the two drifted apart — different spans, and
+ * a moon-only `justify-content` override that shifted the text off the baseline its
+ * neighbours sat on. One builder means they cannot diverge again.
+ */
+export function buildGalleryCaption(label: string, detail: string): TemplateResult {
+  return html`<div class="gallery-info">
+    <span class="gallery-label">${label}</span>
+    <span class="gallery-age">${detail}</span>
+  </div>`;
+}
 
 // Sources that need fetching/hydrating — the network-backed ones only.
 export const IMAGE_SOURCES: ImageSource[] = ["earth", "sun"];

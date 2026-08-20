@@ -107,6 +107,10 @@ export const cardStyles = css`
     position: relative;
     aspect-ratio: 1;
     padding: 0;
+    /* Buttons get border-box from the UA stylesheet, a plain <div> does not — without this
+       the moon tile's 1px border falls outside its 20% flex-basis and it renders 2px larger
+       than the Earth/Sun tiles beside it. */
+    box-sizing: border-box;
     border: 1px solid var(--divider-color, color-mix(in srgb, currentColor 15%, transparent));
     border-radius: 4px;
     background: transparent;
@@ -144,11 +148,6 @@ export const cardStyles = css`
     display: flex;
     justify-content: space-between;
     pointer-events: none;
-  }
-  /* Moon has no label span — the phase name gets the tile's full width, which the longest
-     of them ("Waxing Crescent") needs. */
-  .gallery-thumb-moon .gallery-info {
-    justify-content: center;
   }
   .gallery-label,
   .gallery-age {

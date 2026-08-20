@@ -123,9 +123,12 @@ export const cardStyles = css`
     display: block;
   }
   /* Moon is drawn locally, not fetched — a <div> holding an <svg>, not an <img>, and with
-     no full-screen view to open it gets no pointer affordance. */
+     no full-screen view to open it gets no pointer affordance. Black backdrop rather than
+     the transparent default, so the tile reads like the Earth/Sun photos beside it instead
+     of showing the card through it. */
   .gallery-thumb-moon {
     cursor: default;
+    background: #000;
   }
   .moon-disc,
   .moon-disc svg {

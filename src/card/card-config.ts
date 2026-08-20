@@ -12,7 +12,7 @@ export interface ParsedCardConfig {
   colors: Colors;
   theme: "auto" | "dark" | "light";
   eclipticView: boolean;
-  locationOverride: { lat: number; lon: number } | null;
+  locationOverride: { lat: number; lon: number; timezone: string } | null;
   locationNameOverride: string | null;
   heightStyle: string;
   galleryMode: GalleryMode;
@@ -37,6 +37,32 @@ function resolveHeightStyle(height: CardConfig["height"]): string {
     }
   }
   return "";
+}
+
+// An overridden location must not keep reading clocks in HA's timezone, but no IANA timezone
+// database ships in the bundle. Etc/GMT±N zones are built into every browser's Intl data, so a
+// fixed UTC offset from longitude (15° per hour) needs zero deps. No DST, and wrong near zone
+// borders — acceptable: the card shows sky state, not appointment times.
+// The sign is POSIX-inverted: Etc/GMT+6 means UTC-6.
+function offsetZoneFromLongitude(lon: number): string {
+  const offset = Math.round(lon / 15);
+  return `Etc/GMT${offset <= 0 ? "+" : "-"}${Math.abs(offset)}`;
+}
+
+// An explicit IANA zone beats the longitude estimate outright — it carries DST and the full
+// historical rule set, which matters because the card navigates by month and year. No zone
+// database is needed to check one: Intl already ships the whole thing and throws RangeError on
+// anything it doesn't know, so a typo degrades to the estimate instead of breaking the card.
+function resolveOverrideTimezone(timezone: string | undefined, lon: number): string {
+  if (timezone) {
+    try {
+      new Intl.DateTimeFormat("en-US", { timeZone: timezone });
+      return timezone;
+    } catch {
+      // Unknown zone — fall through to the longitude estimate.
+    }
+  }
+  return offsetZoneFromLongitude(lon);
 }
 
 // Pure validate/default pass over CardConfig — the single place each field's fallback and
@@ -69,7 +95,13 @@ export function parseCardConfig(config: CardConfig): ParsedCardConfig {
     overrideLat <= 90 &&
     overrideLon >= -180 &&
     overrideLon <= 180;
-  const locationOverride = hasOverride ? { lat: overrideLat, lon: overrideLon } : null;
+  const locationOverride = hasOverride
+    ? {
+        lat: overrideLat,
+        lon: overrideLon,
+        timezone: resolveOverrideTimezone(config.location?.timezone, overrideLon),
+      }
+    : null;
   const locationNameOverride = config.location?.name || null;
 
   const heightStyle = resolveHeightStyle(config.height);

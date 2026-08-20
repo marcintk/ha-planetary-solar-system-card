@@ -60,6 +60,7 @@ location:
   latitude: 51.5074
   longitude: -0.1278
   name: London
+  timezone: Europe/London
 ```
 
 ## Horizon Twilight Zones
@@ -150,11 +151,12 @@ frame.
 
 `location` (object, unset by default) — overrides HA's configured location:
 
-| Key                  | Type                 | Default   | Description                                                                                                  |
-| -------------------- | -------------------- | --------- | ------------------------------------------------------------------------------------------------------------ |
-| `location.name`      | string               | HA config | Overrides the location label shown in the status bar                                                         |
-| `location.latitude`  | number (-90 to 90)   | HA config | Overrides HA's latitude for hemisphere/season/twilight math. Requires `location.longitude` too, else ignored |
-| `location.longitude` | number (-180 to 180) | HA config | Overrides HA's longitude. Requires `location.latitude` too, else ignored                                     |
+| Key                  | Type                 | Default   | Description                                                                                                                                                                                          |
+| -------------------- | -------------------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `location.name`      | string               | HA config | Overrides the location label shown in the status bar                                                                                                                                                 |
+| `location.latitude`  | number (-90 to 90)   | HA config | Overrides HA's latitude for hemisphere/season/twilight math. Requires `location.longitude` too, else ignored                                                                                         |
+| `location.longitude` | number (-180 to 180) | HA config | Overrides HA's longitude. Requires `location.latitude` too, else ignored                                                                                                                             |
+| `location.timezone`  | string (IANA)        | estimated | Timezone for the clock times in the status bar — [find the name here][iana], e.g. `Europe/Warsaw`. Unset or unrecognised, it is estimated from the longitude: no daylight saving, no half-hour zones |
 
 <!-- Reference links -->
 
@@ -165,6 +167,7 @@ frame.
 [sdo]: https://sdo.gsfc.nasa.gov/
 [repo]: https://github.com/marcintk/ha-planetary-solar-system-card
 [license]: https://github.com/marcintk/ha-planetary-solar-system-card/blob/main/LICENSE
+[iana]: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 [demo-gif]:
   https://raw.githubusercontent.com/marcintk/ha-planetary-solar-system-card/main/docs/demo.gif
 [releases]: https://github.com/marcintk/ha-planetary-solar-system-card/releases

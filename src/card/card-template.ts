@@ -35,6 +35,11 @@ export function buildStatusBar(
         hour: "2-digit",
         minute: "2-digit",
         hour12: false,
+        // An overridden zone isn't HA's own, so name it — "18:42" alone would read as local
+        // time to someone whose HA sits in a different zone. "short" prefers a real abbreviation
+        // (CDT) where the locale has one and falls back to an offset (GMT+5:30) where it doesn't,
+        // which covers both a named IANA zone and a longitude-estimated Etc/GMT±N.
+        timeZoneName: locationData.zoneOverride ? "short" : undefined,
       })
     : null;
 

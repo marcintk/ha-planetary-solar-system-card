@@ -34,6 +34,10 @@ export interface LocationData {
   lat: number;
   lon: number;
   timezone: string;
+  // True when `timezone` came from config.location rather than HA's own config — either an
+  // explicit location.timezone or the longitude estimate. The status bar labels the zone in that
+  // case, so a readout in a zone the user isn't sitting in can't be mistaken for local time.
+  zoneOverride: boolean;
 }
 
 export interface Colors {
@@ -115,5 +119,5 @@ export interface CardConfig {
   show_version?: boolean;
   debug?: boolean;
   gallery?: { mode?: string; slide_interval_secs?: number };
-  location?: { latitude?: number; longitude?: number; name?: string };
+  location?: { latitude?: number; longitude?: number; name?: string; timezone?: string };
 }

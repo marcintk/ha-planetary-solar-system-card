@@ -2,13 +2,15 @@ import { getMoonPhase } from "../astronomy/moon-phase.js";
 import type { Hemisphere } from "../types.js";
 import { createSvgElement } from "./svg-utils.js";
 
-const INDICATOR_RADIUS = 30;
-const INDICATOR_X = 40;
-const INDICATOR_Y = 735;
+const INDICATOR_RADIUS = 45;
+// Placed so the disc keeps a 10px left margin and the label baseline stays at y=779,
+// same footprint the 30px disc occupied before it was enlarged.
+const INDICATOR_X = 55;
+const INDICATOR_Y = 720;
 const DISC_COLOR = "#cccccc";
 const SHADOW_COLOR = "#1a1a2e";
 const LABEL_COLOR = "#aaaaaa";
-const LABEL_FONT_SIZE = "14";
+const LABEL_FONT_SIZE = "18";
 
 /**
  * Render a moon phase indicator (disc + label) and append it to the SVG.

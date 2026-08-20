@@ -49,6 +49,22 @@ function offsetZoneFromLongitude(lon: number): string {
   return `Etc/GMT${offset <= 0 ? "+" : "-"}${Math.abs(offset)}`;
 }
 
+// An explicit IANA zone beats the longitude estimate outright — it carries DST and the full
+// historical rule set, which matters because the card navigates by month and year. No zone
+// database is needed to check one: Intl already ships the whole thing and throws RangeError on
+// anything it doesn't know, so a typo degrades to the estimate instead of breaking the card.
+function resolveOverrideTimezone(timezone: string | undefined, lon: number): string {
+  if (timezone) {
+    try {
+      new Intl.DateTimeFormat("en-US", { timeZone: timezone });
+      return timezone;
+    } catch {
+      // Unknown zone — fall through to the longitude estimate.
+    }
+  }
+  return offsetZoneFromLongitude(lon);
+}
+
 // Pure validate/default pass over CardConfig — the single place each field's fallback and
 // range-check rule lives. card.ts's setConfig hands the result straight to _zoom.configure()/
 // _gallery.configure() and its own remaining fields, instead of parsing inline.
@@ -80,7 +96,11 @@ export function parseCardConfig(config: CardConfig): ParsedCardConfig {
     overrideLon >= -180 &&
     overrideLon <= 180;
   const locationOverride = hasOverride
-    ? { lat: overrideLat, lon: overrideLon, timezone: offsetZoneFromLongitude(overrideLon) }
+    ? {
+        lat: overrideLat,
+        lon: overrideLon,
+        timezone: resolveOverrideTimezone(config.location?.timezone, overrideLon),
+      }
     : null;
   const locationNameOverride = config.location?.name || null;
 

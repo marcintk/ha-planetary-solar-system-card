@@ -93,7 +93,7 @@ export class SolarViewCard extends LitElement {
           lat,
           lon,
           timezone: override?.timezone ?? this._hassLocation.timezone ?? "UTC",
-          zoneDerived: override != null,
+          zoneOverride: override != null,
         }
       : null;
   }

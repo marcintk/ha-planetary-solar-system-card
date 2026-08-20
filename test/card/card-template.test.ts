@@ -49,7 +49,7 @@ describe("buildStatusBar", () => {
 
   it("returns a truthy value when locationData is provided", () => {
     const result = buildStatusBar(
-      { lat: 51.5, lon: -0.1, timezone: "Europe/London", zoneDerived: false },
+      { lat: 51.5, lon: -0.1, timezone: "Europe/London", zoneOverride: false },
       "London",
       new Date("2026-03-05T12:00:00Z")
     );
@@ -59,7 +59,7 @@ describe("buildStatusBar", () => {
   it("contains a .status-bar element when locationData is provided", () => {
     const root = renderToDOM(
       buildStatusBar(
-        { lat: 51.5, lon: -0.1, timezone: "Europe/London", zoneDerived: false },
+        { lat: 51.5, lon: -0.1, timezone: "Europe/London", zoneOverride: false },
         "London",
         new Date("2026-03-05T12:00:00Z")
       )
@@ -70,7 +70,7 @@ describe("buildStatusBar", () => {
   it("left span includes location name, sky mode, and elevation", () => {
     const root = renderToDOM(
       buildStatusBar(
-        { lat: 51.5, lon: -0.1, timezone: "Europe/London", zoneDerived: false },
+        { lat: 51.5, lon: -0.1, timezone: "Europe/London", zoneOverride: false },
         "London",
         new Date("2026-03-05T12:00:00Z")
       )
@@ -82,7 +82,7 @@ describe("buildStatusBar", () => {
   it("includes Next: span when a transition exists within 24h", () => {
     const root = renderToDOM(
       buildStatusBar(
-        { lat: 51.5, lon: -0.1, timezone: "Europe/London", zoneDerived: false },
+        { lat: 51.5, lon: -0.1, timezone: "Europe/London", zoneOverride: false },
         "London",
         new Date("2026-03-05T12:00:00Z")
       )
@@ -95,7 +95,7 @@ describe("buildStatusBar", () => {
   it("appends the zone offset to the Next span when the zone is longitude-derived", () => {
     const root = renderToDOM(
       buildStatusBar(
-        { lat: 30, lon: -90, timezone: "Etc/GMT+6", zoneDerived: true },
+        { lat: 30, lon: -90, timezone: "Etc/GMT+6", zoneOverride: true },
         "New Orleans",
         new Date("2026-03-05T12:00:00Z")
       )
@@ -107,7 +107,7 @@ describe("buildStatusBar", () => {
   it("omits the zone offset when the zone came from HA config", () => {
     const root = renderToDOM(
       buildStatusBar(
-        { lat: 51.5, lon: -0.1, timezone: "Europe/London", zoneDerived: false },
+        { lat: 51.5, lon: -0.1, timezone: "Europe/London", zoneOverride: false },
         "London",
         new Date("2026-03-05T12:00:00Z")
       )
@@ -119,7 +119,7 @@ describe("buildStatusBar", () => {
   it("renders only one span when no transition found (polar night)", () => {
     const root = renderToDOM(
       buildStatusBar(
-        { lat: 89, lon: 0, timezone: "UTC", zoneDerived: false },
+        { lat: 89, lon: 0, timezone: "UTC", zoneOverride: false },
         "Arctic",
         new Date("2026-12-21T12:00:00Z")
       )
@@ -131,7 +131,7 @@ describe("buildStatusBar", () => {
   it("works with null locationName (empty name before pipe)", () => {
     const root = renderToDOM(
       buildStatusBar(
-        { lat: 0, lon: 0, timezone: "UTC", zoneDerived: false },
+        { lat: 0, lon: 0, timezone: "UTC", zoneOverride: false },
         null,
         new Date("2026-03-20T12:00:00Z")
       )
@@ -143,7 +143,7 @@ describe("buildStatusBar", () => {
   it("formats the Next span using UTC when timezone is null", () => {
     const root = renderToDOM(
       buildStatusBar(
-        { lat: 51.5, lon: -0.1, timezone: null, zoneDerived: false },
+        { lat: 51.5, lon: -0.1, timezone: null, zoneOverride: false },
         "Somewhere",
         new Date("2026-03-05T12:00:00Z")
       )
@@ -204,7 +204,7 @@ describe("formatDate", () => {
 });
 
 describe("buildStatusBarView", () => {
-  const locationData = { lat: 51.5, lon: -0.1, timezone: "Europe/London", zoneDerived: false };
+  const locationData = { lat: 51.5, lon: -0.1, timezone: "Europe/London", zoneOverride: false };
   const currentDate = new Date("2026-03-05T12:00:00Z");
 
   it("shows the gallery error when one is present, regardless of panelSource", () => {

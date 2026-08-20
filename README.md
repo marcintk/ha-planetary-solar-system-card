@@ -60,6 +60,7 @@ location:
   latitude: 51.5074
   longitude: -0.1278
   name: London
+  timezone: Europe/London
 ```
 
 ## Horizon Twilight Zones
@@ -155,14 +156,42 @@ frame.
 | `location.name`      | string               | HA config | Overrides the location label shown in the status bar                                                         |
 | `location.latitude`  | number (-90 to 90)   | HA config | Overrides HA's latitude for hemisphere/season/twilight math. Requires `location.longitude` too, else ignored |
 | `location.longitude` | number (-180 to 180) | HA config | Overrides HA's longitude. Requires `location.latitude` too, else ignored                                     |
+| `location.timezone`  | string (IANA)        | estimated | Timezone for displayed clock times, e.g. `Europe/Warsaw`. Unrecognised values fall back to the estimate      |
 
 When `location.latitude`/`location.longitude` are set, displayed clock times (the `Next:` sunrise/
-sunset/twilight readout) switch from HA's timezone to a fixed UTC offset derived from the longitude
-(15° per hour), and the status bar appends that offset — e.g. `Next: Sunset (18:42 GMT+1)`. The
-offset is an approximation: it has no daylight saving time and is wrong near timezone borders or in
-countries spanning several solar hours. Sky state, twilight bands and the observer needle are
-computed from latitude/longitude directly and are unaffected. With no `location` override set, times
-use HA's own timezone exactly as before.
+sunset/twilight readout) stop following Home Assistant's timezone and follow the configured location
+instead. The status bar names the zone it used, so a time in a zone you are not sitting in can't be
+mistaken for your own clock:
+
+```yaml
+location:
+  name: Krakow, Poland
+  latitude: 50.0614
+  longitude: 19.9366
+  timezone: Europe/Warsaw
+```
+
+Set `location.timezone` to an [IANA zone name][iana] and times are exact, daylight saving included —
+`Next: Sunset (20:20 GMT+2)` in summer, `(16:37 GMT+1)` in winter. Use the canonical `Area/City`
+form (`America/Chicago`, not `CST6CDT` or `US/Central`); only the canonical names carry the full
+history of rule changes, which matters because the card navigates by month and year. A value the
+browser does not recognise is ignored in favour of the estimate below.
+
+**Without** `location.timezone`, the zone is _estimated_ from the longitude alone — one hour per
+15°. That is a rough guess, because real timezones follow borders rather than meridians:
+
+| Location                         | Estimated | Actual                | Error  |
+| -------------------------------- | --------- | --------------------- | ------ |
+| Krakow, Poland (lon 19.94)       | `GMT+1`   | `GMT+1` / `GMT+2` DST | 0–1 h  |
+| Montevideo, Uruguay (lon -56.16) | `GMT-4`   | `GMT-3` all year      | 1 h    |
+| Bangalore, India (lon 77.59)     | `GMT+5`   | `GMT+5:30`            | 30 min |
+
+The estimate has no daylight saving time, cannot express half-hour zones, and is worst in countries
+spanning several solar hours. Set `location.timezone` when the clock matters.
+
+Sky state, twilight bands and the observer needle are computed from latitude/longitude directly and
+are never affected by any of this. With no `location` override set, times use HA's own timezone
+exactly as before.
 
 <!-- Reference links -->
 
@@ -173,6 +202,7 @@ use HA's own timezone exactly as before.
 [sdo]: https://sdo.gsfc.nasa.gov/
 [repo]: https://github.com/marcintk/ha-planetary-solar-system-card
 [license]: https://github.com/marcintk/ha-planetary-solar-system-card/blob/main/LICENSE
+[iana]: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 [demo-gif]:
   https://raw.githubusercontent.com/marcintk/ha-planetary-solar-system-card/main/docs/demo.gif
 [releases]: https://github.com/marcintk/ha-planetary-solar-system-card/releases

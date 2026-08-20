@@ -111,6 +111,32 @@ describe("parseCardConfig", () => {
         parseCardConfig({ location: { latitude: 51.5, longitude: -0.1278 } }).locationOverride
       ).toEqual({ lat: 51.5, lon: -0.1278, timezone: "Etc/GMT+0" });
     });
+    it("prefers an explicit IANA location.timezone over the longitude estimate", () => {
+      expect(
+        parseCardConfig({
+          location: { latitude: 50.0614, longitude: 19.9366, timezone: "Europe/Warsaw" },
+        }).locationOverride
+      ).toEqual({ lat: 50.0614, lon: 19.9366, timezone: "Europe/Warsaw" });
+    });
+    it("falls back to the longitude estimate when location.timezone is unusable", () => {
+      // Krakow's longitude estimates to UTC+1 — right in winter, an hour off in summer.
+      const derived = { lat: 50.0614, lon: 19.9366, timezone: "Etc/GMT-1" };
+      expect(
+        parseCardConfig({
+          location: { latitude: 50.0614, longitude: 19.9366, timezone: "Not/AZone" },
+        }).locationOverride
+      ).toEqual(derived);
+      expect(
+        parseCardConfig({ location: { latitude: 50.0614, longitude: 19.9366, timezone: "" } })
+          .locationOverride
+      ).toEqual(derived);
+      // camelCase is not the key — silently ignored, like any unknown HA card option.
+      expect(
+        parseCardConfig({
+          location: { latitude: 50.0614, longitude: 19.9366, timeZone: "Europe/Warsaw" },
+        } as never).locationOverride
+      ).toEqual(derived);
+    });
     it("parses locationNameOverride independently", () => {
       expect(parseCardConfig({ location: { name: "Home" } }).locationNameOverride).toBe("Home");
     });

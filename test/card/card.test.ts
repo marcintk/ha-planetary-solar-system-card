@@ -665,7 +665,7 @@ describe("SolarViewCard", () => {
       card.setConfig({ location: { latitude: 51.5, longitude: -0.1278, name: "London" } });
       card._render();
       expect(card._locationData?.timezone).toBe("Etc/GMT+0");
-      expect(card._locationData?.zoneDerived).toBe(true);
+      expect(card._locationData?.zoneOverride).toBe(true);
       card.remove();
     });
 
@@ -675,7 +675,7 @@ describe("SolarViewCard", () => {
       card.setConfig({});
       card._render();
       expect(card._locationData?.timezone).toBe("America/Chicago");
-      expect(card._locationData?.zoneDerived).toBe(false);
+      expect(card._locationData?.zoneOverride).toBe(false);
       card.remove();
     });
 
@@ -1432,6 +1432,77 @@ describe("SolarViewCard", () => {
       const spans = bar.querySelectorAll("span");
       expect(spans[1].textContent).toMatch(/^Next: .+ \(\d{2}:\d{2}\)$/);
       card.remove();
+    });
+
+    // The clock in the "Next:" readout must follow the *observed* location, not the box Home
+    // Assistant runs on. Every case below mounts a card whose HA is in America/Chicago, so any
+    // leak of HA's zone shows up as a Chicago clock. Expected offsets are facts about each
+    // country, independent of anything the card computes: Poland is UTC+1 / UTC+2 under DST,
+    // Uruguay is UTC-3 year-round, India is UTC+5:30 and never shifts.
+    function nextSpan(location, date) {
+      const card = document.createElement("ha-planetary-solar-system-card-test");
+      card.setConfig({ location });
+      card.hass = {
+        config: {
+          latitude: 41.8781,
+          longitude: -87.6298,
+          time_zone: "America/Chicago",
+          location_name: "Chicago",
+        },
+      };
+      card._dateNav.currentDate = date;
+      document.body.appendChild(card);
+      card._render();
+      const spans = card.shadowRoot.querySelectorAll(".status-bar span");
+      const text = spans[1].textContent;
+      card.remove();
+      const m = /\((\d{2}):(\d{2}) (.+)\)$/.exec(text);
+      if (!m) throw new Error(`unexpected Next span: ${text}`);
+      return { text, minutes: Number(m[1]) * 60 + Number(m[2]), zone: m[3] };
+    }
+
+    const KRAKOW = { name: "Krakow, Poland", latitude: 50.0614, longitude: 19.9366 };
+    const MONTEVIDEO = { name: "Montevideo, Uruguay", latitude: -34.9011, longitude: -56.1645 };
+    const BANGALORE = { name: "Bangalore, India", latitude: 12.9716, longitude: 77.5946 };
+    const SUMMER = new Date("2026-08-20T18:00:00Z");
+    const WINTER = new Date("2026-01-20T15:00:00Z");
+
+    it("Krakow with timezone: Europe/Warsaw follows Poland's DST, not HA's Chicago clock", () => {
+      expect(nextSpan({ ...KRAKOW, timezone: "Europe/Warsaw" }, SUMMER).zone).toBe("GMT+2");
+      expect(nextSpan({ ...KRAKOW, timezone: "Europe/Warsaw" }, WINTER).zone).toBe("GMT+1");
+    });
+
+    it("Krakow without a timezone estimates UTC+1 — right in winter, an hour off in summer", () => {
+      const summerEstimate = nextSpan(KRAKOW, SUMMER);
+      const summerTruth = nextSpan({ ...KRAKOW, timezone: "Europe/Warsaw" }, SUMMER);
+      expect(summerEstimate.zone).toBe("GMT+1");
+      expect(summerTruth.minutes - summerEstimate.minutes).toBe(60);
+
+      const winterEstimate = nextSpan(KRAKOW, WINTER);
+      const winterTruth = nextSpan({ ...KRAKOW, timezone: "Europe/Warsaw" }, WINTER);
+      expect(winterEstimate.zone).toBe("GMT+1");
+      expect(winterTruth.minutes - winterEstimate.minutes).toBe(0);
+    });
+
+    it("Montevideo without a timezone estimates UTC-4, an hour behind Uruguay's fixed UTC-3", () => {
+      const estimate = nextSpan(MONTEVIDEO, SUMMER);
+      const truth = nextSpan({ ...MONTEVIDEO, timezone: "America/Montevideo" }, SUMMER);
+      expect(estimate.zone).toBe("GMT-4");
+      expect(truth.zone).toBe("GMT-3");
+      expect(truth.minutes - estimate.minutes).toBe(60);
+    });
+
+    it("Bangalore needs the explicit zone — a longitude offset cannot express UTC+5:30", () => {
+      const estimate = nextSpan(BANGALORE, SUMMER);
+      const truth = nextSpan({ ...BANGALORE, timezone: "Asia/Kolkata" }, SUMMER);
+      expect(estimate.zone).toBe("GMT+5");
+      expect(truth.zone).toBe("GMT+5:30");
+      expect(truth.minutes - estimate.minutes).toBe(30);
+    });
+
+    it("names a US zone by its abbreviation rather than a bare offset", () => {
+      expect(nextSpan({ ...KRAKOW, timezone: "America/Chicago" }, SUMMER).zone).toBe("CDT");
+      expect(nextSpan({ ...KRAKOW, timezone: "America/Chicago" }, WINTER).zone).toBe("CST");
     });
 
     it("only one span rendered when no transition found within 24h (polar night)", () => {

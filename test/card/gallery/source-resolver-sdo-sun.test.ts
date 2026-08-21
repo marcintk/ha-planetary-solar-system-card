@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { emptyDebugAccumulator } from "../../../src/card/gallery/debug.js";
+import { FETCH_TIMEOUT_MS } from "../../../src/card/gallery/source-resolver.js";
 import {
   getSunImageUrl,
   SDO_BROWSE_BASE_URL,
@@ -138,11 +139,11 @@ describe("source-resolver-sdo-sun", () => {
     it("commits the corrected slot to the cache so a later getSunImageUrl() call reuses it", async () => {
       const NOW = Date.UTC(2026, 7, 15, 22, 42, 30);
       vi.spyOn(Date, "now").mockReturnValue(NOW);
-      stubImageDecode(false, true); // primary slot 404s, first widened buffer loads
+      stubArchivePublishedUpTo("2026-08-15T21:45:00.000Z"); // the 22:00 primary guess is not up yet
 
       const debug = emptyDebugAccumulator();
       const original = await new SdoSunResolver(cache).resolve(debug, debug);
-      expect(original.date.toISOString()).toBe("2026-08-15T21:30:00.000Z"); // buffer doubled to 60m
+      expect(original.date.toISOString()).toBe("2026-08-15T21:45:00.000Z"); // the newest that exists
 
       // Moments later — well within the 15-min cache TTL — a background refresh must see the
       // corrected slot, not the original 22:00:00 guess that 404s.
@@ -154,7 +155,7 @@ describe("source-resolver-sdo-sun", () => {
     it("never commits a failed intermediate guess to the cache", async () => {
       const NOW = Date.UTC(2026, 7, 15, 22, 42, 30);
       vi.spyOn(Date, "now").mockReturnValue(NOW);
-      stubImageDecode(false, false, true); // two failed guesses before the fallback that loads
+      stubArchivePublishedUpTo("2026-08-15T20:30:00.000Z"); // several guesses miss before one loads
 
       const debug = emptyDebugAccumulator();
       await new SdoSunResolver(cache).resolve(debug, debug);
@@ -281,30 +282,59 @@ describe("source-resolver-sdo-sun", () => {
       expect(debug.retries).toBe(0);
     });
 
-    it("doubles the buffer to reach back through a multi-hour outage on a cold start", async () => {
-      // 2026-08-21 as a fixture: SDO's browse pipeline stalled and its newest frame was 138
-      // minutes old. 30/60/120 all 404; 240 lands on a slot that exists.
+    it("brackets a multi-hour outage by doubling, then narrows to the newest frame", async () => {
+      // Newest frame 147 min old. Doubling brackets it between 120 (miss) and 240 (hit);
+      // bisecting 180/150/135 inside that bracket lands on the frame itself. Doubling alone
+      // would have stopped at 240 and shown a two-hour-older Sun than necessary.
       vi.spyOn(Date, "now").mockReturnValue(NOW);
-      stubImageDecode(false, false, false, true);
+      const archive = stubArchivePublishedUpTo("2026-08-15T20:15:00.000Z");
       const debug = emptyDebugAccumulator();
       const image = await new SdoSunResolver(cache).resolve(debug, debug);
-      expect(image.date.toISOString()).toBe("2026-08-15T18:30:00.000Z"); // NOW - 240 min, floored
-      expect(debug.retries).toBe(3);
+      expect(image.date.toISOString()).toBe("2026-08-15T20:15:00.000Z");
+      expect(archive.calls).toBe(7); // 30, 60, 120, 240, then 180, 150, 135
+      expect(debug.retries).toBe(6);
     });
 
-    it("gives up at the 240-min ceiling instead of walking back forever", async () => {
-      vi.spyOn(Date, "now").mockReturnValue(NOW);
-      const decode = stubImageDecode(false);
-      const debug = emptyDebugAccumulator();
-      await expect(new SdoSunResolver(cache).resolve(debug, debug)).rejects.toThrow(
-        "decode failed"
+    it("aborts the search when a probe stops answering, rather than walking to the ceiling", async () => {
+      // A 404 says "this frame is missing" and is worth another probe; a timeout says the host
+      // is not answering, and there is no newer frame hiding behind a dead connection. Without
+      // this the 30-day ceiling would queue a dozen 15s waits before the tile gave up.
+      vi.useFakeTimers();
+      vi.setSystemTime(NOW);
+      let calls = 0;
+      vi.stubGlobal(
+        "Image",
+        class {
+          src = "";
+          decode() {
+            calls++;
+            return calls === 1 ? Promise.reject(new Error("404")) : new Promise<never>(() => {});
+          }
+        }
       );
-      expect(decode.calls).toBe(4); // 30, 60, 120, 240 — then unavailable, same as any dead source
+
+      const debug = emptyDebugAccumulator();
+      const resolving = new SdoSunResolver(cache).resolve(debug, debug);
+      const settled = expect(resolving).rejects.toThrow("Image load timed out");
+      await vi.advanceTimersByTimeAsync(FETCH_TIMEOUT_MS + 1);
+      await settled;
+
+      expect(calls).toBe(2); // the primary miss and the hang — the search stops there
+      vi.useRealTimers();
+    });
+
+    it("gives up at the 30-day ceiling instead of walking back forever", async () => {
+      vi.spyOn(Date, "now").mockReturnValue(NOW);
+      const archive = stubArchivePublishedUpTo("2026-06-15T00:00:00.000Z"); // nothing within a month
+      const debug = emptyDebugAccumulator();
+      await expect(new SdoSunResolver(cache).resolve(debug, debug)).rejects.toThrow("404");
+      // Doubling means a month of reach costs 12 requests, not the 2880 a per-slot walk would.
+      expect(archive.calls).toBe(12);
     });
 
     it("shrinks the learned buffer by one slot per successful refresh", async () => {
       vi.spyOn(Date, "now").mockReturnValue(NOW);
-      stubImageDecode(false, true);
+      stubArchivePublishedUpTo("2026-08-15T21:30:00.000Z");
       const debug = emptyDebugAccumulator();
       const recovered = await new SdoSunResolver(cache).resolve(debug, debug);
       expect(recovered.date.toISOString()).toBe("2026-08-15T21:30:00.000Z"); // learned buffer 60
@@ -337,32 +367,28 @@ describe("source-resolver-sdo-sun", () => {
       expect(debug.retries).toBe(1); // one wasted probe, not a fresh walk back from the floor
     });
 
-    it("clamps an ancient cached lag to the 240-min ceiling", () => {
+    it("clamps an ancient cached lag to the 30-day ceiling", () => {
       vi.spyOn(Date, "now").mockReturnValue(NOW);
       cache.set("sun", {
         url: "https://example.com/ancient.jpg",
-        date: new Date(NOW - 10 * 3600000),
+        date: new Date(NOW - 40 * 24 * 3600000), // 40 days — past the ceiling
       });
-      // Without the clamp the next probe would be 585 min back; with it, 225 (240 minus the
-      // one-slot probe-down), floored to the grid.
-      expect(getSunImageUrl(cache).date.toISOString()).toBe("2026-08-15T18:45:00.000Z");
+      // Clamped to 30 days minus the one-slot probe-down, floored to the grid.
+      expect(getSunImageUrl(cache).date.toISOString()).toBe("2026-07-16T22:45:00.000Z");
     });
 
-    it("at the ceiling, restoring the buffer is the whole ladder — it is not probed twice", async () => {
+    it("at the ceiling the search cannot widen further", async () => {
       vi.spyOn(Date, "now").mockReturnValue(NOW);
       cache.set("sun", {
         url: "https://example.com/ancient.jpg",
-        date: new Date(NOW - 10 * 3600000),
+        date: new Date(NOW - 40 * 24 * 3600000),
       });
-      const decode = stubImageDecode(false);
+      const archive = stubArchivePublishedUpTo("2026-06-15T00:00:00.000Z");
       const debug = emptyDebugAccumulator();
 
-      await expect(new SdoSunResolver(cache).resolve(debug, debug)).rejects.toThrow(
-        "decode failed"
-      );
-      // 225 (the probe) then 240 (the restore, which is already the ceiling) — the doubling
-      // rungs are all past the ceiling, and the ceiling itself is not appended a second time.
-      expect(decode.calls).toBe(2);
+      await expect(new SdoSunResolver(cache).resolve(debug, debug)).rejects.toThrow("404");
+      // The probe (ceiling minus one slot), then the restore, which is already the ceiling.
+      expect(archive.calls).toBe(2);
     });
   });
 

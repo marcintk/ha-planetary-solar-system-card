@@ -36,8 +36,9 @@ describe("gallery backoff integration", () => {
   // parallel load (many other test files' workers competing for CPU).
   it("a sustained sun-source outage backs off instead of retrying every refresh_mins tick", async () => {
     // Real network attempts only, not decode-gate hits: every Image() construction is one
-    // real probe of a candidate URL (the primary guess plus, on failure, each widened
-    // publish buffer up to the ceiling) — the number backoff exists to bound.
+    // real probe of a candidate URL (the primary guess plus, on failure, every probe the
+    // recovery search spends doubling toward the 30-day ceiling) — the number backoff
+    // exists to bound.
     let imageAttempts = 0;
     vi.stubGlobal(
       "Image",
@@ -64,10 +65,11 @@ describe("gallery backoff integration", () => {
     await vi.advanceTimersByTimeAsync(6 * 3600000);
 
     expect(imageAttempts).toBeGreaterThan(attemptsAfterMount); // it did keep trying...
-    expect(imageAttempts).toBeLessThan(80); // ...but nowhere near the ~2500 a naive per-tick
+    expect(imageAttempts).toBeLessThan(200); // ...but nowhere near the ~7000 a naive per-tick
     // retry would have produced: four sources probing on every one of the 360 ticks, sun
-    // costing its primary guess plus its three widened buffers each time. Each source backs
-    // off on its own cooldown, so the ceiling scales with source count, not tick count.
+    // costing 12 probes each time to double from its floor out to the 30-day ceiling. Each
+    // source backs off on its own cooldown, so the ceiling scales with source count and
+    // per-attempt search depth, not tick count.
     expect(urlCache.inCooldown("sun")).toBe(true); // still backed off at the end of the outage
 
     card.remove();

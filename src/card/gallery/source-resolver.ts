@@ -10,6 +10,11 @@ import { urlCache } from "./url-cache.js";
 // bounded the same way.
 export const FETCH_TIMEOUT_MS = 15000;
 
+// Exported so a resolver can tell "this frame is missing" (a 404 from decode) apart from
+// "the host is not answering" (this timeout). sun's recover() walks back through hundreds of
+// candidate slots, and that walk is only worth doing against a host that is actually replying.
+export const IMAGE_TIMEOUT_MESSAGE = "Image load timed out";
+
 // One resolver instance per NASA source, each owning that source's own cache TTL, decode-gate
 // state, and candidate-fetch quirks (see source-resolver-dscovr-earth.ts / source-resolver-sdo-sun.ts).
 // resolve() is the shared protocol (cache check, decode gate, preload, counters); getCached(),
@@ -127,7 +132,7 @@ function preloadImage(url: string): Promise<void> {
   return Promise.race([
     probe.decode(),
     new Promise<never>((_resolve, reject) => {
-      setTimeout(() => reject(new Error("Image load timed out")), FETCH_TIMEOUT_MS);
+      setTimeout(() => reject(new Error(IMAGE_TIMEOUT_MESSAGE)), FETCH_TIMEOUT_MS);
     }),
   ]);
 }

@@ -345,7 +345,7 @@ describe("SolarViewCard gallery", () => {
       card.remove();
     });
 
-    it("a sun thumbnail preload failure retries with a doubled publish buffer", async () => {
+    it("a sun thumbnail preload failure lands on the newest slot that loads", async () => {
       failFirstDecodeFor("sdo.gsfc.nasa.gov");
       const card = mountWithGallery();
       await flush();
@@ -353,12 +353,12 @@ describe("SolarViewCard gallery", () => {
       // Retried once, on an earlier slot — thumbnail shows the fallback.
       const sunImg = card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"] img');
       expect(sunImg.getAttribute("src")).not.toBe("");
-      // The primary guess uses the 30-min buffer floor; the first retry doubles it to 60,
-      // which is two 15-min slots earlier. Recompute against a scratch cache so this reads
-      // the primary slot instead of the retried one the card just cached into the shared
-      // default.
+      // The primary guess uses the 30-min buffer floor and misses; the search doubles to 60
+      // to bracket the gap, then narrows to 45 — one slot back, the newest that loads.
+      // Recompute against a scratch cache so this reads the primary slot instead of the
+      // recovered one the card just cached into the shared default.
       const primarySlot = getSunImageUrl(new UrlCache()).date.getTime();
-      expect(card._gallery.images.sun.date.getTime()).toBe(primarySlot - 30 * 60000);
+      expect(card._gallery.images.sun.date.getTime()).toBe(primarySlot - 15 * 60000);
       card.remove();
     });
 
@@ -442,7 +442,7 @@ describe("SolarViewCard gallery", () => {
 
       expect(card._gallery.panelMode).toBe("sun");
       const primarySlot = getSunImageUrl(new UrlCache()).date.getTime();
-      expect(card._gallery.imageDate.getTime()).toBe(primarySlot - 30 * 60000);
+      expect(card._gallery.imageDate.getTime()).toBe(primarySlot - 15 * 60000);
       card.remove();
     });
 
@@ -783,8 +783,9 @@ describe("SolarViewCard gallery", () => {
       const card = mountWithGallery({ gallery: { mode: "sun" } });
       await vi.advanceTimersByTimeAsync(0);
       card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"]').click();
-      // Primary attempt times out, then every widened buffer (60/120/240) also hangs and
-      // times out — 4 sequential 15s bounds before the banner surfaces.
+      // A timed-out probe aborts the search immediately — a host that is not answering has
+      // no newer frame to find, so one 15s bound surfaces the banner rather than queueing a
+      // month's worth of doublings behind a dead connection.
       await vi.advanceTimersByTimeAsync(60000);
       const img = card.shadowRoot.querySelector("#image-view");
       expect(img.classList.contains("visible")).toBe(false);

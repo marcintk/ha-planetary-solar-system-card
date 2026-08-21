@@ -64,9 +64,10 @@ describe("gallery backoff integration", () => {
     await vi.advanceTimersByTimeAsync(6 * 3600000);
 
     expect(imageAttempts).toBeGreaterThan(attemptsAfterMount); // it did keep trying...
-    expect(imageAttempts).toBeLessThan(50); // ...but nowhere near the ~1440 a naive
-    // per-tick retry (primary + SUN_MAX_RETRIES fallbacks, every one of the 360 ticks)
-    // would have produced
+    expect(imageAttempts).toBeLessThan(80); // ...but nowhere near the ~2500 a naive per-tick
+    // retry would have produced: four sources probing on every one of the 360 ticks, sun
+    // costing its primary guess plus SUN_MAX_RETRIES fallbacks each time. Each source backs
+    // off on its own cooldown, so the ceiling scales with source count, not tick count.
     expect(urlCache.inCooldown("sun")).toBe(true); // still backed off at the end of the outage
 
     card.remove();

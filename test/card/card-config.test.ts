@@ -16,8 +16,10 @@ describe("parseCardConfig", () => {
       locationOverride: null,
       locationNameOverride: null,
       heightStyle: "",
-      galleryMode: "closed",
-      gallerySources: ["moon"],
+      galleryMode: "off",
+      galleryPosition: "overlay",
+      galleryShape: "square",
+      gallerySources: ["mymoon", "moon", "earth", "sun"],
       galleryIntervalMs: 60000,
     });
   });
@@ -157,53 +159,99 @@ describe("parseCardConfig", () => {
       expect(parseCardConfig({ gallery: { mode: "open" } }).galleryMode).toBe("open");
       expect(parseCardConfig({ gallery: { mode: "slide" } }).galleryMode).toBe("slide");
     });
-    it("falls back to 'closed' for an unrecognised mode", () => {
-      expect(parseCardConfig({ gallery: { mode: "bogus" } }).galleryMode).toBe("closed");
+    it("falls back to 'off' for an unrecognised mode", () => {
+      expect(parseCardConfig({ gallery: { mode: "bogus" } }).galleryMode).toBe("off");
+    });
+    it("accepts 'off'", () => {
+      expect(parseCardConfig({ gallery: { mode: "off" } }).galleryMode).toBe("off");
+    });
+
+    describe("position", () => {
+      it("puts the strip below the solar view when asked", () => {
+        expect(parseCardConfig({ gallery: { position: "below" } }).galleryPosition).toBe("below");
+      });
+      it("overlays by default and for anything unrecognised", () => {
+        expect(parseCardConfig({}).galleryPosition).toBe("overlay");
+        expect(parseCardConfig({ gallery: { position: "bogus" } }).galleryPosition).toBe("overlay");
+      });
+    });
+
+    describe("shape", () => {
+      it("crops to the body when asked for circle", () => {
+        expect(parseCardConfig({ gallery: { shape: "circle" } }).galleryShape).toBe("circle");
+      });
+      it("shows the published frame by default and for anything unrecognised", () => {
+        expect(parseCardConfig({}).galleryShape).toBe("square");
+        expect(parseCardConfig({ gallery: { shape: "round" } }).galleryShape).toBe("square");
+      });
     });
 
     describe("sources", () => {
-      it("keeps recognised sources in the order given", () => {
+      it("keeps recognised sources in the order given — order is the layout", () => {
         expect(
-          parseCardConfig({ gallery: { sources: ["sun", "moon", "earth"] } }).gallerySources
-        ).toEqual(["sun", "moon", "earth"]);
+          parseCardConfig({ gallery: { sources: ["sun", "drawnmoon", "mymoon"] } }).gallerySources
+        ).toEqual(["sun", "drawnmoon", "mymoon"]);
       });
+
       it("drops unknown entries and de-duplicates, keeping first position", () => {
         expect(
-          parseCardConfig({ gallery: { sources: ["moon", "mars", "earth", "moon"] } })
-            .gallerySources
-        ).toEqual(["moon", "earth"]);
+          parseCardConfig({
+            gallery: { sources: ["moon", "hubble-mars", "sun", "moon"] },
+          }).gallerySources
+        ).toEqual(["moon", "sun"]);
       });
-      it("falls back to ['moon'] when nothing valid remains", () => {
-        expect(parseCardConfig({ gallery: { sources: ["mars"] } }).gallerySources).toEqual([
+
+      it("falls back to the fetched sources when nothing valid remains", () => {
+        const fetched = ["mymoon", "moon", "earth", "sun"];
+        expect(parseCardConfig({ gallery: { sources: ["hubble-mars"] } }).gallerySources).toEqual(
+          fetched
+        );
+        expect(parseCardConfig({ gallery: { sources: [] } }).gallerySources).toEqual(fetched);
+        expect(
+          parseCardConfig({ gallery: { sources: "moon" as unknown as string[] } }).gallerySources
+        ).toEqual(fetched);
+      });
+
+      // drawnmoon is opt-in by name: a diagram does not belong in a strip of photographs
+      // unless it was asked for.
+      it("leaves drawnmoon out of the default set", () => {
+        expect(parseCardConfig({}).gallerySources).not.toContain("drawnmoon");
+        expect(parseCardConfig({ gallery: { sources: ["drawnmoon"] } }).gallerySources).toEqual([
+          "drawnmoon",
+        ]);
+      });
+
+      // Source names gained their instrument in this version. A #140 dashboard should keep
+      // showing the same bodies rather than silently reverting to the default set.
+      it("maps the pre-instrument names onto their sources", () => {
+        expect(
+          parseCardConfig({ gallery: { sources: ["moon", "earth", "sun"] } }).gallerySources
+        ).toEqual(["moon", "earth", "sun"]);
+      });
+
+      it("de-duplicates across the old and new spelling of one source", () => {
+        expect(parseCardConfig({ gallery: { sources: ["moon", "moon"] } }).gallerySources).toEqual([
           "moon",
         ]);
-        expect(parseCardConfig({ gallery: { sources: [] } }).gallerySources).toEqual(["moon"]);
-        expect(
-          parseCardConfig({ gallery: { sources: "earth" as unknown as string[] } }).gallerySources
-        ).toEqual(["moon"]);
       });
     });
 
-    // Pre-#140 configs used a single `mode` string that conflated presentation with source
-    // selection. Without this mapping they would fail the mode check and silently fall back
-    // to the default, quietly changing what an existing dashboard shows.
+    // Two older generations of `mode` values. The pre-#140 names picked sources as well as
+    // presentation; #140's "closed" is this version's "off". Without this mapping they would
+    // fail the mode check and silently fall back to the default.
     describe("legacy mode strings", () => {
       it.each([
-        ["none", "closed", ["moon"]],
-        ["earth", "open", ["earth"]],
-        ["sun", "open", ["sun"]],
-        ["both", "open", ["earth", "sun"]],
-        ["slide", "slide", ["earth", "sun"]],
-      ])("maps %s to %s with %j", (legacy, mode, sources) => {
-        const parsed = parseCardConfig({ gallery: { mode: legacy } });
-        expect(parsed.galleryMode).toBe(mode);
-        expect(parsed.gallerySources).toEqual(sources);
+        ["none", "off"],
+        ["closed", "off"],
+        ["earth", "open"],
+        ["sun", "open"],
+        ["both", "open"],
+      ])("maps %s to %s", (legacy, mode) => {
+        expect(parseCardConfig({ gallery: { mode: legacy } }).galleryMode).toBe(mode);
       });
 
-      it("an explicit sources list wins over a legacy mode's implied sources", () => {
-        const parsed = parseCardConfig({ gallery: { mode: "both", sources: ["moon"] } });
-        expect(parsed.galleryMode).toBe("open");
-        expect(parsed.gallerySources).toEqual(["moon"]);
+      it("leaves slide alone — it means the same thing it always did", () => {
+        expect(parseCardConfig({ gallery: { mode: "slide" } }).galleryMode).toBe("slide");
       });
     });
     it("converts slide_interval_secs to milliseconds", () => {

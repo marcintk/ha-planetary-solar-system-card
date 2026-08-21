@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { GalleryController } from "../../../src/card/gallery/gallery-controller.js";
+import {
+  DEFAULT_GALLERY_SOURCES,
+  GalleryController,
+} from "../../../src/card/gallery/gallery-controller.js";
 import { urlCache } from "../../../src/card/gallery/url-cache.js";
 
 // Every fetch path preloads a candidate off-DOM via `new Image()` before ever assigning it,
@@ -15,6 +18,25 @@ function stubImagePreload(...results: boolean[]) {
         const succeeds = results.length ? results[Math.min(calls, results.length - 1)] : true;
         calls++;
         return succeeds ? Promise.resolve() : Promise.reject(new Error("decode failed"));
+      }
+    }
+  );
+}
+
+// Fails the first decode whose URL matches, and only that one — the four sources resolve
+// concurrently, so "the first decode overall" is no longer a way to name one of them.
+function failFirstDecodeFor(urlFragment: string) {
+  let failed = false;
+  vi.stubGlobal(
+    "Image",
+    class {
+      src = "";
+      decode() {
+        if (!failed && this.src.includes(urlFragment)) {
+          failed = true;
+          return Promise.reject(new Error("decode failed"));
+        }
+        return Promise.resolve();
       }
     }
   );
@@ -42,11 +64,13 @@ afterEach(() => {
 
 describe("GalleryController defaults", () => {
   it("starts closed with no panel and no known images", () => {
-    const gallery = new GalleryController(() => {});
+    const gallery = new GalleryController(
+      () => {},
+      () => "UTC"
+    );
     expect(gallery.isOpen).toBe(false);
     expect(gallery.panelMode).toBe("none");
-    expect(gallery.mode).toBe("closed");
-    expect(gallery.sources).toEqual(["moon"]);
+    expect(gallery.mode).toBe("off");
     expect(gallery.images).toEqual({});
   });
 });
@@ -56,17 +80,23 @@ describe("GalleryController remount", () => {
   // start with no known URL, so the URL-identity gate always missed on its first tick and
   // forced a redundant preload/decode of bytes each source's own cache already held.
   it("hydrates known images from each source's cache instead of starting empty", async () => {
-    const first = new GalleryController(() => {});
-    first.configure("open", ["earth", "sun"], 60000);
+    const first = new GalleryController(
+      () => {},
+      () => "UTC"
+    );
+    first.configure("open", DEFAULT_GALLERY_SOURCES, 60000);
     first.start();
     await vi.waitFor(() => expect(first.images.earth).toBeDefined());
     await vi.waitFor(() => expect(first.images.sun).toBeDefined());
 
-    const remounted = new GalleryController(() => {});
+    const remounted = new GalleryController(
+      () => {},
+      () => "UTC"
+    );
     expect(remounted.images.earth?.url).toBe(first.images.earth?.url);
     expect(remounted.images.sun?.url).toBe(first.images.sun?.url);
 
-    remounted.configure("open", ["earth", "sun"], 60000);
+    remounted.configure("open", DEFAULT_GALLERY_SOURCES, 60000);
     remounted.start();
     await Promise.resolve();
     await Promise.resolve();
@@ -80,57 +110,82 @@ describe("GalleryController remount", () => {
 });
 
 describe("GalleryController.configure", () => {
-  it("opens for open/slide, stays collapsed for closed", () => {
-    const gallery = new GalleryController(() => {});
-    gallery.configure("open", ["earth", "sun"], 60000);
+  it("opens for open/slide, stays collapsed for off", () => {
+    const gallery = new GalleryController(
+      () => {},
+      () => "UTC"
+    );
+    gallery.configure("open", DEFAULT_GALLERY_SOURCES, 60000);
     expect(gallery.isOpen).toBe(true);
-    gallery.configure("closed", ["moon"], 60000);
+    gallery.configure("off", DEFAULT_GALLERY_SOURCES, 60000);
     expect(gallery.isOpen).toBe(false);
-    gallery.configure("slide", ["earth", "sun"], 60000);
+    gallery.configure("slide", DEFAULT_GALLERY_SOURCES, 60000);
     expect(gallery.isOpen).toBe(true);
   });
 
-  it("displaySources is the configured list, in the configured order", () => {
-    const gallery = new GalleryController(() => {});
-    gallery.configure("open", ["earth"], 60000);
-    expect(gallery.displaySources).toEqual(["earth"]);
-    gallery.configure("open", ["sun", "moon", "earth"], 60000);
-    expect(gallery.displaySources).toEqual(["sun", "moon", "earth"]);
+  // The strip is fixed now: sky Moon, object Moon, Earth, Sun, in that order. `gallery.sources`
+  // is gone, so there is no configuration that can change this.
+  it("displaySources is the whole strip, in render order", () => {
+    const gallery = new GalleryController(
+      () => {},
+      () => "UTC"
+    );
+    gallery.configure("open", DEFAULT_GALLERY_SOURCES, 60000);
+    expect(gallery.displaySources).toEqual(["mymoon", "moon", "earth", "sun"]);
   });
 });
 
-describe("GalleryController moon source", () => {
-  it("shows moon as a thumbnail without ever fetching it", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve([]) });
-    vi.stubGlobal("fetch", fetchMock);
-    const gallery = new GalleryController(() => {});
-    gallery.configure("open", ["moon"], 60000);
+describe("GalleryController moon sources", () => {
+  it("fetches both moon tiles alongside earth and sun", async () => {
+    const gallery = new GalleryController(
+      () => {},
+      () => "UTC"
+    );
+    gallery.configure("open", DEFAULT_GALLERY_SOURCES, 60000);
     gallery.start();
-    expect(gallery.viewModel().thumbnails.map((t) => t.source)).toEqual(["moon"]);
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(gallery.images).toEqual({});
+    await vi.waitFor(() => expect(gallery.images.moon).toBeDefined());
+    await vi.waitFor(() => expect(gallery.images.mymoon).toBeDefined());
+    expect(gallery.images.moon?.url).toContain("svs.gsfc.nasa.gov");
   });
 
-  it("fetches only the network sources when moon sits alongside them", async () => {
-    const gallery = new GalleryController(() => {});
-    gallery.configure("open", ["moon", "earth"], 60000);
+  // Same NASA product, different instants — the object tile follows the current hour, the sky
+  // tile pins to 22:00 local — so each holds its own cache entry rather than sharing one.
+  it("gives each moon tile its own image entry", async () => {
+    const gallery = new GalleryController(
+      () => {},
+      () => "America/Chicago"
+    );
+    gallery.configure("open", DEFAULT_GALLERY_SOURCES, 60000);
     gallery.start();
-    await vi.waitFor(() => expect(gallery.images.earth).toBeDefined());
-    expect(gallery.images.sun).toBeUndefined();
-    expect(gallery.images.moon as unknown).toBeUndefined();
+    await vi.waitFor(() => expect(gallery.images.moon).toBeDefined());
+    await vi.waitFor(() => expect(gallery.images.mymoon).toBeDefined());
+    expect(gallery.images.mymoon?.date).not.toEqual(gallery.images.moon?.date);
   });
 
-  it("carries no url or date on the moon thumbnail", () => {
-    const gallery = new GalleryController(() => {});
-    gallery.configure("open", ["moon"], 60000);
-    expect(gallery.viewModel().thumbnails).toEqual([{ source: "moon", url: null, date: null }]);
+  it("carries url and date onto both moon thumbnails once resolved", async () => {
+    const gallery = new GalleryController(
+      () => {},
+      () => "UTC"
+    );
+    gallery.configure("open", DEFAULT_GALLERY_SOURCES, 60000);
+    gallery.start();
+    await vi.waitFor(() => expect(gallery.images.moon).toBeDefined());
+    const tiles = gallery.viewModel().thumbnails;
+    for (const source of ["moon", "mymoon"]) {
+      const tile = tiles.find((t) => t.source === source);
+      expect(tile?.url).toBeTruthy();
+      expect(tile?.date).toBeInstanceOf(Date);
+    }
   });
 });
 
 describe("GalleryController.start / tick", () => {
   it("fetches every source the mode needs when started open", async () => {
-    const gallery = new GalleryController(() => {});
-    gallery.configure("open", ["earth", "sun"], 60000);
+    const gallery = new GalleryController(
+      () => {},
+      () => "UTC"
+    );
+    gallery.configure("open", DEFAULT_GALLERY_SOURCES, 60000);
     gallery.start();
     await vi.waitFor(() => expect(gallery.images.earth).toBeDefined());
     expect(gallery.images.sun).toBeDefined();
@@ -139,15 +194,21 @@ describe("GalleryController.start / tick", () => {
   it("does not fetch when started closed", () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve([]) });
     vi.stubGlobal("fetch", fetchMock);
-    const gallery = new GalleryController(() => {});
-    gallery.configure("closed", ["moon"], 60000);
+    const gallery = new GalleryController(
+      () => {},
+      () => "UTC"
+    );
+    gallery.configure("off", DEFAULT_GALLERY_SOURCES, 60000);
     gallery.start();
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("tick refreshes only while open", async () => {
-    const gallery = new GalleryController(() => {});
-    gallery.configure("open", ["earth"], 60000);
+    const gallery = new GalleryController(
+      () => {},
+      () => "UTC"
+    );
+    gallery.configure("open", DEFAULT_GALLERY_SOURCES, 60000);
     gallery.tick();
     await vi.waitFor(() => expect(gallery.images.earth).toBeDefined());
   });
@@ -155,8 +216,11 @@ describe("GalleryController.start / tick", () => {
   it("tick is a no-op while closed", () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve([]) });
     vi.stubGlobal("fetch", fetchMock);
-    const gallery = new GalleryController(() => {});
-    gallery.configure("closed", ["moon"], 60000);
+    const gallery = new GalleryController(
+      () => {},
+      () => "UTC"
+    );
+    gallery.configure("off", DEFAULT_GALLERY_SOURCES, 60000);
     gallery.tick();
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -164,8 +228,11 @@ describe("GalleryController.start / tick", () => {
 
 describe("GalleryController.toggle", () => {
   it("opening clears any error and triggers a refresh", async () => {
-    const gallery = new GalleryController(() => {});
-    gallery.configure("open", ["earth"], 60000);
+    const gallery = new GalleryController(
+      () => {},
+      () => "UTC"
+    );
+    gallery.configure("open", DEFAULT_GALLERY_SOURCES, 60000);
     gallery.toggle(); // configure() opens by default; close first
     expect(gallery.isOpen).toBe(false);
     gallery.toggle(); // reopen
@@ -174,8 +241,11 @@ describe("GalleryController.toggle", () => {
   });
 
   it("closing closes any open panel", () => {
-    const gallery = new GalleryController(() => {});
-    gallery.configure("open", ["earth"], 60000);
+    const gallery = new GalleryController(
+      () => {},
+      () => "UTC"
+    );
+    gallery.configure("open", DEFAULT_GALLERY_SOURCES, 60000);
     gallery.toggle(); // closes
     expect(gallery.isOpen).toBe(false);
     expect(gallery.panelMode).toBe("none");
@@ -184,8 +254,11 @@ describe("GalleryController.toggle", () => {
 
 describe("GalleryController.openPanel / closePanel", () => {
   it("shows instantly when the source is already known", async () => {
-    const gallery = new GalleryController(() => {});
-    gallery.configure("open", ["earth"], 60000);
+    const gallery = new GalleryController(
+      () => {},
+      () => "UTC"
+    );
+    gallery.configure("open", DEFAULT_GALLERY_SOURCES, 60000);
     gallery.start();
     await vi.waitFor(() => expect(gallery.images.earth).toBeDefined());
 
@@ -196,8 +269,11 @@ describe("GalleryController.openPanel / closePanel", () => {
   });
 
   it("fetches when the source isn't known yet", async () => {
-    const gallery = new GalleryController(() => {});
-    gallery.configure("open", ["earth"], 60000); // open, but start() not called — nothing fetched yet
+    const gallery = new GalleryController(
+      () => {},
+      () => "UTC"
+    );
+    gallery.configure("open", DEFAULT_GALLERY_SOURCES, 60000); // open, but start() not called — nothing fetched yet
     gallery.openPanel("earth");
     expect(gallery.panelMode).toBe("earth");
     expect(gallery.imageLoaded).toBe(false);
@@ -205,8 +281,11 @@ describe("GalleryController.openPanel / closePanel", () => {
   });
 
   it("closePanel resets panel state", () => {
-    const gallery = new GalleryController(() => {});
-    gallery.configure("open", ["earth"], 60000);
+    const gallery = new GalleryController(
+      () => {},
+      () => "UTC"
+    );
+    gallery.configure("open", DEFAULT_GALLERY_SOURCES, 60000);
     gallery.openPanel("earth");
     gallery.closePanel();
     expect(gallery.panelMode).toBe("none");
@@ -217,14 +296,20 @@ describe("GalleryController.openPanel / closePanel", () => {
 
 describe("GalleryController image event handlers", () => {
   it("onImageLoad marks the current image loaded", () => {
-    const gallery = new GalleryController(() => {});
+    const gallery = new GalleryController(
+      () => {},
+      () => "UTC"
+    );
     gallery.onImageLoad();
     expect(gallery.imageLoaded).toBe(true);
   });
 
   it("onImageLoadError surfaces the error banner and closes the panel", () => {
-    const gallery = new GalleryController(() => {});
-    gallery.configure("open", ["earth"], 60000);
+    const gallery = new GalleryController(
+      () => {},
+      () => "UTC"
+    );
+    gallery.configure("open", DEFAULT_GALLERY_SOURCES, 60000);
     gallery.openPanel("earth");
     gallery.onImageLoadError();
     expect(gallery.panelMode).toBe("none");
@@ -232,14 +317,20 @@ describe("GalleryController image event handlers", () => {
   });
 
   it("onImageLoadError is a no-op when no panel is open", () => {
-    const gallery = new GalleryController(() => {});
+    const gallery = new GalleryController(
+      () => {},
+      () => "UTC"
+    );
     gallery.onImageLoadError();
     expect(gallery.error).toBeNull();
   });
 
   it("onSunThumbError drops the sun thumbnail", async () => {
-    const gallery = new GalleryController(() => {});
-    gallery.configure("open", ["sun"], 60000);
+    const gallery = new GalleryController(
+      () => {},
+      () => "UTC"
+    );
+    gallery.configure("open", DEFAULT_GALLERY_SOURCES, 60000);
     gallery.start();
     await vi.waitFor(() => expect(gallery.images.sun).toBeDefined());
     gallery.onSunThumbError();
@@ -250,8 +341,11 @@ describe("GalleryController image event handlers", () => {
 describe("GalleryController failed fetch", () => {
   it("surfaces the error banner when the open panel's source fails to resolve", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network down")));
-    const gallery = new GalleryController(() => {});
-    gallery.configure("open", ["earth"], 60000);
+    const gallery = new GalleryController(
+      () => {},
+      () => "UTC"
+    );
+    gallery.configure("open", DEFAULT_GALLERY_SOURCES, 60000);
     gallery.openPanel("earth");
     await vi.waitFor(() => expect(gallery.panelMode).toBe("none"));
     expect(gallery.error).toContain("unavailable");
@@ -261,52 +355,57 @@ describe("GalleryController failed fetch", () => {
 describe("GalleryController slide auto-switch", () => {
   it("flips the displayed source on each interval while mode is slide", async () => {
     vi.useFakeTimers();
-    const gallery = new GalleryController(() => {});
-    gallery.configure("slide", ["earth", "sun"], 1000);
+    const gallery = new GalleryController(
+      () => {},
+      () => "UTC"
+    );
+    gallery.configure("slide", DEFAULT_GALLERY_SOURCES, 1000);
     gallery.start();
-    expect(gallery.displaySources).toEqual(["earth"]);
+    expect(gallery.displaySources).toEqual(["mymoon"]);
     await vi.advanceTimersByTimeAsync(1000);
-    expect(gallery.displaySources).toEqual(["sun"]);
+    expect(gallery.displaySources).toEqual(["moon"]);
   });
 
-  it("rotates through every configured source, moon included, and wraps", async () => {
+  it("rotates through the whole strip and wraps", async () => {
     vi.useFakeTimers();
-    const gallery = new GalleryController(() => {});
-    gallery.configure("slide", ["moon", "earth", "sun"], 1000);
+    const gallery = new GalleryController(
+      () => {},
+      () => "UTC"
+    );
+    gallery.configure("slide", DEFAULT_GALLERY_SOURCES, 1000);
     gallery.start();
-    expect(gallery.displaySources).toEqual(["moon"]);
-    await vi.advanceTimersByTimeAsync(1000);
-    expect(gallery.displaySources).toEqual(["earth"]);
-    await vi.advanceTimersByTimeAsync(1000);
-    expect(gallery.displaySources).toEqual(["sun"]);
-    await vi.advanceTimersByTimeAsync(1000);
-    expect(gallery.displaySources).toEqual(["moon"]);
+    const seen = [gallery.displaySources[0]];
+    for (let i = 0; i < 4; i++) {
+      await vi.advanceTimersByTimeAsync(1000);
+      seen.push(gallery.displaySources[0]);
+    }
+    expect(seen).toEqual(["mymoon", "moon", "earth", "sun", "mymoon"]);
   });
 
-  it("a single configured source has nothing to rotate to", async () => {
-    vi.useFakeTimers();
-    const gallery = new GalleryController(() => {});
-    gallery.configure("slide", ["moon"], 1000);
-    gallery.start();
-    await vi.advanceTimersByTimeAsync(3000);
-    expect(gallery.displaySources).toEqual(["moon"]);
-  });
-
+  // Reconfiguring to a shorter list while the rotation sits past its new end would leave
+  // displaySources reading undefined until the next tick happened to wrap it.
   it("reconfiguring a shorter list cannot leave the slide index out of bounds", async () => {
     vi.useFakeTimers();
-    const gallery = new GalleryController(() => {});
-    gallery.configure("slide", ["moon", "earth", "sun"], 1000);
+    const gallery = new GalleryController(
+      () => {},
+      () => "UTC"
+    );
+    gallery.configure("slide", DEFAULT_GALLERY_SOURCES, 1000);
     gallery.start();
     await vi.advanceTimersByTimeAsync(2000);
-    expect(gallery.displaySources).toEqual(["sun"]);
+    expect(gallery.displaySources).toEqual(["earth"]);
+
     gallery.configure("slide", ["moon"], 1000);
     expect(gallery.displaySources).toEqual(["moon"]);
   });
 
   it("stop() clears the auto-switch interval", async () => {
     vi.useFakeTimers();
-    const gallery = new GalleryController(() => {});
-    gallery.configure("slide", ["earth", "sun"], 1000);
+    const gallery = new GalleryController(
+      () => {},
+      () => "UTC"
+    );
+    gallery.configure("slide", DEFAULT_GALLERY_SOURCES, 1000);
     gallery.start();
     gallery.stop();
     const before = gallery.displaySources;
@@ -316,10 +415,13 @@ describe("GalleryController slide auto-switch", () => {
 
   it("reconfiguring away from slide stops future auto-switches", async () => {
     vi.useFakeTimers();
-    const gallery = new GalleryController(() => {});
-    gallery.configure("slide", ["earth", "sun"], 1000);
+    const gallery = new GalleryController(
+      () => {},
+      () => "UTC"
+    );
+    gallery.configure("slide", DEFAULT_GALLERY_SOURCES, 1000);
     gallery.start();
-    gallery.configure("open", ["earth"], 1000);
+    gallery.configure("open", DEFAULT_GALLERY_SOURCES, 1000);
     const before = gallery.displaySources;
     await vi.advanceTimersByTimeAsync(5000);
     expect(gallery.displaySources).toEqual(before);
@@ -327,8 +429,11 @@ describe("GalleryController slide auto-switch", () => {
 
   it("switching onto a source never re-resolves its URL from cache/network", async () => {
     vi.useFakeTimers();
-    const gallery = new GalleryController(() => {});
-    gallery.configure("slide", ["earth", "sun"], 1000);
+    const gallery = new GalleryController(
+      () => {},
+      () => "UTC"
+    );
+    gallery.configure("slide", DEFAULT_GALLERY_SOURCES, 1000);
     gallery.start();
     await vi.advanceTimersByTimeAsync(0);
     expect(gallery.images.sun).toBeDefined();
@@ -336,24 +441,31 @@ describe("GalleryController slide auto-switch", () => {
 
     // The slide timer flips displaySources purely as a local state change — it never touches
     // the resolver, so cacheHits stays exactly where refresh() left it.
+    const before = gallery.displaySources;
     await vi.advanceTimersByTimeAsync(1000);
-    expect(gallery.displaySources).toEqual(["sun"]);
+    expect(gallery.displaySources).not.toEqual(before);
     expect(gallery.debugStats.sun.cacheHits).toBe(cacheHitsAfterFetch);
   });
 });
 
 describe("GalleryController.viewModel", () => {
   it("reflects the error state", () => {
-    const gallery = new GalleryController(() => {});
-    gallery.configure("open", ["earth"], 60000);
+    const gallery = new GalleryController(
+      () => {},
+      () => "UTC"
+    );
+    gallery.configure("open", DEFAULT_GALLERY_SOURCES, 60000);
     gallery.openPanel("earth");
     (gallery as unknown as { _error: string | null })._error = "Earth image unavailable";
     expect(gallery.viewModel().error).toBe("Earth image unavailable");
   });
 
   it("reflects no panel open, strip closed", () => {
-    const gallery = new GalleryController(() => {});
-    gallery.configure("open", ["earth"], 60000);
+    const gallery = new GalleryController(
+      () => {},
+      () => "UTC"
+    );
+    gallery.configure("open", DEFAULT_GALLERY_SOURCES, 60000);
     gallery.toggle(); // configure() opens by default; close it
     const vm = gallery.viewModel();
     expect(vm.error).toBeNull();
@@ -361,17 +473,23 @@ describe("GalleryController.viewModel", () => {
   });
 
   it("reflects an open strip with no panel", () => {
-    const gallery = new GalleryController(() => {});
-    gallery.configure("open", ["earth", "sun"], 60000);
+    const gallery = new GalleryController(
+      () => {},
+      () => "UTC"
+    );
+    gallery.configure("open", DEFAULT_GALLERY_SOURCES, 60000);
     const vm = gallery.viewModel();
     expect(vm.showStrip).toBe(true);
     expect(vm.panelSource).toBe("none");
-    expect(vm.thumbnails.map((t) => t.source)).toEqual(["earth", "sun"]);
+    expect(vm.thumbnails.map((t) => t.source)).toEqual(["mymoon", "moon", "earth", "sun"]);
   });
 
   it("reflects an open panel with image data, and hides the strip", async () => {
-    const gallery = new GalleryController(() => {});
-    gallery.configure("open", ["earth", "sun"], 60000);
+    const gallery = new GalleryController(
+      () => {},
+      () => "UTC"
+    );
+    gallery.configure("open", DEFAULT_GALLERY_SOURCES, 60000);
     gallery.openPanel("earth");
     await vi.waitFor(() => expect(gallery.imageLoaded).toBe(true));
     const vm = gallery.viewModel();
@@ -382,19 +500,29 @@ describe("GalleryController.viewModel", () => {
     expect(vm.showStrip).toBe(false);
   });
 
-  it("thumbnails carry url/date from images for sources not yet fetched", () => {
-    const gallery = new GalleryController(() => {});
-    gallery.configure("open", ["sun"], 60000);
-    const vm = gallery.viewModel();
-    expect(vm.thumbnails).toEqual([{ source: "sun", url: null, date: null }]);
+  it("thumbnails carry null url/date for sources not yet fetched", () => {
+    const gallery = new GalleryController(
+      () => {},
+      () => "UTC"
+    );
+    gallery.configure("open", DEFAULT_GALLERY_SOURCES, 60000);
+    expect(gallery.viewModel().thumbnails).toEqual([
+      { source: "mymoon", url: null, date: null },
+      { source: "moon", url: null, date: null },
+      { source: "earth", url: null, date: null },
+      { source: "sun", url: null, date: null },
+    ]);
   });
 
   it("hides the strip while collapsed but still reports its thumbnails", () => {
-    const gallery = new GalleryController(() => {});
-    gallery.configure("closed", ["moon"], 60000);
+    const gallery = new GalleryController(
+      () => {},
+      () => "UTC"
+    );
+    gallery.configure("off", DEFAULT_GALLERY_SOURCES, 60000);
     const vm = gallery.viewModel();
     expect(vm.showStrip).toBe(false);
-    expect(vm.thumbnails.map((t) => t.source)).toEqual(["moon"]);
+    expect(vm.thumbnails.map((t) => t.source)).toEqual(["mymoon", "moon", "earth", "sun"]);
   });
 });
 
@@ -410,9 +538,14 @@ describe("GalleryController.debugStats", () => {
     lastAttemptAt: null,
   };
 
-  it("starts at zero for both sources", () => {
-    const gallery = new GalleryController(() => {});
+  it("starts at zero for every source", () => {
+    const gallery = new GalleryController(
+      () => {},
+      () => "UTC"
+    );
     expect(gallery.debugStats).toEqual({
+      moon: zeroStats,
+      mymoon: zeroStats,
       sun: zeroStats,
       "earth-url": zeroStats,
       "earth-img": zeroStats,
@@ -420,8 +553,11 @@ describe("GalleryController.debugStats", () => {
   });
 
   it("gates the image preload on URL identity, skipping it once the URL is unchanged", async () => {
-    const gallery = new GalleryController(() => {});
-    gallery.configure("open", ["earth", "sun"], 60000);
+    const gallery = new GalleryController(
+      () => {},
+      () => "UTC"
+    );
+    gallery.configure("open", DEFAULT_GALLERY_SOURCES, 60000);
     gallery.start();
     await vi.waitFor(() => expect(gallery.images.earth).toBeDefined());
 
@@ -466,8 +602,11 @@ describe("GalleryController.debugStats", () => {
         })
       )
     );
-    const gallery = new GalleryController(() => {});
-    gallery.configure("open", ["earth"], 60000);
+    const gallery = new GalleryController(
+      () => {},
+      () => "UTC"
+    );
+    gallery.configure("open", DEFAULT_GALLERY_SOURCES, 60000);
     gallery.start();
     await vi.waitFor(() => expect(gallery.debugStats["earth-url"].refreshes).toBe(1));
 
@@ -486,8 +625,11 @@ describe("GalleryController.debugStats", () => {
 
   it("counts a failed image preload as a fetch distinct from the EPIC API call", async () => {
     stubImagePreload(false);
-    const gallery = new GalleryController(() => {});
-    gallery.configure("open", ["earth"], 60000);
+    const gallery = new GalleryController(
+      () => {},
+      () => "UTC"
+    );
+    gallery.configure("open", DEFAULT_GALLERY_SOURCES, 60000);
     gallery.start();
     await vi.waitFor(() => expect(gallery.debugStats["earth-img"].failures).toBe(1));
 
@@ -502,9 +644,12 @@ describe("GalleryController.debugStats", () => {
   });
 
   it("counts a retry when sun's primary slot guess fails and falls back", async () => {
-    stubImagePreload(false, true);
-    const gallery = new GalleryController(() => {});
-    gallery.configure("open", ["sun"], 60000);
+    failFirstDecodeFor("sdo.gsfc.nasa.gov");
+    const gallery = new GalleryController(
+      () => {},
+      () => "UTC"
+    );
+    gallery.configure("open", DEFAULT_GALLERY_SOURCES, 60000);
     gallery.start();
     await vi.waitFor(() => expect(gallery.debugStats.sun.retries).toBe(1));
 
@@ -512,11 +657,18 @@ describe("GalleryController.debugStats", () => {
     expect(gallery.debugStats.sun.failures).toBe(1);
   });
 
-  it("does not count sources outside the configured mode", async () => {
-    const gallery = new GalleryController(() => {});
-    gallery.configure("open", ["earth"], 60000);
+  // Every source is fetched now, including while "slide" shows one at a time — rotating onto
+  // a tile must never be the moment its image starts loading.
+  it("counts a refresh for every source, even the ones slide mode is not showing", async () => {
+    const gallery = new GalleryController(
+      () => {},
+      () => "UTC"
+    );
+    gallery.configure("slide", DEFAULT_GALLERY_SOURCES, 60000);
     gallery.start();
     await vi.waitFor(() => expect(gallery.debugStats["earth-url"].refreshes).toBe(1));
-    expect(gallery.debugStats.sun.refreshes).toBe(0);
+    expect(gallery.debugStats.sun.refreshes).toBe(1);
+    expect(gallery.debugStats.moon.refreshes).toBe(1);
+    expect(gallery.debugStats.mymoon.refreshes).toBe(1);
   });
 });

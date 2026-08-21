@@ -9,11 +9,13 @@ import { formatDuration } from "../relative-time.js";
 // making it impossible to tell which one a spike came from. Split into two debug rows; sun
 // has no separate URL-discovery network call (its candidate URL is pure math), so it stays a
 // single row — ImageResolver passes the same accumulator as both url and img debug for sun.
-export type DebugRowId = "sun" | "earth-url" | "earth-img";
+export type DebugRowId = "mymoon" | "moon" | "sun" | "earth-url" | "earth-img";
 
-export const DEBUG_ROWS: DebugRowId[] = ["sun", "earth-url", "earth-img"];
+export const DEBUG_ROWS: DebugRowId[] = ["mymoon", "moon", "sun", "earth-url", "earth-img"];
 
 export const DEBUG_ROW_LABELS: Record<DebugRowId, string> = {
+  mymoon: "SVS/M sky",
+  moon: "SVS/M obj",
   sun: "SDO/S",
   "earth-url": "DSCOVR/E url",
   "earth-img": "DSCOVR/E img",
@@ -22,6 +24,8 @@ export const DEBUG_ROW_LABELS: Record<DebugRowId, string> = {
 // Which debug row(s) a given gallery source's resolve() call reports into — see the
 // DebugRowId comment above for why sun collapses both roles into one row.
 export const DEBUG_ROW_KEYS: Record<ImageSource, { url: DebugRowId; img: DebugRowId }> = {
+  mymoon: { url: "mymoon", img: "mymoon" },
+  moon: { url: "moon", img: "moon" },
   sun: { url: "sun", img: "sun" },
   earth: { url: "earth-url", img: "earth-img" },
 };
@@ -155,7 +159,7 @@ export function buildDebugOverlay(
         // and found nothing", when really the question never applies to this row at all.
         const hasCacheStep = rowId !== "earth-img";
         // Only sun's resolver ever retries (recover()'s one-slot-back fallback — see
-        // source-resolver-sdo-sun.ts) — earth's default recover() just rethrows, so 0 there
+        // source-resolver-sdo-sun.ts) — earth's and moon's default recover() just rethrows, so 0 there
         // would misleadingly suggest "checked, never needed one" rather than "not a thing
         // that can happen on this row".
         const canRetry = rowId === "sun";

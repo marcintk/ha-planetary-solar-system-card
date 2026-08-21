@@ -6,7 +6,8 @@
 [![Planetary Solar System Card][demo-gif]](https://marcintk.github.io/ha-planetary-solar-system-card/)
 
 Home Assistant custom Lovelace card showing all 8 planets, Moon and comet Halley aligned around the
-Sun, with live NASA imagery of Earth and the Sun. Navigate time, zoom, and pan interactively.
+Sun, with live NASA imagery of the Moon, Earth and the Sun — including the Moon turned to match your
+own sky. Navigate time, zoom, and pan interactively.
 
 [![Try the interactive demo](https://img.shields.io/badge/▶%20Try%20the%20interactive%20demo-41BDF5?style=for-the-badge)](https://marcintk.github.io/ha-planetary-solar-system-card/)
 
@@ -51,8 +52,16 @@ colors:
 type: custom:ha-planetary-solar-system-card
 gallery:
   mode: slide
-  sources: [moon, earth, sun]
+  sources: [mymoon, moon, earth, sun]
   slide_interval_secs: 30
+```
+
+```yaml
+type: custom:ha-planetary-solar-system-card
+gallery:
+  mode: open
+  position: below
+  sources: [mymoon, earth]
 ```
 
 ```yaml
@@ -106,25 +115,48 @@ A thumbnail strip beside the solar view. ☷ toggles it; clicking a NASA thumbna
 full-screen. Which tiles appear — and in what left-to-right order — is `gallery.sources` (see
 [Gallery](#gallery)).
 
-| Thumbnail | Source            | Watches                      | We poll  | Typical age |
-| --------- | ----------------- | ---------------------------- | -------- | ----------- |
-| Moon      | Drawn locally     | Tonight's moon phase         | No fetch | Live        |
-| DSCOVR/E  | [NASA EPIC][epic] | Earth's sunlit side, from L1 | Hourly   | 1-2 days    |
-| SDO/S     | [NASA SDO][sdo]   | The Sun, from geosync orbit  | 15 min   | 20-55 min   |
+| Thumbnail | Source            | Shows                                   | We fetch   | Age of what you see |
+| --------- | ----------------- | --------------------------------------- | ---------- | ------------------- |
+| MY SKY    | [NASA SVS][svs]   | The Moon at 22:00 your time, your sky   | Once a day | Tonight, not yet    |
+| MOON      | [NASA SVS][svs]   | The Moon this hour, from Earth's centre | Hourly     | Under an hour       |
+| DSCOVR/E  | [NASA EPIC][epic] | Earth's sunlit side, from L1            | Hourly     | 1-2 days            |
+| SDO/S     | [NASA SDO][sdo]   | The Sun, from geosync orbit             | 15 min     | 25-55 min           |
+| DRAWN     | Drawn locally     | The phase, computed on your dashboard   | No fetch   | Live                |
 
-The moon tile is computed on your dashboard from the displayed date, so it costs no network request
-and cannot fail — which is why it is the only source shown by default. The NASA sources are opt-in.
-The moon tile has no full-screen view; its caption is the phase name.
+### The two Moon tiles
 
-Both lags are NASA's publish pipeline, not the card holding images back: EPIC processes a day or two
-behind, and SDO's archive often posts a 15-min frame 30+ minutes late, so the card falls back one
-frame.
+One body, two questions, so two tiles.
+
+**MOON** is NASA's frame exactly as published: rendered from the centre of the Earth with celestial
+north up, the way every Moon photograph you have ever seen is framed. It is never wrong and it looks
+the same for everyone.
+
+**MY SKY** is the same frame turned to match _your_ sky — rotated by the parallactic angle for your
+latitude, longitude and clock, for 22:00 local tonight. That rotation is the single biggest
+difference between a picture of the Moon and the Moon you will actually see: it swings through
+roughly ±90° depending on where you stand and when you look. Its caption counts down to 22:00, and
+says `below horizon` on the nights the Moon is not up then — which is about half of them, at every
+latitude, because the Moon keeps its own hours rather than the Sun's.
+
+Both are renders, not photographs: NASA builds them from LOLA laser altimetry and the LROC
+wide-angle colour mosaic, positioned by the JPL DE421 ephemeris, and publishes the whole year in
+advance at one frame per hour. So unlike Earth and Sun there is no publish delay to wait out.
+
+Because the product is published a year at a time under an id that changes each December, both Moon
+tiles go blank on 1 January of a year the installed version does not know about, until a release
+ships with it. **DRAWN** is the tile that cannot: computed on your dashboard, no network request, no
+way to fail — but a diagram rather than a picture, which is why it is opt-in rather than shown by
+default.
+
+Earth's and Sun's lags are NASA's publish pipeline, not the card holding images back: EPIC processes
+a day or two behind, and SDO's archive often posts a 15-min frame 30+ minutes late, so the card
+falls back one frame.
 
 > **Thumbnails stuck on "unavailable"?** The browser fetches these images straight from NASA, so a
 > reverse proxy in front of Home Assistant (Nginx Proxy Manager, Cloudflare Tunnel, Traefik) can
-> block them with a strict `Content-Security-Policy`. Add `epic.gsfc.nasa.gov` and
-> `sdo.gsfc.nasa.gov` to that policy's `img-src`. Nothing card-side can work around it — the block
-> happens before the card sees a response.
+> block them with a strict `Content-Security-Policy`. Add `svs.gsfc.nasa.gov`, `epic.gsfc.nasa.gov`
+> and `sdo.gsfc.nasa.gov` to that policy's `img-src`. Nothing card-side can work around it — the
+> block happens before the card sees a response.
 
 ## Configuration
 
@@ -179,23 +211,62 @@ the cycle resumes. Replay and the gallery don't pause it.
 
 `gallery` (object, unset by default) — Live Imagery gallery options:
 
-| Key                           | Type     | Default    | Description                                                                                                          |
-| ----------------------------- | -------- | ---------- | -------------------------------------------------------------------------------------------------------------------- |
-| `gallery.mode`                | string   | `"closed"` | `"closed"` starts the strip collapsed, `"open"` shows it, `"slide"` shows one tile at a time and rotates             |
-| `gallery.sources`             | string[] | `["moon"]` | Which tiles to show, in left-to-right order. Any of `moon`, `earth`, `sun`. Unknown names and duplicates are dropped |
-| `gallery.slide_interval_secs` | number   | `60`       | How often `slide` mode advances to the next source                                                                   |
+| Key                           | Type     | Default        | Description                                                                                                     |
+| ----------------------------- | -------- | -------------- | --------------------------------------------------------------------------------------------------------------- |
+| `gallery.mode`                | string   | `"off"`        | `"off"` starts the strip collapsed, `"open"` shows it, `"slide"` shows one tile at a time and rotates           |
+| `gallery.sources`             | string[] | the four below | Which tiles to show, in left-to-right order. Unknown names and duplicates are dropped                           |
+| `gallery.position`            | string   | `"overlay"`    | `"overlay"` floats the strip over the solar view, `"below"` puts it underneath and grows the card by its height |
+| `gallery.shape`               | string   | `"square"`     | `"square"` shows the frame as its source publishes it, `"circle"` crops each tile to the body itself            |
+| `gallery.slide_interval_secs` | number   | `60`           | How often `slide` mode advances to the next source                                                              |
 
-The ☷ button is always available; `mode` only decides whether the strip starts open. Only `earth`
-and `sun` hit the network, so the default gallery makes no requests at all.
+Source names:
+
+| Name        | Tile     | Fetches |
+| ----------- | -------- | ------- |
+| `mymoon`    | MY SKY   | Yes     |
+| `moon`      | MOON     | Yes     |
+| `earth`     | DSCOVR/E | Yes     |
+| `sun`       | SDO/S    | Yes     |
+| `drawnmoon` | DRAWN    | No      |
+
+Omit `sources` and you get the four fetched tiles in that order. `drawnmoon` is opt-in — it is a
+diagram, and it does not belong in a strip of photographs unless you ask for it.
+
+The ☷ button is always available; `mode` only decides whether the strip starts open.
 
 ```yaml
 gallery:
   mode: open
-  sources: [moon, earth, sun]
+  position: below
+  shape: circle
+  sources: [mymoon, earth, sun]
 ```
 
-Configs written before `sources` existed keep working: `mode: none` stays collapsed on moon,
-`earth`/`sun`/`both` open on those sources, and `slide` rotates earth and sun as before.
+`shape: circle` crops away each frame's black margin so the bodies float on the card, all at the
+same size. It is not purely cosmetic: the default `square` keeps the margin, and because each source
+frames its subject differently — Earth fills about three quarters of its frame, the Moon and Sun
+closer to all of it — the bodies then render at visibly different sizes.
+
+MY SKY takes a slightly different route to the same look, because a rotated square is not a square —
+the tile clips the corners that swing outside it while the card shows through where the image's own
+corners swing in, so a rotated frame renders as an octagon at every angle except 0° and 90°. Instead
+of its own frame it gets a black backdrop from the tile, with the body clipped to a circle inside
+it. Every source renders its body on black, so the result is framed exactly like its neighbours,
+with a turned Moon inside.
+
+Older configs keep working. `mode: none` and `mode: closed` both mean `off`; `earth`, `sun` and
+`both` open the strip; `slide` is unchanged. Source names are unchanged too — the one shift is that
+`moon` now resolves to NASA's render rather than the locally drawn disc, which is `drawnmoon`.
+
+#### Adding a source later
+
+Source names describe **what the tile shows**, not which instrument produced it. When one body gains
+a second source, name the difference: the two Moon tiles are `moon` and `mymoon` — viewpoint, not
+instrument — and a SOHO coronagraph beside SDO would be `corona`, because that is what it shows.
+
+Only if nothing else distinguishes two sources does the instrument earn a place in the name, and
+even then the incumbent keeps its name and the newcomer takes the qualified one (`earth` stays,
+`goes-earth` joins it). Nobody's dashboard should have to be edited because the card grew a tile.
 
 ### Location
 
@@ -215,6 +286,7 @@ Configs written before `sources` existed keep working: `mode: none` stays collap
 [my-hacs-shield]: https://my.home-assistant.io/badges/hacs_repository.svg
 [epic]: https://epic.gsfc.nasa.gov/
 [sdo]: https://sdo.gsfc.nasa.gov/
+[svs]: https://svs.gsfc.nasa.gov/5587/
 [repo]: https://github.com/marcintk/ha-planetary-solar-system-card
 [license]: https://github.com/marcintk/ha-planetary-solar-system-card/blob/main/LICENSE
 [iana]: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones

@@ -149,8 +149,10 @@ way to fail — but a diagram rather than a picture, which is why it is opt-in r
 default.
 
 Earth's and Sun's lags are NASA's publish pipeline, not the card holding images back: EPIC processes
-a day or two behind, and SDO's archive often posts a 15-min frame 30+ minutes late, so the card
-falls back one frame.
+a day or two behind, and SDO's archive posts each 15-min frame 25 to 30 minutes after it was
+captured, so the Sun you see is always about half an hour old. The card learns that delay rather
+than assuming it — if SDO's pipeline stalls, it reaches further back until it finds a frame, then
+walks forward again as the feed catches up.
 
 > **Thumbnails stuck on "unavailable"?** The browser fetches these images straight from NASA, so a
 > reverse proxy in front of Home Assistant (Nginx Proxy Manager, Cloudflare Tunnel, Traefik) can

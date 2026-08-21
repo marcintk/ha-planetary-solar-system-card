@@ -62,6 +62,42 @@ function stubArchivePublishedUpTo(newestSlotIso: string) {
 // biome-ignore lint/suspicious/noConsole: see above — deliberate, and confined to this helper.
 const print = (line: string) => console.log(line);
 
+// The real publish rule rather than a flat cutoff: SDO posts a :15/:45 slot 25 minutes after
+// capture and a :00/:30 slot 30 minutes after (measured in #148, zero jitter). Existence is
+// therefore a function of the mocked clock, so the same stub serves a whole run of ticks.
+function stubArchiveWithRealPublishLag() {
+  const state = { calls: 0, probes: [] as { slot: number; ok: boolean }[] };
+  vi.stubGlobal(
+    "Image",
+    class {
+      src = "";
+      decode() {
+        state.calls++;
+        const match = /\/(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})_/.exec(this.src);
+        if (!match) return Promise.reject(new Error("unparseable slot URL"));
+        const [, y, mo, d, h, mi, sec] = match.map(Number);
+        const slot = Date.UTC(y, mo - 1, d, h, mi, sec);
+        const ok = Date.now() >= slot + publishLagMs(slot);
+        state.probes.push({ slot, ok });
+        return ok ? Promise.resolve() : Promise.reject(new Error("404"));
+      }
+    }
+  );
+  return state;
+}
+
+function publishLagMs(slot: number): number {
+  const minute = new Date(slot).getUTCMinutes();
+  return (minute === 0 || minute === 30 ? 30 : 25) * 60000;
+}
+
+// The best any client could possibly do at this instant, whatever strategy it used.
+function newestPublishedAt(now: number): number {
+  let slot = Math.floor(now / SUN_CACHE_TTL_MS) * SUN_CACHE_TTL_MS;
+  while (now < slot + publishLagMs(slot)) slot -= SUN_CACHE_TTL_MS;
+  return slot;
+}
+
 describe("source-resolver-sdo-sun", () => {
   // Each test gets its own UrlCache — SdoSunResolver/getSunImageUrl accept one explicitly, so
   // nothing here shares state with the module-level default (which production relies on for
@@ -493,6 +529,108 @@ describe("source-resolver-sdo-sun", () => {
       }
       print(`\n  3 stalled ticks cost ${steadyTotal} probes total\n`);
       expect(steadyTotal).toBe(6);
+    });
+
+    // Continues where the probe-budget test stops: the pipeline restarts and backfills
+    // everything it owed, and we ask what it then costs to stay current, and how fresh the
+    // frame on screen actually is against the freshest one that physically exists.
+    it("catches up when the feed restarts, then holds current for one probe a tick", async () => {
+      const hhmm = (t: number) => new Date(t).toISOString().slice(11, 16);
+      const resolver = new SdoSunResolver(cache);
+      const debug = emptyDebugAccumulator();
+
+      // Stall first, so the resolver enters the recovery holding the 12:30 frame.
+      let now = Date.parse("2026-08-21T20:37:00.000Z");
+      vi.spyOn(Date, "now").mockReturnValue(now);
+      stubArchivePublishedUpTo("2026-08-21T12:30:00.000Z");
+      const stalled = await resolver.resolve(debug, debug);
+      expect(stalled.date.toISOString()).toBe("2026-08-21T12:30:00.000Z");
+
+      // The pipeline restarts and backfills the whole eight-hour debt.
+      const archive = stubArchiveWithRealPublishLag();
+      let worstStaleness = 0;
+
+      print("\nRECOVERY AND STEADY STATE — archive now publishing normally");
+      print("  tick  now     probes  frame shown  age   best possible  behind");
+      for (let tick = 1; tick <= 6; tick++) {
+        now += 15 * 60000;
+        vi.spyOn(Date, "now").mockReturnValue(now);
+        const before = archive.probes.length;
+        const image = await resolver.resolve(debug, debug);
+        const spent = archive.probes.length - before;
+
+        const best = newestPublishedAt(now);
+        const behind = (best - image.date.getTime()) / 60000;
+        worstStaleness = Math.max(worstStaleness, behind);
+        print(
+          `  ${String(tick).padStart(4)}  ${hhmm(now)}   ${String(spent).padStart(5)}  ` +
+            `${hhmm(image.date.getTime())}        ${String(
+              Math.round((now - image.date.getTime()) / 60000)
+            ).padStart(3)}m  ${hhmm(best)} (${String(Math.round((now - best) / 60000)).padStart(
+              2
+            )}m)      ${behind === 0 ? "current" : `${behind}m`}`
+        );
+
+        if (tick === 1) {
+          // One tick to cross the whole eight-hour debt, not one slot per tick.
+          expect(spent).toBeLessThanOrEqual(11);
+          expect(image.date.getTime()).toBe(best);
+        } else {
+          // Current again: the confirmed frame is one slot behind the fresh guess, so the
+          // guess either loads outright or is settled by a single follow-up probe.
+          expect(spent).toBeLessThanOrEqual(2);
+        }
+      }
+
+      // The floor is physics, not strategy: nothing published sooner than 25 minutes after
+      // capture can be fetched, and a 30-minute buffer rounds that to the slot grid — so the
+      // card can trail the best-possible frame by at most one slot, never more.
+      print(`\n  worst staleness against the best any client could do: ${worstStaleness}m\n`);
+      expect(worstStaleness).toBeLessThanOrEqual(15);
+    });
+
+    // The tick cadence above always lands at the same phase of the slot grid, which hides the
+    // one case where a 30-minute buffer is not optimal. Sweep every minute of an hour instead
+    // and measure how far behind the physically-freshest frame the card ever sits.
+    it("never trails the freshest published frame by more than one slot, at any phase", async () => {
+      const archive = stubArchiveWithRealPublishLag();
+      const debug = emptyDebugAccumulator();
+      const hhmm = (t: number) => new Date(t).toISOString().slice(11, 16);
+
+      const start = Date.parse("2026-08-21T22:00:00.000Z");
+      let behindMinutes = 0;
+      let bestAge = Number.POSITIVE_INFINITY;
+      let worstAge = 0;
+      const windows: string[] = [];
+
+      for (let minute = 0; minute < 60; minute++) {
+        const now = start + minute * 60000;
+        vi.spyOn(Date, "now").mockReturnValue(now);
+        const before = archive.probes.length;
+        // A fresh cache each minute: this measures the strategy, not the TTL hold.
+        const image = await new SdoSunResolver(new UrlCache()).resolve(debug, debug);
+        expect(archive.probes.length - before).toBe(1); // always one probe when healthy
+
+        const best = newestPublishedAt(now);
+        const behind = (best - image.date.getTime()) / 60000;
+        const age = (now - image.date.getTime()) / 60000;
+        bestAge = Math.min(bestAge, age);
+        worstAge = Math.max(worstAge, age);
+        if (behind > 0) {
+          behindMinutes++;
+          windows.push(`${hhmm(now)} shows ${hhmm(image.date.getTime())}, ${hhmm(best)} was up`);
+        }
+      }
+
+      print("\nFRESHNESS SWEEP — every minute of 22:00-23:00, one probe each");
+      print(`  frame age on screen: ${bestAge}-${worstAge} minutes`);
+      print(`  physical floor (SDO publishes at capture +25): 25 minutes`);
+      print(`  minutes trailing the freshest frame: ${behindMinutes} of 60`);
+      for (const w of windows) print(`    ${w}`);
+      print("");
+
+      expect(worstAge).toBeLessThanOrEqual(45); // never worse than the buffer plus one slot
+      expect(behindMinutes).toBeLessThanOrEqual(15); // and only inside the publish-lag windows
     });
 
     it("crosses the UTC day boundary correctly when reaching back that far", async () => {

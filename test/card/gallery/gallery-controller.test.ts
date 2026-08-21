@@ -643,10 +643,9 @@ describe("GalleryController.debugStats", () => {
     expect(gallery.debugStats["earth-img"].refreshes).toBe(1);
   });
 
-  it("counts a retry for every probe sun's recovery search spends", async () => {
-    // Two probes, not one: the search doubles the buffer to bracket the gap, then narrows
-    // inside that bracket to the newest slot that loads. Only the first decode fails here, so
-    // the bracket lands immediately and the narrowing step confirms one slot newer.
+  it("counts a retry when sun's primary slot guess fails and falls back", async () => {
+    // One probe: the search starts one slot back and that frame loads, so there is no gap
+    // left to narrow and nothing further to ask.
     failFirstDecodeFor("sdo.gsfc.nasa.gov");
     const gallery = new GalleryController(
       () => {},
@@ -654,9 +653,9 @@ describe("GalleryController.debugStats", () => {
     );
     gallery.configure("open", DEFAULT_GALLERY_SOURCES, 60000);
     gallery.start();
-    await vi.waitFor(() => expect(gallery.debugStats.sun.retries).toBe(2));
+    await vi.waitFor(() => expect(gallery.debugStats.sun.retries).toBe(1));
 
-    expect(gallery.debugStats.sun.fetches).toBe(3);
+    expect(gallery.debugStats.sun.fetches).toBe(2);
     expect(gallery.debugStats.sun.failures).toBe(1);
   });
 

@@ -136,19 +136,20 @@ describe("source-resolver-sdo-sun", () => {
     // but that retry has to update the *shared* cache, or the next background refresh
     // (getSunImageUrl(), on whatever cadence refresh_mins is set to — not 15 minutes) hands
     // the same not-yet-published slot straight back out.
-    it("commits the corrected slot to the cache so a later getSunImageUrl() call reuses it", async () => {
+    it("hands back the confirmed frame instead of the guess that just 404'd", async () => {
       const NOW = Date.UTC(2026, 7, 15, 22, 42, 30);
       vi.spyOn(Date, "now").mockReturnValue(NOW);
       stubArchivePublishedUpTo("2026-08-15T21:45:00.000Z"); // the 22:00 primary guess is not up yet
 
       const debug = emptyDebugAccumulator();
-      const original = await new SdoSunResolver(cache).resolve(debug, debug);
+      const resolver = new SdoSunResolver(cache);
+      const original = await resolver.resolve(debug, debug);
       expect(original.date.toISOString()).toBe("2026-08-15T21:45:00.000Z"); // the newest that exists
 
-      // Moments later — well within the 15-min cache TTL — a background refresh must see the
-      // corrected slot, not the original 22:00:00 guess that 404s.
-      vi.spyOn(Date, "now").mockReturnValue(NOW + 60000);
-      const refreshed = getSunImageUrl(cache);
+      // A later tick recomputes a newer guess that still 404s. It must not surface as a
+      // failure or restart a backward walk — the confirmed frame is handed straight back.
+      vi.spyOn(Date, "now").mockReturnValue(NOW + 30 * 60000);
+      const refreshed = await resolver.resolve(debug, debug);
       expect(refreshed).toEqual(original);
     });
 
@@ -323,72 +324,75 @@ describe("source-resolver-sdo-sun", () => {
       vi.useRealTimers();
     });
 
+    it("costs two requests per refresh while the feed stays stalled", async () => {
+      // The point of anchoring to the last confirmed frame. Without it every tick re-ran the
+      // whole backward search — measured at ~8 requests a tick against the 2026-08-21 stall.
+      const stalled = stubArchivePublishedUpTo("2026-08-21T12:30:00.000Z");
+      const resolver = new SdoSunResolver(cache);
+      const debug = emptyDebugAccumulator();
+
+      let now = Date.parse("2026-08-21T20:37:00.000Z");
+      vi.spyOn(Date, "now").mockReturnValue(now);
+      await resolver.resolve(debug, debug);
+      const afterColdStart = stalled.calls;
+
+      for (let tick = 0; tick < 8; tick++) {
+        now += 15 * 60000;
+        vi.spyOn(Date, "now").mockReturnValue(now);
+        const image = await resolver.resolve(debug, debug);
+        expect(image.date.toISOString()).toBe("2026-08-21T12:30:00.000Z");
+      }
+
+      // One probe for the fresh guess, one for the slot just past the confirmed frame.
+      expect(stalled.calls - afterColdStart).toBe(16);
+    });
+
+    it("catches up to the newest frame in one refresh once the feed recovers", async () => {
+      // Creeping forward one slot per tick would take eight hours to recover from an
+      // eight-hour stall; bisecting between the confirmed frame and the fresh guess lands on
+      // the newest frame immediately.
+      const resolver = new SdoSunResolver(cache);
+      const debug = emptyDebugAccumulator();
+
+      vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-08-21T20:37:00.000Z"));
+      stubArchivePublishedUpTo("2026-08-21T12:30:00.000Z");
+      await resolver.resolve(debug, debug);
+
+      // The pipeline restarts and backfills as far as 19:00 — still short of the 20:15 the
+      // fresh guess asks for, so the search runs and has a 30-slot gap to cross.
+      vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-08-21T20:52:00.000Z"));
+      const recovered = stubArchivePublishedUpTo("2026-08-21T19:00:00.000Z");
+      const image = await resolver.resolve(debug, debug);
+
+      expect(image.date.toISOString()).toBe("2026-08-21T19:00:00.000Z");
+      expect(recovered.calls).toBe(7); // the guess, one past the confirmed frame, then 5 to bisect
+    });
+
+    it("skips the search entirely when the guess is only one slot past the confirmed frame", async () => {
+      vi.spyOn(Date, "now").mockReturnValue(NOW);
+      const archive = stubArchivePublishedUpTo("2026-08-15T21:45:00.000Z");
+      const resolver = new SdoSunResolver(cache);
+      const debug = emptyDebugAccumulator();
+      await resolver.resolve(debug, debug); // confirms 21:45
+
+      // Just past the 22:30 cache hold, the fresh guess is 22:00 — exactly 21:45 plus one
+      // slot. It 404s, and there is no gap left between it and the confirmed frame, so
+      // nothing more is worth asking.
+      vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-08-15T22:32:00.000Z"));
+      const before = archive.calls;
+      const image = await resolver.resolve(debug, debug);
+
+      expect(image.date.toISOString()).toBe("2026-08-15T21:45:00.000Z");
+      expect(archive.calls - before).toBe(1);
+    });
+
     it("gives up at the 30-day ceiling instead of walking back forever", async () => {
       vi.spyOn(Date, "now").mockReturnValue(NOW);
       const archive = stubArchivePublishedUpTo("2026-06-15T00:00:00.000Z"); // nothing within a month
       const debug = emptyDebugAccumulator();
       await expect(new SdoSunResolver(cache).resolve(debug, debug)).rejects.toThrow("404");
-      // Doubling means a month of reach costs 12 requests, not the 2880 a per-slot walk would.
-      expect(archive.calls).toBe(12);
-    });
-
-    it("shrinks the learned buffer by one slot per successful refresh", async () => {
-      vi.spyOn(Date, "now").mockReturnValue(NOW);
-      stubArchivePublishedUpTo("2026-08-15T21:30:00.000Z");
-      const debug = emptyDebugAccumulator();
-      const recovered = await new SdoSunResolver(cache).resolve(debug, debug);
-      expect(recovered.date.toISOString()).toBe("2026-08-15T21:30:00.000Z"); // learned buffer 60
-
-      // Entry valid until 21:30 + 15m TTL + 60m buffer = 22:45. The next refresh probes one
-      // slot shorter than what it learned — 45 min, not 60.
-      vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-08-15T22:45:00.001Z"));
-      expect(getSunImageUrl(cache).date.toISOString()).toBe("2026-08-15T22:00:00.000Z");
-
-      // ...and having succeeded at 45, the one after that probes 30 — back at the floor,
-      // where it stops shrinking.
-      vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-08-15T23:00:00.001Z"));
-      expect(getSunImageUrl(cache).date.toISOString()).toBe("2026-08-15T22:30:00.000Z");
-    });
-
-    it("restores the learned buffer when the shorter probe 404s", async () => {
-      vi.spyOn(Date, "now").mockReturnValue(Date.UTC(2026, 7, 15, 22, 30, 0));
-      // A prior commit whose lag was 60 minutes — that is the learned buffer.
-      cache.set("sun", {
-        url: "https://example.com/prior.jpg",
-        date: new Date(Date.UTC(2026, 7, 15, 21, 30, 0)),
-      });
-
-      vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-08-15T22:45:00.001Z"));
-      stubImageDecode(false, true); // the 45-min probe 404s, the restored 60 loads
-      const debug = emptyDebugAccumulator();
-      const image = await new SdoSunResolver(cache).resolve(debug, debug);
-
-      expect(image.date.toISOString()).toBe("2026-08-15T21:45:00.000Z"); // NOW - 60 min, floored
-      expect(debug.retries).toBe(1); // one wasted probe, not a fresh walk back from the floor
-    });
-
-    it("clamps an ancient cached lag to the 30-day ceiling", () => {
-      vi.spyOn(Date, "now").mockReturnValue(NOW);
-      cache.set("sun", {
-        url: "https://example.com/ancient.jpg",
-        date: new Date(NOW - 40 * 24 * 3600000), // 40 days — past the ceiling
-      });
-      // Clamped to 30 days minus the one-slot probe-down, floored to the grid.
-      expect(getSunImageUrl(cache).date.toISOString()).toBe("2026-07-16T22:45:00.000Z");
-    });
-
-    it("at the ceiling the search cannot widen further", async () => {
-      vi.spyOn(Date, "now").mockReturnValue(NOW);
-      cache.set("sun", {
-        url: "https://example.com/ancient.jpg",
-        date: new Date(NOW - 40 * 24 * 3600000),
-      });
-      const archive = stubArchivePublishedUpTo("2026-06-15T00:00:00.000Z");
-      const debug = emptyDebugAccumulator();
-
-      await expect(new SdoSunResolver(cache).resolve(debug, debug)).rejects.toThrow("404");
-      // The probe (ceiling minus one slot), then the restore, which is already the ceiling.
-      expect(archive.calls).toBe(2);
+      // Doubling means a month of reach costs 14 requests, not the 2880 a per-slot walk would.
+      expect(archive.calls).toBe(14);
     });
   });
 

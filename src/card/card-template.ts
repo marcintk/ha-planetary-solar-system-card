@@ -7,8 +7,8 @@ import {
   getSkyMode,
 } from "../astronomy/solar-position.js";
 import type { LocationData } from "../types.js";
-import type { GalleryViewModel } from "./gallery/gallery-controller.js";
-import { formatRelativeAge } from "./relative-time.js";
+import type { GalleryShape, GalleryViewModel } from "./gallery/gallery-controller.js";
+import { formatRelativeWhen } from "./relative-time.js";
 
 export function formatDate(date: Date): string {
   const y = String(date.getFullYear()).slice(-2);
@@ -51,25 +51,34 @@ export function buildStatusBar(
   </div>`;
 }
 
-// Sources backed by a fetched NASA image: they have a URL, a capture date, a cache/backoff
-// cycle, and can open full-screen. Every Record<ImageSource, ...> below is keyed on exactly
-// these, which is why moon — drawn locally, never fetched, never full-screen — is NOT one.
-export type ImageSource = "earth" | "sun";
+// Every source in the gallery: a fetched NASA image with a URL, a capture date, a
+// cache/backoff cycle, and a full-screen view. Since the moon tiles became NASA imagery
+// too there is no display-only source left, so this is also the whole strip — the separate
+// GallerySource union that existed to carry the locally drawn disc is gone.
+//
+// "moon" and "moon-sky" are the same NASA render at different instants: the object tile
+// follows the current hour, the sky tile pins to 22:00 local and is rotated into the
+// observer's own orientation.
+export type ImageSource = "mymoon" | "moon" | "earth" | "sun";
 
-// Anything that can occupy a slot in the gallery strip. Moon is display-only: it has no URL
-// and no panel, so it appears here and nowhere else.
-export type GallerySource = ImageSource | "moon";
+// Everything that can occupy a slot in the strip. drawnmoon is display-only: computed
+// locally, so it has no URL, no cache, no failure mode and no full-screen view.
+export type GallerySource = ImageSource | "drawnmoon";
 
 export const IMAGE_SOURCE_LABELS: Record<ImageSource, string> = {
+  mymoon: "NASA SVS Moon",
+  moon: "NASA SVS Moon",
   earth: "DSCOVR Earth",
   sun: "SDO HMI Continuum",
 };
 
-// Labels for the gallery thumbnail strip — the left half of every tile's caption.
+// Labels for the gallery thumbnail strip — the top line of every tile's caption.
 export const GALLERY_SOURCE_LABELS: Record<GallerySource, string> = {
+  mymoon: "MY SKY",
   moon: "MOON",
   earth: "DSCOVR/E",
   sun: "SDO/S",
+  drawnmoon: "DRAWN",
 };
 
 /**
@@ -88,6 +97,56 @@ export function buildMoonTitle(date: Date, isLiveMode: boolean): string {
 }
 
 /**
+ * The fraction of its own frame each source's disc spans **at its largest**.
+ *
+ * Every source ships a disc centred on black, but each leaves a different margin, and the
+ * margin is not constant: apparent size changes as the geometry does. Measured from the
+ * imagery — Moon 96.3% at perigee (from SVS's own `diameter` arcsec, anchored on a measured
+ * full-moon frame), Sun 94.3% at perihelion, Earth 74.4-82.2% across DSCOVR's Lissajous orbit
+ * around L1, which is much the widest swing of the three.
+ *
+ * Earth is deliberately set above its largest measurement: four sampled dates are not the
+ * whole orbit, and the failure modes are asymmetric — too small leaves a thin black ring, too
+ * large slices the limb off.
+ */
+const DISC_FRACTION: Record<ImageSource, number> = {
+  mymoon: 0.963,
+  moon: 0.963,
+  earth: 0.88,
+  sun: 0.943,
+};
+
+/**
+ * Crops a thumbnail down to the body itself, so the frame's black surround drops out and the
+ * card shows through instead.
+ *
+ * Two coupled numbers from one measurement: clip to the disc's own radius, then scale by the
+ * inverse so that radius reaches the edge of the tile. They must stay coupled — `clip-path`
+ * resolves in the element's own coordinates and `transform` applies to the result, so scaling
+ * without shrinking the clip by the same factor pushes the circle back outside the tile,
+ * which is the overflow this exists to prevent.
+ */
+export function discStyle(source: ImageSource, shape: GalleryShape, rotationDeg = 0): string {
+  // Square keeps the frame as published — except for the sky tile, which cannot have one: a
+  // rotated square is not a square. The tile clips the corners that swing outside it while the
+  // card shows through where the image's own corners swing in, so an unclipped rotated frame
+  // renders as an octagon at every angle but 0 and 90. Scaling it down by 1/(|cos|+|sin|)
+  // would keep all four corners, at the cost of a tilted diamond up to 29% smaller than its
+  // neighbours. A circle is the one shape rotation leaves alone, so the sky tile takes one
+  // whatever the setting — a looser crop than circle mode's, 50% of the frame rather than 48%,
+  // so it still shows more of the surround than its cropped neighbours do.
+  if (shape === "square") {
+    return rotationDeg
+      ? `clip-path: circle(50%); transform: rotate(${rotationDeg.toFixed(1)}deg)`
+      : "";
+  }
+  const fraction = DISC_FRACTION[source];
+  const scale = `scale(${(1 / fraction).toFixed(3)})`;
+  const transform = rotationDeg ? `rotate(${rotationDeg.toFixed(1)}deg) ${scale}` : scale;
+  return `clip-path: circle(${(fraction * 50).toFixed(1)}%); transform: ${transform}`;
+}
+
+/**
  * The caption overlaid on a gallery thumbnail: source on the left, detail on the right.
  *
  * Shared by every tile rather than written out per branch. The moon tile is built from a
@@ -103,21 +162,38 @@ export function buildGalleryCaption(label: string, detail: string): TemplateResu
   </div>`;
 }
 
-// Sources that need fetching/hydrating — the network-backed ones only.
-export const IMAGE_SOURCES: ImageSource[] = ["earth", "sun"];
+// The gallery strip, in render order. Fixed rather than configurable: `gallery.sources` was
+// one knob too many for three tiles that each answer a different question, and a user who
+// wanted fewer of them wanted the strip closed, not pruned.
+// Fetched sources, in the order they render when `gallery.sources` says nothing. The drawn
+// disc is deliberately absent: it is a diagram, and it does not belong in a strip of
+// photographs unless someone asks for it by name.
+export const IMAGE_SOURCES: ImageSource[] = ["mymoon", "moon", "earth", "sun"];
 
-// Every name accepted in `gallery.sources`. Order here is only the validation set; the
-// user's own list order is what decides layout.
-export const GALLERY_SOURCES: GallerySource[] = ["moon", "earth", "sun"];
+// Every name `gallery.sources` accepts. Order here is only the validation set — the user's
+// own list order is what decides layout.
+export const GALLERY_SOURCES: GallerySource[] = [...IMAGE_SOURCES, "drawnmoon"];
 
 // Full-screen status bar leads with the target body, the probe name follows (e.g.
 // "EARTH · DSCOVR · captured ..."). Kept separate from IMAGE_SOURCE_LABELS, which stays
 // fuller for the error banner ("SDO HMI Continuum image unavailable").
 const IMAGE_STATUS_TARGET: Record<ImageSource, string> = {
+  mymoon: "MOON",
+  moon: "MOON",
   earth: "EARTH",
   sun: "SUN",
 };
+// Earth and Sun tiles show photographs; the Moon tiles show renders, and the sky one is for
+// an hour that has usually not happened yet. "captured … 3h ago" is wrong on both counts.
+const IMAGE_STATUS_VERB: Record<ImageSource, string> = {
+  mymoon: "rendered for",
+  moon: "rendered",
+  earth: "captured",
+  sun: "captured",
+};
 const IMAGE_STATUS_INSTRUMENT: Record<ImageSource, string> = {
+  mymoon: "NASA SVS",
+  moon: "NASA SVS",
   earth: "DSCOVR",
   sun: "SDO HMI",
 };
@@ -130,7 +206,7 @@ export function buildImageStatusBar(
   loaded: boolean
 ): TemplateResult {
   const status = loaded
-    ? `captured ${dateText} · ${formatRelativeAge(imageDate, now)}`
+    ? `${IMAGE_STATUS_VERB[mode]} ${dateText} · ${formatRelativeWhen(imageDate, now)}`
     : "loading…";
   return html`<div class="status-bar">
     <span>${IMAGE_STATUS_TARGET[mode]} · ${IMAGE_STATUS_INSTRUMENT[mode]} · ${status}</span>

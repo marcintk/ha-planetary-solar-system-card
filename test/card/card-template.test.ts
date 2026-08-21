@@ -5,6 +5,7 @@ import {
   buildMoonTitle,
   buildStatusBar,
   buildStatusBarView,
+  discStyle,
   formatDate,
 } from "../../src/card/card-template.js";
 import type { SourceDebugStats } from "../../src/card/gallery/debug.js";
@@ -154,6 +155,62 @@ describe("buildStatusBar", () => {
   });
 });
 
+describe("discStyle", () => {
+  const SOURCES = ["moon", "mymoon", "earth", "sun"] as const;
+
+  // The invariant the two numbers exist to satisfy. clip-path resolves in the element's own
+  // coordinates and transform applies to the result, so clip radius x scale must land exactly
+  // on 50% — any more and the circle escapes the tile, which is the overflow that put the
+  // rotated sky frame over the status bar in the first place.
+  it.each(SOURCES)("clips %s so the scaled circle exactly fills the tile", (source) => {
+    const style = discStyle(source, "circle");
+    const radius = Number(/circle\((\d+(?:\.\d+)?)%\)/.exec(style)?.[1]);
+    const scale = Number(/scale\((\d+(?:\.\d+)?)\)/.exec(style)?.[1]);
+    // Not exact: both numbers are rounded for legible CSS output. 0.2% of a 104px tile is a
+    // fifth of a pixel — tight enough to catch a decoupled pair, loose enough for rounding.
+    expect(Math.abs(radius * scale - 50)).toBeLessThan(0.2);
+  });
+
+  // Each source leaves a different margin around its body, so a single shared constant would
+  // either crop a limb or leave a black ring.
+  it("scales each source by its own measured disc fraction", () => {
+    const scaleOf = (source: (typeof SOURCES)[number]) =>
+      Number(/scale\((\d+(?:\.\d+)?)\)/.exec(discStyle(source, "circle"))?.[1]);
+    // Earth is framed much more loosely by DSCOVR than the Moon is by SVS.
+    expect(scaleOf("earth")).toBeGreaterThan(scaleOf("moon"));
+    expect(scaleOf("sun")).toBeGreaterThan(scaleOf("moon"));
+    // Never enough to crop: every source's body fits inside its own frame.
+    for (const source of SOURCES) expect(scaleOf(source)).toBeLessThan(1.3);
+  });
+
+  it("folds the sky rotation in ahead of the scale, and omits it otherwise", () => {
+    expect(discStyle("mymoon", "circle", 17.1)).toContain("transform: rotate(17.1deg) scale(");
+    expect(discStyle("mymoon", "circle", 0)).not.toContain("rotate");
+  });
+
+  describe("square", () => {
+    it("leaves the published frame untouched", () => {
+      for (const source of SOURCES) expect(discStyle(source, "square")).toBe("");
+    });
+
+    // The one exception, and it is not cosmetic: an unclipped rotated square sweeps its
+    // corners out of the tile and over the status bar.
+    it("still clips the sky tile, because it rotates", () => {
+      expect(discStyle("mymoon", "square", 17.1)).toBe(
+        "clip-path: circle(50%); transform: rotate(17.1deg)"
+      );
+    });
+
+    it("clips less than circle mode does, so more of the frame survives", () => {
+      const radius = (style: string) =>
+        Number(/circle\((\d+(?:\.\d+)?)%\)/.exec(style)?.[1] ?? "0");
+      expect(radius(discStyle("mymoon", "square", 17.1))).toBeGreaterThan(
+        radius(discStyle("mymoon", "circle", 17.1))
+      );
+    });
+  });
+});
+
 describe("buildImageStatusBar", () => {
   const now = new Date("2026-08-12T12:00:00Z");
 
@@ -177,6 +234,26 @@ describe("buildImageStatusBar", () => {
     );
     expect(root.querySelector(".status-bar span").textContent).toBe(
       "EARTH · DSCOVR · captured 26-08-11 06:00 · 30h ago"
+    );
+  });
+
+  // The Moon tiles are renders, not photographs, and the sky one is normally for an hour
+  // that has not happened yet — so it takes both a different verb and a forward tense.
+  it("says 'rendered' for the geocentric moon", () => {
+    const root = renderToDOM(
+      buildImageStatusBar("moon", "26-08-12 11:00", new Date("2026-08-12T11:00:00Z"), now, true)
+    );
+    expect(root.querySelector(".status-bar span").textContent).toBe(
+      "MOON · NASA SVS · rendered 26-08-12 11:00 · 1h ago"
+    );
+  });
+
+  it("points the sky moon forwards, at the hour it was rendered for", () => {
+    const root = renderToDOM(
+      buildImageStatusBar("mymoon", "26-08-13 03:00", new Date("2026-08-13T03:00:00Z"), now, true)
+    );
+    expect(root.querySelector(".status-bar span").textContent).toBe(
+      "MOON · NASA SVS · rendered for 26-08-13 03:00 · in 15h"
     );
   });
 

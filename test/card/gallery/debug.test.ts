@@ -23,6 +23,8 @@ function renderToDOM(result) {
 
 describe("buildDebugOverlay", () => {
   const stats = {
+    moon: zeroDebugStats,
+    mymoon: zeroDebugStats,
     "earth-url": zeroDebugStats,
     "earth-img": zeroDebugStats,
     sun: {
@@ -82,6 +84,10 @@ describe("buildDebugOverlay", () => {
     const rows = root.querySelectorAll("tbody tr, table tr");
     const cells = [...rows].slice(1).map((row) => [...row.children].map((td) => td.textContent));
     expect(cells).toEqual([
+      // Neither moon row can retry either: every frame of the year is pre-published, so an
+      // earlier one is never a better guess (see source-resolver-svs-moon.ts).
+      ["SVS/M sky", "0", "0", "0", "0", "0", "—", "—", "—"],
+      ["SVS/M obj", "0", "0", "0", "0", "0", "—", "—", "—"],
       ["SDO/S", "4", "2", "5", "3", "1", "2", "123ms", "5m"],
       // Neither earth row can retry (only sun's resolver ever does) — retry shows "—".
       ["DSCOVR/E url", "0", "0", "0", "0", "0", "—", "—", "—"],
@@ -96,17 +102,21 @@ describe("buildDebugOverlay", () => {
 
   it("shows seconds in the last column under a minute, not a floored 'just now'", () => {
     const recent = {
+      moon: zeroDebugStats,
+      mymoon: zeroDebugStats,
       "earth-url": zeroDebugStats,
       "earth-img": zeroDebugStats,
       sun: { ...zeroDebugStats, lastAttemptAt: Date.now() - 45_000 },
     };
     const root = renderToDOM(buildDebugOverlay(recent, Date.now()));
-    const sunRow = [...root.querySelectorAll("table tr")[1].children].map((td) => td.textContent);
+    const sunRow = [...root.querySelectorAll("table tr")[3].children].map((td) => td.textContent);
     expect(sunRow[sunRow.length - 1]).toBe("45s");
   });
 
   it("sums the total row's refreshes with max() instead of add(), for lockstep both/slide modes", () => {
     const lockstep = {
+      moon: zeroDebugStats,
+      mymoon: zeroDebugStats,
       sun: { ...zeroDebugStats, refreshes: 5, elapsed: 100 },
       "earth-url": { ...zeroDebugStats, refreshes: 5, elapsed: 200 },
       "earth-img": zeroDebugStats,

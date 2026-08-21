@@ -112,11 +112,15 @@ exports[`cardStyles > matches snapshot 1`] = `
   .image-view.visible {
     display: block;
   }
+  /* The full-screen sky view rotates its frame into the observer's orientation, and a rotated
+     square sweeps its corners outside its own box — at thumbnail size they are black on black,
+     but here they ride up over the status bar. Clipping to the inscribed circle fixes it: the
+     disc never reaches the edge, and a circle is rotation-invariant, so nothing can escape at
+     any angle. Thumbnails get the tighter, per-source crop from discStyle() instead. */
+  .sky-rotated {
+    clip-path: circle(50%);
+  }
   .gallery {
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
     display: flex;
     align-items: flex-end;
     justify-content: flex-end;
@@ -124,8 +128,24 @@ exports[`cardStyles > matches snapshot 1`] = `
     padding: 2px;
     box-sizing: border-box;
   }
+  /* Floats over the bottom of the solar view: costs no card height, covers the outer orbits. */
+  .gallery-overlay {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+  }
+  /* A plain flex item of .solar-view-wrapper instead, so the card grows by the strip's own
+     height and nothing is hidden behind it. Only flex-shrink needs stating — everything else
+     is already the default now that .gallery itself no longer positions. */
+  .gallery-below {
+    flex-shrink: 0;
+  }
   .gallery-thumb {
-    flex: 0 0 20%;
+    /* Shares the row rather than claiming a fixed 20%: four tiles ship, and debug:true adds a
+       fifth, which at a fixed basis overflows once gaps and padding are counted. */
+    flex: 1 1 0;
+    max-width: 20%;
     position: relative;
     aspect-ratio: 1;
     padding: 0;
@@ -133,8 +153,9 @@ exports[`cardStyles > matches snapshot 1`] = `
        the moon tile's 1px border falls outside its 20% flex-basis and it renders 2px larger
        than the Earth/Sun tiles beside it. */
     box-sizing: border-box;
-    border: 1px solid var(--divider-color, color-mix(in srgb, currentColor 15%, transparent));
-    border-radius: 4px;
+    /* Explicit, not omitted: .gallery-thumb is a <button> on the fetched tiles, and dropping
+       the rule entirely hands it back the UA stylesheet's 2px outset ButtonBorder. */
+    border: 0;
     background: transparent;
     overflow: hidden;
     cursor: pointer;
@@ -148,18 +169,28 @@ exports[`cardStyles > matches snapshot 1`] = `
     object-fit: cover;
     display: block;
   }
-  /* Moon is drawn locally, not fetched — a <div> holding an <svg>, not an <img>, and with
-     no full-screen view to open it gets no pointer affordance. */
+  /* Square shape, rotating tile: the image has to be clipped to a circle or the rotation turns
+     its frame into an octagon, so the black square its neighbours get from their own frame has
+     to come from the tile instead. Sources render their body on pure black, and in square mode
+     the image is unscaled — so the clip lands at the tile edge, outside the body, and the body
+     ends up exactly the size it is on the tiles either side of it. */
+  .gallery-thumb-boxed {
+    background: #000;
+  }
+  /* The drawn disc is the one tile that is still a square plate, so it is the one tile that
+     still wants a frame. The fetched tiles are clipped to the body itself (see discStyle) and
+     a rounded-rectangle outline around a floating disc reads as a leftover box — but the
+     border cannot simply follow the clip, because .gallery-thumb also carries the caption
+     across its full width, and overflow:hidden would crop the ends off a circular one. */
   .gallery-thumb-moon {
     cursor: default;
+    border: 1px solid var(--divider-color, color-mix(in srgb, currentColor 15%, transparent));
+    border-radius: 4px;
   }
-  /* The black backdrop belongs on the disc, not the tile. The tile border is a translucent
-     15% currentColor, so it composites against whatever sits behind it: transparent on the
-     fetched tiles, where it picks up the card and reads as a visible edge. Painting the tile
-     itself black made that border 15% white over black — invisible — so the moon's dark area
-     ran the full 104px while its neighbours' stopped at 102px inside their borders, and the
-     tile looked taller than tiles that measure exactly the same. Here the black fills the
-     content box instead, the same region the img occupies. */
+  /* The black backdrop belongs on the disc, not the tile: painting .gallery-thumb-moon itself
+     black would put its 15%-currentColor border over black, where it disappears, and the
+     drawn moon would then run the full 104px while its neighbours stopped inside their own
+     edge. Filling the content box instead keeps it to the region the img occupies. */
   .moon-disc,
   .moon-disc svg {
     width: 100%;
@@ -171,14 +202,16 @@ exports[`cardStyles > matches snapshot 1`] = `
   }
   .gallery-info {
     position: absolute;
-    bottom: 1px;
-    left: 2px;
-    right: 2px;
+    /* Spans the whole tile so the two lines can take its top and bottom edges. Stacked and
+       centred rather than a single row split left/right: once the thumbnails are clipped to
+       the body, a full-width row runs off the disc at both ends, and centring on the tile
+       centres on the body too — the sources all sit their subject dead centre in frame. */
+    inset: 2px;
     display: flex;
+    flex-direction: column;
     justify-content: space-between;
-    /* Bottom-align rather than stretch: a stretched span puts its line box at the top, so
-       any disagreement about the box's height moves the text instead of staying put. */
-    align-items: flex-end;
+    align-items: center;
+    text-align: center;
     /* font-size and line-height are pinned on the container, not just the spans, because
        the tiles are built from different elements — a <div> for the moon, a <button> for the
        fetched sources — and a <button> takes its font from the UA stylesheet (13.333px)
@@ -196,7 +229,15 @@ exports[`cardStyles > matches snapshot 1`] = `
   .gallery-age {
     font: inherit;
     color: #fff;
-    text-shadow: 0 0 2px #000;
+    /* Three stacked shadows, not one. The caption used to sit entirely on the image's black
+       margin; now the thumbnails are clipped to the body itself, so its ends overhang the
+       card — white on a light theme's white. A single 2px glow was not enough contrast to
+       survive that, and the caption also has to stay readable where it crosses a sunlit limb,
+       so a solid backdrop is out: it would put a dark bar under a floating disc. */
+    text-shadow:
+      0 0 2px #000,
+      0 0 3px #000,
+      0 1px 2px #000;
     white-space: nowrap;
   }
   .nav {

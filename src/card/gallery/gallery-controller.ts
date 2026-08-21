@@ -7,15 +7,26 @@ import type { SourcedImage } from "./url-cache.js";
 
 export type ImagePanelMode = "none" | ImageSource;
 
-// Presentation only — which sources appear is `gallery.sources`, orthogonal to this. Before
-// #140 the two were one union, which needed a member per combination and could not express
-// three sources without eight names.
-export type GalleryMode = "closed" | "open" | "slide";
-export const GALLERY_MODES: GalleryMode[] = ["closed", "open", "slide"];
+// How the strip presents itself. Which sources appear is no longer configurable — all four
+// tiles always show — so this is the whole of `gallery.mode` again, as it was before #140,
+// but without that version's conflation of presentation and source selection.
+export type GalleryMode = "off" | "open" | "slide";
+export const GALLERY_MODES: GalleryMode[] = ["off", "open", "slide"];
 export const DEFAULT_GALLERY_INTERVAL_MS = 60000;
 
-// Moon costs no network and cannot fail, so it is the one source safe to show out of the box.
-export const DEFAULT_GALLERY_SOURCES: GallerySource[] = ["moon"];
+// Where the strip sits. "overlay" floats it over the bottom of the solar view, which costs no
+// card height but covers the outer orbits; "below" makes it a sibling of the view, growing the
+// card by the strip's own height instead.
+export type GalleryPosition = "overlay" | "below";
+
+// How each thumbnail is framed. "square" — the default — shows the frame as its source
+// publishes it, black margin and all; "circle" crops to the body itself so the card shows
+// through around it.
+export type GalleryShape = "circle" | "square";
+
+// What the strip shows when `gallery.sources` says nothing: every fetched source, in the
+// order card-template.ts lists them. drawnmoon is opt-in by name.
+export const DEFAULT_GALLERY_SOURCES: GallerySource[] = IMAGE_SOURCES;
 
 // Render-ready shape for card.ts's template — raw data only (dates, urls, booleans), no
 // formatting, so formatRelativeAge/date-formatting stays in card.ts alongside its other
@@ -50,7 +61,6 @@ export class GalleryController {
   private _open: boolean;
   private _images: Partial<Record<ImageSource, SourcedImage>>;
   private _mode: GalleryMode;
-  private _sources: GallerySource[];
   private _autoIntervalMs: number;
   private _slideIndex: number;
   private _autoSwitchTimer: number | null;
@@ -58,27 +68,33 @@ export class GalleryController {
   private _debug: Record<DebugRowId, DebugAccumulator>;
   private _debugStartedAt: number;
   private _resolver: ImageResolver;
+  private _sources: GallerySource[];
 
-  constructor(onChange: () => void) {
+  // getTimezone is a function, not a value: the observer's zone is derived from HA state and
+  // a config override that can both change after construction, and the sky tile's reference
+  // instant has to follow. Same reason _locationData is a getter on the card.
+  constructor(onChange: () => void, getTimezone: () => string) {
     this._panelMode = "none";
     this._imageUrl = null;
     this._imageDate = null;
     this._imageLoaded = false;
     this._error = null;
     this._open = false;
-    this._mode = "closed";
+    this._mode = "off";
     this._sources = DEFAULT_GALLERY_SOURCES;
     this._autoIntervalMs = DEFAULT_GALLERY_INTERVAL_MS;
     this._slideIndex = 0;
     this._autoSwitchTimer = null;
     this._onChange = onChange;
     this._debug = {
+      mymoon: emptyDebugAccumulator(),
+      moon: emptyDebugAccumulator(),
       sun: emptyDebugAccumulator(),
       "earth-url": emptyDebugAccumulator(),
       "earth-img": emptyDebugAccumulator(),
     };
     this._debugStartedAt = Date.now();
-    this._resolver = new ImageResolver();
+    this._resolver = new ImageResolver(getTimezone);
     // Recovers each source's still-fresh cache into this instance's own known-URL
     // state — without this, a remount (this._images always starts empty) would otherwise
     // force a redundant preload of bytes the module cache already confirmed are current.
@@ -106,14 +122,13 @@ export class GalleryController {
   get mode(): GalleryMode {
     return this._mode;
   }
-  get sources(): GallerySource[] {
-    return this._sources;
-  }
   get images(): Partial<Record<ImageSource, SourcedImage>> {
     return this._images;
   }
   get debugStats(): Record<DebugRowId, SourceDebugStats> {
     return {
+      mymoon: toDebugStats(this._debug.mymoon),
+      moon: toDebugStats(this._debug.moon),
       sun: toDebugStats(this._debug.sun),
       "earth-url": toDebugStats(this._debug["earth-url"]),
       "earth-img": toDebugStats(this._debug["earth-img"]),
@@ -135,7 +150,7 @@ export class GalleryController {
       imageLoaded: this._imageLoaded,
       showStrip: this._open && this._panelMode === "none",
       thumbnails: this.displaySources.map((source) => {
-        const image = source === "moon" ? undefined : this._images[source];
+        const image = source === "drawnmoon" ? undefined : this._images[source];
         return { source, url: image?.url ?? null, date: image?.date ?? null };
       }),
       debugStats: this.debugStats,
@@ -143,23 +158,23 @@ export class GalleryController {
     };
   }
 
-  // The network-backed subset of the configured sources — "slide" still fetches all of them
-  // even though only one is displayed at a time, so rotating onto a source never shows a
-  // stale/missing thumbnail. Moon is filtered out because it is drawn locally: it has no URL
-  // to resolve, no cache to consult, and no failure mode to back off from.
+  // The network-backed subset of the configured list — "slide" still fetches all of them even
+  // though only one shows at a time, so rotating onto a source never reveals a stale or empty
+  // thumbnail. drawnmoon is filtered out: it is computed locally, so it has no URL to
+  // resolve, no cache to consult and no failure to back off from.
   private get _fetchSources(): ImageSource[] {
-    return this._sources.filter((s): s is ImageSource => s !== "moon");
+    return this._sources.filter((s): s is ImageSource => s !== "drawnmoon");
   }
 
-  // Applies config.gallery: mode + auto-switch interval, and whether the strip starts open
-  // (matches setConfig's previous behavior of resetting _galleryOpen from mode every call).
-  // Restarts the auto-switch timer if one is already running, same as the old
-  // `if (this._autoSwitchTimer != null) this._startAutoSwitchTimer()` in setConfig.
+  // Applies config.gallery: mode + auto-switch interval, and whether the strip starts open (matches setConfig's previous behavior of
+  // resetting _galleryOpen from mode every call). Restarts the auto-switch timer if one is
+  // already running, same as the old `if (this._autoSwitchTimer != null)
+  // this._startAutoSwitchTimer()` in setConfig.
   configure(mode: GalleryMode, sources: GallerySource[], autoIntervalMs: number): void {
     this._mode = mode;
     this._sources = sources;
     this._autoIntervalMs = autoIntervalMs;
-    this._open = mode !== "closed";
+    this._open = mode !== "off";
     // A shorter list would otherwise leave the rotation pointing past its end, so
     // displaySources would read undefined until the next tick wrapped it.
     if (this._slideIndex >= sources.length) this._slideIndex = 0;
@@ -271,11 +286,9 @@ export class GalleryController {
     }, this._autoIntervalMs) as unknown as number;
   }
 
-  // Advances the "slide" rotation one step through the configured list, wrapping at the end.
-  // An index into gallery.sources rather than a hardcoded earth/sun flip, so the rotation
-  // follows whatever the user listed — moon included — in the order they listed it. The
-  // reused <img> may show the previous bitmap for a frame while the new one decodes —
-  // cosmetic, not worth a pre-decode step.
+  // Advances the "slide" rotation one step through the strip, wrapping at the end. The reused
+  // <img> may show the previous bitmap for a frame while the new one decodes — cosmetic, not
+  // worth a pre-decode step.
   private _advanceSlide(): void {
     this._slideIndex = (this._slideIndex + 1) % this._sources.length;
     this._onChange();

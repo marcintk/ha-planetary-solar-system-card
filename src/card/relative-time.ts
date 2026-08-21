@@ -5,6 +5,24 @@ export function formatRelativeAge(date: Date, now: Date): string {
   return `${Math.floor(diffMin / 60)}h ago`;
 }
 
+/**
+ * The same phrasing as formatRelativeAge, but for an instant that may be in either direction.
+ *
+ * Earth and Sun tiles only ever show images already captured, so "ago" is the only tense they
+ * need. The sky Moon tile points at 22:00 local, which is ahead of the user for most of the
+ * day and behind them between 22:00 and midnight — one caption that flips tense on its own,
+ * rather than two captions and a rule for choosing between them.
+ */
+export function formatRelativeWhen(date: Date, now: Date): string {
+  // Floored, not rounded, so the sub-minute window either side of the instant reads "just
+  // now" the same way it does on its way past — rounding would tick over to "in 1m" while the
+  // moment is still half a minute away.
+  const diffMin = Math.floor((date.getTime() - now.getTime()) / 60000);
+  if (diffMin <= 0) return formatRelativeAge(date, now);
+  if (diffMin < 60) return `in ${diffMin}m`;
+  return `in ${Math.floor(diffMin / 60)}h`;
+}
+
 // Same floor-to-minutes/floor-to-hours bucketing as formatRelativeAge, just phrased for a
 // duration-since-mount instead of an age-of-a-timestamp, so "running for" reads naturally.
 export function formatDuration(ms: number): string {

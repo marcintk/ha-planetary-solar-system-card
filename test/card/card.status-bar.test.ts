@@ -158,14 +158,16 @@ describe("SolarViewCard status bar", () => {
       card.remove();
     });
 
-    it("shows sun/earth rows with cumulative stats when debug is true", async () => {
+    it("shows a row per source with cumulative stats when debug is true", async () => {
       const card = createAndMount({ debug: true, gallery: { mode: "both" } });
       await vi.waitFor(() => expect(card._gallery.debugStats.sun.elapsed).not.toBeNull());
       card._render();
       const overlay = card.shadowRoot.querySelector(".debug-overlay");
       const rowText = [...overlay.querySelectorAll("tr")].map((tr) => tr.textContent);
-      expect(rowText[1]).toContain("SDO/S");
-      expect(rowText[2]).toContain("DSCOVR/E");
+      expect(rowText[1]).toContain("SVS/M sky");
+      expect(rowText[2]).toContain("SVS/M obj");
+      expect(rowText[3]).toContain("SDO/S");
+      expect(rowText[4]).toContain("DSCOVR/E");
       expect(overlay.textContent).toContain("source");
       expect(overlay.textContent).toContain("refresh");
       expect(overlay.textContent).toContain("fetch");

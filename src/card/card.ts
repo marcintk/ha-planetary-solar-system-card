@@ -1,22 +1,32 @@
+import type { TemplateResult } from "lit";
 import { html, LitElement, nothing } from "lit";
 import { getMoonPhase } from "../astronomy/moon-phase.js";
+import { getMoonSkyAngles } from "../astronomy/parallactic.js";
+import { getLocalHourInstant } from "../astronomy/solar-position.js";
 import { renderMoonPhaseDisc } from "../renderer/moon-phase.js";
 import type { CardConfig, Colors, HASSConfig, Hemisphere, LocationData } from "../types.js";
 import { parseCardConfig } from "./card-config.js";
 import { cardStyles } from "./card-styles.js";
-import type { ImageSource } from "./card-template.js";
+import type { GallerySource, ImageSource } from "./card-template.js";
 import {
   buildGalleryCaption,
   buildMoonTitle,
   buildStatusBarView,
+  discStyle,
   formatDate,
   GALLERY_SOURCE_LABELS,
 } from "./card-template.js";
 import { DateNavigation } from "./date-navigation.js";
 import { buildDebugOverlay } from "./gallery/debug.js";
-import type { GalleryMode } from "./gallery/gallery-controller.js";
+import type {
+  GalleryMode,
+  GalleryPosition,
+  GalleryShape,
+  ImagePanelMode,
+} from "./gallery/gallery-controller.js";
 import { GalleryController } from "./gallery/gallery-controller.js";
-import { formatRelativeAge } from "./relative-time.js";
+import { fullSizeMoonUrl, SKY_REFERENCE_HOUR } from "./gallery/source-resolver-svs-moon.js";
+import { formatRelativeWhen } from "./relative-time.js";
 import { SolarView } from "./solar-view.js";
 import { resolveTheme, THEME_OVERRIDE_VARS } from "./theme.js";
 import { ZoomController } from "./zoom-controller.js";
@@ -61,6 +71,8 @@ export class SolarViewCard extends LitElement {
   private _locationNameOverride: string | null;
   private _autoUpdateTimer: number | null;
   private _debugTimer: number | null;
+  private _galleryPosition: GalleryPosition;
+  private _galleryShape: GalleryShape;
   private _colors: Colors;
   private _refreshMs: number;
   private _eclipticView: boolean;
@@ -84,6 +96,8 @@ export class SolarViewCard extends LitElement {
     this._locationNameOverride = null;
     this._autoUpdateTimer = null;
     this._debugTimer = null;
+    this._galleryPosition = "overlay";
+    this._galleryShape = "square";
     this._colors = {};
     this._refreshMs = 60000;
     this._eclipticView = false;
@@ -91,7 +105,10 @@ export class SolarViewCard extends LitElement {
     this._heightStyle = "";
     this._solarView = new SolarView(this._zoom);
     this._onVisibilityChange = null;
-    this._gallery = new GalleryController(() => this._render());
+    this._gallery = new GalleryController(
+      () => this._render(),
+      () => this._locationData?.timezone ?? "UTC"
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -150,6 +167,8 @@ export class SolarViewCard extends LitElement {
     this._locationOverride = parsed.locationOverride;
     this._locationNameOverride = parsed.locationNameOverride;
     this._heightStyle = parsed.heightStyle;
+    this._galleryPosition = parsed.galleryPosition;
+    this._galleryShape = parsed.galleryShape;
     this._gallery.configure(parsed.galleryMode, parsed.gallerySources, parsed.galleryIntervalMs);
 
     if (this._autoUpdateTimer != null) {
@@ -219,9 +238,11 @@ export class SolarViewCard extends LitElement {
           ></div>
           <img
             id="image-view"
-            class="image-view ${gallery.panelSource === "none" ? "" : "visible"}"
-            style=${this._heightStyle || nothing}
-            src=${gallery.imageUrl ?? nothing}
+            class="image-view ${gallery.panelSource === "none" ? "" : "visible"} ${
+              gallery.panelSource === "mymoon" ? "sky-rotated" : ""
+            }"
+            style=${this._panelStyle(gallery.panelSource)}
+            src=${gallery.imageUrl ? fullSizeMoonUrl(gallery.imageUrl) : nothing}
             alt=""
             @click=${this._onImageClick}
             @load=${this._onImageLoad}
@@ -229,43 +250,9 @@ export class SolarViewCard extends LitElement {
           />
           ${
             gallery.showStrip
-              ? html`<div class="gallery">
+              ? html`<div class="gallery gallery-${this._galleryPosition}">
                   ${gallery.thumbnails.map(({ source, url, date }) =>
-                    // Moon is a <div>, not a <button>: it is drawn locally and has no
-                    // full-screen view to open, so making it look clickable would promise
-                    // something no click can deliver. Its SVG is mounted imperatively in
-                    // updated() — same split as #solar-view.
-                    source === "moon"
-                      ? html`<div
-                          class="gallery-thumb gallery-thumb-moon"
-                          data-source="moon"
-                          title=${buildMoonTitle(
-                            this._dateNav.currentDate,
-                            this._dateNav.isLiveMode
-                          )}
-                        >
-                          <div class="moon-disc"></div>
-                          ${buildGalleryCaption(
-                            GALLERY_SOURCE_LABELS.moon,
-                            getMoonPhase(this._dateNav.currentDate).phaseName
-                          )}
-                        </div>`
-                      : html`<button
-                          class="gallery-thumb"
-                          data-source=${source}
-                          title=${`Show ${GALLERY_SOURCE_LABELS[source]}`}
-                          @click=${this._onGalleryClick}
-                        >
-                          <img
-                            src=${url ?? nothing}
-                            alt=""
-                            @error=${source === "sun" ? this._onSunThumbError : undefined}
-                          />
-                          ${buildGalleryCaption(
-                            GALLERY_SOURCE_LABELS[source],
-                            date ? formatRelativeAge(date, new Date()) : "loading…"
-                          )}
-                        </button>`
+                    this._renderGalleryTile(source, url, date)
                   )}
                 </div>`
               : nothing
@@ -330,6 +317,96 @@ export class SolarViewCard extends LitElement {
         this.style.setProperty(varName, theme.vars[varName]);
       }
     }
+  }
+
+  /**
+   * One gallery tile. Every source is a fetched NASA image now, so there is one shape rather
+   * than a moon branch and an everything-else branch.
+   *
+   * The sky tile is the only one that differs, and only by two things: it is rotated into the
+   * observer's own orientation, and its caption points at 22:00 rather than at the past. Both
+   * come from the same hour-angle calculation, so both are computed here in one call.
+   */
+  private _renderGalleryTile(
+    source: GallerySource,
+    url: string | null,
+    date: Date | null
+  ): TemplateResult {
+    // The locally drawn disc is the one tile with nothing behind it to fetch: a <div>, not a
+    // <button>, because it has no full-screen view and looking clickable would promise
+    // something no click can deliver. Its SVG is mounted imperatively in updated().
+    if (source === "drawnmoon") {
+      return html`<div
+        class="gallery-thumb gallery-thumb-moon"
+        data-source="drawnmoon"
+        title=${buildMoonTitle(this._dateNav.currentDate, this._dateNav.isLiveMode)}
+      >
+        <div class="moon-disc"></div>
+        ${buildGalleryCaption(
+          GALLERY_SOURCE_LABELS.drawnmoon,
+          getMoonPhase(this._dateNav.currentDate).phaseName
+        )}
+      </div>`;
+    }
+    const sky = source === "mymoon" ? this._skyView() : null;
+    // Only the rotating tile in square shape needs a backdrop of its own — see the
+    // .gallery-thumb-boxed comment for why its frame cannot survive the rotation.
+    const boxed = sky && this._galleryShape === "square" ? " gallery-thumb-boxed" : "";
+    return html`<button
+      class="gallery-thumb${boxed}"
+      data-source=${source}
+      title=${`Show ${GALLERY_SOURCE_LABELS[source]}`}
+      @click=${this._onGalleryClick}
+    >
+      <img
+        src=${url ?? nothing}
+        alt=""
+        style=${discStyle(source, this._galleryShape, sky ? sky.rotation : 0) || nothing}
+        @error=${source === "sun" ? this._onSunThumbError : undefined}
+      />
+      ${buildGalleryCaption(
+        GALLERY_SOURCE_LABELS[source],
+        sky ? sky.caption : date ? formatRelativeWhen(date, new Date()) : "loading…"
+      )}
+    </button>`;
+  }
+
+  /**
+   * The full-screen image's inline style: the configured height cap, plus the sky tile's own
+   * rotation so the panel shows what the thumbnail showed rather than snapping back to the
+   * geocentric frame the moment it is opened.
+   */
+  private _panelStyle(panelSource: ImagePanelMode): string | typeof nothing {
+    const parts = [this._heightStyle];
+    if (panelSource === "mymoon") {
+      parts.push(`transform: rotate(${this._skyView().rotation.toFixed(1)}deg)`);
+    }
+    return parts.filter(Boolean).join("; ") || nothing;
+  }
+
+  /**
+   * How the Moon will hang at 22:00 local, and what to say about it.
+   *
+   * Returns null-safe defaults when no location is known yet: an unrotated frame is the
+   * geocentric one, which is the honest thing to show when there is no observer to rotate for.
+   *
+   * "Below horizon" is not a failure and not a dark Moon — the frame still shows a normally
+   * lit gibbous or crescent. It means the Earth is in the way from here, which happens on
+   * roughly half of all nights at every latitude, so saying so is the difference between a
+   * tile that answers "should I go outside" and one that quietly implies yes.
+   */
+  private _skyView(): { rotation: number; caption: string } {
+    const location = this._locationData;
+    const now = new Date();
+    const reference = getLocalHourInstant(now, location?.timezone ?? "UTC", SKY_REFERENCE_HOUR);
+    const when = formatRelativeWhen(reference, now);
+    if (!location) return { rotation: 0, caption: when };
+
+    const { parallacticDeg, altitudeDeg } = getMoonSkyAngles(reference, location.lat, location.lon);
+    return {
+      rotation: parallacticDeg,
+      caption: altitudeDeg > 0 ? when : "below horizon",
+    };
   }
 
   // The moon disc is raw SVG DOM, not a Lit template — same imperative split as #solar-view

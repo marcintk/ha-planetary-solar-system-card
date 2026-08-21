@@ -59,7 +59,11 @@ export class ZoomController {
   get isDefaultView(): boolean {
     const viewState = this._viewState;
     if (!viewState) return true;
-    return viewState.zoomLevel === this._defaultZoomLevel && viewState.isCentered;
+    if (!viewState.isCentered) return false;
+    // The auto-cycle owns the zoom while it runs: it walking off default_zoom is the default
+    // view doing its thing, not the user leaving it, so Home has nothing to offer yet.
+    if (this._periodicZoomChange && !this._userInteracted) return true;
+    return viewState.zoomLevel === this._defaultZoomLevel;
   }
   get periodicZoomChange(): boolean {
     return this._periodicZoomChange;

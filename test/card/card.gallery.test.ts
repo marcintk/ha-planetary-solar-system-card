@@ -63,6 +63,17 @@ describe("SolarViewCard gallery", () => {
       card.remove();
     });
 
+    it("gives the moon tile a tooltip, like the NASA tiles have", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2024-01-25T18:00:00Z")); // Full Moon
+      const card = createAndMount({ gallery: { mode: "open", sources: ["moon"] } });
+      expect(card.shadowRoot.querySelector('[data-source="moon"]').getAttribute("title")).toBe(
+        "Tonight's Moon — Full Moon, 100% illuminated"
+      );
+      card.remove();
+      vi.useRealTimers();
+    });
+
     it("the moon tile is not clickable — there is no full-screen moon", () => {
       const card = createAndMount({ gallery: { mode: "open", sources: ["moon"] } });
       const tile = card.shadowRoot.querySelector('[data-source="moon"]');
@@ -70,15 +81,30 @@ describe("SolarViewCard gallery", () => {
       card.remove();
     });
 
-    it("captions the moon tile with the phase name for the displayed date", () => {
+    it("captions the moon tile with MOON and the phase for the displayed date", () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date("2024-01-25T18:00:00Z")); // Full Moon
       const card = createAndMount({ gallery: { mode: "open", sources: ["moon"] } });
-      expect(card.shadowRoot.querySelector('[data-source="moon"]').textContent).toContain(
-        "Full Moon"
-      );
+      const info = card.shadowRoot.querySelector('[data-source="moon"] .gallery-info');
+      expect(info.querySelector(".gallery-label").textContent).toBe("MOON");
+      expect(info.querySelector(".gallery-age").textContent).toBe("Full Moon");
       card.remove();
       vi.useRealTimers();
+    });
+
+    // The caption is what makes the tiles read as one strip. Comparing the shapes rather
+    // than eyeballing each one means a future divergence fails here instead of shipping.
+    it("gives every tile the same caption structure", () => {
+      const card = createAndMount({
+        gallery: { mode: "open", sources: ["moon", "earth", "sun"] },
+      });
+      const shapes = [...card.shadowRoot.querySelectorAll(".gallery-info")].map((info) =>
+        [...info.children].map((el) => `${el.tagName}.${el.className}`)
+      );
+      expect(shapes).toHaveLength(3);
+      expect(new Set(shapes.map((s) => s.join(","))).size).toBe(1);
+      expect(shapes[0]).toEqual(["SPAN.gallery-label", "SPAN.gallery-age"]);
+      card.remove();
     });
 
     it("renders tiles in the configured sources order", () => {

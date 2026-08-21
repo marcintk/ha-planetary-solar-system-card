@@ -3,7 +3,7 @@ import { clickButton, createAndMount, setupCardTest } from "./helpers.js";
 
 setupCardTest();
 
-// Moving the displayed date by hand: hour/day/month steps, the 6h replay, button labels, and
+// Moving the displayed date by hand: hour/day/month steps, the scaled replay, button labels, and
 // the rendered date readout. The date following now on its own lives in card.auto-cycle.test.ts.
 describe("SolarViewCard date navigation", () => {
   describe("day navigation", () => {
@@ -81,7 +81,7 @@ describe("SolarViewCard date navigation", () => {
     });
   });
 
-  describe("replay 6h", () => {
+  describe("replay", () => {
     afterEach(() => {
       vi.useRealTimers();
     });
@@ -96,6 +96,20 @@ describe("SolarViewCard date navigation", () => {
       "month-forward",
     ];
 
+    it("replay button title follows the last navigation unit", () => {
+      const card = createAndMount();
+      const title = () =>
+        card.shadowRoot.querySelector('button[data-action="replay"]').getAttribute("title");
+      expect(title()).toBe("Replay last 12h");
+      clickButton(card, "day-back");
+      expect(title()).toBe("Replay last 36d");
+      clickButton(card, "month-forward");
+      expect(title()).toBe("Replay last 6mo");
+      clickButton(card, "today");
+      expect(title()).toBe("Replay last 12h");
+      card.remove();
+    });
+
     it("replay button uses a circular arrow glyph", () => {
       const card = createAndMount();
       const btn = card.shadowRoot.querySelector('button[data-action="replay"]');
@@ -103,24 +117,24 @@ describe("SolarViewCard date navigation", () => {
       card.remove();
     });
 
-    it("clicking replay jumps to 6h before now and exits live mode", () => {
+    it("clicking replay jumps to 12h before now and exits live mode", () => {
       vi.useFakeTimers({ now: new Date("2026-02-15T12:00:00Z") });
       const card = createAndMount();
       clickButton(card, "replay");
       expect(card._dateNav.currentDate.toISOString()).toBe(
-        new Date("2026-02-15T06:00:00Z").toISOString()
+        new Date("2026-02-15T00:00:00Z").toISOString()
       );
       expect(card._dateNav.isLiveMode).toBe(false);
       card.remove();
     });
 
-    it("steps forward in 10-minute increments", () => {
+    it("steps forward in 20-minute increments", () => {
       vi.useFakeTimers({ now: new Date("2026-02-15T12:00:00Z") });
       const card = createAndMount();
       clickButton(card, "replay");
       vi.advanceTimersByTime(138); // one interval tick
       expect(card._dateNav.currentDate.toISOString()).toBe(
-        new Date("2026-02-15T06:10:00Z").toISOString()
+        new Date("2026-02-15T00:20:00Z").toISOString()
       );
       card.remove();
     });
@@ -158,7 +172,7 @@ describe("SolarViewCard date navigation", () => {
       card.remove();
     });
 
-    it("replays the 6h ending at the currently displayed date, not real now", () => {
+    it("replays the window ending at the currently displayed date, not real now", () => {
       // Real "now" is Feb 15, but the user has navigated to a past date and paused there.
       vi.useFakeTimers({ now: new Date("2026-02-15T12:00:00Z") });
       const card = createAndMount();
@@ -168,7 +182,7 @@ describe("SolarViewCard date navigation", () => {
 
       clickButton(card, "replay");
       expect(card._dateNav.currentDate.toISOString()).toBe(
-        new Date("2026-01-01T00:00:00Z").toISOString()
+        new Date("2025-12-31T18:00:00Z").toISOString()
       );
 
       vi.advanceTimersByTime(138 * 36);

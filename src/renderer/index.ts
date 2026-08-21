@@ -148,7 +148,9 @@ export function renderSolarSystem(
   positions.push({ name: MOON.name, x: moonX, y: moonY, color: MOON.color, offscreen: false });
   planetLabels.push({ name: MOON.name, x: moonX, y: moonY, radius: MOON.size });
 
-  // Moon orbit (dotted circle centered on Earth)
+  // Moon orbit (dashed circle centered on Earth). Same stroke weight and dash pattern as
+  // every other orbit (renderOrbit in bodies.ts) — at half a pixel it read as a fainter ring
+  // than its neighbours even though the colour was already identical.
   svg.appendChild(
     createSvgElement("circle", {
       cx: earthX,
@@ -156,8 +158,8 @@ export function renderSolarSystem(
       r: MOON_PIXEL_OFFSET,
       fill: "none",
       style: `stroke: ${ORBIT_COLOR}`,
-      "stroke-width": 0.5,
-      "stroke-dasharray": "2, 3",
+      "stroke-width": 1,
+      "stroke-dasharray": "5, 5",
     })
   );
 

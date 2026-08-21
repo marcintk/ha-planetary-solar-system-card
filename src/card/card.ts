@@ -280,7 +280,7 @@ export class SolarViewCard extends LitElement {
             <button data-action="hour-forward" title="Forward 1 hour" ?disabled=${this._dateNav.isReplaying} @click=${this._onNavClick}>&gt;</button>
             <button data-action="day-forward" title="Forward 1 day" ?disabled=${this._dateNav.isReplaying} @click=${this._onNavClick}>≫</button>
             <button data-action="month-forward" title="Forward 1 month" ?disabled=${this._dateNav.isReplaying} @click=${this._onNavClick}>⋙</button>
-            <button data-action="replay" title="Replay last 6h" @click=${this._onNavClick}>↺</button>
+            <button data-action="replay" title="Replay last ${this._dateNav.replayLabel}" @click=${this._onNavClick}>↺</button>
           </span>
           <span class="nav-spacer"></span>
           <span class="date">${formatDate(this._dateNav.currentDate)}</span>
@@ -378,10 +378,6 @@ export class SolarViewCard extends LitElement {
     this._debugTimer = setInterval(() => this._render(), 1000) as unknown as number;
   }
 
-  private _navigate(deltaMs: number): void {
-    this._dateNav.navigate(deltaMs);
-  }
-
   private _goToday(): void {
     // "Home" means one thing: default_zoom + centred pan + live date. Both view resets run
     // before goLive() so its render picks up the restored viewState.
@@ -412,19 +408,19 @@ export class SolarViewCard extends LitElement {
         this._dateNav.navigateMonths(-1);
         break;
       case "day-back":
-        this._navigate(-86400000);
+        this._dateNav.navigate(-86400000, "day");
         break;
       case "hour-back":
-        this._navigate(-3600000);
+        this._dateNav.navigate(-3600000, "hour");
         break;
       case "today":
         this._goToday();
         break;
       case "hour-forward":
-        this._navigate(3600000);
+        this._dateNav.navigate(3600000, "hour");
         break;
       case "day-forward":
-        this._navigate(86400000);
+        this._dateNav.navigate(86400000, "day");
         break;
       case "month-forward":
         this._dateNav.navigateMonths(1);

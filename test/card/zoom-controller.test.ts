@@ -342,3 +342,43 @@ describe("ZoomController.isDefaultView", () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 });
+
+describe("ZoomController.isDefaultView with the auto-cycle running", () => {
+  it("stays true while the periodic cycle moves the zoom on its own", () => {
+    const zoom = new ZoomController(
+      () => {},
+      () => {}
+    );
+    zoom.configure(1, true, 4, false);
+    zoom.ensureInitialized();
+
+    zoom.tick();
+    expect(zoom.zoomLevel).toBe(2); // the cycle moved the camera
+    expect(zoom.isDefaultView).toBe(true); // ...but the user did not
+  });
+
+  it("still goes false once the user takes over, cycle or no cycle", () => {
+    const zoom = new ZoomController(
+      () => {},
+      () => {}
+    );
+    zoom.configure(1, true, 4, false);
+    zoom.ensureInitialized();
+
+    zoom.zoomIn();
+    expect(zoom.isDefaultView).toBe(false);
+  });
+
+  it("goes false when a suspended cycle leaves the zoom off default", () => {
+    const zoom = new ZoomController(
+      () => {},
+      () => {}
+    );
+    zoom.configure(1, true, 4, false);
+    zoom.ensureInitialized();
+
+    zoom.tick();
+    zoom.suspendAutoCycle(); // date navigation
+    expect(zoom.isDefaultView).toBe(false);
+  });
+});

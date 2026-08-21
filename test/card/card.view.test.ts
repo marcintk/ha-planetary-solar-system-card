@@ -306,7 +306,7 @@ describe("SolarViewCard view", () => {
       card.remove();
     });
 
-    it("highlights while the periodic auto-cycle has moved the zoom off default", () => {
+    it("stays clear while the periodic auto-cycle moves the zoom off default", () => {
       vi.useFakeTimers();
       const card = document.createElement("ha-planetary-solar-system-card-test");
       card.setConfig({ periodic_zoom_change: true });
@@ -314,6 +314,11 @@ describe("SolarViewCard view", () => {
       expect(nowBtn(card).classList.contains("active")).toBe(false);
 
       vi.advanceTimersByTime(60000);
+      // The cycle drives the zoom itself — nothing for Home to undo, so no highlight.
+      expect(nowBtn(card).classList.contains("active")).toBe(false);
+
+      // A real gesture still lights it, cycle or no cycle.
+      clickButton(card, "zoom-in");
       expect(nowBtn(card).classList.contains("active")).toBe(true);
       card.remove();
     });

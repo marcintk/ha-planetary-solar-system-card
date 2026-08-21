@@ -29,6 +29,30 @@ function stubImageDecode(...results: boolean[]) {
   return state;
 }
 
+// Models the real browse archive rather than a fixed pass/fail sequence: a slot loads if and
+// only if NASA had actually published it. Needed for the stall fixture below, where "which
+// URLs exist" is the whole point and the resolver's request order is what's under test.
+function stubArchivePublishedUpTo(newestSlotIso: string) {
+  const newest = Date.parse(newestSlotIso);
+  const state = { calls: 0, requested: [] as string[] };
+  vi.stubGlobal(
+    "Image",
+    class {
+      src = "";
+      decode() {
+        state.calls++;
+        state.requested.push(this.src);
+        const match = /\/(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})_/.exec(this.src);
+        if (!match) return Promise.reject(new Error("unparseable slot URL"));
+        const [, y, mo, d, h, mi, sec] = match.map(Number);
+        const slot = Date.UTC(y, mo - 1, d, h, mi, sec);
+        return slot <= newest ? Promise.resolve() : Promise.reject(new Error("404"));
+      }
+    }
+  );
+  return state;
+}
+
 describe("source-resolver-sdo-sun", () => {
   // Each test gets its own UrlCache — SdoSunResolver/getSunImageUrl accept one explicitly, so
   // nothing here shares state with the module-level default (which production relies on for
@@ -339,6 +363,45 @@ describe("source-resolver-sdo-sun", () => {
       // 225 (the probe) then 240 (the restore, which is already the ceiling) — the doubling
       // rungs are all past the ceiling, and the ceiling itself is not appended a second time.
       expect(decode.calls).toBe(2);
+    });
+  });
+
+  // Captured live from sdo.gsfc.nasa.gov on 2026-08-21 at 20:37 UTC, while SDO's browse
+  // pipeline was stalled (the same outage #148 reported that morning, still running eight
+  // hours later). Verified against the real archive at that instant:
+  //
+  //   2026/08/20/  96 of 96 slots present — a normal day
+  //   2026/08/21/  51 of 96 slots present, newest 12:30:00, published 13:00:05 (a clean +30)
+  //   20260821_123000_1024_HMIIC.jpg  ->  HTTP 200
+  //   20260821_163000, _183000, _193000, _200000  ->  HTTP 404
+  //
+  // So the newest frame in existence was 487 minutes old, and the card must reach that far
+  // back or show an empty tile to anyone whose card starts cold during the stall.
+  describe("2026-08-21 SDO stall", () => {
+    const NOW = Date.parse("2026-08-21T20:37:00.000Z");
+    const NEWEST_PUBLISHED = "2026-08-21T12:30:00.000Z";
+
+    it("finds the newest frame that actually exists, 487 minutes back", async () => {
+      vi.spyOn(Date, "now").mockReturnValue(NOW);
+      stubArchivePublishedUpTo(NEWEST_PUBLISHED);
+
+      const debug = emptyDebugAccumulator();
+      const image = await new SdoSunResolver(cache).resolve(debug, debug);
+
+      expect(image.date.toISOString()).toBe(NEWEST_PUBLISHED);
+    });
+
+    it("crosses the UTC day boundary correctly when reaching back that far", async () => {
+      // A frame this old can sit in the previous day's directory, and the path is built from
+      // the slot's own date — so a deep reach must not keep asking today's folder.
+      vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-08-22T02:00:00.000Z"));
+      stubArchivePublishedUpTo(NEWEST_PUBLISHED);
+
+      const debug = emptyDebugAccumulator();
+      const image = await new SdoSunResolver(cache).resolve(debug, debug);
+
+      expect(image.date.toISOString()).toBe(NEWEST_PUBLISHED);
+      expect(image.url).toContain("/2026/08/21/20260821_123000_");
     });
   });
 

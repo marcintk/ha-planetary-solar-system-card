@@ -534,11 +534,12 @@ describe("renderSolarSystem", () => {
     renderInto(container, date);
 
     const svg = container.querySelector("svg");
-    // Moon orbit: dashed circle with finer dash pattern than planet orbits
-    const moonOrbit = svg.querySelector('circle[stroke-dasharray="2, 3"]');
+    // Moon orbit: dashed circle drawn with the same stroke weight and dash pattern as
+    // every other orbit (bodies.ts renderOrbit), so it does not read as a fainter ring.
+    const moonOrbit = svg.querySelector('circle[stroke-dasharray="5, 5"]');
     expect(moonOrbit).not.toBeNull();
     expect(moonOrbit.getAttribute("r")).toBe("22");
-    expect(moonOrbit.getAttribute("stroke-width")).toBe("0.5");
+    expect(moonOrbit.getAttribute("stroke-width")).toBe("1");
     expect(moonOrbit.getAttribute("style")).toContain("color-mix(in srgb, currentColor 12%");
     expect(moonOrbit.getAttribute("fill")).toBe("none");
 
@@ -559,8 +560,8 @@ describe("renderSolarSystem", () => {
     const svg = container.querySelector("svg");
     const allElements = Array.from(svg.children);
 
-    // Moon orbit: the dashed circle with "2, 3" pattern
-    const moonOrbit = svg.querySelector('circle[stroke-dasharray="2, 3"]');
+    // Moon orbit: the dashed circle, sharing the standard "5, 5" orbit pattern
+    const moonOrbit = svg.querySelector('circle[stroke-dasharray="5, 5"]');
     expect(moonOrbit).not.toBeNull();
 
     // Moon body: grey circle (#cccccc)

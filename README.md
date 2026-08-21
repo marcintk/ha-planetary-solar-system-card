@@ -77,6 +77,29 @@ the standard astronomical twilight definitions:
 | Astronomical twilight | -12° to -18°  | Sky background glow, faint stars washed out                      |
 | Night                 | < -18°        | Full dark; the Sun no longer lights the sky                      |
 
+## Replay
+
+The **↺** button animates the recent past, always in 36 frames over roughly five seconds, ending on
+the date you were already viewing. How far back it reaches follows the last time step you took, so
+the animation matches the scale you were browsing:
+
+| Last navigation     | Replay covers        | Each frame advances |
+| ------------------- | -------------------- | ------------------- |
+| hour steps, or none | last 12 hours        | 20 minutes          |
+| day steps           | last 36 days         | 1 day               |
+| month steps         | last 180 days (~6mo) | 5 days              |
+
+The button title shows the active window (`Replay last 12h` / `36d` / `6mo`), and the **today**
+button resets it back to hours.
+
+Day and month replays advance in whole days on purpose. The observer needle and visibility cone
+track Earth's daily rotation, so a step that isn't a whole number of days would land each frame at a
+different local time and spin the cone instead of showing orbital motion. Whole-day steps hold your
+local time of day fixed, leaving only the planets moving.
+
+Pressing **↺** again mid-animation stops on the frame you're viewing rather than jumping back; the
+**today** button lights up to show the date is no longer live.
+
 ## Live Imagery
 
 A thumbnail strip beside the solar view. ☷ toggles it; clicking a NASA thumbnail opens it

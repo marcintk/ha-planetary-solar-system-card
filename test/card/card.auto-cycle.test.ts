@@ -129,7 +129,7 @@ describe("SolarViewCard auto_cycle", () => {
       vi.useFakeTimers({ now: new Date("2026-02-15T10:00:00") });
       const card = document.createElement("ha-planetary-solar-system-card-test");
       document.body.appendChild(card);
-      card._navigate(-45 * 86400000); // user went to a past date
+      card._dateNav.navigate(-45 * 86400000, "day"); // user went to a past date
       vi.setSystemTime(new Date("2026-02-15T10:45:00"));
       Object.defineProperty(document, "hidden", { value: false, configurable: true });
       document.dispatchEvent(new Event("visibilitychange"));
@@ -162,7 +162,7 @@ describe("SolarViewCard auto_cycle", () => {
       const card = document.createElement("ha-planetary-solar-system-card-test");
       document.body.appendChild(card);
       // Navigate backwards 45 days via the proper navigation path, which sets _isLiveMode=false
-      card._navigate(-45 * 86400000);
+      card._dateNav.navigate(-45 * 86400000, "day");
       vi.advanceTimersByTime(60000);
       // Should still show the navigated-to date, not auto-advance to today
       expect(formatDate(card._dateNav.currentDate)).not.toContain("26-02-15");

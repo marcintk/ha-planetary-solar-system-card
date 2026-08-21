@@ -35,24 +35,32 @@ function stubImageDecode(...results: boolean[]) {
 // URLs exist" is the whole point and the resolver's request order is what's under test.
 function stubArchivePublishedUpTo(newestSlotIso: string) {
   const newest = Date.parse(newestSlotIso);
-  const state = { calls: 0, requested: [] as string[] };
+  const state = { calls: 0, probes: [] as { slot: number; ok: boolean }[] };
   vi.stubGlobal(
     "Image",
     class {
       src = "";
       decode() {
         state.calls++;
-        state.requested.push(this.src);
         const match = /\/(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})_/.exec(this.src);
         if (!match) return Promise.reject(new Error("unparseable slot URL"));
         const [, y, mo, d, h, mi, sec] = match.map(Number);
         const slot = Date.UTC(y, mo - 1, d, h, mi, sec);
-        return slot <= newest ? Promise.resolve() : Promise.reject(new Error("404"));
+        const ok = slot <= newest;
+        state.probes.push({ slot, ok });
+        return ok ? Promise.resolve() : Promise.reject(new Error("404"));
       }
     }
   );
   return state;
 }
+
+// This one test reports rather than merely asserts: its probe-by-probe trace is what a human
+// reads when tuning the search strategy, so the output is the deliverable, not debug residue.
+// Run it with `npx vitest run test/card/gallery/source-resolver-sdo-sun.test.ts -t "optimal
+// number of probes" --disableConsoleIntercept` to see it.
+// biome-ignore lint/suspicious/noConsole: see above — deliberate, and confined to this helper.
+const print = (line: string) => console.log(line);
 
 describe("source-resolver-sdo-sun", () => {
   // Each test gets its own UrlCache — SdoSunResolver/getSunImageUrl accept one explicitly, so
@@ -419,6 +427,72 @@ describe("source-resolver-sdo-sun", () => {
       const image = await new SdoSunResolver(cache).resolve(debug, debug);
 
       expect(image.date.toISOString()).toBe(NEWEST_PUBLISHED);
+    });
+
+    // Prints every probe the search spends, and asserts the count against the theoretical
+    // optimum rather than against a number someone once observed.
+    //
+    // Finding the boundary of a published range at an unknown distance d slots is exponential
+    // search: gallop out doubling the reach to bracket d, then bisect the bracket. Both halves
+    // are ceil(log2(d+1)) probes, so 2*ceil(log2(d+1)) is the optimum, and one more for the
+    // fresh guess that discovers the gap exists at all. No strategy does better without
+    // knowing d in advance, which is exactly what the missing CORS header denies us.
+    it("finds the frame within the optimal number of probes, and reports each one", async () => {
+      const archive = stubArchivePublishedUpTo(NEWEST_PUBLISHED);
+      const newest = Date.parse(NEWEST_PUBLISHED);
+      const resolver = new SdoSunResolver(cache);
+      const debug = emptyDebugAccumulator();
+      const hhmm = (t: number) => new Date(t).toISOString().slice(11, 16);
+
+      const report = (label: string, now: number, from: number) => {
+        const probes = archive.probes.slice(from);
+        print(`\n${label} — now ${hhmm(now)} UTC, newest frame on archive ${hhmm(newest)}`);
+        for (const [i, { slot, ok }] of probes.entries()) {
+          const age = Math.round((now - slot) / 60000);
+          const off = Math.round((slot - newest) / 60000);
+          const verdict = ok ? "200 exists" : "404 not published";
+          const gap = off === 0 ? "on target" : off > 0 ? `${off}m too new` : `${-off}m too old`;
+          print(
+            `  probe ${String(i + 1).padStart(2)}  ask ${hhmm(slot)}  ` +
+              `age ${String(age).padStart(4)}m  ${verdict.padEnd(18)} ${gap}`
+          );
+        }
+        return probes;
+      };
+
+      // Cold start, mid-stall: nothing confirmed yet, so the gap has to be discovered.
+      let now = Date.parse("2026-08-21T20:37:00.000Z");
+      vi.spyOn(Date, "now").mockReturnValue(now);
+      const image = await resolver.resolve(debug, debug);
+      const cold = report("COLD START", now, 0);
+
+      const gapSlots = (cold[0].slot - newest) / SUN_CACHE_TTL_MS;
+      const optimal = 1 + 2 * Math.ceil(Math.log2(gapSlots + 1));
+      print(
+        `\n  gap ${gapSlots} slots (${(gapSlots * 15) / 60}h)  ` +
+          `spent ${cold.length}  optimal ${optimal}`
+      );
+
+      expect(image.date.toISOString()).toBe(NEWEST_PUBLISHED); // landed on the newest that exists
+      expect(cold.length).toBeLessThanOrEqual(optimal);
+      expect(new Set(cold.map((p) => p.slot)).size).toBe(cold.length); // never asks twice
+
+      // Steady state: the stall continues. Each tick must cost the two probes it takes to
+      // learn "the guess is still not up" and "nothing newer than what we hold exists" —
+      // never a fresh walk back through the gap.
+      let steadyTotal = 0;
+      for (let tick = 1; tick <= 3; tick++) {
+        now += 15 * 60000;
+        vi.spyOn(Date, "now").mockReturnValue(now);
+        const before = archive.probes.length;
+        const held = await resolver.resolve(debug, debug);
+        const spent = report(`TICK ${tick}`, now, before);
+        steadyTotal += spent.length;
+        expect(held.date.toISOString()).toBe(NEWEST_PUBLISHED);
+        expect(spent.length).toBe(2);
+      }
+      print(`\n  3 stalled ticks cost ${steadyTotal} probes total\n`);
+      expect(steadyTotal).toBe(6);
     });
 
     it("crosses the UTC day boundary correctly when reaching back that far", async () => {

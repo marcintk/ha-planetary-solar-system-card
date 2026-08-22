@@ -108,6 +108,8 @@ exports[`cardStyles > matches snapshot 1`] = `
      because it never paints outside this frame's own box in the first place. */
   .image-view-frame {
     display: none;
+    /* Static by default, which would let .no-sky's inset escape to the card. */
+    position: relative;
     width: 100%;
     aspect-ratio: 1;
     overflow: hidden;
@@ -126,6 +128,35 @@ exports[`cardStyles > matches snapshot 1`] = `
     background: #000;
     cursor: pointer;
     display: block;
+  }
+  /* Stands in for the image, in the tile and in the full-screen panel alike: fills whichever
+     box it lands in and centres on both axes, so one rule serves a 104px thumbnail and a
+     full-width panel without either needing to know about the other. */
+  .no-sky {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 4px;
+    box-sizing: border-box;
+    background: #000;
+    /* Fixed white, not currentColor: the tile and the panel frame are #000 in every theme
+       (see .gallery-thumb / .image-view-frame), so a theme-following colour would resolve to
+       dark ink on black the moment the card is on a light theme. Same reasoning as
+       .gallery-label/.gallery-age below, just dimmer — this reads as an absence, not a label. */
+    color: rgba(255, 255, 255, 0.65);
+    line-height: 1.2;
+    cursor: pointer;
+    font-size: 1rem;
+  }
+  /* Only the tile scales with its own width, against the container query .gallery-thumb
+     already declares — floored in px so it stays legible on a narrow card. Deliberately not
+     on the shared rule above: .image-view-frame is not a query container, so cqw there would
+     resolve against the viewport and render the panel's copy many times too large. */
+  .gallery-thumb .no-sky {
+    font-size: max(9px, 13cqw);
   }
   .gallery {
     display: flex;

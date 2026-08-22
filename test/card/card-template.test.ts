@@ -2,7 +2,6 @@ import { nothing, render } from "lit";
 import { describe, expect, it } from "vitest";
 import {
   buildImageStatusBar,
-  buildMoonTitle,
   buildStatusBar,
   buildStatusBarView,
   discStyle,
@@ -261,12 +260,12 @@ describe("buildImageStatusBar", () => {
     );
   });
 
-  it("points the sky moon forwards, at the hour it was rendered for", () => {
+  it("labels the sky moon the same as the object tile — same frame, same verb", () => {
     const root = renderToDOM(
-      buildImageStatusBar("mymoon", "26-08-13 03:00", new Date("2026-08-13T03:00:00Z"), now, true)
+      buildImageStatusBar("mymoon", "26-08-12 11:00", new Date("2026-08-12T11:00:00Z"), now, true)
     );
     expect(root.querySelector(".status-bar span").textContent).toBe(
-      "MOON · NASA SVS · rendered for 26-08-13 03:00 · in 15h"
+      "MOON · NASA SVS · rendered 26-08-12 11:00 · 1h ago"
     );
   });
 
@@ -343,27 +342,5 @@ describe("buildStatusBarView", () => {
     expect(root.querySelector(".status-bar span").textContent).toBe(
       "SUN · NASA SDO HMI · loading…"
     );
-  });
-});
-
-describe("buildMoonTitle", () => {
-  // 2024-01-25 is a Full Moon; 2024-01-11 a New Moon.
-  it("calls it tonight's moon while the view is live", () => {
-    expect(buildMoonTitle(new Date("2024-01-25T18:00:00Z"), true)).toMatch(
-      /^Tonight's Moon — Full Moon, \d{1,3}% illuminated$/
-    );
-  });
-
-  // "Tonight" stops being true the moment the date-nav buttons move the view, so the
-  // displayed date replaces it rather than the tooltip quietly lying.
-  it("names the displayed date once the view has been navigated away from now", () => {
-    const title = buildMoonTitle(new Date("2024-01-11T12:00:00Z"), false);
-    expect(title).not.toContain("Tonight");
-    expect(title).toMatch(/^Moon on 24-01-11 \d{2}:\d{2} — New Moon, \d{1,3}% illuminated$/);
-  });
-
-  it("reports illumination as a whole percentage", () => {
-    expect(buildMoonTitle(new Date("2024-01-25T18:00:00Z"), true)).toContain("100% illuminated");
-    expect(buildMoonTitle(new Date("2024-01-11T12:00:00Z"), false)).toContain("0% illuminated");
   });
 });

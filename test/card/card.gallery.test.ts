@@ -95,61 +95,35 @@ describe("SolarViewCard gallery", () => {
       card.remove();
     });
 
-    // The drawn disc is a diagram, not a photograph — opt-in by name, and debug: true has
-    // nothing to do with it now that it is a source like any other.
-    it("shows the drawn moon disc only when listed in sources", async () => {
-      const card = createAndMount({ gallery: { mode: "open" }, debug: true });
-      expect(card.shadowRoot.querySelector("svg.moon-phase-disc")).toBeNull();
-      card.remove();
-
-      const listed = createAndMount({ gallery: { mode: "open", sources: ["drawnmoon"] } });
-      const drawn = listed.shadowRoot.querySelector('[data-source="drawnmoon"]');
-      expect(drawn).toBeTruthy();
-      expect(drawn.querySelector("svg.moon-phase-disc")).toBeTruthy();
-      listed.remove();
-    });
-
     // Position is the user's, not ours: sources[0] renders leftmost whatever it is.
     it("renders tiles in the order sources lists them", () => {
       const card = createAndMount({
-        gallery: { mode: "open", sources: ["sun", "drawnmoon", "mymoon"] },
+        gallery: { mode: "open", sources: ["sun", "moon", "mymoon"] },
       });
       const order = [...card.shadowRoot.querySelectorAll(".gallery > *")].map((t) =>
         t.getAttribute("data-source")
       );
-      expect(order).toEqual(["sun", "drawnmoon", "mymoon"]);
+      expect(order).toEqual(["sun", "moon", "mymoon"]);
       card.remove();
     });
 
-    it("gives the drawn tile a tooltip", () => {
-      vi.useFakeTimers();
-      vi.setSystemTime(new Date("2024-01-25T18:00:00Z")); // Full Moon
-      const card = createAndMount({ gallery: { mode: "open", sources: ["drawnmoon"] } });
-      expect(card.shadowRoot.querySelector('[data-source="drawnmoon"]').getAttribute("title")).toBe(
-        "Tonight's Moon — Full Moon, 100% illuminated"
-      );
-      card.remove();
-      vi.useRealTimers();
-    });
-
-    // Every NASA tile opens full-screen, including both moons — they are fetched images now,
-    // so the pointer affordance promises something a click can actually deliver.
+    // Every NASA tile opens full-screen, including both moons — they are fetched images, so
+    // the pointer affordance promises something a click can actually deliver.
     it("makes every strip tile a button", () => {
       const card = createAndMount({ gallery: { mode: "open" } });
       const tiles = [...card.shadowRoot.querySelectorAll(".gallery > *")];
       expect(tiles.map((t) => t.tagName)).toEqual(["BUTTON", "BUTTON", "BUTTON", "BUTTON"]);
-      // Order matters: the drawn debug plate leads the strip when it is present.
       card.remove();
     });
 
-    // The sky tile is the only one that can say the body it shows is not in view. That is not
-    // a failure and not a dark Moon — the frame still shows a normally lit one — it means the
-    // Earth is in the way from here, which is true on roughly half of all nights at every
-    // latitude. Denton on 8 Sep 2026: the Moon is 35 degrees below the horizon at 22:00 local.
-    // Note the caption describes the *reference hour*, not the moment the card is rendered.
-    it("says so when the Moon is below the horizon at the reference hour", () => {
+    // The sky tile is the only one that can say the body it shows is not in view right now.
+    // That is not a failure and not a dark Moon — the frame still shows a normally lit one —
+    // it means the Earth is in the way from here, which is true on roughly half of any given
+    // hour's worth of nights, at every latitude. Denton, 22 Aug 2026 05:00 CDT: the Moon is
+    // well below the horizon.
+    it("says so when the Moon is below the horizon right now", () => {
       vi.useFakeTimers();
-      vi.setSystemTime(new Date("2026-09-08T20:00:00Z")); // 15:00 CDT the same local day
+      vi.setSystemTime(new Date("2026-08-22T10:00:00Z"));
       const card = document.createElement("ha-planetary-solar-system-card-test");
       card.setConfig({
         gallery: { mode: "open" },
@@ -164,20 +138,21 @@ describe("SolarViewCard gallery", () => {
       vi.useRealTimers();
     });
 
-    // Same location, a reference hour the Moon is actually up for: the caption goes back to
-    // pointing at 22:00 instead.
-    it("counts towards the reference hour when the Moon will be up", () => {
+    // Same location, an instant the Moon is actually up for: the caption falls back to the
+    // normal frame-age phrasing, same as every other tile — it needs the resolved image date,
+    // so unlike the below-horizon case this waits for the background fetch to land.
+    it("shows the normal age caption when the Moon is up", async () => {
       vi.useFakeTimers();
-      vi.setSystemTime(new Date("2026-08-22T01:00:00Z")); // 20:00 CDT, Moon up at 22:00
+      vi.setSystemTime(new Date("2026-08-22T02:15:00Z"));
       const card = document.createElement("ha-planetary-solar-system-card-test");
       card.setConfig({
         gallery: { mode: "open" },
         location: { latitude: 33.2148, longitude: -97.1331, timezone: "America/Chicago" },
       });
       document.body.appendChild(card);
-      card._render();
+      await vi.advanceTimersByTimeAsync(0);
       expect(card.shadowRoot.querySelector('[data-source="mymoon"] .gallery-age').textContent).toBe(
-        "in 2h"
+        "15m ago"
       );
       card.remove();
       vi.useRealTimers();
@@ -306,13 +281,13 @@ describe("SolarViewCard gallery", () => {
       const card = createAndMount({
         gallery: {
           mode: "open",
-          sources: ["drawnmoon", "mymoon", "moon", "earth", "sun"],
+          sources: ["mymoon", "moon", "earth", "sun"],
         },
       });
       const shapes = [...card.shadowRoot.querySelectorAll(".gallery-info")].map((info) =>
         [...info.children].map((el) => `${el.tagName}.${el.className}`)
       );
-      expect(shapes).toHaveLength(5);
+      expect(shapes).toHaveLength(4);
       expect(new Set(shapes.map((s) => s.join(","))).size).toBe(1);
       expect(shapes[0]).toEqual(["SPAN.gallery-label", "SPAN.gallery-age"]);
       card.remove();

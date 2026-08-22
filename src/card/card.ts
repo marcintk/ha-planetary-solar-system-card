@@ -1,16 +1,12 @@
 import type { TemplateResult } from "lit";
 import { html, LitElement, nothing } from "lit";
-import { getMoonPhase } from "../astronomy/moon-phase.js";
 import { getMoonSkyAngles } from "../astronomy/parallactic.js";
-import { getLocalHourInstant } from "../astronomy/solar-position.js";
-import { renderMoonPhaseDisc } from "../renderer/moon-phase.js";
 import type { CardConfig, Colors, HASSConfig, Hemisphere, LocationData } from "../types.js";
 import { parseCardConfig } from "./card-config.js";
 import { cardStyles } from "./card-styles.js";
 import type { GallerySource, ImageSource } from "./card-template.js";
 import {
   buildGalleryCaption,
-  buildMoonTitle,
   buildStatusBarView,
   discStyle,
   formatDate,
@@ -25,7 +21,7 @@ import type {
   ImagePanelMode,
 } from "./gallery/gallery-controller.js";
 import { GalleryController } from "./gallery/gallery-controller.js";
-import { fullSizeMoonUrl, SKY_REFERENCE_HOUR } from "./gallery/source-resolver-svs-moon.js";
+import { fullSizeMoonUrl } from "./gallery/source-resolver-svs-moon.js";
 import { formatRelativeWhen } from "./relative-time.js";
 import { SolarView } from "./solar-view.js";
 import { resolveTheme, THEME_OVERRIDE_VARS } from "./theme.js";
@@ -105,10 +101,7 @@ export class SolarViewCard extends LitElement {
     this._heightStyle = "";
     this._solarView = new SolarView(this._zoom);
     this._onVisibilityChange = null;
-    this._gallery = new GalleryController(
-      () => this._render(),
-      () => this._locationData?.timezone ?? "UTC"
-    );
+    this._gallery = new GalleryController(() => this._render());
   }
 
   // ---------------------------------------------------------------------------
@@ -306,7 +299,6 @@ export class SolarViewCard extends LitElement {
     }
 
     this._solarView.applyViewState();
-    this._mountMoonDisc();
     const theme = resolveTheme(this._theme, this._colors.background);
     this.style.background = theme.background;
     this.style.color = theme.color;
@@ -320,34 +312,17 @@ export class SolarViewCard extends LitElement {
   }
 
   /**
-   * One gallery tile. Every source is a fetched NASA image now, so there is one shape rather
-   * than a moon branch and an everything-else branch.
+   * One gallery tile. Every source is a fetched NASA image, so there is one shape rather than
+   * a moon branch and an everything-else branch.
    *
-   * The sky tile is the only one that differs, and only by two things: it is rotated into the
-   * observer's own orientation, and its caption points at 22:00 rather than at the past. Both
-   * come from the same hour-angle calculation, so both are computed here in one call.
+   * The sky tile is the only one that differs, and only by rotation: it turns the same frame
+   * `moon` shows into the observer's own orientation for right now.
    */
   private _renderGalleryTile(
     source: GallerySource,
     url: string | null,
     date: Date | null
   ): TemplateResult {
-    // The locally drawn disc is the one tile with nothing behind it to fetch: a <div>, not a
-    // <button>, because it has no full-screen view and looking clickable would promise
-    // something no click can deliver. Its SVG is mounted imperatively in updated().
-    if (source === "drawnmoon") {
-      return html`<div
-        class="gallery-thumb gallery-thumb-moon"
-        data-source="drawnmoon"
-        title=${buildMoonTitle(this._dateNav.currentDate, this._dateNav.isLiveMode)}
-      >
-        <div class="moon-disc"></div>
-        ${buildGalleryCaption(
-          GALLERY_SOURCE_LABELS.drawnmoon,
-          getMoonPhase(this._dateNav.currentDate).phaseName
-        )}
-      </div>`;
-    }
     const sky = source === "mymoon" ? this._skyView() : null;
     return html`<button
       class="gallery-thumb ${this._galleryShape === "circle" ? "gallery-thumb-circle" : ""}"
@@ -363,7 +338,11 @@ export class SolarViewCard extends LitElement {
       />
       ${buildGalleryCaption(
         GALLERY_SOURCE_LABELS[source],
-        sky ? sky.caption : date ? formatRelativeWhen(date, new Date()) : "loading…"
+        sky?.belowHorizon
+          ? "below horizon"
+          : date
+            ? formatRelativeWhen(date, new Date())
+            : "loading…"
       )}
     </button>`;
   }
@@ -382,38 +361,26 @@ export class SolarViewCard extends LitElement {
   }
 
   /**
-   * How the Moon will hang at 22:00 local, and what to say about it.
+   * How the Moon hangs in the observer's sky right now.
    *
    * Returns null-safe defaults when no location is known yet: an unrotated frame is the
    * geocentric one, which is the honest thing to show when there is no observer to rotate for.
    *
    * "Below horizon" is not a failure and not a dark Moon — the frame still shows a normally
    * lit gibbous or crescent. It means the Earth is in the way from here, which happens on
-   * roughly half of all nights at every latitude, so saying so is the difference between a
-   * tile that answers "should I go outside" and one that quietly implies yes.
+   * roughly half of any given hour's worth of nights, at every latitude, because the Moon
+   * keeps its own hours rather than the Sun's.
    */
-  private _skyView(): { rotation: number; caption: string } {
+  private _skyView(): { rotation: number; belowHorizon: boolean } {
     const location = this._locationData;
-    const now = new Date();
-    const reference = getLocalHourInstant(now, location?.timezone ?? "UTC", SKY_REFERENCE_HOUR);
-    const when = formatRelativeWhen(reference, now);
-    if (!location) return { rotation: 0, caption: when };
+    if (!location) return { rotation: 0, belowHorizon: false };
 
-    const { parallacticDeg, altitudeDeg } = getMoonSkyAngles(reference, location.lat, location.lon);
-    return {
-      rotation: parallacticDeg,
-      caption: altitudeDeg > 0 ? when : "below horizon",
-    };
-  }
-
-  // The moon disc is raw SVG DOM, not a Lit template — same imperative split as #solar-view
-  // (see CLAUDE.md): Lit owns an empty container, this repopulates it. Rebuilt wholesale on
-  // every update rather than patched, because the terminator geometry changes with the date
-  // and the element is a handful of nodes.
-  private _mountMoonDisc(): void {
-    const container = (this.shadowRoot as ShadowRoot).querySelector(".moon-disc");
-    if (!container) return;
-    container.replaceChildren(renderMoonPhaseDisc(this._dateNav.currentDate, this._hemisphere));
+    const { parallacticDeg, altitudeDeg } = getMoonSkyAngles(
+      new Date(),
+      location.lat,
+      location.lon
+    );
+    return { rotation: parallacticDeg, belowHorizon: altitudeDeg <= 0 };
   }
 
   /**

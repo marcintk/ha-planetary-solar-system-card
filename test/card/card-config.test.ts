@@ -189,8 +189,8 @@ describe("parseCardConfig", () => {
     describe("sources", () => {
       it("keeps recognised sources in the order given — order is the layout", () => {
         expect(
-          parseCardConfig({ gallery: { sources: ["sun", "drawnmoon", "mymoon"] } }).gallerySources
-        ).toEqual(["sun", "drawnmoon", "mymoon"]);
+          parseCardConfig({ gallery: { sources: ["sun", "earth", "mymoon"] } }).gallerySources
+        ).toEqual(["sun", "earth", "mymoon"]);
       });
 
       it("drops unknown entries and de-duplicates, keeping first position", () => {
@@ -210,15 +210,6 @@ describe("parseCardConfig", () => {
         expect(
           parseCardConfig({ gallery: { sources: "moon" as unknown as string[] } }).gallerySources
         ).toEqual(fetched);
-      });
-
-      // drawnmoon is opt-in by name: a diagram does not belong in a strip of photographs
-      // unless it was asked for.
-      it("leaves drawnmoon out of the default set", () => {
-        expect(parseCardConfig({}).gallerySources).not.toContain("drawnmoon");
-        expect(parseCardConfig({ gallery: { sources: ["drawnmoon"] } }).gallerySources).toEqual([
-          "drawnmoon",
-        ]);
       });
 
       // Source names gained their instrument in this version. A #140 dashboard should keep

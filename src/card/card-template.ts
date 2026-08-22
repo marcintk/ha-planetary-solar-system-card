@@ -1,6 +1,5 @@
 import type { TemplateResult } from "lit";
 import { html, nothing } from "lit";
-import { getMoonPhase } from "../astronomy/moon-phase.js";
 import {
   computeNextTransitionTime,
   computeSolarElevationDeg,
@@ -52,18 +51,16 @@ export function buildStatusBar(
 }
 
 // Every source in the gallery: a fetched NASA image with a URL, a capture date, a
-// cache/backoff cycle, and a full-screen view. Since the moon tiles became NASA imagery
-// too there is no display-only source left, so this is also the whole strip — the separate
-// GallerySource union that existed to carry the locally drawn disc is gone.
+// cache/backoff cycle, and a full-screen view.
 //
-// "moon" and "moon-sky" are the same NASA render at different instants: the object tile
-// follows the current hour, the sky tile pins to 22:00 local and is rotated into the
-// observer's own orientation.
+// "moon" and "mymoon" are the same NASA render at the same instant: the object tile shows it
+// geocentric, celestial-north-up; the sky tile rotates it into the observer's own orientation.
 export type ImageSource = "mymoon" | "moon" | "earth" | "sun";
 
-// Everything that can occupy a slot in the strip. drawnmoon is display-only: computed
-// locally, so it has no URL, no cache, no failure mode and no full-screen view.
-export type GallerySource = ImageSource | "drawnmoon";
+// Everything that can occupy a slot in the strip. Same set as ImageSource now that the
+// locally drawn disc is gone — kept as its own alias since the strip is the concept these
+// call sites care about, not the fetch mechanics.
+export type GallerySource = ImageSource;
 
 export const IMAGE_SOURCE_LABELS: Record<ImageSource, string> = {
   mymoon: "NASA SVS Moon",
@@ -78,23 +75,7 @@ export const GALLERY_SOURCE_LABELS: Record<GallerySource, string> = {
   moon: "MOON",
   earth: "EARTH",
   sun: "SUN",
-  drawnmoon: "DRAWN",
 };
-
-/**
- * Tooltip for the moon tile — the counterpart to the NASA tiles' "Show <source>", which
- * would be a lie here since nothing opens.
- *
- * Says "tonight" only while the view is live. The date-nav buttons can put the card on any
- * date, and the disc follows them, so a fixed "Tonight's Moon" would quietly misdescribe
- * every navigated view. Illumination is the one thing the caption has no room for, which is
- * what makes this worth a tooltip rather than a repeat of the phase name.
- */
-export function buildMoonTitle(date: Date, isLiveMode: boolean): string {
-  const { phaseName, illumination } = getMoonPhase(date);
-  const when = isLiveMode ? "Tonight's Moon" : `Moon on ${formatDate(date)}`;
-  return `${when} — ${phaseName}, ${Math.round(illumination * 100)}% illuminated`;
-}
 
 /**
  * The fraction of its own frame each source's disc spans **at its largest**.
@@ -192,17 +173,11 @@ export function buildGalleryCaption(label: string, detail: string): TemplateResu
   </div>`;
 }
 
-// The gallery strip, in render order. Fixed rather than configurable: `gallery.sources` was
-// one knob too many for three tiles that each answer a different question, and a user who
-// wanted fewer of them wanted the strip closed, not pruned.
-// Fetched sources, in the order they render when `gallery.sources` says nothing. The drawn
-// disc is deliberately absent: it is a diagram, and it does not belong in a strip of
-// photographs unless someone asks for it by name.
+// The gallery strip, in render order when `gallery.sources` says nothing. Also every name
+// `gallery.sources` accepts — order there is only the validation set, the user's own list
+// order is what decides layout.
 export const IMAGE_SOURCES: ImageSource[] = ["mymoon", "moon", "earth", "sun"];
-
-// Every name `gallery.sources` accepts. Order here is only the validation set — the user's
-// own list order is what decides layout.
-export const GALLERY_SOURCES: GallerySource[] = [...IMAGE_SOURCES, "drawnmoon"];
+export const GALLERY_SOURCES: GallerySource[] = IMAGE_SOURCES;
 
 // Full-screen status bar leads with the target body, the probe name follows (e.g.
 // "EARTH · DSCOVR · captured ..."). Kept separate from IMAGE_SOURCE_LABELS, which stays
@@ -213,10 +188,10 @@ const IMAGE_STATUS_TARGET: Record<ImageSource, string> = {
   earth: "EARTH",
   sun: "SUN",
 };
-// Earth and Sun tiles show photographs; the Moon tiles show renders, and the sky one is for
-// an hour that has usually not happened yet. "captured … 3h ago" is wrong on both counts.
+// Earth and Sun tiles show photographs; the Moon tiles show renders. "captured … 3h ago" is
+// wrong for a render.
 const IMAGE_STATUS_VERB: Record<ImageSource, string> = {
-  mymoon: "rendered for",
+  mymoon: "rendered",
   moon: "rendered",
   earth: "captured",
   sun: "captured",

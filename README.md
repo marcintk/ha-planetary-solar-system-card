@@ -115,13 +115,12 @@ A thumbnail strip beside the solar view. ☷ toggles it; clicking a NASA thumbna
 full-screen. Which tiles appear — and in what left-to-right order — is `gallery.sources` (see
 [Gallery](#gallery)).
 
-| Thumbnail | Source            | Shows                                   | We fetch   | Age of what you see |
-| --------- | ----------------- | --------------------------------------- | ---------- | ------------------- |
-| MY SKY    | [NASA SVS][svs]   | The Moon at 22:00 your time, your sky   | Once a day | Tonight, not yet    |
-| MOON      | [NASA SVS][svs]   | The Moon this hour, from Earth's centre | Hourly     | Under an hour       |
-| DSCOVR/E  | [NASA EPIC][epic] | Earth's sunlit side, from L1            | Hourly     | 1-2 days            |
-| SDO/S     | [NASA SDO][sdo]   | The Sun, from geosync orbit             | 15 min     | 25-55 min           |
-| DRAWN     | Drawn locally     | The phase, computed on your dashboard   | No fetch   | Live                |
+| Thumbnail | Source            | Shows                                        | We fetch | Age of what you see |
+| --------- | ----------------- | -------------------------------------------- | -------- | ------------------- |
+| MY SKY    | [NASA SVS][svs]   | The Moon this hour, turned to match your sky | Hourly   | Under an hour       |
+| MOON      | [NASA SVS][svs]   | The Moon this hour, from Earth's centre      | Hourly   | Under an hour       |
+| DSCOVR/E  | [NASA EPIC][epic] | Earth's sunlit side, from L1                 | Hourly   | 1-2 days            |
+| SDO/S     | [NASA SDO][sdo]   | The Sun, from geosync orbit                  | 15 min   | 25-55 min           |
 
 ### The two Moon tiles
 
@@ -131,12 +130,12 @@ One body, two questions, so two tiles.
 north up, the way every Moon photograph you have ever seen is framed. It is never wrong and it looks
 the same for everyone.
 
-**MY SKY** is the same frame turned to match _your_ sky — rotated by the parallactic angle for your
-latitude, longitude and clock, for 22:00 local tonight. That rotation is the single biggest
+**MY SKY** is the same frame, same hour, turned to match _your_ sky — rotated by the parallactic
+angle for your latitude, longitude and the current moment. That rotation is the single biggest
 difference between a picture of the Moon and the Moon you will actually see: it swings through
-roughly ±90° depending on where you stand and when you look. Its caption counts down to 22:00, and
-says `below horizon` on the nights the Moon is not up then — which is about half of them, at every
-latitude, because the Moon keeps its own hours rather than the Sun's.
+roughly ±90° depending on where you stand and when you look. Its caption says `below horizon` when
+the Moon isn't up right now — true about half the time, at every latitude, because the Moon keeps
+its own hours rather than the Sun's.
 
 Both are renders, not photographs: NASA builds them from LOLA laser altimetry and the LROC
 wide-angle colour mosaic, positioned by the JPL DE421 ephemeris, and publishes the whole year in
@@ -144,9 +143,7 @@ advance at one frame per hour. So unlike Earth and Sun there is no publish delay
 
 Because the product is published a year at a time under an id that changes each December, both Moon
 tiles go blank on 1 January of a year the installed version does not know about, until a release
-ships with it. **DRAWN** is the tile that cannot: computed on your dashboard, no network request, no
-way to fail — but a diagram rather than a picture, which is why it is opt-in rather than shown by
-default.
+ships with it.
 
 Earth's and Sun's lags are NASA's publish pipeline, not the card holding images back: EPIC processes
 a day or two behind, and SDO's archive posts each 15-min frame 25 to 30 minutes after it was
@@ -223,16 +220,14 @@ the cycle resumes. Replay and the gallery don't pause it.
 
 Source names:
 
-| Name        | Tile     | Fetches |
-| ----------- | -------- | ------- |
-| `mymoon`    | MY SKY   | Yes     |
-| `moon`      | MOON     | Yes     |
-| `earth`     | DSCOVR/E | Yes     |
-| `sun`       | SDO/S    | Yes     |
-| `drawnmoon` | DRAWN    | No      |
+| Name     | Tile     |
+| -------- | -------- |
+| `mymoon` | MY SKY   |
+| `moon`   | MOON     |
+| `earth`  | DSCOVR/E |
+| `sun`    | SDO/S    |
 
-Omit `sources` and you get the four fetched tiles in that order. `drawnmoon` is opt-in — it is a
-diagram, and it does not belong in a strip of photographs unless you ask for it.
+Omit `sources` and you get all four tiles in that order.
 
 The ☷ button is always available; `mode` only decides whether the strip starts open.
 
@@ -257,8 +252,8 @@ it. Every source renders its body on black, so the result is framed exactly like
 with a turned Moon inside.
 
 Older configs keep working. `mode: none` and `mode: closed` both mean `off`; `earth`, `sun` and
-`both` open the strip; `slide` is unchanged. Source names are unchanged too — the one shift is that
-`moon` now resolves to NASA's render rather than the locally drawn disc, which is `drawnmoon`.
+`both` open the strip; `slide` is unchanged. `moon` resolves to NASA's render; a config still naming
+the retired `drawnmoon` source simply drops it, same as any other unrecognised name.
 
 #### Adding a source later
 

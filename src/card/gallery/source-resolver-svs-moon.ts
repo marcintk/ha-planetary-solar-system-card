@@ -22,12 +22,6 @@ export const MOON_THUMB_SIZE = "216x216_1x1_30p";
 export const MOON_FULL_SIZE = "730x730_1x1_30p";
 export const MOON_FRAME_MS = 3600000;
 
-// The hour the sky tile answers for: late enough to be dark across most inhabited latitudes
-// for most of the year, early enough that "tonight" still means tonight. Lives here rather
-// than in gallery-controller.ts so image-resolver.ts can read it without importing the
-// controller that constructs it — that pairing was a genuine import cycle.
-export const SKY_REFERENCE_HOUR = 22;
-
 // The one thing about this source that cannot be derived. SVS assigns each annual product a
 // new id with no pattern to it (+93, +139, +228, +172 across these five), and the id is in
 // the path. It has to ship as a constant and gain a row each December, when the following

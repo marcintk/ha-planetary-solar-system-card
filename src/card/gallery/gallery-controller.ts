@@ -24,8 +24,8 @@ export type GalleryPosition = "overlay" | "below";
 // through around it.
 export type GalleryShape = "circle" | "square";
 
-// What the strip shows when `gallery.sources` says nothing: every fetched source, in the
-// order card-template.ts lists them. drawnmoon is opt-in by name.
+// What the strip shows when `gallery.sources` says nothing: every source, in the order
+// card-template.ts lists them.
 export const DEFAULT_GALLERY_SOURCES: GallerySource[] = IMAGE_SOURCES;
 
 // Render-ready shape for card.ts's template — raw data only (dates, urls, booleans), no
@@ -70,10 +70,7 @@ export class GalleryController {
   private _resolver: ImageResolver;
   private _sources: GallerySource[];
 
-  // getTimezone is a function, not a value: the observer's zone is derived from HA state and
-  // a config override that can both change after construction, and the sky tile's reference
-  // instant has to follow. Same reason _locationData is a getter on the card.
-  constructor(onChange: () => void, getTimezone: () => string) {
+  constructor(onChange: () => void) {
     this._panelMode = "none";
     this._imageUrl = null;
     this._imageDate = null;
@@ -94,7 +91,7 @@ export class GalleryController {
       "earth-img": emptyDebugAccumulator(),
     };
     this._debugStartedAt = Date.now();
-    this._resolver = new ImageResolver(getTimezone);
+    this._resolver = new ImageResolver();
     // Recovers each source's still-fresh cache into this instance's own known-URL
     // state — without this, a remount (this._images always starts empty) would otherwise
     // force a redundant preload of bytes the module cache already confirmed are current.
@@ -153,20 +150,12 @@ export class GalleryController {
       imageLoaded: this._imageLoaded,
       showStrip: this._open && (position === "below" || this._panelMode === "none"),
       thumbnails: this.displaySources.map((source) => {
-        const image = source === "drawnmoon" ? undefined : this._images[source];
+        const image = this._images[source];
         return { source, url: image?.url ?? null, date: image?.date ?? null };
       }),
       debugStats: this.debugStats,
       debugStartedAt: this._debugStartedAt,
     };
-  }
-
-  // The network-backed subset of the configured list — "slide" still fetches all of them even
-  // though only one shows at a time, so rotating onto a source never reveals a stale or empty
-  // thumbnail. drawnmoon is filtered out: it is computed locally, so it has no URL to
-  // resolve, no cache to consult and no failure to back off from.
-  private get _fetchSources(): ImageSource[] {
-    return this._sources.filter((s): s is ImageSource => s !== "drawnmoon");
   }
 
   // Applies config.gallery: mode + auto-switch interval, and whether the strip starts open (matches setConfig's previous behavior of
@@ -314,7 +303,7 @@ export class GalleryController {
     this._imageDate = date;
   }
 
-  // Fetches every source this mode needs — called on open (start/configure), on click for a
+  // Fetches every configured source — called on open (start/configure), on click for a
   // source that isn't known yet (openPanel), and on each auto-update tick while the strip or
   // a panel stays open. Each source is cache-guarded (earth hourly, sun every 15min —
   // matching each source's own publish cadence), so this only hits the network once the
@@ -323,7 +312,7 @@ export class GalleryController {
   // fetch/dedupe/retry mechanics live in ImageResolver — this only applies its settled
   // results to view state (which image is shown, which error banner, when to re-render).
   private async refresh(): Promise<void> {
-    const results = await this._resolver.resolveAll(this._fetchSources, this._debug);
+    const results = await this._resolver.resolveAll(this._sources, this._debug);
     for (const { source, result } of results) {
       if (result.status === "fulfilled") {
         this._images[source] = result.value;

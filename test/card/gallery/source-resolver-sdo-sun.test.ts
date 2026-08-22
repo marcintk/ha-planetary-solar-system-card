@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { emptyDebugAccumulator } from "../../../src/card/gallery/debug.js";
+import { emptyDebugAccumulator } from "../../../src/card/gallery/debug-stats.js";
 import { FETCH_TIMEOUT_MS } from "../../../src/card/gallery/source-resolver.js";
 import {
   getSunImageUrl,

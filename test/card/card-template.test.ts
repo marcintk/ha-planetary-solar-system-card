@@ -5,10 +5,10 @@ import {
   buildStatusBar,
   buildStatusBarView,
   discStyle,
-  formatDate,
 } from "../../src/card/card-template.js";
-import type { SourceDebugStats } from "../../src/card/gallery/debug.js";
+import type { SourceDebugStats } from "../../src/card/gallery/debug-stats.js";
 import type { GalleryViewModel } from "../../src/card/gallery/gallery-controller.js";
+import { formatDate } from "../../src/card/relative-time.js";
 
 const zeroDebugStats: SourceDebugStats = {
   refreshes: 0,
@@ -290,12 +290,6 @@ describe("buildImageStatusBar", () => {
     expect(root.querySelector(".status-bar span").textContent).toBe(
       "SUN · NASA SDO HMI · loading…"
     );
-  });
-});
-
-describe("formatDate", () => {
-  it("formats as YY-MM-DD HH:MM with zero-padding", () => {
-    expect(formatDate(new Date(2026, 1, 5, 9, 3))).toBe("26-02-05 09:03");
   });
 });
 

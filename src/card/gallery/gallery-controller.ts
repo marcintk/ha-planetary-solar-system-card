@@ -1,8 +1,8 @@
-import type { GallerySource, ImageSource } from "../card-template.js";
-import { IMAGE_SOURCE_LABELS, IMAGE_SOURCES } from "../card-template.js";
-import type { DebugAccumulator, DebugRowId, SourceDebugStats } from "./debug.js";
-import { emptyDebugAccumulator, toDebugStats } from "./debug.js";
+import type { DebugAccumulator, SourceDebugStats } from "./debug-stats.js";
+import { emptyDebugAccumulator, toDebugStats } from "./debug-stats.js";
 import { ImageResolver } from "./image-resolver.js";
+import type { DebugRowId, GallerySource, ImageSource } from "./sources.js";
+import { IMAGE_SOURCES, SOURCES } from "./sources.js";
 import type { SourcedImage } from "./url-cache.js";
 
 export type ImagePanelMode = "none" | ImageSource;
@@ -256,7 +256,7 @@ export class GalleryController {
   // no retry left to try, just surface the error banner.
   onImageLoadError(): void {
     if (this._panelMode === "none") return;
-    this._error = `${IMAGE_SOURCE_LABELS[this._panelMode]} image unavailable`;
+    this._error = `${SOURCES[this._panelMode].label} image unavailable`;
     this._panelMode = "none";
     this._imageUrl = null;
     this._imageDate = null;
@@ -325,7 +325,7 @@ export class GalleryController {
         // forever. A source that already has a known image just keeps showing it (matches
         // the old behavior: never swap to something that might not load).
         this._panelMode = "none";
-        this._error = `${IMAGE_SOURCE_LABELS[source]} image unavailable`;
+        this._error = `${SOURCES[source].label} image unavailable`;
       }
     }
     this._onChange();

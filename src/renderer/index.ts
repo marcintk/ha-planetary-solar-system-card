@@ -25,6 +25,7 @@ import {
   createSvgElement,
   DEFAULT_LABEL_COLOR,
   polarFromFocus,
+  polarOffset,
   VIEW_SIZE,
 } from "./svg-utils.js";
 
@@ -142,8 +143,13 @@ export function renderSolarSystem(
   // room for the Moon's full circle on both sides, so it never needs
   // clamping into Venus's or Mars's orbit (#62).
   const moonAngle = calculateMoonPosition(date);
-  const moonX = earthX + MOON_PIXEL_OFFSET * Math.cos(moonAngle);
-  const moonY = earthY + eclipticViewDirection * MOON_PIXEL_OFFSET * Math.sin(moonAngle);
+  const { x: moonX, y: moonY } = polarOffset(
+    earthX,
+    earthY,
+    MOON_PIXEL_OFFSET,
+    moonAngle,
+    eclipticViewDirection
+  );
 
   positions.push({ name: MOON.name, x: moonX, y: moonY, color: MOON.color, offscreen: false });
   planetLabels.push({ name: MOON.name, x: moonX, y: moonY, radius: MOON.size });
@@ -195,5 +201,9 @@ export function renderSolarSystem(
     svg.appendChild(renderOffscreenMarkers(positions, viewState, aspect));
   }
 
+  // `positions` feeds updateMarkers above, and is returned so tests can measure real
+  // separation between bodies at conjunction (test/renderer/collision.test.ts, #62) from the
+  // same numbers the scene was drawn with, rather than reading coordinates back out of the
+  // SVG. No src/ caller reads it.
   return { svg, positions, updateMarkers };
 }

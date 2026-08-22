@@ -47,11 +47,36 @@ export function ellipseFromApsides(
 }
 
 /**
+ * A point `dist` away from (x, y) at `angle`, in the scene's own screen space.
+ *
+ * The single place the ecliptic-view mirror is applied. Screen y grows downward, so the
+ * north view (eclipticViewDirection = -1) negates the sine and the south view (+1) doesn't
+ * — a *reflection*, not a rotation, which is why orbitTransformComponents below has to be
+ * built to agree with this rather than derived as a plain rotate() (see its docstring, #94).
+ * Every body position, cone edge, horizon arm and needle tip goes through here, so the
+ * mirror cannot be applied inconsistently at one site and not another.
+ */
+export function polarOffset(
+  x: number,
+  y: number,
+  dist: number,
+  angle: number,
+  eclipticViewDirection: number
+): { x: number; y: number } {
+  return {
+    x: x + dist * Math.cos(angle),
+    y: y + eclipticViewDirection * dist * Math.sin(angle),
+  };
+}
+
+/**
  * A body's pixel position on its ellipse at the given true anomaly/angle — the polar
  * equation of an ellipse with the Sun at the focus, r = a(1-e²)/(1+e·cosθ), rotated into
  * screen space. Must stay derived identically for every body type: this is the same
  * formula orbitTransformComponents's matrix is built to agree with (see its docstring,
- * #94) — a marker computed any other way can drift off the drawn orbit ring.
+ * #94) — a marker computed any other way can drift off the drawn orbit ring. The final
+ * offset is polarOffset's, so "identically" is structural rather than a promise two
+ * copies of the same expression have to keep.
  */
 export function polarFromFocus(
   aPx: number,
@@ -61,10 +86,7 @@ export function polarFromFocus(
   eclipticViewDirection: number
 ): { x: number; y: number } {
   const radius = (aPx * (1 - ePx * ePx)) / (1 + ePx * Math.cos(trueAnomaly));
-  return {
-    x: CENTER + radius * Math.cos(angle),
-    y: CENTER + eclipticViewDirection * radius * Math.sin(angle),
-  };
+  return polarOffset(CENTER, CENTER, radius, angle, eclipticViewDirection);
 }
 
 export interface OrbitTransformComponents {

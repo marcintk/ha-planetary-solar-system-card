@@ -105,14 +105,18 @@ export function buildMoonTitle(date: Date, isLiveMode: boolean): string {
  * full-moon frame), Sun 94.3% at perihelion, Earth 74.4-82.2% across DSCOVR's Lissajous orbit
  * around L1, which is much the widest swing of the three.
  *
- * Earth is deliberately set above its largest measurement: four sampled dates are not the
- * whole orbit, and the failure modes are asymmetric — too small leaves a thin black ring, too
- * large slices the limb off.
+ * Earth is pinned to exactly its largest sampled measurement rather than padded above it: this
+ * value is also what every source gets rescaled against to reach a shared on-screen size (see
+ * `TARGET_FRACTION`), so slack here no longer just leaves a thin black ring — it stays visible
+ * as Earth reading smaller than Sun and Moon on every day but its widest. Four sampled dates
+ * are not the whole orbit, so a day beyond all of them could still slice the limb — accepted
+ * deliberately, since DSCOVR's orbit repeats roughly every six months and is unlikely to clear
+ * the sampled ceiling by much.
  */
 const DISC_FRACTION: Record<ImageSource, number> = {
   mymoon: 0.963,
   moon: 0.963,
-  earth: 0.88,
+  earth: 0.822,
   sun: 0.943,
 };
 

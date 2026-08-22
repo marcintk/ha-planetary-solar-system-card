@@ -15,6 +15,11 @@ export const FETCH_TIMEOUT_MS = 15000;
 // candidate slots, and that walk is only worth doing against a host that is actually replying.
 export const IMAGE_TIMEOUT_MESSAGE = "Image load timed out";
 
+// Distinct from IMAGE_TIMEOUT_MESSAGE on purpose — isTimeout() in sun's recover() only aborts
+// the search for the timeout case (host not answering at all); a blocked/failed load that the
+// browser reports promptly is a miss like any 404, and the search should keep walking.
+export const IMAGE_LOAD_ERROR_MESSAGE = "Image failed to load";
+
 // One resolver instance per NASA source, each owning that source's own cache TTL, decode-gate
 // state, and candidate-fetch quirks (see source-resolver-dscovr-earth.ts / source-resolver-sdo-sun.ts).
 // resolve() is the shared protocol (cache check, decode gate, preload, counters); getCached(),
@@ -44,13 +49,21 @@ export abstract class SourceResolver {
     throw err;
   }
 
-  // Recovers this source's still-fresh cache, seeding decode-gate state to match — called
-  // once at construction (e.g. after HA remounts the card element) so the first tick after a
-  // remount doesn't decode a URL the cache already confirmed current.
+  // Recovers this source's last actually-confirmed image — called once at construction (e.g.
+  // after HA remounts the card element) so the first tick after a remount doesn't wait on a
+  // fetch for something already known good.
+  //
+  // Deliberately NOT getCached(): that reads the raw TTL cache, which a resolver can write to
+  // optimistically before anything has verified the guess decodes (see getSunImageUrl() in
+  // source-resolver-sdo-sun.ts, and fetchLatestEarthImageUrl() in
+  // source-resolver-dscovr-earth.ts — both cache their computed URL before the real image
+  // bytes are ever fetched). Trusting that here would markDecoded() a URL nothing has proven
+  // loads, so every resolve() after remount skips the real network check and the gallery can
+  // end up serving a broken image with zero fetches to show for it. getStale() only returns
+  // what recordSuccess() set after a real decode, so decoded-map and lastConfirmed can never
+  // fall out of sync — no separate markDecoded() call needed here.
   hydrate(): SourcedImage | undefined {
-    const cached = this.getCached();
-    if (cached) this.cache.markDecoded(this.source, cached.url);
-    return cached ?? undefined;
+    return this.cache.getStale(this.source) ?? undefined;
   }
 
   // Two accumulators, not one: `urlDebug` covers finding out what the candidate URL even is
@@ -126,11 +139,22 @@ function retryAfterMsFrom(err: unknown): number | undefined {
 // downloaded, not that the browser has rasterized them yet — assigning to a live <img> right
 // after load can still stumble onto the broken-image glyph for a frame while it decodes.
 // Off-DOM: doesn't reuse the real <img> element, so a failed probe can never flash onto it.
+//
+// Also races the element's own `error` event, not just decode(): a cross-origin response
+// blocked before it reaches the image pipeline (e.g. Chrome's ORB, on a 404's text/html body)
+// can leave decode() never settling even though the network layer already failed in
+// milliseconds. Without this, that single blocked slot is indistinguishable from a genuinely
+// dead host and wrongly trips sun's recover() into aborting its whole backward search instead
+// of treating it as one more miss.
 function preloadImage(url: string): Promise<void> {
   const probe = new Image();
+  const blocked = new Promise<never>((_resolve, reject) => {
+    probe.onerror = () => reject(new Error(IMAGE_LOAD_ERROR_MESSAGE));
+  });
   probe.src = url;
   return Promise.race([
     probe.decode(),
+    blocked,
     new Promise<never>((_resolve, reject) => {
       setTimeout(() => reject(new Error(IMAGE_TIMEOUT_MESSAGE)), FETCH_TIMEOUT_MS);
     }),

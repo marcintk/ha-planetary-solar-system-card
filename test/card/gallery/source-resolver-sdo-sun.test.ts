@@ -368,6 +368,43 @@ describe("source-resolver-sdo-sun", () => {
       vi.useRealTimers();
     });
 
+    it("treats a network-blocked probe as a miss, not a dead host, even when decode() itself never settles", async () => {
+      // ORB (Chrome's opaque-response blocking) blocks a cross-origin error response before it
+      // ever reaches decode() — the network layer fails in milliseconds, but decode()'s promise
+      // can be left never settling. Without also racing the <img> `error` event, that reads
+      // identically to a truly dead host and wrongly aborts the whole search on one blocked
+      // slot, even though every other slot would 404 normally and the walk would otherwise
+      // succeed.
+      vi.useFakeTimers();
+      vi.setSystemTime(NOW);
+      let calls = 0;
+      vi.stubGlobal(
+        "Image",
+        class {
+          src = "";
+          onerror: (() => void) | null = null;
+          decode() {
+            calls++;
+            if (calls === 1) return Promise.reject(new Error("404"));
+            if (calls === 2) {
+              queueMicrotask(() => this.onerror?.());
+              return new Promise<never>(() => {});
+            }
+            return Promise.resolve();
+          }
+        }
+      );
+
+      const debug = emptyDebugAccumulator();
+      const resolving = new SdoSunResolver(cache).resolve(debug, debug);
+      await vi.advanceTimersByTimeAsync(10);
+      const image = await resolving;
+
+      expect(image).toBeDefined();
+      expect(calls).toBe(3); // the blocked slot cost one probe, not the whole search
+      vi.useRealTimers();
+    });
+
     it("costs two requests per refresh while the feed stays stalled", async () => {
       // The point of anchoring to the last confirmed frame. Without it every tick re-ran the
       // whole backward search — measured at ~8 requests a tick against the 2026-08-21 stall.
@@ -652,22 +689,28 @@ describe("source-resolver-sdo-sun", () => {
       expect(new SdoSunResolver(cache).hydrate()).toBeUndefined();
     });
 
-    it("returns the cached sun image while its slot's buffer window is still open", () => {
+    it("ignores an optimistic guess that was never actually confirmed to decode", () => {
+      // getSunImageUrl() writes its guess to the TTL cache before anything has verified it
+      // loads (see its own comment). hydrate() must not trust that alone — trusting it here
+      // would markDecoded() a URL nothing proved loads, letting every refresh afterward skip
+      // the real network check.
       const NOW = Date.UTC(2026, 7, 15, 22, 42, 30);
       vi.spyOn(Date, "now").mockReturnValue(NOW);
-      const first = getSunImageUrl(cache); // slot = 22:00:00, valid until 22:45:00
+      getSunImageUrl(cache); // slot = 22:00:00 — cached, but never decode-confirmed
 
-      vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-08-15T22:44:59.999Z"));
-      expect(new SdoSunResolver(cache).hydrate()).toEqual(first);
+      expect(new SdoSunResolver(cache).hydrate()).toBeUndefined();
     });
 
-    it("returns undefined once the sun slot's buffer window has closed", () => {
-      const NOW = Date.UTC(2026, 7, 15, 22, 42, 30);
-      vi.spyOn(Date, "now").mockReturnValue(NOW);
-      getSunImageUrl(cache); // slot = 22:00:00, valid until 22:45:00
+    it("returns the last confirmed image regardless of its TTL window", async () => {
+      vi.spyOn(Date, "now").mockReturnValue(Date.UTC(2026, 7, 15, 22, 42, 30));
+      stubImageDecode(true);
+      const debug = emptyDebugAccumulator();
+      const confirmed = await new SdoSunResolver(cache).resolve(debug, debug);
 
-      vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-08-15T22:45:00.001Z"));
-      expect(new SdoSunResolver(cache).hydrate()).toBeUndefined();
+      // Long past the 15-min TTL + 30-min buffer window — hydrate() isn't a freshness check,
+      // it only answers "do we know something that actually works".
+      vi.spyOn(Date, "now").mockReturnValue(Date.UTC(2026, 7, 16, 4, 0, 0));
+      expect(new SdoSunResolver(cache).hydrate()).toEqual(confirmed);
     });
   });
 });

@@ -134,9 +134,16 @@ the same for everyone.
 **MY SKY** is the same frame, same hour, turned to match _your_ sky — rotated by the parallactic
 angle for your latitude, longitude and the current moment. That rotation is the single biggest
 difference between a picture of the Moon and the Moon you will actually see: it swings through
-roughly ±90° depending on where you stand and when you look. Its caption says `below horizon` when
-the Moon isn't up right now — true about half the time, at every latitude, because the Moon keeps
-its own hours rather than the Sun's.
+roughly ±90° depending on where you stand and when you look. When the Moon isn't up right now — true
+about half the time, at every latitude, because the Moon keeps its own hours rather than the Sun's —
+the tile leaves the image out rather than showing a Moon that isn't in your sky; the caption still
+reads the frame's own age, the same as every other tile, and the tile stays clickable, opening the
+geocentric frame full-screen either way.
+
+When it's showing, the photo itself is tinted by your sky right now — light gray by day, black by
+night, one of three tones in between for civil, nautical and astronomical twilight — a color wash
+over the Moon rather than a flat tile behind it, so there's nothing to tint when the Moon isn't
+there to wear it.
 
 Both are renders, not photographs: NASA builds them from LOLA laser altimetry and the LROC
 wide-angle colour mosaic, positioned by the JPL DE421 ephemeris, and publishes the whole year in
@@ -242,11 +249,12 @@ same size. It is not purely cosmetic: the default `square` keeps the margin, and
 frames its subject differently — Earth fills about three quarters of its frame, the Moon and Sun
 closer to all of it — the bodies then render at visibly different sizes.
 
-MY SKY follows `gallery.shape` exactly like every other tile — same crop, same size — with its
-rotation applied on top. In `square` mode the rotated frame's corners swing past the tile's own
-square silhouette; what shows through the gap is the tile's own backdrop, which for MY SKY is
-colored by your local sky — day, twilight or night, the same bands and colors as the
-[visibility cone](#horizon-twilight-zones) — rather than the plain black every other tile sits on.
+MY SKY is the one tile `gallery.shape` doesn't reach — same size as MOON, but always cropped to a
+circle, whatever `shape` is set to. Its crop rotates with the image, and a square crop can't stay
+square once rotated: at any angle but 0/90/180/270 it would show the source frame's own black square
+canvas inside the rotated shape. A circle is the one crop rotation can't do that to, so it's the
+only way to show an exact Moon disc — tinted by your local sky (see above) — against the tile's
+plain black background, same as every other tile.
 
 Older configs keep working. `mode: none` and `mode: closed` both mean `off`; every other legacy
 `mode` value (`earth`, `sun`, `both`, `open`) becomes the new default, `show`; `slide` is unchanged.

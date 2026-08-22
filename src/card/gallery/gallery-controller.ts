@@ -85,7 +85,6 @@ export class GalleryController {
     this._autoSwitchTimer = null;
     this._onChange = onChange;
     this._debug = {
-      mymoon: emptyDebugAccumulator(),
       moon: emptyDebugAccumulator(),
       sun: emptyDebugAccumulator(),
       "earth-url": emptyDebugAccumulator(),
@@ -125,7 +124,6 @@ export class GalleryController {
   }
   get debugStats(): Record<DebugRowId, SourceDebugStats> {
     return {
-      mymoon: toDebugStats(this._debug.mymoon),
       moon: toDebugStats(this._debug.moon),
       sun: toDebugStats(this._debug.sun),
       "earth-url": toDebugStats(this._debug["earth-url"]),

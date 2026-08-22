@@ -167,10 +167,9 @@ describe("SolarViewCard status bar", () => {
       card._render();
       const overlay = card.shadowRoot.querySelector(".debug-overlay");
       const rowText = [...overlay.querySelectorAll("tr")].map((tr) => tr.textContent);
-      expect(rowText[1]).toContain("SVS/M sky");
-      expect(rowText[2]).toContain("SVS/M obj");
-      expect(rowText[3]).toContain("SDO/S");
-      expect(rowText[4]).toContain("DSCOVR/E");
+      expect(rowText[1]).toContain("SVS/M");
+      expect(rowText[2]).toContain("SDO/S");
+      expect(rowText[3]).toContain("DSCOVR/E");
       expect(overlay.textContent).toContain("source");
       expect(overlay.textContent).toContain("refresh");
       expect(overlay.textContent).toContain("fetch");

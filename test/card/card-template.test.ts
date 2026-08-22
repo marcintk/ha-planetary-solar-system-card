@@ -196,22 +196,24 @@ describe("discStyle", () => {
 
   describe("square", () => {
     // Same target size as circle mode, but a square clip instead of a round one — so the
-    // shape setting changes the puck's outline, not its size.
+    // shape setting changes the puck's outline, not its size. mymoon is the one exception
+    // (see its own test below).
     it("crops to an inset square and scales to the shared target", () => {
-      for (const source of SOURCES) {
+      for (const source of SOURCES.filter((s) => s !== "mymoon")) {
         const style = discStyle(source, "square");
         expect(style).toMatch(/^clip-path: inset\(\d+(\.\d+)?%\); transform: scale\(/);
       }
     });
 
-    // Rotation is just another transform on top of the same clip every other source gets —
-    // no special-casing for the one source that happens to rotate. Corners the rotated image
-    // swings outside the tile are cut by the tile's own overflow:hidden; the backdrop shows
-    // through the gaps it swings away from.
-    it("clips the sky tile the same as any other source, rotation applied on top", () => {
+    // mymoon ignores gallery.shape entirely and always circle-crops: its clip rotates with the
+    // image, and a rotated inset() square still shows the source JPEG's own black square canvas
+    // inside that rotated shape at every angle but 0/90/180/270 — a circle is the one shape
+    // rotation-invariant, so it's the only crop that gives an exact Moon disc with nothing but
+    // the tile's own backdrop around it.
+    it("still circle-crops the sky tile even when shape is square", () => {
       const style = discStyle("mymoon", "square", 17.1);
       expect(style).toMatch(
-        /^clip-path: inset\(\d+(\.\d+)?%\); transform: rotate\(17\.1deg\) scale\(/
+        /^clip-path: circle\(\d+(\.\d+)?%\); transform: rotate\(17\.1deg\) scale\(/
       );
     });
 

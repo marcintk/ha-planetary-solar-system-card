@@ -1,8 +1,7 @@
 import type { TemplateResult } from "lit";
 import { html, LitElement, nothing } from "lit";
 import { getMoonSkyAngles } from "../astronomy/parallactic.js";
-import { computeSolarElevationDeg } from "../astronomy/solar-position.js";
-import { computeTwilightBand } from "../renderer/observer.js";
+import { computeSolarElevationDeg, getSkyMode } from "../astronomy/solar-position.js";
 import type { CardConfig, Colors, HASSConfig, Hemisphere, LocationData } from "../types.js";
 import { parseCardConfig } from "./card-config.js";
 import { cardStyles } from "./card-styles.js";
@@ -42,6 +41,20 @@ const SUSPENDS_AUTO_ZOOM = new Set([
   "month-back",
   "month-forward",
 ]);
+
+// The sky tile's backdrop, by getSkyMode()'s own band names. Solid colors, not the visibility
+// cone's translucent tints (CONE_DAY etc., see renderer/observer.ts) — the cone is designed to
+// sit as a faint wash over the SVG view, but a tile-sized backdrop needs to read as "day" or
+// "night" at a glance rather than disappear against the card background. Day and night are the
+// two ends of the range (light vs. black); the three twilight steps carry the same warm-cool-
+// violet hue progression as the cone's own bands, just fully opaque instead of near-invisible.
+const MOON_SKY_BACKGROUND: Record<string, string> = {
+  Day: "#d0d0d0",
+  "Civil Twilight": "#8a6142",
+  "Nautical Twilight": "#3a4a6b",
+  "Astronomical Twilight": "#2a1f42",
+  Night: "#000000",
+};
 
 // HASS and config.location update independently (hass setter vs. setConfig), so each source
 // is kept as one grouped field rather than losing either one to an eager merge — _locationData
@@ -231,18 +244,21 @@ export class SolarViewCard extends LitElement {
             class=${gallery.panelSource === "none" ? "" : "hidden"}
             style=${this._heightStyle || nothing}
           ></div>
-          <img
-            id="image-view"
-            class="image-view ${gallery.panelSource === "none" ? "" : "visible"} ${
-              gallery.panelSource === "mymoon" ? "sky-rotated" : ""
-            }"
-            style=${this._panelStyle(gallery.panelSource)}
-            src=${gallery.imageUrl ? fullSizeMoonUrl(gallery.imageUrl) : nothing}
-            alt=""
-            @click=${this._onImageClick}
-            @load=${this._onImageLoad}
-            @error=${this._onImageLoadError}
-          />
+          <div
+            class="image-view-frame ${gallery.panelSource === "none" ? "" : "visible"}"
+            style=${this._panelFrameStyle()}
+          >
+            <img
+              id="image-view"
+              class="image-view"
+              style=${this._panelImageStyle(gallery.panelSource)}
+              src=${gallery.imageUrl ? fullSizeMoonUrl(gallery.imageUrl) : nothing}
+              alt=""
+              @click=${this._onImageClick}
+              @load=${this._onImageLoad}
+              @error=${this._onImageLoadError}
+            />
+          </div>
           ${
             gallery.showStrip
               ? html`<div class="gallery gallery-${this._galleryPosition}">
@@ -317,8 +333,16 @@ export class SolarViewCard extends LitElement {
    * One gallery tile. Every source is a fetched NASA image, so there is one shape rather than
    * a moon branch and an everything-else branch.
    *
-   * The sky tile is the only one that differs, and only by rotation: it turns the same frame
-   * `moon` shows into the observer's own orientation for right now.
+   * The sky tile is the only one that differs, in two ways: it rotates the same frame `moon`
+   * shows into the observer's own orientation, and it leaves the image out entirely — rather
+   * than rendering a Moon that isn't there — while the Moon is below the horizon. The caption
+   * always reads the frame's own age, same as every other tile; the tile stays clickable
+   * either way, so the full-screen view still has the geocentric frame to show.
+   *
+   * The sky's day/twilight/night color washes over the Moon photo itself (a
+   * .gallery-thumb-tint layer, mix-blend-mode: color) rather than filling the tile behind it —
+   * there's no image to wash it onto below the horizon, so the tile is plain black then, same
+   * as every other empty/loading tile, instead of a flat color swatch with nothing on it.
    */
   private _renderGalleryTile(
     source: GallerySource,
@@ -326,45 +350,61 @@ export class SolarViewCard extends LitElement {
     date: Date | null
   ): TemplateResult {
     const sky = source === "mymoon" ? this._skyView() : null;
+    const discStyleValue = discStyle(source, this._galleryShape, sky ? sky.rotation : 0);
     return html`<button
       class="gallery-thumb ${this._galleryShape === "circle" ? "gallery-thumb-circle" : ""}"
       data-source=${source}
       title=${`Show ${GALLERY_SOURCE_LABELS[source]}`}
-      style=${sky ? `background: ${sky.background}` : nothing}
       @click=${this._onGalleryClick}
     >
-      <img
-        src=${url ?? nothing}
-        alt=""
-        style=${discStyle(source, this._galleryShape, sky ? sky.rotation : 0)}
-        @error=${source === "sun" ? this._onSunThumbError : undefined}
-      />
+      ${
+        sky?.belowHorizon
+          ? nothing
+          : html`<img
+              src=${url ?? nothing}
+              alt=""
+              style=${discStyleValue}
+              @error=${source === "sun" ? this._onSunThumbError : undefined}
+            />
+            ${
+              sky
+                ? html`<div
+                  class="gallery-thumb-tint"
+                  style=${`${discStyleValue}; background: ${sky.background}`}
+                ></div>`
+                : nothing
+            }`
+      }
       ${buildGalleryCaption(
         GALLERY_SOURCE_LABELS[source],
-        sky?.belowHorizon
-          ? "below horizon"
-          : date
-            ? formatRelativeWhen(date, new Date())
-            : "loading…"
+        date ? formatRelativeWhen(date, new Date()) : "loading…"
       )}
     </button>`;
   }
 
   /**
-   * The full-screen image's inline style: the configured height cap, plus the sky tile's own
-   * rotation and backdrop so the panel shows what the thumbnail showed rather than snapping
-   * back to the geocentric frame the moment it is opened.
+   * The full-screen frame's inline style: just the configured height cap. The frame stays an
+   * axis-aligned square and clips to it (overflow: hidden in card-styles.ts), so the panel is
+   * square like every other source's, unlike the thumbnail (which always circle-crops, see
+   * discStyle()); only the rotated image inside it, not the frame's own shape, follows the
+   * observer's orientation. Its own background is plain black (card-styles.ts), same as every
+   * other panel — unlike the thumbnail, the sky tint doesn't extend here: the corners a rotated
+   * square swings away from are a much larger share of a full-screen frame than of a 104px
+   * tile, and a colored fill across that much of the screen reads as a wash over the view
+   * rather than a detail on a photo.
    */
-  private _panelStyle(panelSource: ImagePanelMode): string | typeof nothing {
-    const parts = [this._heightStyle];
-    if (panelSource === "mymoon") {
-      const sky = this._skyView();
-      parts.push(
-        `transform: rotate(${sky.rotation.toFixed(1)}deg)`,
-        `background: ${sky.background}`
-      );
-    }
-    return parts.filter(Boolean).join("; ") || nothing;
+  private _panelFrameStyle(): string | typeof nothing {
+    return this._heightStyle || nothing;
+  }
+
+  /**
+   * The full-screen image's own inline style: just the sky tile's rotation, so the panel shows
+   * what the thumbnail showed rather than snapping back to the geocentric frame the moment it
+   * is opened. Every other source needs no style of its own here.
+   */
+  private _panelImageStyle(panelSource: ImagePanelMode): string | typeof nothing {
+    if (panelSource !== "mymoon") return nothing;
+    return `transform: rotate(${this._skyView().rotation.toFixed(1)}deg)`;
   }
 
   /**
@@ -374,13 +414,12 @@ export class SolarViewCard extends LitElement {
    * default black backdrop is the geocentric one, which is the honest thing to show when
    * there is no observer to rotate or light for.
    *
-   * "Below horizon" is not a failure and not a dark Moon — the frame still shows a normally
-   * lit gibbous or crescent. It means the Earth is in the way from here, which happens on
-   * roughly half of any given hour's worth of nights, at every latitude, because the Moon
-   * keeps its own hours rather than the Sun's. The backdrop answers a related but separate
-   * question — not "is the Moon up" but "what does my own sky look like right now" — using
-   * the same day/twilight/night bands and colors as the visibility cone, so a below-horizon
-   * Moon over a bright noon backdrop reads correctly as "up, but you couldn't see it anyway."
+   * "Below horizon" isn't a failure — it means the Earth is in the way from here, which is
+   * true on roughly half of any given hour's worth of nights, at every latitude, because the
+   * Moon keeps its own hours rather than the Sun's — but it does mean there's nothing to show:
+   * the caller leaves the image out rather than rendering a Moon that isn't in the sky. The
+   * backdrop answers a separate question, what the sky itself looks like right now, so it's
+   * still lit correctly either way.
    */
   private _skyView(): { rotation: number; belowHorizon: boolean; background: string } {
     const location = this._locationData;
@@ -389,8 +428,8 @@ export class SolarViewCard extends LitElement {
     const now = new Date();
     const { parallacticDeg, altitudeDeg } = getMoonSkyAngles(now, location.lat, location.lon);
     const sunElevDeg = computeSolarElevationDeg(location.lat, location.lon, now);
-    const { color } = computeTwilightBand(sunElevDeg, null, this._colors);
-    return { rotation: parallacticDeg, belowHorizon: altitudeDeg <= 0, background: color };
+    const background = MOON_SKY_BACKGROUND[getSkyMode(sunElevDeg)];
+    return { rotation: parallacticDeg, belowHorizon: altitudeDeg <= 0, background };
   }
 
   /**

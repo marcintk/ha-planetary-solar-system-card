@@ -140,8 +140,15 @@ export function discStyle(source: ImageSource, shape: GalleryShape, rotationDeg 
   const fraction = DISC_FRACTION[source];
   const scale = `scale(${(TARGET_FRACTION[source] / fraction).toFixed(3)})`;
   const transform = rotationDeg ? `rotate(${rotationDeg.toFixed(1)}deg) ${scale}` : scale;
+  // mymoon ignores gallery.shape and always circle-crops to the exact disc: it's the one
+  // source whose crop rotates with it, and a rotated inset() square still shows the source
+  // JPEG's own black square canvas inside that rotated shape at every angle but 0/90/180/270 —
+  // there's no square clip that avoids it. A circle is rotation-invariant, so it's the only
+  // shape that gives an exact Moon crop with nothing but the tile's own backdrop around it,
+  // whatever angle the observer's sky happens to be at.
+  const effectiveShape = source === "mymoon" ? "circle" : shape;
   const clip =
-    shape === "circle"
+    effectiveShape === "circle"
       ? `circle(${(fraction * 50).toFixed(1)}%)`
       : `inset(${((1 - fraction) * 50).toFixed(1)}%)`;
   return `clip-path: ${clip}; transform: ${transform}`;

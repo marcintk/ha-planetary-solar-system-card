@@ -9,7 +9,7 @@ Home Assistant custom Lovelace card showing all 8 planets, Moon and comet Halley
 Sun, with live NASA imagery of the Moon, Earth and the Sun — including the Moon turned to match your
 own sky. Navigate time, zoom, and pan interactively.
 
-[![Try the interactive demo](https://img.shields.io/badge/▶%20Try%20the%20interactive%20demo-41BDF5?style=for-the-badge)](https://marcintk.github.io/ha-planetary-solar-system-card/)
+[![Try the interactive demo](https://img.shields.io/badge/▶%20Try%20the%20interactive%20demo-CD5C5C?style=for-the-badge)](https://marcintk.github.io/ha-planetary-solar-system-card/)
 
 Have an idea or found a bug?
 [Open a GitHub issue](https://github.com/marcintk/ha-planetary-solar-system-card/issues/new).
@@ -99,8 +99,8 @@ the animation matches the scale you were browsing:
 | day steps           | last 36 days         | 1 day               |
 | month steps         | last 180 days (~6mo) | 5 days              |
 
-The button title shows the active window (`Replay last 12h` / `36d` / `6mo`), and the **today**
-button resets it back to hours.
+The button title shows the active window (`Replay last 12h` / `36d` / `6mo`), and the **Now** button
+resets it back to hours.
 
 Day and month replays advance in whole days on purpose. The observer needle and visibility cone
 track Earth's daily rotation, so a step that isn't a whole number of days would land each frame at a
@@ -108,7 +108,7 @@ different local time and spin the cone instead of showing orbital motion. Whole-
 local time of day fixed, leaving only the planets moving.
 
 Pressing **↺** again mid-animation stops on the frame you're viewing rather than jumping back; the
-**today** button lights up to show the date is no longer live.
+**Now** button lights up to show the date is no longer live.
 
 ## Live Imagery
 
@@ -116,42 +116,18 @@ A thumbnail strip beside the solar view. ☷ toggles it; clicking a NASA thumbna
 full-screen. Which tiles appear is `gallery.mymoon` / `gallery.moon` / `gallery.earth` /
 `gallery.sun`; left-to-right order is fixed (see [Gallery](#gallery)).
 
-| Thumbnail | Source            | Shows                                        | We fetch | Age of what you see |
-| --------- | ----------------- | -------------------------------------------- | -------- | ------------------- |
-| MY SKY    | [NASA SVS][svs]   | The Moon this hour, turned to match your sky | Hourly   | Under an hour       |
-| MOON      | [NASA SVS][svs]   | The Moon this hour, from Earth's centre      | Hourly   | Under an hour       |
-| DSCOVR/E  | [NASA EPIC][epic] | Earth's sunlit side, from L1                 | Hourly   | 1-2 days            |
-| SDO/S     | [NASA SDO][sdo]   | The Sun, from geosync orbit                  | 15 min   | 25-55 min           |
+| Thumbnail | Source            | Shows                                                   | We fetch | Age of what you see |
+| --------- | ----------------- | ------------------------------------------------------- | -------- | ------------------- |
+| MYMOON    | [NASA SVS][svs]   | The Moon in my sky — hidden when it's below the horizon | Hourly   | Under an hour       |
+| MOON      | [NASA SVS][svs]   | The Moon from Earth's centre — no Earth in frame        | Hourly   | Under an hour       |
+| DSCOVR/E  | [NASA EPIC][epic] | Earth's sunlit side, from L1                            | Hourly   | 1-2 days            |
+| SDO/S     | [NASA SDO][sdo]   | The Sun, from geosync orbit                             | 15 min   | 25-55 min           |
 
-### The two Moon tiles
-
-One body, two questions, so two tiles.
-
-**MOON** is NASA's frame exactly as published: rendered from the centre of the Earth with celestial
-north up, the way every Moon photograph you have ever seen is framed. It is never wrong and it looks
-the same for everyone.
-
-**MY SKY** is the same frame, same hour, turned to match _your_ sky — rotated by the parallactic
-angle for your latitude, longitude and the current moment. That rotation is the single biggest
-difference between a picture of the Moon and the Moon you will actually see: it swings through
-roughly ±90° depending on where you stand and when you look. When the Moon isn't up right now — true
-about half the time, at every latitude, because the Moon keeps its own hours rather than the Sun's —
-the tile leaves the image out rather than showing a Moon that isn't in your sky; the caption still
-reads the frame's own age, the same as every other tile, and the tile stays clickable, opening the
-geocentric frame full-screen either way.
-
-When it's showing, the photo itself is tinted by your sky right now — light gray by day, black by
-night, one of three tones in between for civil, nautical and astronomical twilight — a color wash
-over the Moon rather than a flat tile behind it, so there's nothing to tint when the Moon isn't
-there to wear it.
-
-Both are renders, not photographs: NASA builds them from LOLA laser altimetry and the LROC
-wide-angle colour mosaic, positioned by the JPL DE421 ephemeris, and publishes the whole year in
-advance at one frame per hour. So unlike Earth and Sun there is no publish delay to wait out.
-
-Because the product is published a year at a time under an id that changes each December, both Moon
-tiles go blank on 1 January of a year the installed version does not know about, until a release
-ships with it.
+Both Moon tiles are renders, not photographs — NASA builds them from LOLA laser altimetry and the
+LROC wide-angle colour mosaic, positioned by the JPL DE421 ephemeris — so unlike Earth and Sun
+there's no publish delay to wait out. The product ships a year at a time under an id that changes
+each December, so both go blank on 1 January of a year the installed version doesn't know about,
+until a release adds it.
 
 Earth's and Sun's lags are NASA's publish pipeline, not the card holding images back: EPIC processes
 a day or two behind, and SDO's archive posts each 15-min frame 25 to 30 minutes after it was
@@ -178,18 +154,18 @@ walks forward again as the feed catches up.
 
 | Option                 | Type    | Default | Description                                                             |
 | ---------------------- | ------- | ------- | ----------------------------------------------------------------------- |
-| `default_zoom`         | number  | `1`     | Starting zoom level, and the level the **today** button returns to      |
+| `default_zoom`         | number  | `1`     | Starting zoom level, and the level the **Now** button returns to        |
 | `zoom_animate`         | boolean | `true`  | Animate zoom transitions                                                |
 | `periodic_zoom_change` | boolean | `false` | Cycle zoom levels on each refresh tick, until you aim the view yourself |
 | `periodic_zoom_max`    | number  | `4`     | Maximum zoom level for auto-cycle (2–4)                                 |
 
-The **today** button resets the whole view: back to `default_zoom`, the Sun re-centred, and the date
+The **Now** button resets the whole view: back to `default_zoom`, the Sun re-centred, and the date
 live again. It highlights in the accent colour whenever the view has drifted from that default —
 zoomed, panned, or showing a date other than now — so there's always a visible way back.
 
 With `periodic_zoom_change` enabled, zooming, panning, or stepping the date pauses the auto-cycle so
-a refresh tick can't move a view you aimed yourself. The **today** button hands the view back and
-the cycle resumes. Replay and the gallery don't pause it.
+a refresh tick can't move a view you aimed yourself. The **Now** button hands the view back and the
+cycle resumes. Replay and the gallery don't pause it.
 
 ### Appearance
 
@@ -221,55 +197,13 @@ the cycle resumes. Replay and the gallery don't pause it.
 | Key                           | Type    | Default     | Description                                                                                                          |
 | ----------------------------- | ------- | ----------- | -------------------------------------------------------------------------------------------------------------------- |
 | `gallery.mode`                | string  | `"show"`    | `"off"` collapses the strip, `"show"` displays every enabled tile at once, `"slide"` shows one at a time and rotates |
-| `gallery.mymoon`              | boolean | `true`      | Show the MY SKY tile                                                                                                 |
-| `gallery.moon`                | boolean | `false`     | Show the MOON tile                                                                                                   |
-| `gallery.earth`               | boolean | `false`     | Show the DSCOVR/E tile                                                                                               |
-| `gallery.sun`                 | boolean | `false`     | Show the SDO/S tile                                                                                                  |
 | `gallery.position`            | string  | `"overlay"` | `"overlay"` floats the strip over the solar view, `"below"` puts it underneath and grows the card by its height      |
 | `gallery.shape`               | string  | `"square"`  | `"square"` shows the frame as its source publishes it, `"circle"` crops each tile to the body itself                 |
 | `gallery.slide_interval_secs` | number  | `60`        | How often `slide` mode advances to the next enabled source                                                           |
-
-Each `gallery.<source>` boolean controls both fetching and display — a source that's off is never
-requested in the background either. Render order is always MY SKY, MOON, DSCOVR/E, SDO/S, whichever
-subset is enabled; it isn't configurable.
-
-The ☷ button is always available; `mode` only decides whether the strip starts open, and whether it
-shows every enabled tile at once or rotates through them.
-
-```yaml
-gallery:
-  position: below
-  shape: circle
-  earth: true
-  sun: true
-```
-
-`shape: circle` crops away each frame's black margin so the bodies float on the card, all at the
-same size. It is not purely cosmetic: the default `square` keeps the margin, and because each source
-frames its subject differently — Earth fills about three quarters of its frame, the Moon and Sun
-closer to all of it — the bodies then render at visibly different sizes.
-
-MY SKY is the one tile `gallery.shape` doesn't reach — same size as MOON, but always cropped to a
-circle, whatever `shape` is set to. Its crop rotates with the image, and a square crop can't stay
-square once rotated: at any angle but 0/90/180/270 it would show the source frame's own black square
-canvas inside the rotated shape. A circle is the one crop rotation can't do that to, so it's the
-only way to show an exact Moon disc — tinted by your local sky (see above) — against the tile's
-plain black background, same as every other tile.
-
-Older configs keep working. `mode: none` and `mode: closed` both mean `off`; every other legacy
-`mode` value (`earth`, `sun`, `both`, `open`) becomes the new default, `show`; `slide` is unchanged.
-`gallery.sources` is gone — a config still setting it is ignored, and falls back to the defaults
-above.
-
-#### Adding a source later
-
-Source names describe **what the tile shows**, not which instrument produced it. When one body gains
-a second source, name the difference: the two Moon tiles are `moon` and `mymoon` — viewpoint, not
-instrument — and a SOHO coronagraph beside SDO would be `corona`, because that is what it shows.
-
-Only if nothing else distinguishes two sources does the instrument earn a place in the name, and
-even then the incumbent keeps its name and the newcomer takes the qualified one (`earth` stays,
-`goes-earth` joins it). Nobody's dashboard should have to be edited because the card grew a tile.
+| `gallery.mymoon`              | boolean | `true`      | Show the MYMOON tile                                                                                                 |
+| `gallery.moon`                | boolean | `false`     | Show the MOON tile                                                                                                   |
+| `gallery.earth`               | boolean | `false`     | Show the EARTH tile                                                                                                  |
+| `gallery.sun`                 | boolean | `false`     | Show the SUN tile                                                                                                    |
 
 ### Location
 

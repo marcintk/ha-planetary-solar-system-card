@@ -350,7 +350,7 @@ export class SolarViewCard extends LitElement {
     }
     const sky = source === "mymoon" ? this._skyView() : null;
     return html`<button
-      class="gallery-thumb"
+      class="gallery-thumb ${this._galleryShape === "circle" ? "gallery-thumb-circle" : ""}"
       data-source=${source}
       title=${`Show ${GALLERY_SOURCE_LABELS[source]}`}
       @click=${this._onGalleryClick}

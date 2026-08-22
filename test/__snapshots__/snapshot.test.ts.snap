@@ -172,6 +172,13 @@ exports[`cardStyles > matches snapshot 1`] = `
     object-fit: cover;
     display: block;
   }
+  /* discStyle() clip-paths the <img> alone, and the disc's own corners are already black —
+     the same color as .gallery-thumb's backdrop — so a circle-clipped photo on a square black
+     tile is pixel-identical to a square-clipped one. The tile itself has to round too for
+     gallery.shape: circle to read as anything. */
+  .gallery-thumb-circle {
+    border-radius: 50%;
+  }
   /* The drawn disc is the one tile that is still a square plate, so it is the one tile that
      still wants a frame. The fetched tiles are clipped to the body itself (see discStyle) and
      a rounded-rectangle outline around a floating disc reads as a leftover box — but the

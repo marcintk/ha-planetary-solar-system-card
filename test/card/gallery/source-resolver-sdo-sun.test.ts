@@ -503,28 +503,23 @@ describe("source-resolver-sdo-sun", () => {
 
         expect(new Set(archive.probes.map((p) => p.slot)).size).toBe(archive.probes.length); // never asks twice
 
-        if (archive.calls === 1) {
-          // The 30-min publish buffer already covers this gap — the very first guess landed on
-          // or before the newest published frame (not necessarily equal to it: resolve() trusts
-          // a guess that loads rather than searching forward for anything even newer), so
-          // recover() never ran at all.
-          print(`\n${label}: no recovery needed — the guess landed directly`);
-          return;
-        }
-
-        expect(image.date.getTime()).toBe(newestSlot); // recover() explicitly targets the newest
-
         // Exponential search: gallop out doubling the reach to bracket the gap, then bisect the
         // bracket. Both halves are ceil(log2(d+1)) probes for a d-slot gap, plus the one initial
-        // guess that discovered the gap exists — see the "optimal number of probes" test above
-        // for the full derivation.
+        // guess that discovered the gap — see the "optimal number of probes" test above for the
+        // full derivation. gapSlots <= 0 means the guess already landed on or past the newest
+        // published frame (inside the 30-min publish buffer), so there was nothing to search for
+        // and the theoretical floor collapses to that one guess.
         const gapSlots = (archive.probes[0].slot - newestSlot) / SUN_CACHE_TTL_MS;
-        const optimal = 1 + 2 * Math.ceil(Math.log2(gapSlots + 1));
+        const optimal = gapSlots <= 0 ? 1 : 1 + 2 * Math.ceil(Math.log2(gapSlots + 1));
         print(
-          `\n${label}: gap ${gapSlots} slots (${(gapSlots * 15) / 60}h), ` +
+          `\n${label}: gap ${Math.max(gapSlots, 0)} slots (${(Math.max(gapSlots, 0) * 15) / 60}h), ` +
             `spent ${archive.calls}, optimal ${optimal}`
         );
         expect(archive.calls).toBeLessThanOrEqual(optimal);
+
+        if (gapSlots > 0) {
+          expect(image.date.getTime()).toBe(newestSlot); // recover() explicitly targets the newest
+        }
       }
     );
   });

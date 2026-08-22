@@ -1,8 +1,6 @@
 import type { TemplateResult } from "lit";
 import { html, LitElement, nothing } from "lit";
-import { getMoonSkyAngles } from "../astronomy/parallactic.js";
-import { computeSolarElevationDeg, getSkyMode } from "../astronomy/solar-position.js";
-import type { CardConfig, Colors, HASSConfig, Hemisphere, LocationData } from "../types.js";
+import type { CardConfig, Colors, HASSConfig } from "../types.js";
 import { parseCardConfig } from "./card-config.js";
 import { cardStyles } from "./card-styles.js";
 import { buildGalleryCaption, buildStatusBarView, discStyle } from "./card-template.js";
@@ -21,6 +19,8 @@ import { SOURCES } from "./gallery/sources.js";
 import { formatDate, formatRelativeWhen } from "./relative-time.js";
 import { SolarView } from "./solar-view.js";
 import { resolveTheme, THEME_OVERRIDE_VARS } from "./theme.js";
+import type { SkyFrame } from "./viewing-location.js";
+import { ViewingLocation } from "./viewing-location.js";
 import { ZoomController } from "./zoom-controller.js";
 
 export type { GalleryMode };
@@ -37,44 +37,12 @@ const SUSPENDS_AUTO_ZOOM = new Set([
   "month-forward",
 ]);
 
-// The sky tile's backdrop, by getSkyMode()'s own band names. Solid colors, not the visibility
-// cone's translucent tints (CONE_DAY etc., see renderer/observer.ts) — the cone is designed to
-// sit as a faint wash over the SVG view, but a tile-sized backdrop needs to read as "day" or
-// "night" at a glance rather than disappear against the card background. Day and night are the
-// two ends of the range (light vs. black); the three twilight steps carry the same warm-cool-
-// violet hue progression as the cone's own bands, just fully opaque instead of near-invisible.
-const MOON_SKY_BACKGROUND: Record<string, string> = {
-  Day: "#d0d0d0",
-  "Civil Twilight": "#8a6142",
-  "Nautical Twilight": "#3a4a6b",
-  "Astronomical Twilight": "#2a1f42",
-  Night: "#000000",
-};
-
-// HASS and config.location update independently (hass setter vs. setConfig), so each source
-// is kept as one grouped field rather than losing either one to an eager merge — _locationData
-// and _locationName below resolve them on read, override winning per-field.
-interface HassLocation {
-  lat: number | null;
-  lon: number | null;
-  timezone: string | null;
-  name: string | null;
-}
-interface LocationOverride {
-  lat: number;
-  lon: number;
-  timezone: string;
-}
-
 export class SolarViewCard extends LitElement {
   static styles = cardStyles;
 
   private _dateNav: DateNavigation;
   private _zoom: ZoomController;
-  private _hemisphere: Hemisphere;
-  private _hassLocation: HassLocation;
-  private _locationOverride: LocationOverride | null;
-  private _locationNameOverride: string | null;
+  private _location: ViewingLocation;
   private _autoUpdateTimer: number | null;
   private _debugTimer: number | null;
   private _galleryPosition: GalleryPosition;
@@ -96,10 +64,7 @@ export class SolarViewCard extends LitElement {
       () => this._render(),
       () => this._solarView.applyViewState()
     );
-    this._hemisphere = "north";
-    this._hassLocation = { lat: null, lon: null, timezone: null, name: null };
-    this._locationOverride = null;
-    this._locationNameOverride = null;
+    this._location = new ViewingLocation();
     this._autoUpdateTimer = null;
     this._debugTimer = null;
     this._galleryPosition = "overlay";
@@ -114,43 +79,8 @@ export class SolarViewCard extends LitElement {
     this._gallery = new GalleryController(() => this._render());
   }
 
-  // ---------------------------------------------------------------------------
-  // Proxy getters
-  // ---------------------------------------------------------------------------
-  get _locationData(): LocationData | null {
-    const override = this._locationOverride;
-    const lat = override?.lat ?? this._hassLocation.lat;
-    const lon = override?.lon ?? this._hassLocation.lon;
-    return lat != null && lon != null
-      ? {
-          lat,
-          lon,
-          timezone: override?.timezone ?? this._hassLocation.timezone ?? "UTC",
-          zoneOverride: override != null,
-        }
-      : null;
-  }
-  get _effectiveLocationName(): string | null {
-    return this._locationNameOverride ?? this._hassLocation.name;
-  }
-
   set hass(hass: HASSConfig) {
-    const next: HassLocation = {
-      lat: hass.config?.latitude ?? null,
-      lon: hass.config?.longitude ?? null,
-      timezone: hass.config?.time_zone || null,
-      name: hass.config?.location_name || null,
-    };
-    const prev = this._hassLocation;
-    if (
-      next.lat !== prev.lat ||
-      next.lon !== prev.lon ||
-      next.timezone !== prev.timezone ||
-      next.name !== prev.name
-    ) {
-      this._hassLocation = next;
-      this._render();
-    }
+    if (this._location.update(hass)) this._render();
   }
 
   setConfig(config: CardConfig): void {
@@ -167,8 +97,7 @@ export class SolarViewCard extends LitElement {
     this._colors = parsed.colors;
     this._theme = parsed.theme;
     this._eclipticView = parsed.eclipticView;
-    this._locationOverride = parsed.locationOverride;
-    this._locationNameOverride = parsed.locationNameOverride;
+    this._location.configure(parsed.locationOverride, parsed.locationNameOverride);
     this._heightStyle = parsed.heightStyle;
     this._galleryPosition = parsed.galleryPosition;
     this._galleryShape = parsed.galleryShape;
@@ -212,16 +141,19 @@ export class SolarViewCard extends LitElement {
   }
 
   render() {
-    const lat = this._locationData?.lat;
-    if (lat != null) {
-      this._hemisphere = lat < 0 ? "south" : "north";
-    }
+    // One instant for the whole frame, so a sky tile, its tint and the full-screen panel can't
+    // land on three slightly different moments. Computed at most once per render, and only if
+    // something actually asks: the moon ephemeris and solar elevation behind it aren't worth
+    // running on every tick of a card whose gallery has no sky tile enabled.
+    const now = new Date();
+    let skyFrame: SkyFrame | null = null;
+    const sky = () => (skyFrame ??= this._location.skyFrame(now));
 
     const gallery = this._gallery.viewModel(this._galleryPosition);
     const statusBar = buildStatusBarView(
       gallery,
-      this._locationData,
-      this._effectiveLocationName,
+      this._location.data,
+      this._location.name,
       this._dateNav.currentDate
     );
     const zoomLevel = this._zoom.displayZoomLevel;
@@ -246,7 +178,7 @@ export class SolarViewCard extends LitElement {
             <img
               id="image-view"
               class="image-view"
-              style=${this._panelImageStyle(gallery.panelSource)}
+              style=${this._panelImageStyle(gallery.panelSource, sky)}
               src=${gallery.imageUrl ? fullSizeMoonUrl(gallery.imageUrl) : nothing}
               alt=""
               @click=${this._onImageClick}
@@ -258,7 +190,7 @@ export class SolarViewCard extends LitElement {
             gallery.showStrip
               ? html`<div class="gallery gallery-${this._galleryPosition}">
                   ${gallery.thumbnails.map(({ source, url, date }) =>
-                    this._renderGalleryTile(source, url, date)
+                    this._renderGalleryTile(source, url, date, sky, now)
                   )}
                 </div>`
               : nothing
@@ -304,8 +236,8 @@ export class SolarViewCard extends LitElement {
       this._solarView.mount(
         container,
         this._dateNav.currentDate,
-        this._hemisphere,
-        this._locationData,
+        this._location.hemisphere,
+        this._location.data,
         this._colors,
         this._eclipticView
       );
@@ -342,9 +274,14 @@ export class SolarViewCard extends LitElement {
   private _renderGalleryTile(
     source: GallerySource,
     url: string | null,
-    date: Date | null
+    date: Date | null,
+    skyFrame: () => SkyFrame,
+    now: Date
   ): TemplateResult {
-    const sky = SOURCES[source].skyFrame ? this._skyView() : null;
+    // The catalog says whether this tile wants the observer's frame; ViewingLocation says what
+    // that frame is. Every other source shows the geocentric render as published, and never
+    // makes the caller compute a frame it has no use for.
+    const sky = SOURCES[source].skyFrame ? skyFrame() : null;
     const discStyleValue = discStyle(source, this._galleryShape, sky ? sky.rotation : 0);
     return html`<button
       class="gallery-thumb ${this._galleryShape === "circle" ? "gallery-thumb-circle" : ""}"
@@ -372,7 +309,7 @@ export class SolarViewCard extends LitElement {
       }
       ${buildGalleryCaption(
         SOURCES[source].tile,
-        date ? formatRelativeWhen(date, new Date()) : "loading…"
+        date ? formatRelativeWhen(date, now) : "loading…"
       )}
     </button>`;
   }
@@ -397,34 +334,12 @@ export class SolarViewCard extends LitElement {
    * what the thumbnail showed rather than snapping back to the geocentric frame the moment it
    * is opened. Every other source needs no style of its own here.
    */
-  private _panelImageStyle(panelSource: ImagePanelMode): string | typeof nothing {
+  private _panelImageStyle(
+    panelSource: ImagePanelMode,
+    skyFrame: () => SkyFrame
+  ): string | typeof nothing {
     if (panelSource === "none" || !SOURCES[panelSource].skyFrame) return nothing;
-    return `transform: rotate(${this._skyView().rotation.toFixed(1)}deg)`;
-  }
-
-  /**
-   * How the Moon hangs in the observer's sky right now.
-   *
-   * Returns null-safe defaults when no location is known yet: an unrotated frame on the
-   * default black backdrop is the geocentric one, which is the honest thing to show when
-   * there is no observer to rotate or light for.
-   *
-   * "Below horizon" isn't a failure — it means the Earth is in the way from here, which is
-   * true on roughly half of any given hour's worth of nights, at every latitude, because the
-   * Moon keeps its own hours rather than the Sun's — but it does mean there's nothing to show:
-   * the caller leaves the image out rather than rendering a Moon that isn't in the sky. The
-   * backdrop answers a separate question, what the sky itself looks like right now, so it's
-   * still lit correctly either way.
-   */
-  private _skyView(): { rotation: number; belowHorizon: boolean; background: string } {
-    const location = this._locationData;
-    if (!location) return { rotation: 0, belowHorizon: false, background: "#000" };
-
-    const now = new Date();
-    const { parallacticDeg, altitudeDeg } = getMoonSkyAngles(now, location.lat, location.lon);
-    const sunElevDeg = computeSolarElevationDeg(location.lat, location.lon, now);
-    const background = MOON_SKY_BACKGROUND[getSkyMode(sunElevDeg)];
-    return { rotation: parallacticDeg, belowHorizon: altitudeDeg <= 0, background };
+    return `transform: rotate(${skyFrame().rotation.toFixed(1)}deg)`;
   }
 
   /**

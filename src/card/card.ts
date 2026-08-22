@@ -214,7 +214,7 @@ export class SolarViewCard extends LitElement {
       this._hemisphere = lat < 0 ? "south" : "north";
     }
 
-    const gallery = this._gallery.viewModel();
+    const gallery = this._gallery.viewModel(this._galleryPosition);
     const statusBar = buildStatusBarView(
       gallery,
       this._locationData,

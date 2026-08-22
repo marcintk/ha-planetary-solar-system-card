@@ -221,6 +221,19 @@ describe("SolarViewCard gallery", () => {
       card.remove();
     });
 
+    // "below" makes the strip a normal-flow sibling of the view, growing the card by its own
+    // height — unlike "overlay", which floats over the view and legitimately must yield when
+    // a panel opens. Regression: opening a panel used to hide the strip regardless of position,
+    // which shrank the whole card back down the moment a below-position thumbnail was clicked.
+    it("keeps the strip visible below the view after opening a panel", async () => {
+      const card = createAndMount({ gallery: { mode: "open", position: "below" } });
+      await flush();
+      card.shadowRoot.querySelector('[data-source="moon"]').click();
+      await flush();
+      expect(card.shadowRoot.querySelector(".gallery-below")).not.toBeNull();
+      card.remove();
+    });
+
     // Opening the sky tile must not snap back to the geocentric frame.
     it("carries the sky rotation into the full-screen view", async () => {
       const card = createAndMount({

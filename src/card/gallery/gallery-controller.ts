@@ -141,14 +141,17 @@ export class GalleryController {
     return this._mode === "slide" ? [this._sources[this._slideIndex]] : this._sources;
   }
 
-  viewModel(): GalleryViewModel {
+  // position defaults to "overlay" (the strip must hide there, since it floats over the
+  // full-screen view it would otherwise sit on top of) — "below" is a normal flow sibling of
+  // that view instead, so it has no need to hide just because a panel opened.
+  viewModel(position: GalleryPosition = "overlay"): GalleryViewModel {
     return {
       error: this._error,
       panelSource: this._panelMode,
       imageUrl: this._imageUrl,
       imageDate: this._imageDate,
       imageLoaded: this._imageLoaded,
-      showStrip: this._open && this._panelMode === "none",
+      showStrip: this._open && (position === "below" || this._panelMode === "none"),
       thumbnails: this.displaySources.map((source) => {
         const image = source === "drawnmoon" ? undefined : this._images[source];
         return { source, url: image?.url ?? null, date: image?.date ?? null };

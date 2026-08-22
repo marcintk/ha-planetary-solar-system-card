@@ -515,6 +515,18 @@ describe("GalleryController.viewModel", () => {
     ]);
   });
 
+  it("keeps the strip visible in below position even with a panel open", async () => {
+    const gallery = new GalleryController(
+      () => {},
+      () => "UTC"
+    );
+    gallery.configure("open", DEFAULT_GALLERY_SOURCES, 60000);
+    gallery.openPanel("earth");
+    await vi.waitFor(() => expect(gallery.imageLoaded).toBe(true));
+    expect(gallery.viewModel("below").showStrip).toBe(true);
+    expect(gallery.viewModel("overlay").showStrip).toBe(false);
+  });
+
   it("hides the strip while collapsed but still reports its thumbnails", () => {
     const gallery = new GalleryController(
       () => {},

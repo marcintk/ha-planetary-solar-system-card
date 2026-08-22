@@ -6,12 +6,7 @@ import { cardStyles } from "./card-styles.js";
 import { buildGalleryCaption, buildStatusBarView, discStyle } from "./card-template.js";
 import { DateNavigation } from "./date-navigation.js";
 import { buildDebugOverlay } from "./debug-view.js";
-import type {
-  GalleryMode,
-  GalleryPosition,
-  GalleryShape,
-  ImagePanelMode,
-} from "./gallery/gallery-controller.js";
+import type { GalleryMode, GalleryPosition, GalleryShape } from "./gallery/gallery-controller.js";
 import { GalleryController } from "./gallery/gallery-controller.js";
 import { fullSizeMoonUrl } from "./gallery/source-resolver-svs-moon.js";
 import type { ImageSource } from "./gallery/sources.js";
@@ -36,6 +31,18 @@ const SUSPENDS_AUTO_ZOOM = new Set([
   "month-back",
   "month-forward",
 ]);
+
+/**
+ * What the sky tile shows in place of the Moon while the Moon is below the horizon — in the
+ * thumbnail and in the full-screen panel, from one builder so the two can't drift apart.
+ *
+ * Only the panel's copy takes a handler: the thumbnail's sits inside a <button> that already
+ * closes over its own click, while the panel's stands in for the image that used to be the
+ * way back out, and has to carry that click itself.
+ */
+function noMoonSky(onClick?: (e: Event) => void): TemplateResult {
+  return html`<div class="no-sky" @click=${onClick}>No Moon Sky</div>`;
+}
 
 export class SolarViewCard extends LitElement {
   static styles = cardStyles;
@@ -150,6 +157,10 @@ export class SolarViewCard extends LitElement {
     const sky = () => (skyFrame ??= this._location.skyFrame(now));
 
     const gallery = this._gallery.viewModel(this._galleryPosition);
+    // The open panel's own sky, or null when the panel is closed or shows a source that has no
+    // observer frame — same question _renderGalleryTile asks per tile, asked once for the panel.
+    const panelSky =
+      gallery.panelSource !== "none" && SOURCES[gallery.panelSource].skyFrame ? sky() : null;
     const statusBar = buildStatusBarView(
       gallery,
       this._location.data,
@@ -175,16 +186,20 @@ export class SolarViewCard extends LitElement {
             class="image-view-frame ${gallery.panelSource === "none" ? "" : "visible"}"
             style=${this._panelFrameStyle()}
           >
-            <img
-              id="image-view"
-              class="image-view"
-              style=${this._panelImageStyle(gallery.panelSource, sky)}
-              src=${gallery.imageUrl ? fullSizeMoonUrl(gallery.imageUrl) : nothing}
-              alt=""
-              @click=${this._onImageClick}
-              @load=${this._onImageLoad}
-              @error=${this._onImageLoadError}
-            />
+            ${
+              panelSky?.belowHorizon
+                ? noMoonSky(this._onImageClick)
+                : html`<img
+                    id="image-view"
+                    class="image-view"
+                    style=${this._panelImageStyle(panelSky)}
+                    src=${gallery.imageUrl ? fullSizeMoonUrl(gallery.imageUrl) : nothing}
+                    alt=""
+                    @click=${this._onImageClick}
+                    @load=${this._onImageLoad}
+                    @error=${this._onImageLoadError}
+                  />`
+            }
           </div>
           ${
             gallery.showStrip
@@ -261,10 +276,12 @@ export class SolarViewCard extends LitElement {
    * a moon branch and an everything-else branch.
    *
    * The sky tile is the only one that differs, in two ways: it rotates the same frame `moon`
-   * shows into the observer's own orientation, and it leaves the image out entirely — rather
-   * than rendering a Moon that isn't there — while the Moon is below the horizon. The caption
-   * always reads the frame's own age, same as every other tile; the tile stays clickable
-   * either way, so the full-screen view still has the geocentric frame to show.
+   * shows into the observer's own orientation, and while the Moon is below the horizon it says
+   * so in words — rather than rendering a Moon that isn't there, or leaving a black square that
+   * reads as a tile which failed to load. The caption always reads the frame's own age, same as
+   * every other tile; the tile stays clickable either way, and the full-screen view carries the
+   * same message rather than falling back to the geocentric frame — a view the observer
+   * explicitly asked for their own sky is the wrong place to answer with someone else's.
    *
    * The sky's day/twilight/night color washes over the Moon photo itself (a
    * .gallery-thumb-tint layer, mix-blend-mode: color) rather than filling the tile behind it —
@@ -291,7 +308,7 @@ export class SolarViewCard extends LitElement {
     >
       ${
         sky?.belowHorizon
-          ? nothing
+          ? noMoonSky()
           : html`<img
               src=${url ?? nothing}
               alt=""
@@ -334,12 +351,9 @@ export class SolarViewCard extends LitElement {
    * what the thumbnail showed rather than snapping back to the geocentric frame the moment it
    * is opened. Every other source needs no style of its own here.
    */
-  private _panelImageStyle(
-    panelSource: ImagePanelMode,
-    skyFrame: () => SkyFrame
-  ): string | typeof nothing {
-    if (panelSource === "none" || !SOURCES[panelSource].skyFrame) return nothing;
-    return `transform: rotate(${skyFrame().rotation.toFixed(1)}deg)`;
+  private _panelImageStyle(panelSky: SkyFrame | null): string | typeof nothing {
+    if (!panelSky) return nothing;
+    return `transform: rotate(${panelSky.rotation.toFixed(1)}deg)`;
   }
 
   /**

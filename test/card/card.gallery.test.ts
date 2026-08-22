@@ -108,6 +108,109 @@ describe("SolarViewCard gallery", () => {
       vi.useRealTimers();
     });
 
+    // Below the horizon there is no Moon to show, but an empty black square reads as a tile
+    // that failed to load. The text says which of the two it is.
+    describe("no moon in the sky", () => {
+      const DOWN = "2026-08-22T10:15:00Z"; // Denton, Moon well below the horizon
+      const UP = "2026-08-22T02:15:00Z"; // same place, Moon up
+
+      function mountAt(iso) {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date(iso));
+        const card = document.createElement("ha-planetary-solar-system-card-test");
+        card.setConfig({
+          gallery: { mode: "open" },
+          location: { latitude: 33.2148, longitude: -97.1331, timezone: "America/Chicago" },
+        });
+        document.body.appendChild(card);
+        return card;
+      }
+
+      it("names the empty sky in the tile instead of leaving it blank", async () => {
+        const card = mountAt(DOWN);
+        await vi.advanceTimersByTimeAsync(0);
+        const tile = card.shadowRoot.querySelector('[data-source="mymoon"]');
+        expect(tile.querySelector("img")).toBeNull();
+        expect(tile.querySelector(".no-sky").textContent.trim()).toBe("No Moon Sky");
+        card.remove();
+        vi.useRealTimers();
+      });
+
+      // The caption is the tile's own line and stays put — the message replaces the image, not
+      // the label or the frame age every other tile also carries.
+      it("keeps the normal caption underneath it", async () => {
+        const card = mountAt(DOWN);
+        await vi.advanceTimersByTimeAsync(0);
+        const tile = card.shadowRoot.querySelector('[data-source="mymoon"]');
+        expect(tile.querySelector(".gallery-label").textContent).toBe("MYMOON");
+        expect(tile.querySelector(".gallery-age").textContent).toBe("15m ago");
+        card.remove();
+        vi.useRealTimers();
+      });
+
+      it("says the same thing full-screen, rather than the geocentric render", async () => {
+        const card = mountAt(DOWN);
+        await vi.advanceTimersByTimeAsync(0);
+        card.shadowRoot.querySelector('[data-source="mymoon"]').click();
+        await vi.advanceTimersByTimeAsync(0);
+
+        expect(card.shadowRoot.querySelector("#image-view")).toBeNull();
+        expect(card.shadowRoot.querySelector(".image-view-frame .no-sky").textContent.trim()).toBe(
+          "No Moon Sky"
+        );
+        card.remove();
+        vi.useRealTimers();
+      });
+
+      // The image it replaces was the way back out of the panel, so the message has to be too.
+      it("closes the panel when the message is clicked", async () => {
+        const card = mountAt(DOWN);
+        await vi.advanceTimersByTimeAsync(0);
+        card.shadowRoot.querySelector('[data-source="mymoon"]').click();
+        await vi.advanceTimersByTimeAsync(0);
+        expect(card._gallery.panelMode).toBe("mymoon");
+
+        card.shadowRoot.querySelector(".image-view-frame .no-sky").click();
+        await vi.advanceTimersByTimeAsync(0);
+        expect(card._gallery.panelMode).toBe("none");
+        card.remove();
+        vi.useRealTimers();
+      });
+
+      it("shows the Moon, and no message, once it is up", async () => {
+        const card = mountAt(UP);
+        await vi.advanceTimersByTimeAsync(0);
+        const tile = card.shadowRoot.querySelector('[data-source="mymoon"]');
+        expect(tile.querySelector("img")).not.toBeNull();
+        expect(tile.querySelector(".no-sky")).toBeNull();
+
+        tile.click();
+        await vi.advanceTimersByTimeAsync(0);
+        expect(card.shadowRoot.querySelector("#image-view")).not.toBeNull();
+        expect(card.shadowRoot.querySelector(".no-sky")).toBeNull();
+        card.remove();
+        vi.useRealTimers();
+      });
+
+      // Every other source is a photograph of a body that is always there to photograph.
+      it("never appears on a source that is not the observer's own sky", async () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date(DOWN));
+        const card = document.createElement("ha-planetary-solar-system-card-test");
+        card.setConfig({
+          gallery: { mode: "open", moon: true, earth: true, sun: true },
+          location: { latitude: 33.2148, longitude: -97.1331, timezone: "America/Chicago" },
+        });
+        document.body.appendChild(card);
+        await vi.advanceTimersByTimeAsync(0);
+        for (const source of ["moon", "earth", "sun"]) {
+          expect(card.shadowRoot.querySelector(`[data-source="${source}"] .no-sky`)).toBeNull();
+        }
+        card.remove();
+        vi.useRealTimers();
+      });
+    });
+
     // Same location, an instant the Moon is actually up for: the caption falls back to the
     // normal frame-age phrasing, same as every other tile — it needs the resolved image date,
     // so unlike the below-horizon case this waits for the background fetch to land.
@@ -274,18 +377,25 @@ describe("SolarViewCard gallery", () => {
     });
 
     // Opening the sky tile must not snap back to the geocentric frame.
+    //
+    // Pinned to an instant the Moon is actually up: the panel only holds an image while it is,
+    // so on real wall-clock time this asserted against whichever sky the suite happened to run
+    // under, and would have started failing roughly half the day.
     it("carries the sky rotation into the full-screen view", async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-08-22T02:15:00Z"));
       const card = createAndMount({
         gallery: { mode: "open" },
         location: { latitude: 33.2148, longitude: -97.1331, timezone: "America/Chicago" },
       });
-      await flush();
+      await vi.advanceTimersByTimeAsync(0);
       card.shadowRoot.querySelector('[data-source="mymoon"]').click();
-      await flush();
+      await vi.advanceTimersByTimeAsync(0);
       expect(card.shadowRoot.querySelector("#image-view").getAttribute("style")).toMatch(
         /transform: rotate\(-?\d+(\.\d+)?deg\)/
       );
       card.remove();
+      vi.useRealTimers();
     });
 
     // gallery.shape flips the crop between a round puck and a square one — both are scaled

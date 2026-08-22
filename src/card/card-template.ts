@@ -137,16 +137,6 @@ const TARGET_FRACTION: Record<ImageSource, number> = {
  * exists to prevent.
  */
 export function discStyle(source: ImageSource, shape: GalleryShape, rotationDeg = 0): string {
-  // The sky tile is the one exception: a rotated square is not a square. The tile clips the
-  // corners that swing outside it while the card shows through where the image's own corners
-  // swing in, so an unclipped rotated frame renders as an octagon at every angle but 0 and 90.
-  // Scaling it down by 1/(|cos|+|sin|) would keep all four corners, at the cost of a tilted
-  // diamond up to 29% smaller than its neighbours. A circle is the one shape rotation leaves
-  // alone, so the sky tile takes one whatever the setting, at the frame's own edge rather than
-  // the shared target — it needs no rescale, since the clip already lands on the tile edge.
-  if (shape === "square" && rotationDeg) {
-    return `clip-path: circle(50%); transform: rotate(${rotationDeg.toFixed(1)}deg)`;
-  }
   const fraction = DISC_FRACTION[source];
   const scale = `scale(${(TARGET_FRACTION[source] / fraction).toFixed(3)})`;
   const transform = rotationDeg ? `rotate(${rotationDeg.toFixed(1)}deg) ${scale}` : scale;

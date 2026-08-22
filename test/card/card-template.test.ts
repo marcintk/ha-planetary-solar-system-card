@@ -204,11 +204,14 @@ describe("discStyle", () => {
       }
     });
 
-    // The one exception, and it is not cosmetic: an unclipped rotated square sweeps its
-    // corners out of the tile and over the status bar.
-    it("still clips the sky tile, because it rotates", () => {
-      expect(discStyle("mymoon", "square", 17.1)).toBe(
-        "clip-path: circle(50%); transform: rotate(17.1deg)"
+    // Rotation is just another transform on top of the same clip every other source gets —
+    // no special-casing for the one source that happens to rotate. Corners the rotated image
+    // swings outside the tile are cut by the tile's own overflow:hidden; the backdrop shows
+    // through the gaps it swings away from.
+    it("clips the sky tile the same as any other source, rotation applied on top", () => {
+      const style = discStyle("mymoon", "square", 17.1);
+      expect(style).toMatch(
+        /^clip-path: inset\(\d+(\.\d+)?%\); transform: rotate\(17\.1deg\) scale\(/
       );
     });
 

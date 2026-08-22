@@ -242,13 +242,11 @@ same size. It is not purely cosmetic: the default `square` keeps the margin, and
 frames its subject differently — Earth fills about three quarters of its frame, the Moon and Sun
 closer to all of it — the bodies then render at visibly different sizes.
 
-MY SKY takes a slightly different route to the same look, because a rotated square is not a square —
-the tile clips the corners that swing outside it while the card shows through where the image's own
-corners swing in, so a rotated frame renders as an octagon at every angle except 0° and 90°. Instead
-of its own frame it gets a backdrop colored by your own local sky — day, twilight or night, the same
-bands and colors as the [visibility cone](#horizon-twilight-zones) — with the body clipped to a
-circle inside it. Every other source renders its body on plain black, so MY SKY is the one tile
-whose backdrop actually changes through the day.
+MY SKY follows `gallery.shape` exactly like every other tile — same crop, same size — with its
+rotation applied on top. In `square` mode the rotated frame's corners swing past the tile's own
+square silhouette; what shows through the gap is the tile's own backdrop, which for MY SKY is
+colored by your local sky — day, twilight or night, the same bands and colors as the
+[visibility cone](#horizon-twilight-zones) — rather than the plain black every other tile sits on.
 
 Older configs keep working. `mode: none` and `mode: closed` both mean `off`; every other legacy
 `mode` value (`earth`, `sun`, `both`, `open`) becomes the new default, `show`; `slide` is unchanged.

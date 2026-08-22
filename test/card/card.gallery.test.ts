@@ -318,7 +318,12 @@ describe("SolarViewCard gallery", () => {
       card.remove();
     });
 
-    it("keeps the sky tile's image clipped even in square mode", () => {
+    // The sky tile follows gallery.shape exactly like every other tile now: same inset/circle
+    // clip, same scale to the shared target size, rotation just applies on top of it. Any
+    // corners the rotation swings outside the tile are cut by the tile's own overflow:hidden,
+    // and the gaps it swings away from show the tile's backdrop — colored by the observer's
+    // sky for mymoon, same as any other rotated content sitting on a fixed-shape frame.
+    it("clips the sky tile to gallery.shape just like the other tiles, rotated on top", () => {
       const card = createAndMount({
         gallery: { mode: "open", shape: "square" },
         location: { latitude: 33.2148, longitude: -97.1331, timezone: "America/Chicago" },
@@ -326,9 +331,8 @@ describe("SolarViewCard gallery", () => {
       const style = card.shadowRoot
         .querySelector('[data-source="mymoon"] img')
         .getAttribute("style");
-      expect(style).toContain("clip-path: circle(50%)");
-      expect(style).toMatch(/rotate\(-?\d+(\.\d+)?deg\)/);
-      expect(style).not.toContain("scale");
+      expect(style).toMatch(/^clip-path: inset\(/);
+      expect(style).toMatch(/rotate\(-?\d+(\.\d+)?deg\) scale\(/);
       card.remove();
     });
 

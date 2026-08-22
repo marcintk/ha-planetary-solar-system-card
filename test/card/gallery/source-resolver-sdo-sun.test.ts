@@ -428,6 +428,30 @@ describe("source-resolver-sdo-sun", () => {
       expect(stalled.calls - afterColdStart).toBe(16);
     });
 
+    it("holds the confirmed frame for a full TTL after a re-check, so getSunImageUrl() skips the network for the next minute of ticks (#152)", async () => {
+      stubArchivePublishedUpTo("2026-08-21T12:30:00.000Z");
+      const resolver = new SdoSunResolver(cache);
+      const debug = emptyDebugAccumulator();
+
+      let now = Date.parse("2026-08-21T20:37:00.000Z");
+      vi.spyOn(Date, "now").mockReturnValue(now);
+      await resolver.resolve(debug, debug); // cold start: confirms 12:30, stamps the check
+      now += 15 * 60000;
+      vi.spyOn(Date, "now").mockReturnValue(now);
+      await resolver.resolve(debug, debug); // re-check: still nothing newer, re-stamps
+
+      const stalled = stubArchivePublishedUpTo("2026-08-21T12:30:00.000Z");
+      // 1-minute ticks, well inside the freshly stamped 15-min window and long past the
+      // slot's own 45-min buffer window — getSunImageUrl() must serve the cache, not probe.
+      for (let tick = 0; tick < 5; tick++) {
+        now += 60000;
+        vi.spyOn(Date, "now").mockReturnValue(now);
+        const image = getSunImageUrl(cache);
+        expect(image.date.toISOString()).toBe("2026-08-21T12:30:00.000Z");
+      }
+      expect(stalled.calls).toBe(0);
+    });
+
     it("catches up to the newest frame in one refresh once the feed recovers", async () => {
       // Creeping forward one slot per tick would take eight hours to recover from an
       // eight-hour stall; bisecting between the confirmed frame and the fresh guess lands on
@@ -450,16 +474,19 @@ describe("source-resolver-sdo-sun", () => {
     });
 
     it("skips the search entirely when the guess is only one slot past the confirmed frame", async () => {
-      vi.spyOn(Date, "now").mockReturnValue(NOW);
+      // The guess at this moment lands exactly on the newest published frame, so the very
+      // first resolve() succeeds directly and never touches recover() — the check that
+      // stamps lastCheckedAt (#152) — leaving the throttle clear for the second call below.
+      vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-08-15T22:15:00.000Z"));
       const archive = stubArchivePublishedUpTo("2026-08-15T21:45:00.000Z");
       const resolver = new SdoSunResolver(cache);
       const debug = emptyDebugAccumulator();
       await resolver.resolve(debug, debug); // confirms 21:45
 
-      // Just past the 22:30 cache hold, the fresh guess is 22:00 — exactly 21:45 plus one
-      // slot. It 404s, and there is no gap left between it and the confirmed frame, so
-      // nothing more is worth asking.
-      vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-08-15T22:32:00.000Z"));
+      // Well past both the 22:30 cache hold and any #152 throttle, the fresh guess is 22:00
+      // — exactly 21:45 plus one slot. It 404s, and there is no gap left between it and the
+      // confirmed frame, so nothing more is worth asking.
+      vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-08-15T22:44:00.000Z"));
       const before = archive.calls;
       const image = await resolver.resolve(debug, debug);
 

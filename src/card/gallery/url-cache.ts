@@ -29,6 +29,11 @@ export class UrlCache {
   private entries = new Map<string, CacheEntry>();
   private decoded = new Map<string, string>();
   private backoff = new Backoff();
+  // Distinct from `entries.fetchedAt`, which an optimistic guess (getSunImageUrl) also
+  // writes, at a different moment per card instance — using that as a "when did we last
+  // actually check" clock would reintroduce #122's cross-card desync. Only sun's recover()
+  // stamps this, and only for its "still nothing newer" outcome (#152).
+  private lastChecked = new Map<string, number>();
 
   get(key: string, maxAgeMs: number): SourcedImage | null {
     const entry = this.entries.get(key);
@@ -63,6 +68,14 @@ export class UrlCache {
     return this.backoff.inCooldown(key);
   }
 
+  recordChecked(key: string): void {
+    this.lastChecked.set(key, Date.now());
+  }
+
+  getLastCheckedAt(key: string): number | undefined {
+    return this.lastChecked.get(key);
+  }
+
   recordFailure(key: string, retryAfterMs?: number): void {
     this.backoff.recordFailure(key, retryAfterMs);
   }
@@ -75,6 +88,7 @@ export class UrlCache {
     this.entries.clear();
     this.decoded.clear();
     this.backoff.clear();
+    this.lastChecked.clear();
   }
 }
 

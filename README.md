@@ -52,16 +52,17 @@ colors:
 type: custom:ha-planetary-solar-system-card
 gallery:
   mode: slide
-  sources: [mymoon, moon, earth, sun]
+  moon: true
+  earth: true
+  sun: true
   slide_interval_secs: 30
 ```
 
 ```yaml
 type: custom:ha-planetary-solar-system-card
 gallery:
-  mode: open
   position: below
-  sources: [mymoon, earth]
+  earth: true
 ```
 
 ```yaml
@@ -112,16 +113,15 @@ Pressing **↺** again mid-animation stops on the frame you're viewing rather th
 ## Live Imagery
 
 A thumbnail strip beside the solar view. ☷ toggles it; clicking a NASA thumbnail opens it
-full-screen. Which tiles appear — and in what left-to-right order — is `gallery.sources` (see
-[Gallery](#gallery)).
+full-screen. Which tiles appear is `gallery.mymoon` / `gallery.moon` / `gallery.earth` /
+`gallery.sun`; left-to-right order is fixed (see [Gallery](#gallery)).
 
-| Thumbnail | Source            | Shows                                   | We fetch   | Age of what you see |
-| --------- | ----------------- | --------------------------------------- | ---------- | ------------------- |
-| MY SKY    | [NASA SVS][svs]   | The Moon at 22:00 your time, your sky   | Once a day | Tonight, not yet    |
-| MOON      | [NASA SVS][svs]   | The Moon this hour, from Earth's centre | Hourly     | Under an hour       |
-| DSCOVR/E  | [NASA EPIC][epic] | Earth's sunlit side, from L1            | Hourly     | 1-2 days            |
-| SDO/S     | [NASA SDO][sdo]   | The Sun, from geosync orbit             | 15 min     | 25-55 min           |
-| DRAWN     | Drawn locally     | The phase, computed on your dashboard   | No fetch   | Live                |
+| Thumbnail | Source            | Shows                                        | We fetch | Age of what you see |
+| --------- | ----------------- | -------------------------------------------- | -------- | ------------------- |
+| MY SKY    | [NASA SVS][svs]   | The Moon this hour, turned to match your sky | Hourly   | Under an hour       |
+| MOON      | [NASA SVS][svs]   | The Moon this hour, from Earth's centre      | Hourly   | Under an hour       |
+| DSCOVR/E  | [NASA EPIC][epic] | Earth's sunlit side, from L1                 | Hourly   | 1-2 days            |
+| SDO/S     | [NASA SDO][sdo]   | The Sun, from geosync orbit                  | 15 min   | 25-55 min           |
 
 ### The two Moon tiles
 
@@ -131,12 +131,19 @@ One body, two questions, so two tiles.
 north up, the way every Moon photograph you have ever seen is framed. It is never wrong and it looks
 the same for everyone.
 
-**MY SKY** is the same frame turned to match _your_ sky — rotated by the parallactic angle for your
-latitude, longitude and clock, for 22:00 local tonight. That rotation is the single biggest
+**MY SKY** is the same frame, same hour, turned to match _your_ sky — rotated by the parallactic
+angle for your latitude, longitude and the current moment. That rotation is the single biggest
 difference between a picture of the Moon and the Moon you will actually see: it swings through
-roughly ±90° depending on where you stand and when you look. Its caption counts down to 22:00, and
-says `below horizon` on the nights the Moon is not up then — which is about half of them, at every
-latitude, because the Moon keeps its own hours rather than the Sun's.
+roughly ±90° depending on where you stand and when you look. When the Moon isn't up right now — true
+about half the time, at every latitude, because the Moon keeps its own hours rather than the Sun's —
+the tile leaves the image out rather than showing a Moon that isn't in your sky; the caption still
+reads the frame's own age, the same as every other tile, and the tile stays clickable, opening the
+geocentric frame full-screen either way.
+
+When it's showing, the photo itself is tinted by your sky right now — light gray by day, black by
+night, one of three tones in between for civil, nautical and astronomical twilight — a color wash
+over the Moon rather than a flat tile behind it, so there's nothing to tint when the Moon isn't
+there to wear it.
 
 Both are renders, not photographs: NASA builds them from LOLA laser altimetry and the LROC
 wide-angle colour mosaic, positioned by the JPL DE421 ephemeris, and publishes the whole year in
@@ -144,9 +151,7 @@ advance at one frame per hour. So unlike Earth and Sun there is no publish delay
 
 Because the product is published a year at a time under an id that changes each December, both Moon
 tiles go blank on 1 January of a year the installed version does not know about, until a release
-ships with it. **DRAWN** is the tile that cannot: computed on your dashboard, no network request, no
-way to fail — but a diagram rather than a picture, which is why it is opt-in rather than shown by
-default.
+ships with it.
 
 Earth's and Sun's lags are NASA's publish pipeline, not the card holding images back: EPIC processes
 a day or two behind, and SDO's archive posts each 15-min frame 25 to 30 minutes after it was
@@ -213,35 +218,30 @@ the cycle resumes. Replay and the gallery don't pause it.
 
 `gallery` (object, unset by default) — Live Imagery gallery options:
 
-| Key                           | Type     | Default        | Description                                                                                                     |
-| ----------------------------- | -------- | -------------- | --------------------------------------------------------------------------------------------------------------- |
-| `gallery.mode`                | string   | `"off"`        | `"off"` starts the strip collapsed, `"open"` shows it, `"slide"` shows one tile at a time and rotates           |
-| `gallery.sources`             | string[] | the four below | Which tiles to show, in left-to-right order. Unknown names and duplicates are dropped                           |
-| `gallery.position`            | string   | `"overlay"`    | `"overlay"` floats the strip over the solar view, `"below"` puts it underneath and grows the card by its height |
-| `gallery.shape`               | string   | `"square"`     | `"square"` shows the frame as its source publishes it, `"circle"` crops each tile to the body itself            |
-| `gallery.slide_interval_secs` | number   | `60`           | How often `slide` mode advances to the next source                                                              |
+| Key                           | Type    | Default     | Description                                                                                                          |
+| ----------------------------- | ------- | ----------- | -------------------------------------------------------------------------------------------------------------------- |
+| `gallery.mode`                | string  | `"show"`    | `"off"` collapses the strip, `"show"` displays every enabled tile at once, `"slide"` shows one at a time and rotates |
+| `gallery.mymoon`              | boolean | `true`      | Show the MY SKY tile                                                                                                 |
+| `gallery.moon`                | boolean | `false`     | Show the MOON tile                                                                                                   |
+| `gallery.earth`               | boolean | `false`     | Show the DSCOVR/E tile                                                                                               |
+| `gallery.sun`                 | boolean | `false`     | Show the SDO/S tile                                                                                                  |
+| `gallery.position`            | string  | `"overlay"` | `"overlay"` floats the strip over the solar view, `"below"` puts it underneath and grows the card by its height      |
+| `gallery.shape`               | string  | `"square"`  | `"square"` shows the frame as its source publishes it, `"circle"` crops each tile to the body itself                 |
+| `gallery.slide_interval_secs` | number  | `60`        | How often `slide` mode advances to the next enabled source                                                           |
 
-Source names:
+Each `gallery.<source>` boolean controls both fetching and display — a source that's off is never
+requested in the background either. Render order is always MY SKY, MOON, DSCOVR/E, SDO/S, whichever
+subset is enabled; it isn't configurable.
 
-| Name        | Tile     | Fetches |
-| ----------- | -------- | ------- |
-| `mymoon`    | MY SKY   | Yes     |
-| `moon`      | MOON     | Yes     |
-| `earth`     | DSCOVR/E | Yes     |
-| `sun`       | SDO/S    | Yes     |
-| `drawnmoon` | DRAWN    | No      |
-
-Omit `sources` and you get the four fetched tiles in that order. `drawnmoon` is opt-in — it is a
-diagram, and it does not belong in a strip of photographs unless you ask for it.
-
-The ☷ button is always available; `mode` only decides whether the strip starts open.
+The ☷ button is always available; `mode` only decides whether the strip starts open, and whether it
+shows every enabled tile at once or rotates through them.
 
 ```yaml
 gallery:
-  mode: open
   position: below
   shape: circle
-  sources: [mymoon, earth, sun]
+  earth: true
+  sun: true
 ```
 
 `shape: circle` crops away each frame's black margin so the bodies float on the card, all at the
@@ -249,16 +249,17 @@ same size. It is not purely cosmetic: the default `square` keeps the margin, and
 frames its subject differently — Earth fills about three quarters of its frame, the Moon and Sun
 closer to all of it — the bodies then render at visibly different sizes.
 
-MY SKY takes a slightly different route to the same look, because a rotated square is not a square —
-the tile clips the corners that swing outside it while the card shows through where the image's own
-corners swing in, so a rotated frame renders as an octagon at every angle except 0° and 90°. Instead
-of its own frame it gets a black backdrop from the tile, with the body clipped to a circle inside
-it. Every source renders its body on black, so the result is framed exactly like its neighbours,
-with a turned Moon inside.
+MY SKY is the one tile `gallery.shape` doesn't reach — same size as MOON, but always cropped to a
+circle, whatever `shape` is set to. Its crop rotates with the image, and a square crop can't stay
+square once rotated: at any angle but 0/90/180/270 it would show the source frame's own black square
+canvas inside the rotated shape. A circle is the one crop rotation can't do that to, so it's the
+only way to show an exact Moon disc — tinted by your local sky (see above) — against the tile's
+plain black background, same as every other tile.
 
-Older configs keep working. `mode: none` and `mode: closed` both mean `off`; `earth`, `sun` and
-`both` open the strip; `slide` is unchanged. Source names are unchanged too — the one shift is that
-`moon` now resolves to NASA's render rather than the locally drawn disc, which is `drawnmoon`.
+Older configs keep working. `mode: none` and `mode: closed` both mean `off`; every other legacy
+`mode` value (`earth`, `sun`, `both`, `open`) becomes the new default, `show`; `slide` is unchanged.
+`gallery.sources` is gone — a config still setting it is ignored, and falls back to the defaults
+above.
 
 #### Adding a source later
 

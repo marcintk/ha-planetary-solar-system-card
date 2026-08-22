@@ -1,11 +1,10 @@
-import { getLocalHourInstant } from "../../astronomy/solar-position.js";
 import type { ImageSource } from "../card-template.js";
 import type { DebugAccumulator, DebugRowId } from "./debug.js";
 import { DEBUG_ROW_KEYS } from "./debug.js";
 import type { SourceResolver } from "./source-resolver.js";
 import { DscovrEarthResolver } from "./source-resolver-dscovr-earth.js";
 import { SdoSunResolver } from "./source-resolver-sdo-sun.js";
-import { SKY_REFERENCE_HOUR, SvsMoonResolver } from "./source-resolver-svs-moon.js";
+import { SvsMoonResolver } from "./source-resolver-svs-moon.js";
 import type { SourcedImage } from "./url-cache.js";
 
 // The single gateway to a resolved sun/earth image — dispatches to the per-source resolver
@@ -18,15 +17,14 @@ export class ImageResolver {
   private readonly _resolvers: Record<ImageSource, SourceResolver>;
   private readonly _inFlight: Partial<Record<ImageSource, boolean>> = {};
 
-  // The sky tile's reference instant depends on the observer's timezone, which arrives from
-  // HA after construction — hence a getter rather than a value. Both moon resolvers share one
-  // class and differ only in which instant they ask for and which cache key they own.
-  constructor(getTimezone: () => string) {
+  // Both moon resolvers ask for the current instant and land on the same NASA frame; they
+  // differ only in which cache key they own, and card.ts rotates mymoon's copy to the
+  // observer's own sky.
+  constructor() {
+    const now = () => new Date();
     this._resolvers = {
-      mymoon: new SvsMoonResolver("mymoon", () =>
-        getLocalHourInstant(new Date(), getTimezone(), SKY_REFERENCE_HOUR)
-      ),
-      moon: new SvsMoonResolver("moon", () => new Date()),
+      mymoon: new SvsMoonResolver("mymoon", now),
+      moon: new SvsMoonResolver("moon", now),
       earth: new DscovrEarthResolver(),
       sun: new SdoSunResolver(),
     };

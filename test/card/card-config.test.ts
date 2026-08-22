@@ -16,10 +16,10 @@ describe("parseCardConfig", () => {
       locationOverride: null,
       locationNameOverride: null,
       heightStyle: "",
-      galleryMode: "off",
+      galleryMode: "show",
       galleryPosition: "overlay",
       galleryShape: "square",
-      gallerySources: ["mymoon", "moon", "earth", "sun"],
+      gallerySources: ["mymoon"],
       galleryIntervalMs: 60000,
     });
   });
@@ -155,15 +155,14 @@ describe("parseCardConfig", () => {
   });
 
   describe("gallery", () => {
-    it("uses a recognised gallery mode", () => {
-      expect(parseCardConfig({ gallery: { mode: "open" } }).galleryMode).toBe("open");
+    it("accepts 'slide' and 'off'", () => {
       expect(parseCardConfig({ gallery: { mode: "slide" } }).galleryMode).toBe("slide");
-    });
-    it("falls back to 'off' for an unrecognised mode", () => {
-      expect(parseCardConfig({ gallery: { mode: "bogus" } }).galleryMode).toBe("off");
-    });
-    it("accepts 'off'", () => {
       expect(parseCardConfig({ gallery: { mode: "off" } }).galleryMode).toBe("off");
+    });
+    it("falls back to 'show' for an unrecognised mode — including no mode at all", () => {
+      expect(parseCardConfig({ gallery: { mode: "bogus" } }).galleryMode).toBe("show");
+      expect(parseCardConfig({}).galleryMode).toBe("show");
+      expect(parseCardConfig({ gallery: {} }).galleryMode).toBe("show");
     });
 
     describe("position", () => {
@@ -186,66 +185,48 @@ describe("parseCardConfig", () => {
       });
     });
 
+    // Each source is its own boolean now, not a position in a list — mymoon defaults on,
+    // the three NASA photographs default off, and render order is always fixed
+    // (mymoon, moon, earth, sun) regardless of which keys the config sets or their order.
     describe("sources", () => {
-      it("keeps recognised sources in the order given — order is the layout", () => {
+      it("defaults to mymoon only", () => {
+        expect(parseCardConfig({}).gallerySources).toEqual(["mymoon"]);
+        expect(parseCardConfig({ gallery: {} }).gallerySources).toEqual(["mymoon"]);
+      });
+
+      it("enables exactly the sources set true, in fixed render order", () => {
         expect(
-          parseCardConfig({ gallery: { sources: ["sun", "drawnmoon", "mymoon"] } }).gallerySources
-        ).toEqual(["sun", "drawnmoon", "mymoon"]);
-      });
-
-      it("drops unknown entries and de-duplicates, keeping first position", () => {
-        expect(
-          parseCardConfig({
-            gallery: { sources: ["moon", "hubble-mars", "sun", "moon"] },
-          }).gallerySources
-        ).toEqual(["moon", "sun"]);
-      });
-
-      it("falls back to the fetched sources when nothing valid remains", () => {
-        const fetched = ["mymoon", "moon", "earth", "sun"];
-        expect(parseCardConfig({ gallery: { sources: ["hubble-mars"] } }).gallerySources).toEqual(
-          fetched
-        );
-        expect(parseCardConfig({ gallery: { sources: [] } }).gallerySources).toEqual(fetched);
-        expect(
-          parseCardConfig({ gallery: { sources: "moon" as unknown as string[] } }).gallerySources
-        ).toEqual(fetched);
-      });
-
-      // drawnmoon is opt-in by name: a diagram does not belong in a strip of photographs
-      // unless it was asked for.
-      it("leaves drawnmoon out of the default set", () => {
-        expect(parseCardConfig({}).gallerySources).not.toContain("drawnmoon");
-        expect(parseCardConfig({ gallery: { sources: ["drawnmoon"] } }).gallerySources).toEqual([
-          "drawnmoon",
-        ]);
-      });
-
-      // Source names gained their instrument in this version. A #140 dashboard should keep
-      // showing the same bodies rather than silently reverting to the default set.
-      it("maps the pre-instrument names onto their sources", () => {
-        expect(
-          parseCardConfig({ gallery: { sources: ["moon", "earth", "sun"] } }).gallerySources
-        ).toEqual(["moon", "earth", "sun"]);
-      });
-
-      it("de-duplicates across the old and new spelling of one source", () => {
-        expect(parseCardConfig({ gallery: { sources: ["moon", "moon"] } }).gallerySources).toEqual([
+          parseCardConfig({ gallery: { mymoon: false, sun: true, earth: true } }).gallerySources
+        ).toEqual(["earth", "sun"]);
+        expect(parseCardConfig({ gallery: { mymoon: false, moon: true } }).gallerySources).toEqual([
           "moon",
         ]);
       });
+
+      it("enables all four when every flag is set true", () => {
+        expect(
+          parseCardConfig({
+            gallery: { mymoon: true, moon: true, earth: true, sun: true },
+          }).gallerySources
+        ).toEqual(["mymoon", "moon", "earth", "sun"]);
+      });
+
+      it("can disable every tile, leaving an empty strip", () => {
+        expect(parseCardConfig({ gallery: { mymoon: false } }).gallerySources).toEqual([]);
+      });
     });
 
-    // Two older generations of `mode` values. The pre-#140 names picked sources as well as
-    // presentation; #140's "closed" is this version's "off". Without this mapping they would
-    // fail the mode check and silently fall back to the default.
+    // The pre-#140 names picked sources as well as presentation; #140's "closed" is this
+    // version's "off". Individual source selection is gone from `mode` entirely now — every
+    // legacy value that isn't an off-alias or "slide" just becomes the new default, "show".
     describe("legacy mode strings", () => {
       it.each([
         ["none", "off"],
         ["closed", "off"],
-        ["earth", "open"],
-        ["sun", "open"],
-        ["both", "open"],
+        ["earth", "show"],
+        ["sun", "show"],
+        ["both", "show"],
+        ["open", "show"],
       ])("maps %s to %s", (legacy, mode) => {
         expect(parseCardConfig({ gallery: { mode: legacy } }).galleryMode).toBe(mode);
       });

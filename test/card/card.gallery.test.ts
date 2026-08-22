@@ -48,9 +48,13 @@ describe("SolarViewCard gallery", () => {
     // other than "none" auto-opens the strip on connect, so most tests here don't need to
     // click the gallery button to open it — only to close/reopen it.
     // Not the shared createAndMount: every test here needs the gallery switched on.
-    function mountWithGallery(config) {
+    function mountWithGallery(config = {}) {
       const card = document.createElement("ha-planetary-solar-system-card-test");
-      card.setConfig({ gallery: { mode: "both" }, ...config });
+      const { gallery, ...rest } = config;
+      card.setConfig({
+        gallery: { mode: "both", mymoon: true, moon: true, earth: true, sun: true, ...gallery },
+        ...rest,
+      });
       document.body.appendChild(card);
       return card;
     }
@@ -79,106 +83,154 @@ describe("SolarViewCard gallery", () => {
       card.remove();
     });
 
-    it("opening the default gallery shows the whole strip", async () => {
+    it("opening the default gallery shows only mymoon, the one tile enabled by default", async () => {
       const card = document.createElement("ha-planetary-solar-system-card-test");
       document.body.appendChild(card);
       clickButton(card, "gallery");
       await flush();
 
       const tiles = [...card.shadowRoot.querySelectorAll(".gallery > *")];
-      expect(tiles.map((t) => t.getAttribute("data-source"))).toEqual([
-        "mymoon",
-        "moon",
-        "earth",
-        "sun",
-      ]);
+      expect(tiles.map((t) => t.getAttribute("data-source"))).toEqual(["mymoon"]);
       card.remove();
     });
 
-    // The drawn disc is a diagram, not a photograph — opt-in by name, and debug: true has
-    // nothing to do with it now that it is a source like any other.
-    it("shows the drawn moon disc only when listed in sources", async () => {
-      const card = createAndMount({ gallery: { mode: "open" }, debug: true });
-      expect(card.shadowRoot.querySelector("svg.moon-phase-disc")).toBeNull();
-      card.remove();
-
-      const listed = createAndMount({ gallery: { mode: "open", sources: ["drawnmoon"] } });
-      const drawn = listed.shadowRoot.querySelector('[data-source="drawnmoon"]');
-      expect(drawn).toBeTruthy();
-      expect(drawn.querySelector("svg.moon-phase-disc")).toBeTruthy();
-      listed.remove();
-    });
-
-    // Position is the user's, not ours: sources[0] renders leftmost whatever it is.
-    it("renders tiles in the order sources lists them", () => {
+    // Order is fixed (mymoon, moon, earth, sun) now that individual booleans replace the old
+    // ordered sources list — there is no longer a list position to render tiles by.
+    it("renders enabled tiles in the fixed mymoon/moon/earth/sun order regardless of config order", () => {
       const card = createAndMount({
-        gallery: { mode: "open", sources: ["sun", "drawnmoon", "mymoon"] },
+        gallery: { mode: "open", sun: true, moon: true, mymoon: true },
       });
       const order = [...card.shadowRoot.querySelectorAll(".gallery > *")].map((t) =>
         t.getAttribute("data-source")
       );
-      expect(order).toEqual(["sun", "drawnmoon", "mymoon"]);
+      expect(order).toEqual(["mymoon", "moon", "sun"]);
       card.remove();
     });
 
-    it("gives the drawn tile a tooltip", () => {
-      vi.useFakeTimers();
-      vi.setSystemTime(new Date("2024-01-25T18:00:00Z")); // Full Moon
-      const card = createAndMount({ gallery: { mode: "open", sources: ["drawnmoon"] } });
-      expect(card.shadowRoot.querySelector('[data-source="drawnmoon"]').getAttribute("title")).toBe(
-        "Tonight's Moon — Full Moon, 100% illuminated"
-      );
-      card.remove();
-      vi.useRealTimers();
-    });
-
-    // Every NASA tile opens full-screen, including both moons — they are fetched images now,
-    // so the pointer affordance promises something a click can actually deliver.
+    // Every NASA tile opens full-screen, including both moons — they are fetched images, so
+    // the pointer affordance promises something a click can actually deliver.
     it("makes every strip tile a button", () => {
-      const card = createAndMount({ gallery: { mode: "open" } });
+      const card = createAndMount({
+        gallery: { mode: "open", mymoon: true, moon: true, earth: true, sun: true },
+      });
       const tiles = [...card.shadowRoot.querySelectorAll(".gallery > *")];
       expect(tiles.map((t) => t.tagName)).toEqual(["BUTTON", "BUTTON", "BUTTON", "BUTTON"]);
-      // Order matters: the drawn debug plate leads the strip when it is present.
       card.remove();
     });
 
-    // The sky tile is the only one that can say the body it shows is not in view. That is not
-    // a failure and not a dark Moon — the frame still shows a normally lit one — it means the
-    // Earth is in the way from here, which is true on roughly half of all nights at every
-    // latitude. Denton on 8 Sep 2026: the Moon is 35 degrees below the horizon at 22:00 local.
-    // Note the caption describes the *reference hour*, not the moment the card is rendered.
-    it("says so when the Moon is below the horizon at the reference hour", () => {
+    // The sky tile is the only one that can leave its image out entirely: below the horizon
+    // there's nothing to show, rather than a Moon that isn't actually in view — but the tile
+    // stays a button (still clickable, see "carries the sky rotation into the full-screen
+    // view"), and its caption still reads the frame's own age like every other tile, never a
+    // "below horizon" placeholder. Denton, 22 Aug 2026 05:00 CDT: the Moon is well below the
+    // horizon.
+    it("renders no image, but a normal age caption, when the Moon is below the horizon", async () => {
       vi.useFakeTimers();
-      vi.setSystemTime(new Date("2026-09-08T20:00:00Z")); // 15:00 CDT the same local day
+      vi.setSystemTime(new Date("2026-08-22T10:15:00Z"));
       const card = document.createElement("ha-planetary-solar-system-card-test");
       card.setConfig({
         gallery: { mode: "open" },
         location: { latitude: 33.2148, longitude: -97.1331, timezone: "America/Chicago" },
       });
       document.body.appendChild(card);
-      card._render();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(card.shadowRoot.querySelector('[data-source="mymoon"] img')).toBeNull();
       expect(card.shadowRoot.querySelector('[data-source="mymoon"] .gallery-age').textContent).toBe(
-        "below horizon"
+        "15m ago"
       );
       card.remove();
       vi.useRealTimers();
     });
 
-    // Same location, a reference hour the Moon is actually up for: the caption goes back to
-    // pointing at 22:00 instead.
-    it("counts towards the reference hour when the Moon will be up", () => {
+    // Same location, an instant the Moon is actually up for: the caption falls back to the
+    // normal frame-age phrasing, same as every other tile — it needs the resolved image date,
+    // so unlike the below-horizon case this waits for the background fetch to land.
+    it("shows the normal age caption when the Moon is up", async () => {
       vi.useFakeTimers();
-      vi.setSystemTime(new Date("2026-08-22T01:00:00Z")); // 20:00 CDT, Moon up at 22:00
+      vi.setSystemTime(new Date("2026-08-22T02:15:00Z"));
       const card = document.createElement("ha-planetary-solar-system-card-test");
       card.setConfig({
         gallery: { mode: "open" },
         location: { latitude: 33.2148, longitude: -97.1331, timezone: "America/Chicago" },
       });
       document.body.appendChild(card);
-      card._render();
+      await vi.advanceTimersByTimeAsync(0);
       expect(card.shadowRoot.querySelector('[data-source="mymoon"] .gallery-age').textContent).toBe(
-        "in 2h"
+        "15m ago"
       );
+      card.remove();
+      vi.useRealTimers();
+    });
+
+    // The sky tile's day/twilight/night color washes over the Moon photo itself (a
+    // .gallery-thumb-tint layer), not the tile behind it — solid colors, not the visibility
+    // cone's translucent tints, since a wash needs to actually show up against the photo.
+    it("tints the sky tile's photo by the observer's own day/night, not the Moon's", () => {
+      vi.useFakeTimers();
+      const config = {
+        gallery: { mode: "open" },
+        location: { latitude: 33.2148, longitude: -97.1331, timezone: "America/Chicago" },
+      };
+      const tintOf = (card) =>
+        card.shadowRoot
+          .querySelector('[data-source="mymoon"] .gallery-thumb-tint')
+          ?.getAttribute("style");
+
+      vi.setSystemTime(new Date("2026-08-22T22:00:00Z")); // 17:00 CDT: Sun up, Moon just risen
+      const dayCard = document.createElement("ha-planetary-solar-system-card-test");
+      dayCard.setConfig(config);
+      document.body.appendChild(dayCard);
+      expect(tintOf(dayCard)).toContain("background: #d0d0d0");
+      dayCard.remove();
+
+      vi.setSystemTime(new Date("2026-08-22T03:00:00Z")); // 22:00 CDT: deep night, Moon still up
+      const nightCard = document.createElement("ha-planetary-solar-system-card-test");
+      nightCard.setConfig(config);
+      document.body.appendChild(nightCard);
+      expect(tintOf(nightCard)).toContain("background: #000000");
+      nightCard.remove();
+      vi.useRealTimers();
+    });
+
+    // No location means no observer to light the tint for, same reasoning as the unrotated
+    // frame: the honest default, not a guess.
+    it("falls back to a black tint with no location known", () => {
+      const card = createAndMount({ gallery: { mode: "open" } });
+      const style = card.shadowRoot
+        .querySelector('[data-source="mymoon"] .gallery-thumb-tint')
+        .getAttribute("style");
+      expect(style).toContain("background: #000");
+      card.remove();
+    });
+
+    // The tile itself stays plain black like every other tile — the color lives on the Moon's
+    // own photo (the tint layer), not the button behind it.
+    it("keeps the tile's own background plain, unlike the tint on its photo", () => {
+      const card = createAndMount({
+        gallery: { mode: "open" },
+        location: { latitude: 33.2148, longitude: -97.1331, timezone: "America/Chicago" },
+      });
+      expect(card.shadowRoot.querySelector('[data-source="mymoon"]').getAttribute("style")).toBe(
+        null
+      );
+      card.remove();
+    });
+
+    // Unlike the thumbnail, the full-screen panel never tints its backdrop — the corners a
+    // rotated square swings away from are a much bigger share of a full-screen frame than of a
+    // 104px tile, and a colored fill across that much of the screen reads as a wash over the
+    // view rather than a detail on a photo. Plain black, same as every other panel.
+    it("keeps the full-screen panel's own background plain black, even for the sky tile", async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-08-22T18:00:00Z")); // Sun well up (irrelevant to the panel)
+      const card = createAndMount({
+        gallery: { mode: "open" },
+        location: { latitude: 33.2148, longitude: -97.1331, timezone: "America/Chicago" },
+      });
+      await vi.advanceTimersByTimeAsync(0);
+      card.shadowRoot.querySelector('[data-source="mymoon"]').click();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(card.shadowRoot.querySelector(".image-view-frame").getAttribute("style")).toBe(null);
       card.remove();
       vi.useRealTimers();
     });
@@ -191,7 +243,14 @@ describe("SolarViewCard gallery", () => {
       vi.setSystemTime(new Date("2026-08-22T01:00:00Z"));
       const card = document.createElement("ha-planetary-solar-system-card-test");
       card.setConfig({
-        gallery: { mode: "open", shape: "circle" },
+        gallery: {
+          mode: "open",
+          shape: "circle",
+          mymoon: true,
+          moon: true,
+          earth: true,
+          sun: true,
+        },
         location: { latitude: 33.2148, longitude: -97.1331, timezone: "America/Chicago" },
       });
       document.body.appendChild(card);
@@ -211,7 +270,7 @@ describe("SolarViewCard gallery", () => {
     // Thumbnails are 216 px; the full-screen view is the same frame at 730. Swapping the size
     // segment keeps the panel on the exact frame the tile showed.
     it("opens the moon full-screen at the larger resolution", async () => {
-      const card = createAndMount({ gallery: { mode: "open" } });
+      const card = createAndMount({ gallery: { mode: "open", moon: true } });
       await flush();
       card.shadowRoot.querySelector('[data-source="moon"]').click();
       await flush();
@@ -226,7 +285,7 @@ describe("SolarViewCard gallery", () => {
     // a panel opens. Regression: opening a panel used to hide the strip regardless of position,
     // which shrank the whole card back down the moment a below-position thumbnail was clicked.
     it("keeps the strip visible below the view after opening a panel", async () => {
-      const card = createAndMount({ gallery: { mode: "open", position: "below" } });
+      const card = createAndMount({ gallery: { mode: "open", position: "below", moon: true } });
       await flush();
       card.shadowRoot.querySelector('[data-source="moon"]').click();
       await flush();
@@ -237,14 +296,14 @@ describe("SolarViewCard gallery", () => {
     // In "below" position the just-clicked tile stays visible next to its own full-screen
     // view, so clicking it again is reachable — and reads as "close", not "reopen".
     it("closes the panel when the open tile is clicked again in below position", async () => {
-      const card = createAndMount({ gallery: { mode: "open", position: "below" } });
+      const card = createAndMount({ gallery: { mode: "open", position: "below", moon: true } });
       await flush();
       card.shadowRoot.querySelector('[data-source="moon"]').click();
       await flush();
-      expect(card.shadowRoot.querySelector("#image-view").className).toContain("visible");
+      expect(card.shadowRoot.querySelector(".image-view-frame").className).toContain("visible");
       card.shadowRoot.querySelector('[data-source="moon"]').click();
       await flush();
-      expect(card.shadowRoot.querySelector("#image-view").className).not.toContain("visible");
+      expect(card.shadowRoot.querySelector(".image-view-frame").className).not.toContain("visible");
       card.remove();
     });
 
@@ -266,7 +325,9 @@ describe("SolarViewCard gallery", () => {
     // gallery.shape flips the crop between a round puck and a square one — both are scaled
     // to the same shared target size.
     it("crops to a square puck when gallery.shape is square", () => {
-      const card = createAndMount({ gallery: { mode: "open", shape: "square" } });
+      const card = createAndMount({
+        gallery: { mode: "open", shape: "square", moon: true, earth: true, sun: true },
+      });
       const styleOf = (source) =>
         card.shadowRoot.querySelector(`[data-source="${source}"] img`).getAttribute("style");
       for (const source of ["moon", "earth", "sun"]) {
@@ -275,7 +336,15 @@ describe("SolarViewCard gallery", () => {
       card.remove();
     });
 
-    it("keeps the sky tile's image clipped even in square mode", () => {
+    // The sky tile follows gallery.shape exactly like every other tile now: same inset/circle
+    // clip, same scale to the shared target size, rotation just applies on top of it. Any
+    // corners the rotation swings outside the tile are cut by the tile's own overflow:hidden,
+    // mymoon ignores gallery.shape and always circle-crops, even in square mode: a rotated
+    // inset() square would still show the source JPEG's own black square canvas at every angle
+    // but 0/90/180/270, and a circle is the one shape rotation can't do that to.
+    it("keeps circle-cropping the sky tile even when gallery.shape is square", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-08-22T02:15:00Z")); // Moon up, see "shows the normal age..."
       const card = createAndMount({
         gallery: { mode: "open", shape: "square" },
         location: { latitude: 33.2148, longitude: -97.1331, timezone: "America/Chicago" },
@@ -283,14 +352,14 @@ describe("SolarViewCard gallery", () => {
       const style = card.shadowRoot
         .querySelector('[data-source="mymoon"] img')
         .getAttribute("style");
-      expect(style).toContain("clip-path: circle(50%)");
-      expect(style).toMatch(/rotate\(-?\d+(\.\d+)?deg\)/);
-      expect(style).not.toContain("scale");
+      expect(style).toMatch(/^clip-path: circle\(/);
+      expect(style).toMatch(/rotate\(-?\d+(\.\d+)?deg\) scale\(/);
       card.remove();
+      vi.useRealTimers();
     });
 
     it("labels the two moon tiles apart", () => {
-      const card = createAndMount({ gallery: { mode: "open" } });
+      const card = createAndMount({ gallery: { mode: "open", moon: true } });
       const labelOf = (source) =>
         card.shadowRoot.querySelector(`[data-source="${source}"] .gallery-label`).textContent;
       expect(labelOf("moon")).toBe("MOON");
@@ -304,15 +373,12 @@ describe("SolarViewCard gallery", () => {
     // line above the body and the age span the line below it.
     it("gives every tile the same caption structure", () => {
       const card = createAndMount({
-        gallery: {
-          mode: "open",
-          sources: ["drawnmoon", "mymoon", "moon", "earth", "sun"],
-        },
+        gallery: { mode: "open", mymoon: true, moon: true, earth: true, sun: true },
       });
       const shapes = [...card.shadowRoot.querySelectorAll(".gallery-info")].map((info) =>
         [...info.children].map((el) => `${el.tagName}.${el.className}`)
       );
-      expect(shapes).toHaveLength(5);
+      expect(shapes).toHaveLength(4);
       expect(new Set(shapes.map((s) => s.join(","))).size).toBe(1);
       expect(shapes[0]).toEqual(["SPAN.gallery-label", "SPAN.gallery-age"]);
       card.remove();
@@ -410,7 +476,7 @@ describe("SolarViewCard gallery", () => {
         "SUN · NASA SDO HMI"
       );
       const img = card.shadowRoot.querySelector("#image-view");
-      expect(img.classList.contains("visible")).toBe(true);
+      expect(img.parentElement.classList.contains("visible")).toBe(true);
       expect(card.shadowRoot.querySelector(".gallery")).toBeNull();
       expect(card.shadowRoot.querySelector("#solar-view").classList.contains("hidden")).toBe(true);
       card.remove();
@@ -695,7 +761,7 @@ describe("SolarViewCard gallery", () => {
       card.shadowRoot.querySelector('.gallery-thumb[data-source="earth"]').click();
       await flush();
       const img = card.shadowRoot.querySelector("#image-view");
-      expect(img.classList.contains("visible")).toBe(true);
+      expect(img.parentElement.classList.contains("visible")).toBe(true);
       expect(img.src).toBe(
         `${EPIC_BASE_URL}/archive/natural/2026/08/10/jpg/epic_1b_20260810234950.jpg`
       );
@@ -712,7 +778,7 @@ describe("SolarViewCard gallery", () => {
       card.shadowRoot.querySelector('.gallery-thumb[data-source="earth"]').click();
       await flush();
       const img = card.shadowRoot.querySelector("#image-view");
-      expect(img.classList.contains("visible")).toBe(false);
+      expect(img.parentElement.classList.contains("visible")).toBe(false);
       expect(card._gallery.panelMode).toBe("none");
       expect(card.shadowRoot.querySelector(".status-bar").textContent).toContain(
         "DSCOVR Earth image unavailable"
@@ -744,7 +810,7 @@ describe("SolarViewCard gallery", () => {
       card.shadowRoot.querySelector('.gallery-thumb[data-source="earth"]').click();
       await flush();
       const img = card.shadowRoot.querySelector("#image-view");
-      expect(img.classList.contains("visible")).toBe(false);
+      expect(img.parentElement.classList.contains("visible")).toBe(false);
       expect(card._gallery.panelMode).toBe("none");
       expect(card.shadowRoot.querySelector(".status-bar").textContent).toContain(
         "DSCOVR Earth image unavailable"
@@ -764,7 +830,7 @@ describe("SolarViewCard gallery", () => {
       card.shadowRoot.querySelector('.gallery-thumb[data-source="earth"]').click();
       await vi.advanceTimersByTimeAsync(15000); // FETCH_TIMEOUT_MS in source-resolver.ts
       const img = card.shadowRoot.querySelector("#image-view");
-      expect(img.classList.contains("visible")).toBe(false);
+      expect(img.parentElement.classList.contains("visible")).toBe(false);
       expect(card._gallery.panelMode).toBe("none");
       expect(card.shadowRoot.querySelector(".status-bar").textContent).toContain(
         "DSCOVR Earth image unavailable"
@@ -792,7 +858,7 @@ describe("SolarViewCard gallery", () => {
       // month's worth of doublings behind a dead connection.
       await vi.advanceTimersByTimeAsync(60000);
       const img = card.shadowRoot.querySelector("#image-view");
-      expect(img.classList.contains("visible")).toBe(false);
+      expect(img.parentElement.classList.contains("visible")).toBe(false);
       expect(card._gallery.panelMode).toBe("none");
       expect(card.shadowRoot.querySelector(".status-bar").textContent).toContain(
         "SDO HMI Continuum image unavailable"
@@ -900,7 +966,16 @@ describe("SolarViewCard gallery", () => {
       const card = mountWithGallery({ gallery: { mode: "slide", slide_interval_secs: 120 } });
       await vi.advanceTimersByTimeAsync(0);
 
-      card.setConfig({ gallery: { mode: "slide", slide_interval_secs: 180 } });
+      card.setConfig({
+        gallery: {
+          mode: "slide",
+          slide_interval_secs: 180,
+          mymoon: true,
+          moon: true,
+          earth: true,
+          sun: true,
+        },
+      });
       await vi.advanceTimersByTimeAsync(120 * 1000); // past the old interval, before the new one
       expect(card.shadowRoot.querySelector(".gallery-thumb").dataset.source).toBe("mymoon");
 

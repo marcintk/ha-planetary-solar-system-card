@@ -101,24 +101,31 @@ exports[`cardStyles > matches snapshot 1`] = `
     user-select: none;
     touch-action: none;
   }
-  .image-view {
+  /* The clipping box: fixed square, sized/height-capped the way .image-view itself used to be.
+     The sky tile's image rotates inside it (see .image-view below); overflow: hidden crops
+     whatever the rotated square swings past this frame's own edge, so the panel stays a square
+     like every other source's — the rotated image can't ride up over the status bar above it,
+     because it never paints outside this frame's own box in the first place. */
+  .image-view-frame {
     display: none;
     width: 100%;
     aspect-ratio: 1;
+    overflow: hidden;
+    /* The sky tile is the only image ever rotated here, and the corners a rotated square
+       swings away from show this, not the image's own background — plain black, always,
+       same as every other panel. */
+    background: #000;
+  }
+  .image-view-frame.visible {
+    display: block;
+  }
+  .image-view {
+    width: 100%;
+    height: 100%;
     object-fit: contain;
     background: #000;
     cursor: pointer;
-  }
-  .image-view.visible {
     display: block;
-  }
-  /* The full-screen sky view rotates its frame into the observer's orientation, and a rotated
-     square sweeps its corners outside its own box — at thumbnail size they are black on black,
-     but here they ride up over the status bar. Clipping to the inscribed circle fixes it: the
-     disc never reaches the edge, and a circle is rotation-invariant, so nothing can escape at
-     any angle. Thumbnails get the tighter, per-source crop from discStyle() instead. */
-  .sky-rotated {
-    clip-path: circle(50%);
   }
   .gallery {
     display: flex;
@@ -172,6 +179,21 @@ exports[`cardStyles > matches snapshot 1`] = `
     object-fit: cover;
     display: block;
   }
+  /* The sky tile's day/twilight/night color, washed over the photo itself rather than filling
+     the tile behind it — a flat colored square reads oddly once the Moon disc is gone (below
+     horizon, nothing to wash), so the color only ever shows up attached to the Moon that's
+     wearing it. mix-blend-mode: color keeps the photo's own luminance (the phase's lit/dark
+     shape stays legible) while replacing its hue/saturation with the overlay's — the same
+     shape and clip-path/transform as the image underneath it, so the tint never spills past
+     the disc's own edge. Pointer-events: none so it doesn't steal the tile's click. */
+  .gallery-thumb-tint {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    mix-blend-mode: color;
+    pointer-events: none;
+  }
   /* discStyle() clip-paths the <img> alone, and the disc's own corners are already black —
      the same color as .gallery-thumb's backdrop — so a circle-clipped photo on a square black
      tile is pixel-identical to a square-clipped one. The tile itself has to round too for
@@ -183,38 +205,13 @@ exports[`cardStyles > matches snapshot 1`] = `
   .gallery-thumb-circle {
     border-radius: 50%;
   }
-  /* The drawn disc is the one tile that is still a square plate, so it is the one tile that
-     still wants a frame. The fetched tiles are clipped to the body itself (see discStyle) and
-     a rounded-rectangle outline around a floating disc reads as a leftover box — but the
-     border cannot simply follow the clip, because .gallery-thumb also carries the caption
-     across its full width, and overflow:hidden would crop the ends off a circular one. */
-  .gallery-thumb-moon {
-    cursor: default;
-    border: 1px solid var(--divider-color, color-mix(in srgb, currentColor 15%, transparent));
-    border-radius: 4px;
-  }
-  /* The black backdrop belongs on the disc, not the tile: painting .gallery-thumb-moon itself
-     black would put its 15%-currentColor border over black, where it disappears, and the
-     drawn moon would then run the full 104px while its neighbours stopped inside their own
-     edge. Filling the content box instead keeps it to the region the img occupies. */
-  .moon-disc,
-  .moon-disc svg {
-    width: 100%;
-    height: 100%;
-    display: block;
-  }
-  .moon-disc {
-    background: #000;
-  }
   .gallery-info {
     position: absolute;
     /* Spans the whole tile so the two lines can take its top and bottom edges. Stacked and
        centred rather than a single row split left/right: once the thumbnails are clipped to
        the body, a full-width row runs off the disc at both ends, and centring on the tile
        centres on the body too — the sources all sit their subject dead centre in frame. */
-    /* Top pulled down 1px past the other three sides — flush with the tile edge read too
-       cramped against the disc's own limb. */
-    inset: 3px 2px 2px;
+    inset: 1px 2px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -236,6 +233,13 @@ exports[`cardStyles > matches snapshot 1`] = `
     line-height: 1;
     font-family: sans-serif;
     pointer-events: none;
+  }
+  /* A circular tile's own curve pulls away from its corners fastest right where the top and
+     bottom text sits — the same 1px inset a square tile's flat edge takes reads as cramped
+     against that curve. 2px more top and bottom (not the sides, where the curve is nearly flat
+     at mid-height) gives the text the same visual clearance the square tile already has. */
+  .gallery-thumb-circle .gallery-info {
+    inset: 4px 2px;
   }
   .gallery-label,
   .gallery-age {

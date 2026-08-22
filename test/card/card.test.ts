@@ -58,21 +58,21 @@ describe("SolarViewCard", () => {
     card.remove();
   });
 
-  it("height: 400 caps #solar-view and .image-view at 400px", () => {
+  it("height: 400 caps #solar-view and .image-view-frame at 400px", () => {
     const card = document.createElement("ha-planetary-solar-system-card-test");
     card.setConfig({ height: 400 });
     document.body.appendChild(card);
     expect(card.shadowRoot.querySelector("#solar-view").style.maxHeight).toBe("400px");
-    expect(card.shadowRoot.querySelector(".image-view").style.maxHeight).toBe("400px");
+    expect(card.shadowRoot.querySelector(".image-view-frame").style.maxHeight).toBe("400px");
     card.remove();
   });
 
-  it("height: '300px' caps #solar-view and .image-view at 300px", () => {
+  it("height: '300px' caps #solar-view and .image-view-frame at 300px", () => {
     const card = document.createElement("ha-planetary-solar-system-card-test");
     card.setConfig({ height: "300px" });
     document.body.appendChild(card);
     expect(card.shadowRoot.querySelector("#solar-view").style.maxHeight).toBe("300px");
-    expect(card.shadowRoot.querySelector(".image-view").style.maxHeight).toBe("300px");
+    expect(card.shadowRoot.querySelector(".image-view-frame").style.maxHeight).toBe("300px");
     card.remove();
   });
 
@@ -81,7 +81,7 @@ describe("SolarViewCard", () => {
     card.setConfig({ height: "50%" });
     document.body.appendChild(card);
     expect(card.shadowRoot.querySelector("#solar-view").style.aspectRatio).toBe("2 / 1");
-    expect(card.shadowRoot.querySelector(".image-view").style.aspectRatio).toBe("2 / 1");
+    expect(card.shadowRoot.querySelector(".image-view-frame").style.aspectRatio).toBe("2 / 1");
     expect(card.shadowRoot.querySelector("#solar-view").style.maxHeight).toBe("");
     card.remove();
   });

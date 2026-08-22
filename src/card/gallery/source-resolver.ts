@@ -35,6 +35,16 @@ export abstract class SourceResolver {
   // needs its state isolated from every other test in the same file.
   constructor(protected readonly cache: UrlCache = urlCache) {}
 
+  // The key every `this.cache.*()` call below is keyed by — `source` for every resolver except
+  // SvsMoonResolver's mymoon instance, which overrides this to share moon's entry (see its own
+  // comment): same URL every tick now that both ask for the same instant, so sharing the key
+  // means whichever of the two resolves first in a given tick, the other's getCached()/
+  // isDecoded() see it immediately instead of independently re-fetching and re-decoding
+  // identical bytes.
+  protected get cacheKey(): string {
+    return this.source;
+  }
+
   protected abstract getCached(): SourcedImage | null;
   protected abstract fetchCandidateUrl(debug: DebugAccumulator): Promise<SourcedImage>;
 
@@ -52,7 +62,7 @@ export abstract class SourceResolver {
   // instant-success shortcut, so isFresh() is true only when resolve() would be a no-op.
   isFresh(): boolean {
     const cached = this.getCached();
-    return cached != null && this.cache.isDecoded(this.source, cached.url);
+    return cached != null && this.cache.isDecoded(this.cacheKey, cached.url);
   }
 
   // Only sun overrides this: one-step fallback to the previous 15-min slot when the computed
@@ -80,7 +90,7 @@ export abstract class SourceResolver {
   // what recordSuccess() set after a real decode, so decoded-map and lastConfirmed can never
   // fall out of sync — no separate markDecoded() call needed here.
   hydrate(): SourcedImage | undefined {
-    return this.cache.getStale(this.source) ?? undefined;
+    return this.cache.getStale(this.cacheKey) ?? undefined;
   }
 
   // Two accumulators, not one: `urlDebug` covers finding out what the candidate URL even is
@@ -98,8 +108,8 @@ export abstract class SourceResolver {
     // A source that just failed repeatedly skips the network entirely for a backoff window
     // (see UrlCache.recordFailure) — serving the last known-good image instead of hammering
     // NASA every refresh_mins tick during an outage or rate-limit.
-    if (this.cache.inCooldown(this.source)) {
-      const stale = this.cache.getStale(this.source);
+    if (this.cache.inCooldown(this.cacheKey)) {
+      const stale = this.cache.getStale(this.cacheKey);
       if (stale) return stale;
       throw new Error(`${this.source} is in cooldown after repeated failures`);
     }
@@ -115,9 +125,9 @@ export abstract class SourceResolver {
       // when the TTL cache had just expired (`expired`): a real fetchCandidateUrl() call that
       // ended up confirming nothing changed. The cache-still-fresh case needs no counter of its
       // own — `cacheHits` already answers that question.
-      if (this.cache.isDecoded(this.source, candidate.url)) {
+      if (this.cache.isDecoded(this.cacheKey, candidate.url)) {
         if (!cached) urlDebug.expired++;
-        this.cache.recordSuccess(this.source, candidate);
+        this.cache.recordSuccess(this.cacheKey, candidate);
         return candidate;
       }
       // sun's imgDebug is the same object as urlDebug (see the accumulator comment above), so
@@ -126,17 +136,17 @@ export abstract class SourceResolver {
       if (imgDebug !== urlDebug) imgDebug.refreshes++;
       try {
         await timedPreload(candidate.url, imgDebug);
-        this.cache.markDecoded(this.source, candidate.url);
-        this.cache.recordSuccess(this.source, candidate);
+        this.cache.markDecoded(this.cacheKey, candidate.url);
+        this.cache.recordSuccess(this.cacheKey, candidate);
         return candidate;
       } catch (err) {
         const recovered = await this.recover(err, candidate, imgDebug);
-        this.cache.markDecoded(this.source, recovered.url);
-        this.cache.recordSuccess(this.source, recovered);
+        this.cache.markDecoded(this.cacheKey, recovered.url);
+        this.cache.recordSuccess(this.cacheKey, recovered);
         return recovered;
       }
     } catch (err) {
-      this.cache.recordFailure(this.source, retryAfterMsFrom(err));
+      this.cache.recordFailure(this.cacheKey, retryAfterMsFrom(err));
       throw err;
     }
   }

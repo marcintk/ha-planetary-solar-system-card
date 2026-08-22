@@ -9,22 +9,29 @@ import { formatDuration } from "../relative-time.js";
 // making it impossible to tell which one a spike came from. Split into two debug rows; sun
 // has no separate URL-discovery network call (its candidate URL is pure math), so it stays a
 // single row — ImageResolver passes the same accumulator as both url and img debug for sun.
-export type DebugRowId = "mymoon" | "moon" | "sun" | "earth-url" | "earth-img";
+//
+// mymoon and moon collapse into one "moon" row for the same reason sun is one row rather than
+// two: they share a cache key (SvsMoonResolver's cacheKey, see source-resolver-svs-moon.ts) and
+// resolve to the same frame, so separate rows would show one real fetch as two — mymoon's own
+// row always at 0 fetches (permanent cache hit), reading as broken rather than shared. Both
+// still bump `refreshes` independently into the shared row, since each tile really does ask
+// once a tick; only the network-facing counters (fetches, cacheHits, ...) tell the merged story.
+export type DebugRowId = "moon" | "sun" | "earth-url" | "earth-img";
 
-export const DEBUG_ROWS: DebugRowId[] = ["mymoon", "moon", "sun", "earth-url", "earth-img"];
+export const DEBUG_ROWS: DebugRowId[] = ["moon", "sun", "earth-url", "earth-img"];
 
 export const DEBUG_ROW_LABELS: Record<DebugRowId, string> = {
-  mymoon: "SVS/M sky",
-  moon: "SVS/M obj",
+  moon: "SVS/M",
   sun: "SDO/S",
   "earth-url": "DSCOVR/E url",
   "earth-img": "DSCOVR/E img",
 };
 
 // Which debug row(s) a given gallery source's resolve() call reports into — see the
-// DebugRowId comment above for why sun collapses both roles into one row.
+// DebugRowId comment above for why sun collapses both roles into one row, and mymoon/moon
+// collapse into each other.
 export const DEBUG_ROW_KEYS: Record<ImageSource, { url: DebugRowId; img: DebugRowId }> = {
-  mymoon: { url: "mymoon", img: "mymoon" },
+  mymoon: { url: "moon", img: "moon" },
   moon: { url: "moon", img: "moon" },
   sun: { url: "sun", img: "sun" },
   earth: { url: "earth-url", img: "earth-img" },

@@ -124,17 +124,27 @@ describe("source-resolver-svs-moon", () => {
       expect(image.url).toContain("moon.5581.jpg");
     });
 
-    // The sky tile asks for a different instant than the object tile, so the two hold their
-    // own cache entries under their own keys rather than fighting over one.
-    it("keeps its own cache entry per source key", async () => {
+    // Both tiles ask for the same instant now (image-resolver.ts wires them to the same
+    // reference-time function), so they share one cache entry under "moon" regardless of which
+    // one's own `source` is "mymoon" — whichever resolves first does the real fetch/decode, the
+    // other's getCached() finds it immediately.
+    it("shares one cache entry between the object and sky resolvers", async () => {
       vi.spyOn(Date, "now").mockReturnValue(NOW);
       stubImageDecode();
-      const object = new SvsMoonResolver("moon", () => new Date(Date.now()), cache);
-      const sky = new SvsMoonResolver("mymoon", () => new Date("2026-08-22T03:00:00Z"), cache);
-      await object.resolve(emptyDebugAccumulator(), emptyDebugAccumulator());
-      await sky.resolve(emptyDebugAccumulator(), emptyDebugAccumulator());
+      const now = () => new Date(Date.now());
+      const object = new SvsMoonResolver("moon", now, cache);
+      const sky = new SvsMoonResolver("mymoon", now, cache);
+      const objectImage = await object.resolve(emptyDebugAccumulator(), emptyDebugAccumulator());
+
+      const skyDebug = emptyDebugAccumulator();
+      const skyImage = await sky.resolve(skyDebug, skyDebug);
+
+      expect(skyImage).toEqual(objectImage);
       expect(cache.getStale("moon")?.url).toContain("moon.5581.jpg");
-      expect(cache.getStale("mymoon")?.url).toContain("moon.5596.jpg");
+      // sky's resolve() found the entry object already wrote and decoded — a cache hit, no
+      // fresh network attempt of its own.
+      expect(skyDebug.cacheHits).toBe(1);
+      expect(skyDebug.fetches).toBe(0);
     });
 
     // Freshness is URL identity, so every card holding a frame drops it at the same instant —

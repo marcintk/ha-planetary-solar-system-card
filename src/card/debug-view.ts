@@ -1,8 +1,8 @@
 import type { TemplateResult } from "lit";
 import { html } from "lit";
-import { formatDate, formatDuration } from "../relative-time.js";
-import type { SourceDebugStats } from "./debug-stats.js";
-import type { DebugRowId } from "./sources.js";
+import type { SourceDebugStats } from "./gallery/debug-stats.js";
+import type { DebugRowId } from "./gallery/sources.js";
+import { formatDate, formatDuration } from "./relative-time.js";
 
 // The overlay's own row order and column headings. Which source reports into which row is
 // each source's own fact — see SourceSpec.debugRow in sources.ts, and the DebugRowId comment

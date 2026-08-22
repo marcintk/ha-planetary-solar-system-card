@@ -1,7 +1,7 @@
 import type { DebugAccumulator, SourceDebugStats } from "./debug-stats.js";
 import { emptyDebugAccumulator, toDebugStats } from "./debug-stats.js";
 import { ImageResolver } from "./image-resolver.js";
-import type { DebugRowId, GallerySource, ImageSource } from "./sources.js";
+import type { DebugRowId, ImageSource } from "./sources.js";
 import { IMAGE_SOURCES, SOURCES } from "./sources.js";
 import type { SourcedImage } from "./url-cache.js";
 
@@ -27,7 +27,7 @@ export type GalleryShape = "circle" | "square";
 // The enabled set before setConfig's first call resolves gallery.<source> against each
 // source's own default (see card-config.ts) — mymoon only, so a card mounted with no config
 // at all still shows something rather than an empty strip.
-export const DEFAULT_GALLERY_SOURCES: GallerySource[] = ["mymoon"];
+export const DEFAULT_GALLERY_SOURCES: ImageSource[] = ["mymoon"];
 
 // Render-ready shape for card.ts's template — raw data only (dates, urls, booleans), no
 // formatting, so formatRelativeAge/date-formatting stays in card.ts alongside its other
@@ -40,7 +40,7 @@ export interface GalleryViewModel {
   imageDate: Date | null;
   imageLoaded: boolean;
   showStrip: boolean;
-  thumbnails: { source: GallerySource; url: string | null; date: Date | null }[];
+  thumbnails: { source: ImageSource; url: string | null; date: Date | null }[];
   debugStats: Record<DebugRowId, SourceDebugStats>;
   debugStartedAt: number;
 }
@@ -69,7 +69,7 @@ export class GalleryController {
   private _debug: Record<DebugRowId, DebugAccumulator>;
   private _debugStartedAt: number;
   private _resolver: ImageResolver;
-  private _sources: GallerySource[];
+  private _sources: ImageSource[];
 
   constructor(onChange: () => void) {
     this._panelMode = "none";
@@ -133,7 +133,7 @@ export class GalleryController {
 
   // Sources rendered as thumbnails right now — the configured list verbatim, except in
   // "slide" where only the source the rotation currently sits on is shown.
-  get displaySources(): GallerySource[] {
+  get displaySources(): ImageSource[] {
     return this._mode === "slide" ? [this._sources[this._slideIndex]] : this._sources;
   }
 
@@ -161,7 +161,7 @@ export class GalleryController {
   // resetting _galleryOpen from mode every call). Restarts the auto-switch timer if one is
   // already running, same as the old `if (this._autoSwitchTimer != null)
   // this._startAutoSwitchTimer()` in setConfig.
-  configure(mode: GalleryMode, sources: GallerySource[], autoIntervalMs: number): void {
+  configure(mode: GalleryMode, sources: ImageSource[], autoIntervalMs: number): void {
     this._mode = mode;
     this._sources = sources;
     this._autoIntervalMs = autoIntervalMs;

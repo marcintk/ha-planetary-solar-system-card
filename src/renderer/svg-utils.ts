@@ -1,6 +1,13 @@
 import { PLANETS } from "../astronomy/planet-data.js";
 import type { CometVisualEllipse } from "../types.js";
 
+/**
+ * Which way the scene is mirrored: -1 for the default north-up view, +1 for the south-up
+ * ecliptic view. A literal union rather than `number` so a stray 0 or 2 — which would silently
+ * flatten or double every y-offset polarOffset produces — cannot be passed at all.
+ */
+export type EclipticViewDirection = 1 | -1;
+
 export const SVG_NS = "http://www.w3.org/2000/svg";
 export const DEFAULT_LABEL_COLOR = "currentColor";
 export const VIEW_SIZE = 800;
@@ -50,7 +57,7 @@ export function ellipseFromApsides(
  * A point `dist` away from (x, y) at `angle`, in the scene's own screen space.
  *
  * The single place the ecliptic-view mirror is applied. Screen y grows downward, so the
- * north view (eclipticViewDirection = -1) negates the sine and the south view (+1) doesn't
+ * north view (eclipticViewDirection: EclipticViewDirection = -1) negates the sine and the south view (+1) doesn't
  * — a *reflection*, not a rotation, which is why orbitTransformComponents below has to be
  * built to agree with this rather than derived as a plain rotate() (see its docstring, #94).
  * Every body position, cone edge, horizon arm and needle tip goes through here, so the
@@ -61,7 +68,7 @@ export function polarOffset(
   y: number,
   dist: number,
   angle: number,
-  eclipticViewDirection: number
+  eclipticViewDirection: EclipticViewDirection
 ): { x: number; y: number } {
   return {
     x: x + dist * Math.cos(angle),
@@ -83,7 +90,7 @@ export function polarFromFocus(
   ePx: number,
   trueAnomaly: number,
   angle: number,
-  eclipticViewDirection: number
+  eclipticViewDirection: EclipticViewDirection
 ): { x: number; y: number } {
   const radius = (aPx * (1 - ePx * ePx)) / (1 + ePx * Math.cos(trueAnomaly));
   return polarOffset(CENTER, CENTER, radius, angle, eclipticViewDirection);
@@ -103,7 +110,7 @@ export interface OrbitTransformComponents {
  * (rx=aPx, ry=bPx, drawn at cx=0, cy=0) so the Sun sits at one focus and the
  * ring exactly matches the marker's polar-from-focus formula: x = C + r·cosθ,
  * y = C + eclipticViewDirection·r·sinθ. That formula is a *reflection*
- * whenever eclipticViewDirection = -1 (determinant -1), not a rotation — a
+ * whenever eclipticViewDirection: EclipticViewDirection = -1 (determinant -1), not a rotation — a
  * plain rotate()/translate() (determinant +1) only agrees with it at
  * perihelion and aphelion, leaving the marker visibly off the drawn ring
  * everywhere else (#94). This is derived directly from that same formula so
@@ -114,7 +121,7 @@ export interface OrbitTransformComponents {
 export function orbitTransformComponents(
   cPx: number,
   rotationDeg: number,
-  eclipticViewDirection: number
+  eclipticViewDirection: EclipticViewDirection
 ): OrbitTransformComponents {
   const rotation = (rotationDeg * Math.PI) / 180;
   const cos = Math.cos(rotation);
@@ -132,7 +139,7 @@ export function orbitTransformComponents(
 export function orbitTransformMatrix(
   cPx: number,
   rotationDeg: number,
-  eclipticViewDirection: number
+  eclipticViewDirection: EclipticViewDirection
 ): string {
   const { a, b, c, d, e, f } = orbitTransformComponents(cPx, rotationDeg, eclipticViewDirection);
   return `matrix(${a}, ${b}, ${c}, ${d}, ${e}, ${f})`;

@@ -1,8 +1,8 @@
 import { render } from "lit";
 import { describe, expect, it } from "vitest";
-import type { SourceDebugStats } from "../../../src/card/gallery/debug-stats.js";
-import { buildDebugOverlay } from "../../../src/card/gallery/debug-view.js";
-import { formatDate } from "../../../src/card/relative-time.js";
+import { buildDebugOverlay } from "../../src/card/debug-view.js";
+import type { SourceDebugStats } from "../../src/card/gallery/debug-stats.js";
+import { formatDate } from "../../src/card/relative-time.js";
 
 const zeroDebugStats: SourceDebugStats = {
   refreshes: 0,

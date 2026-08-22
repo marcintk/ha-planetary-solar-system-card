@@ -5,11 +5,6 @@
 // geocentric, celestial-north-up; the sky tile rotates it into the observer's own orientation.
 export type ImageSource = "mymoon" | "moon" | "earth" | "sun";
 
-// Everything that can occupy a slot in the strip. Same set as ImageSource now that the
-// locally drawn disc is gone — kept as its own alias since the strip is the concept these
-// call sites care about, not the fetch mechanics.
-export type GallerySource = ImageSource;
-
 // The fixed render order — no longer configurable now that each source is its own
 // `gallery.<source>` boolean rather than a position in a list.
 export const IMAGE_SOURCES: ImageSource[] = ["mymoon", "moon", "earth", "sun"];

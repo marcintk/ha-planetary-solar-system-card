@@ -5,7 +5,7 @@ import { parseCardConfig } from "./card-config.js";
 import { cardStyles } from "./card-styles.js";
 import { buildGalleryCaption, buildStatusBarView, discStyle } from "./card-template.js";
 import { DateNavigation } from "./date-navigation.js";
-import { buildDebugOverlay } from "./gallery/debug-view.js";
+import { buildDebugOverlay } from "./debug-view.js";
 import type {
   GalleryMode,
   GalleryPosition,
@@ -14,7 +14,7 @@ import type {
 } from "./gallery/gallery-controller.js";
 import { GalleryController } from "./gallery/gallery-controller.js";
 import { fullSizeMoonUrl } from "./gallery/source-resolver-svs-moon.js";
-import type { GallerySource, ImageSource } from "./gallery/sources.js";
+import type { ImageSource } from "./gallery/sources.js";
 import { SOURCES } from "./gallery/sources.js";
 import { formatDate, formatRelativeWhen } from "./relative-time.js";
 import { SolarView } from "./solar-view.js";
@@ -272,7 +272,7 @@ export class SolarViewCard extends LitElement {
    * as every other empty/loading tile, instead of a flat color swatch with nothing on it.
    */
   private _renderGalleryTile(
-    source: GallerySource,
+    source: ImageSource,
     url: string | null,
     date: Date | null,
     skyFrame: () => SkyFrame,

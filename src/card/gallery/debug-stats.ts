@@ -1,5 +1,5 @@
 // The counters the gallery fetch protocol keeps, and the snapshot the overlay renders from.
-// Nothing here draws anything — see debug-view.ts for that half.
+// Nothing here draws anything — see card/debug-view.ts for that half.
 //
 // Cumulative, since the card was mounted — not a rolling window. Lets debug:true answer "is
 // this source's own cache actually saving anything" at a glance: `refreshes` vs. network calls
@@ -19,7 +19,7 @@
 // (source-resolver-sdo-sun.ts) learns the feed's real lag; a rising rate means it is spending
 // its ticks probing rather than resting at the floor. `lastAttemptAt` is the raw timestamp of the most
 // recent preload attempt, formatted at render time.
-// Field order matches the overlay's column order (buildDebugOverlay in debug-view.ts).
+// Field order matches the overlay's column order (buildDebugOverlay in card/debug-view.ts).
 export interface SourceDebugStats {
   refreshes: number;
   cacheHits: number;

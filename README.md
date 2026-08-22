@@ -123,17 +123,13 @@ full-screen. Which tiles appear is `gallery.mymoon` / `gallery.moon` / `gallery.
 | DSCOVR/E  | [NASA EPIC][epic] | Earth's sunlit side, from L1                            | Hourly   | 1-2 days            |
 | SDO/S     | [NASA SDO][sdo]   | The Sun, from geosync orbit                             | 15 min   | 25-55 min           |
 
-Both Moon tiles are renders, not photographs — NASA builds them from LOLA laser altimetry and the
-LROC wide-angle colour mosaic, positioned by the JPL DE421 ephemeris — so unlike Earth and Sun
-there's no publish delay to wait out. The product ships a year at a time under an id that changes
-each December, so both go blank on 1 January of a year the installed version doesn't know about,
-until a release adds it.
+Both Moon tiles are renders (LOLA + LROC + JPL DE421), not photographs, so there's no publish delay
+— but the product ships a year at a time under an id that changes each December, so both go blank on
+1 January until a release adds the new one.
 
-Earth's and Sun's lags are NASA's publish pipeline, not the card holding images back: EPIC processes
-a day or two behind, and SDO's archive posts each 15-min frame 25 to 30 minutes after it was
-captured, so the Sun you see is always about half an hour old. The card learns that delay rather
-than assuming it — if SDO's pipeline stalls, it reaches further back until it finds a frame, then
-walks forward again as the feed catches up.
+Earth's and Sun's lags are NASA's own publish pipeline: EPIC runs a day or two behind, and SDO posts
+each frame 25-30 minutes after capture. The card learns SDO's actual lag rather than assuming it, so
+a pipeline stall doesn't break the feed.
 
 > **Thumbnails stuck on "unavailable"?** The browser fetches these images straight from NASA, so a
 > reverse proxy in front of Home Assistant (Nginx Proxy Manager, Cloudflare Tunnel, Traefik) can
@@ -158,14 +154,6 @@ walks forward again as the feed catches up.
 | `zoom_animate`         | boolean | `true`  | Animate zoom transitions                                                |
 | `periodic_zoom_change` | boolean | `false` | Cycle zoom levels on each refresh tick, until you aim the view yourself |
 | `periodic_zoom_max`    | number  | `4`     | Maximum zoom level for auto-cycle (2–4)                                 |
-
-The **Now** button resets the whole view: back to `default_zoom`, the Sun re-centred, and the date
-live again. It highlights in the accent colour whenever the view has drifted from that default —
-zoomed, panned, or showing a date other than now — so there's always a visible way back.
-
-With `periodic_zoom_change` enabled, zooming, panning, or stepping the date pauses the auto-cycle so
-a refresh tick can't move a view you aimed yourself. The **Now** button hands the view back and the
-cycle resumes. Replay and the gallery don't pause it.
 
 ### Appearance
 

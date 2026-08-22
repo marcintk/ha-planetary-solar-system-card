@@ -21,5 +21,12 @@ Durable visual/UX constraints. Preserve unless the user explicitly changes them.
 - **Synchronous render**: `_render()` calls `requestUpdate()` + `performUpdate()` back-to-back to
   force a synchronous Lit flush. Lit's default async microtask schedule breaks synchronous tests and
   delays the first frame in HA.
-- **Positions from renderer**: `renderSolarSystem()` returns `{ svg, positions }` — `positions` are
-  screen coordinates used for SVG hit-testing (click targets), not a rendering side-effect.
+- **Positions from renderer**: `renderSolarSystem()` returns `{ svg, positions, updateMarkers }`.
+  `positions` are screen coordinates: `updateMarkers` re-derives which bodies belong offscreen from
+  them, and tests read them to assert bodies never visually overlap at conjunction
+  (`test/renderer/collision.test.ts`, #62). No `src/` caller reads the field — there is no
+  click/hit-testing on the SVG.
+- **One mirror**: the ecliptic view is a `±1` (`eclipticViewDirection`), and every point derived
+  from an angle goes through `polarOffset()` in `renderer/svg-utils.ts`. Don't write
+  `y + dir * dist * Math.sin(angle)` by hand — `orbitTransformComponents()` is built to agree with
+  that exact expression (#94), so a second copy is how a marker drifts off its orbit ring.

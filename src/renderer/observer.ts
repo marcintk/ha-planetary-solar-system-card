@@ -6,7 +6,7 @@ import {
   getLocalTimeInZone,
 } from "../astronomy/solar-position.js";
 import type { Colors, LocationData } from "../types.js";
-import { CENTER, createSvgElement, MAX_RADIUS, VIEW_SIZE } from "./svg-utils.js";
+import { CENTER, createSvgElement, MAX_RADIUS, polarOffset, VIEW_SIZE } from "./svg-utils.js";
 
 const NEEDLE_COLOR = "color-mix(in srgb, currentColor 70%, transparent)";
 
@@ -151,15 +151,11 @@ function renderVisibilityCone(
   // flips too. Hardcoding sweep=1 only drew the correct wedge for the north (-1) case.
   const sweepFlag = eclipticViewDirection === -1 ? 1 : 0;
 
-  const leftAngle = observerAngle + HALF_ANGLE;
-  const rightAngle = observerAngle - HALF_ANGLE;
-  const leftX = anchorX + D * Math.cos(leftAngle);
-  const leftY = anchorY + eclipticViewDirection * D * Math.sin(leftAngle);
-  const rightX = anchorX + D * Math.cos(rightAngle);
-  const rightY = anchorY + eclipticViewDirection * D * Math.sin(rightAngle);
+  const left = polarOffset(anchorX, anchorY, D, observerAngle + HALF_ANGLE, eclipticViewDirection);
+  const right = polarOffset(anchorX, anchorY, D, observerAngle - HALF_ANGLE, eclipticViewDirection);
 
   // SVG path: MoveTo apex, LineTo left edge, Arc to right edge, ClosePath
-  const pathD = `M ${anchorX} ${anchorY} L ${leftX} ${leftY} A ${D} ${D} 0 ${largeArcFlag} ${sweepFlag} ${rightX} ${rightY} Z`;
+  const pathD = `M ${anchorX} ${anchorY} L ${left.x} ${left.y} A ${D} ${D} 0 ${largeArcFlag} ${sweepFlag} ${right.x} ${right.y} Z`;
 
   const defs =
     svg.querySelector("defs") || svg.insertBefore(createSvgElement("defs", {}), svg.firstChild);
@@ -196,16 +192,16 @@ export function renderDayNightSplit(
     locationData?.lon
   );
 
-  const earthDirX = Math.cos(earthAngle);
-  const earthDirY = Math.sin(earthAngle);
-  const obsDirX = Math.cos(observerAngle);
-  const obsDirY = Math.sin(observerAngle);
-
-  // Anchor point at Earth's surface
-  const earthOrbitalX = CENTER + earthRadius * earthDirX;
-  const earthOrbitalY = CENTER + eclipticViewDirection * earthRadius * earthDirY;
-  const anchorX = earthOrbitalX + earthBodySize * obsDirX;
-  const anchorY = earthOrbitalY + eclipticViewDirection * earthBodySize * obsDirY;
+  // Anchor point at Earth's surface: out to Earth's orbit, then out again by the body's own
+  // radius in the direction the observer faces.
+  const earthOrbital = polarOffset(CENTER, CENTER, earthRadius, earthAngle, eclipticViewDirection);
+  const { x: anchorX, y: anchorY } = polarOffset(
+    earthOrbital.x,
+    earthOrbital.y,
+    earthBodySize,
+    observerAngle,
+    eclipticViewDirection
+  );
 
   // Filled cone — colour determined by which twilight phase the solar elevation falls in.
   // Half-angle = 90° − elevationDeg expands the cone below the horizon during twilight.
@@ -255,57 +251,37 @@ export function renderDayNightSplit(
     "stroke-dasharray": "4, 4",
   };
 
+  // Where an arm cast from the anchor at `angle` meets the cone's clip circle, plus a margin.
+  // The unit direction handed to rayCircleDistance carries the same mirror as the endpoint it
+  // ends up producing, so both go through polarOffset rather than spelling the sine out twice.
+  const armEnd = (angle: number) => {
+    const dir = polarOffset(0, 0, 1, angle, eclipticViewDirection);
+    const dist = rayCircleDistance(anchorX, anchorY, dir.x, dir.y, CENTER, CENTER, CLIP_R) + EXTRA;
+    return polarOffset(anchorX, anchorY, dist, angle, eclipticViewDirection);
+  };
+
   // Horizon line — each arm extends to the cone clip circle edge + margin
-  const leftAngle = displayObserverAngle + Math.PI / 2;
-  const rightAngle = displayObserverAngle - Math.PI / 2;
-  const leftD =
-    rayCircleDistance(
-      anchorX,
-      anchorY,
-      Math.cos(leftAngle),
-      eclipticViewDirection * Math.sin(leftAngle),
-      CENTER,
-      CENTER,
-      CLIP_R
-    ) + EXTRA;
-  const rightD =
-    rayCircleDistance(
-      anchorX,
-      anchorY,
-      Math.cos(rightAngle),
-      eclipticViewDirection * Math.sin(rightAngle),
-      CENTER,
-      CENTER,
-      CLIP_R
-    ) + EXTRA;
+  const left = armEnd(displayObserverAngle + Math.PI / 2);
+  const right = armEnd(displayObserverAngle - Math.PI / 2);
   svg.appendChild(
     createSvgElement("line", {
       ...lineStyle,
-      x1: anchorX + leftD * Math.cos(leftAngle),
-      y1: anchorY + eclipticViewDirection * leftD * Math.sin(leftAngle),
-      x2: anchorX + rightD * Math.cos(rightAngle),
-      y2: anchorY + eclipticViewDirection * rightD * Math.sin(rightAngle),
+      x1: left.x,
+      y1: left.y,
+      x2: right.x,
+      y2: right.y,
     })
   );
 
   // Zenith line — from anchor skyward only (no nadir segment)
-  const zenithD =
-    rayCircleDistance(
-      anchorX,
-      anchorY,
-      Math.cos(displayObserverAngle),
-      eclipticViewDirection * Math.sin(displayObserverAngle),
-      CENTER,
-      CENTER,
-      CLIP_R
-    ) + EXTRA;
+  const zenith = armEnd(displayObserverAngle);
   svg.appendChild(
     createSvgElement("line", {
       ...lineStyle,
       x1: anchorX,
       y1: anchorY,
-      x2: anchorX + zenithD * Math.cos(displayObserverAngle),
-      y2: anchorY + eclipticViewDirection * zenithD * Math.sin(displayObserverAngle),
+      x2: zenith.x,
+      y2: zenith.y,
     })
   );
 }
@@ -318,15 +294,14 @@ export function renderObserverNeedle(
   earthSize: number,
   eclipticViewDirection = -1
 ): void {
-  const tipX = earthX + earthSize * Math.cos(observerAngle);
-  const tipY = earthY + eclipticViewDirection * earthSize * Math.sin(observerAngle);
+  const tip = polarOffset(earthX, earthY, earthSize, observerAngle, eclipticViewDirection);
 
   svg.appendChild(
     createSvgElement("line", {
       x1: earthX,
       y1: earthY,
-      x2: tipX,
-      y2: tipY,
+      x2: tip.x,
+      y2: tip.y,
       style: `stroke: ${NEEDLE_COLOR}`,
       "stroke-width": 2,
       "stroke-linecap": "round",
@@ -336,8 +311,8 @@ export function renderObserverNeedle(
   // Small dot at the tip for directionality
   svg.appendChild(
     createSvgElement("circle", {
-      cx: tipX,
-      cy: tipY,
+      cx: tip.x,
+      cy: tip.y,
       r: 2,
       style: `fill: ${NEEDLE_COLOR}`,
     })

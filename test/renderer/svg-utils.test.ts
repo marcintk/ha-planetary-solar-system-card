@@ -8,6 +8,7 @@ import {
   MAX_RADIUS,
   MIN_RADIUS,
   polarFromFocus,
+  polarOffset,
   SVG_NS,
   VIEW_SIZE,
 } from "../../src/renderer/svg-utils.js";
@@ -93,6 +94,41 @@ describe("ellipseFromApsides", () => {
     const { aPx, bPx, cPx, ePx } = ellipseFromApsides(50, 150);
     expect(bPx).toBeCloseTo(Math.sqrt(aPx * aPx - cPx * cPx), 8);
     expect(ePx).toBeCloseTo(cPx / aPx, 8);
+  });
+});
+
+describe("polarOffset", () => {
+  it("walks the given distance along the angle, from the given point", () => {
+    expect(polarOffset(100, 200, 10, 0, -1)).toEqual({ x: 110, y: 200 });
+  });
+
+  // Screen y grows downward, so the north view negates the sine to put "up the page" at
+  // positive angles. The south view is the same scene mirrored, and only y moves.
+  it("mirrors only y when the direction flips", () => {
+    const north = polarOffset(100, 200, 10, Math.PI / 4, -1);
+    const south = polarOffset(100, 200, 10, Math.PI / 4, 1);
+    expect(south.x).toBeCloseTo(north.x, 12);
+    expect(south.y - 200).toBeCloseTo(-(north.y - 200), 12);
+  });
+
+  // A circular orbit puts the radius at aPx for every anomaly, so the composition can be
+  // asserted without restating the ellipse formula the test would then be checking against
+  // itself.
+  it("is what polarFromFocus offsets from CENTER with", () => {
+    const angle = 2.3;
+    expect(polarFromFocus(120, 0, 1.1, angle, -1)).toEqual(
+      polarOffset(CENTER, CENTER, 120, angle, -1)
+    );
+  });
+
+  // The unit vector rayCircleDistance is handed carries the same mirror as the endpoint it
+  // helps produce (see armEnd in observer.ts) — one primitive answers both.
+  it("gives the unit direction when distance is 1 from the origin", () => {
+    const angle = 0.7;
+    expect(polarOffset(0, 0, 1, angle, -1)).toEqual({
+      x: Math.cos(angle),
+      y: -Math.sin(angle),
+    });
   });
 });
 

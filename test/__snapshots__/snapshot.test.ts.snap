@@ -176,6 +176,10 @@ exports[`cardStyles > matches snapshot 1`] = `
      the same color as .gallery-thumb's backdrop — so a circle-clipped photo on a square black
      tile is pixel-identical to a square-clipped one. The tile itself has to round too for
      gallery.shape: circle to read as anything. */
+  /* .gallery-thumb's black background stays doing double duty: the loading filler before the
+     <img> has a decoded frame, and — once loaded — the thin ring TARGET_FRACTION deliberately
+     leaves outside the disc (see discStyle()) rather than scaling all the way to the tile's
+     own edge. */
   .gallery-thumb-circle {
     border-radius: 50%;
   }
@@ -208,7 +212,9 @@ exports[`cardStyles > matches snapshot 1`] = `
        centred rather than a single row split left/right: once the thumbnails are clipped to
        the body, a full-width row runs off the disc at both ends, and centring on the tile
        centres on the body too — the sources all sit their subject dead centre in frame. */
-    inset: 2px;
+    /* Top pulled down 1px past the other three sides — flush with the tile edge read too
+       cramped against the disc's own limb. */
+    inset: 3px 2px 2px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -221,8 +227,12 @@ exports[`cardStyles > matches snapshot 1`] = `
        decided by the element type and the engine's default line-height, which is how the
        moon's caption ended up sitting higher than its neighbours'.
        Scales with the tile (see container-type above) instead of a fixed 8px, so the longest
-       phase name still fits on a narrow card and stays legible on a wide one. */
-    font-size: clamp(6px, 9cqw, 9px);
+       phase name still fits on a narrow card and stays legible on a wide one — same idea as
+       the SVG body labels, which scale with the card because the whole SVG does. The old 9px
+       ceiling stopped the caption growing past a small card's size while the planet labels
+       beside it kept scaling; 40px is a backstop against a pathological giant tile, not a
+       real-world limit — a tile would need to be ~440px wide before 9cqw even reaches it. */
+    font-size: clamp(6px, 9cqw, 40px);
     line-height: 1;
     font-family: sans-serif;
     pointer-events: none;

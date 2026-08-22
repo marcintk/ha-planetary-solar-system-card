@@ -160,16 +160,15 @@ describe("discStyle", () => {
 
   // The invariant the two numbers exist to satisfy. clip-path resolves in the element's own
   // coordinates and transform applies to the result, so clip radius x scale must land exactly
-  // on the source's target — any more and the circle escapes the tile, which is the overflow
-  // that put the rotated sky frame over the status bar in the first place. Sun's target is
-  // lower than the rest (see TARGET_FRACTION) — it's the one source whose real apparent size
-  // barely varies, so without its own lower target it would render at full size on nearly
-  // every frame while Moon and Earth, pinned to their rarely-hit maximum, mostly don't.
+  // on the source's target — any more and the circle escapes the tile. Sun's target is lower
+  // than the rest (see TARGET_FRACTION) — it's the one source whose real apparent size barely
+  // varies, so without its own lower target it would render at full size on nearly every frame
+  // while Moon and Earth, pinned to their rarely-hit maximum, mostly don't.
   const EXPECTED_TARGET: Record<(typeof SOURCES)[number], number> = {
-    moon: 46,
-    mymoon: 46,
-    earth: 46,
-    sun: 41.5,
+    moon: 44.5,
+    mymoon: 44.5,
+    earth: 43.5,
+    sun: 40,
   };
   it.each(SOURCES)("clips %s so the scaled circle lands on its own target size", (source) => {
     const style = discStyle(source, "circle");
@@ -198,7 +197,7 @@ describe("discStyle", () => {
 
   describe("square", () => {
     // Same target size as circle mode, but a square clip instead of a round one — so the
-    // shape setting still changes the puck's outline, not just whether it exists.
+    // shape setting changes the puck's outline, not its size.
     it("crops to an inset square and scales to the shared target", () => {
       for (const source of SOURCES) {
         const style = discStyle(source, "square");
@@ -214,12 +213,13 @@ describe("discStyle", () => {
       );
     });
 
-    it("clips less than circle mode does, so more of the frame survives", () => {
-      const radius = (style: string) =>
-        Number(/circle\((\d+(?:\.\d+)?)%\)/.exec(style)?.[1] ?? "0");
-      expect(radius(discStyle("mymoon", "square", 17.1))).toBeGreaterThan(
-        radius(discStyle("mymoon", "circle", 17.1))
-      );
+    // The point of this session's change: same object size in both shapes, only the crop
+    // around it differs.
+    it("scales identically to circle mode for the same source", () => {
+      const scale = (style: string) => Number(/scale\((\d+(?:\.\d+)?)\)/.exec(style)?.[1] ?? "0");
+      for (const source of SOURCES) {
+        expect(scale(discStyle(source, "square"))).toBeCloseTo(scale(discStyle(source, "circle")));
+      }
     });
   });
 });
@@ -227,18 +227,18 @@ describe("discStyle", () => {
 describe("buildImageStatusBar", () => {
   const now = new Date("2026-08-12T12:00:00Z");
 
-  it("labels the earth source with EARTH · DSCOVR, target body first, probe name after", () => {
+  it("labels the earth source with EARTH · NASA DSCOVR, target body first, probe name after", () => {
     const root = renderToDOM(
       buildImageStatusBar("earth", "26-08-10 18:49", new Date("2026-08-10T18:49:00Z"), now, true)
     );
-    expect(root.querySelector(".status-bar span").textContent).toContain("EARTH · DSCOVR");
+    expect(root.querySelector(".status-bar span").textContent).toContain("EARTH · NASA DSCOVR");
   });
 
-  it("labels the sun source with SUN · SDO HMI, target body first, probe name after", () => {
+  it("labels the sun source with SUN · NASA SDO HMI, target body first, probe name after", () => {
     const root = renderToDOM(
       buildImageStatusBar("sun", "26-08-12 11:55", new Date("2026-08-12T11:55:00Z"), now, true)
     );
-    expect(root.querySelector(".status-bar span").textContent).toContain("SUN · SDO HMI");
+    expect(root.querySelector(".status-bar span").textContent).toContain("SUN · NASA SDO HMI");
   });
 
   it("includes the absolute date text and relative age, verb 'captured' for earth", () => {
@@ -246,7 +246,7 @@ describe("buildImageStatusBar", () => {
       buildImageStatusBar("earth", "26-08-11 06:00", new Date("2026-08-11T06:00:00Z"), now, true)
     );
     expect(root.querySelector(".status-bar span").textContent).toBe(
-      "EARTH · DSCOVR · captured 26-08-11 06:00 · 30h ago"
+      "EARTH · NASA DSCOVR · captured 26-08-11 06:00 · 30h ago"
     );
   });
 
@@ -275,7 +275,7 @@ describe("buildImageStatusBar", () => {
       buildImageStatusBar("sun", "26-08-12 11:55", new Date("2026-08-12T11:55:00Z"), now, true)
     );
     expect(root.querySelector(".status-bar span").textContent).toBe(
-      "SUN · SDO HMI · captured 26-08-12 11:55 · 5m ago"
+      "SUN · NASA SDO HMI · captured 26-08-12 11:55 · 5m ago"
     );
   });
 
@@ -283,7 +283,9 @@ describe("buildImageStatusBar", () => {
     const root = renderToDOM(
       buildImageStatusBar("sun", "26-08-12 11:55", new Date("2026-08-12T11:55:00Z"), now, false)
     );
-    expect(root.querySelector(".status-bar span").textContent).toBe("SUN · SDO HMI · loading…");
+    expect(root.querySelector(".status-bar span").textContent).toBe(
+      "SUN · NASA SDO HMI · loading…"
+    );
   });
 });
 
@@ -338,7 +340,9 @@ describe("buildStatusBarView", () => {
         currentDate
       )
     );
-    expect(root.querySelector(".status-bar span").textContent).toBe("SUN · SDO HMI · loading…");
+    expect(root.querySelector(".status-bar span").textContent).toBe(
+      "SUN · NASA SDO HMI · loading…"
+    );
   });
 });
 

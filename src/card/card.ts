@@ -349,11 +349,8 @@ export class SolarViewCard extends LitElement {
       </div>`;
     }
     const sky = source === "mymoon" ? this._skyView() : null;
-    // Only the rotating tile in square shape needs a backdrop of its own — see the
-    // .gallery-thumb-boxed comment for why its frame cannot survive the rotation.
-    const boxed = sky && this._galleryShape === "square" ? " gallery-thumb-boxed" : "";
     return html`<button
-      class="gallery-thumb${boxed}"
+      class="gallery-thumb"
       data-source=${source}
       title=${`Show ${GALLERY_SOURCE_LABELS[source]}`}
       @click=${this._onGalleryClick}
@@ -361,7 +358,7 @@ export class SolarViewCard extends LitElement {
       <img
         src=${url ?? nothing}
         alt=""
-        style=${discStyle(source, this._galleryShape, sky ? sky.rotation : 0) || nothing}
+        style=${discStyle(source, this._galleryShape, sky ? sky.rotation : 0)}
         @error=${source === "sun" ? this._onSunThumbError : undefined}
       />
       ${buildGalleryCaption(

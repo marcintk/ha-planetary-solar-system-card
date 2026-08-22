@@ -117,33 +117,44 @@ const DISC_FRACTION: Record<ImageSource, number> = {
 };
 
 /**
- * Crops a thumbnail down to the body itself, so the frame's black surround drops out and the
- * card shows through instead.
+ * Every body renders at this same fraction of its tile, whichever source it is. Without a
+ * shared target each source's own frame margin bleeds through at a different size — Earth's
+ * loose DSCOVR crop noticeably smaller than the Moon's tight SVS one — which reads as
+ * inconsistency rather than as the bodies' real relative sizes. A fixed target and a uniform
+ * black ring instead put every tile on equal footing.
+ */
+const TARGET_FRACTION = 0.92;
+
+/**
+ * Crops a thumbnail down to the body itself, then rescales it so every source ends up the same
+ * size with the same margin — rather than each source's own, unequal frame margin.
  *
- * Two coupled numbers from one measurement: clip to the disc's own radius, then scale by the
- * inverse so that radius reaches the edge of the tile. They must stay coupled — `clip-path`
- * resolves in the element's own coordinates and `transform` applies to the result, so scaling
- * without shrinking the clip by the same factor pushes the circle back outside the tile,
- * which is the overflow this exists to prevent.
+ * Two coupled numbers from one measurement: clip to the disc's own radius, then scale by
+ * `TARGET_FRACTION` divided by that radius so it lands on the shared target instead of the
+ * disc's own edge. They must stay coupled — `clip-path` resolves in the element's own
+ * coordinates and `transform` applies to the result, so scaling without shrinking the clip by
+ * the matching factor pushes the circle back outside the tile, which is the overflow this
+ * exists to prevent.
  */
 export function discStyle(source: ImageSource, shape: GalleryShape, rotationDeg = 0): string {
-  // Square keeps the frame as published — except for the sky tile, which cannot have one: a
-  // rotated square is not a square. The tile clips the corners that swing outside it while the
-  // card shows through where the image's own corners swing in, so an unclipped rotated frame
-  // renders as an octagon at every angle but 0 and 90. Scaling it down by 1/(|cos|+|sin|)
-  // would keep all four corners, at the cost of a tilted diamond up to 29% smaller than its
-  // neighbours. A circle is the one shape rotation leaves alone, so the sky tile takes one
-  // whatever the setting — a looser crop than circle mode's, 50% of the frame rather than 48%,
-  // so it still shows more of the surround than its cropped neighbours do.
-  if (shape === "square") {
-    return rotationDeg
-      ? `clip-path: circle(50%); transform: rotate(${rotationDeg.toFixed(1)}deg)`
-      : "";
+  // The sky tile is the one exception: a rotated square is not a square. The tile clips the
+  // corners that swing outside it while the card shows through where the image's own corners
+  // swing in, so an unclipped rotated frame renders as an octagon at every angle but 0 and 90.
+  // Scaling it down by 1/(|cos|+|sin|) would keep all four corners, at the cost of a tilted
+  // diamond up to 29% smaller than its neighbours. A circle is the one shape rotation leaves
+  // alone, so the sky tile takes one whatever the setting, at the frame's own edge rather than
+  // the shared target — it needs no rescale, since the clip already lands on the tile edge.
+  if (shape === "square" && rotationDeg) {
+    return `clip-path: circle(50%); transform: rotate(${rotationDeg.toFixed(1)}deg)`;
   }
   const fraction = DISC_FRACTION[source];
-  const scale = `scale(${(1 / fraction).toFixed(3)})`;
+  const scale = `scale(${(TARGET_FRACTION / fraction).toFixed(3)})`;
   const transform = rotationDeg ? `rotate(${rotationDeg.toFixed(1)}deg) ${scale}` : scale;
-  return `clip-path: circle(${(fraction * 50).toFixed(1)}%); transform: ${transform}`;
+  const clip =
+    shape === "circle"
+      ? `circle(${(fraction * 50).toFixed(1)}%)`
+      : `inset(${((1 - fraction) * 50).toFixed(1)}%)`;
+  return `clip-path: ${clip}; transform: ${transform}`;
 }
 
 /**

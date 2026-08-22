@@ -236,42 +236,15 @@ describe("SolarViewCard gallery", () => {
       card.remove();
     });
 
-    // gallery.shape flips the whole strip between the cropped body and the published frame.
-    it("shows the published frame when gallery.shape is square", () => {
+    // gallery.shape flips the crop between a round puck and a square one — both are scaled
+    // to the same shared target size.
+    it("crops to a square puck when gallery.shape is square", () => {
       const card = createAndMount({ gallery: { mode: "open", shape: "square" } });
       const styleOf = (source) =>
         card.shadowRoot.querySelector(`[data-source="${source}"] img`).getAttribute("style");
       for (const source of ["moon", "earth", "sun"]) {
-        expect(styleOf(source)).toBeNull();
+        expect(styleOf(source)).toMatch(/^clip-path: inset\(/);
       }
-      card.remove();
-    });
-
-    // The sky tile's own frame cannot survive rotation, so in square mode the tile supplies the
-    // black square instead and the image is clipped to a circle inside it. Net effect: it is
-    // framed exactly like its neighbours, with a rotated body inside.
-    it("boxes the sky tile in square mode so it matches its neighbours", () => {
-      const card = createAndMount({
-        gallery: { mode: "open", shape: "square" },
-        location: { latitude: 33.2148, longitude: -97.1331, timezone: "America/Chicago" },
-      });
-      const classOf = (source) =>
-        card.shadowRoot.querySelector(`[data-source="${source}"]`).className;
-      expect(classOf("mymoon")).toContain("gallery-thumb-boxed");
-      expect(classOf("moon")).not.toContain("gallery-thumb-boxed");
-      card.remove();
-    });
-
-    // Circle mode needs no backdrop: every tile is cropped to its body, so there is no square
-    // for the sky tile to match.
-    it("does not box the sky tile in circle mode", () => {
-      const card = createAndMount({
-        gallery: { mode: "open", shape: "circle" },
-        location: { latitude: 33.2148, longitude: -97.1331, timezone: "America/Chicago" },
-      });
-      expect(card.shadowRoot.querySelector('[data-source="mymoon"]').className).not.toContain(
-        "gallery-thumb-boxed"
-      );
       card.remove();
     });
 

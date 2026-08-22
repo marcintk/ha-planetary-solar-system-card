@@ -160,15 +160,15 @@ describe("discStyle", () => {
 
   // The invariant the two numbers exist to satisfy. clip-path resolves in the element's own
   // coordinates and transform applies to the result, so clip radius x scale must land exactly
-  // on 50% — any more and the circle escapes the tile, which is the overflow that put the
-  // rotated sky frame over the status bar in the first place.
-  it.each(SOURCES)("clips %s so the scaled circle exactly fills the tile", (source) => {
+  // on the shared target — any more and the circle escapes the tile, which is the overflow
+  // that put the rotated sky frame over the status bar in the first place.
+  it.each(SOURCES)("clips %s so the scaled circle lands on the shared target size", (source) => {
     const style = discStyle(source, "circle");
     const radius = Number(/circle\((\d+(?:\.\d+)?)%\)/.exec(style)?.[1]);
     const scale = Number(/scale\((\d+(?:\.\d+)?)\)/.exec(style)?.[1]);
     // Not exact: both numbers are rounded for legible CSS output. 0.2% of a 104px tile is a
     // fifth of a pixel — tight enough to catch a decoupled pair, loose enough for rounding.
-    expect(Math.abs(radius * scale - 50)).toBeLessThan(0.2);
+    expect(Math.abs(radius * scale - 46)).toBeLessThan(0.2);
   });
 
   // Each source leaves a different margin around its body, so a single shared constant would
@@ -189,8 +189,13 @@ describe("discStyle", () => {
   });
 
   describe("square", () => {
-    it("leaves the published frame untouched", () => {
-      for (const source of SOURCES) expect(discStyle(source, "square")).toBe("");
+    // Same target size as circle mode, but a square clip instead of a round one — so the
+    // shape setting still changes the puck's outline, not just whether it exists.
+    it("crops to an inset square and scales to the shared target", () => {
+      for (const source of SOURCES) {
+        const style = discStyle(source, "square");
+        expect(style).toMatch(/^clip-path: inset\(\d+(\.\d+)?%\); transform: scale\(/);
+      }
     });
 
     // The one exception, and it is not cosmetic: an unclipped rotated square sweeps its

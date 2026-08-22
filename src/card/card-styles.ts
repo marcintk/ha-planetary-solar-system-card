@@ -134,7 +134,10 @@ export const cardStyles = css`
     /* Explicit, not omitted: .gallery-thumb is a <button> on the fetched tiles, and dropping
        the rule entirely hands it back the UA stylesheet's 2px outset ButtonBorder. */
     border: 0;
-    background: transparent;
+    /* Every source is cropped to its body and rescaled to a shared target size (see
+       discStyle()), so a margin of tile the disc doesn't reach is now the normal case, not
+       just the rotating sky tile's — the backdrop belongs here for all of them. */
+    background: #000;
     overflow: hidden;
     cursor: pointer;
     /* Makes the tile itself the query container, so the caption below can size against the
@@ -146,14 +149,6 @@ export const cardStyles = css`
     height: 100%;
     object-fit: cover;
     display: block;
-  }
-  /* Square shape, rotating tile: the image has to be clipped to a circle or the rotation turns
-     its frame into an octagon, so the black square its neighbours get from their own frame has
-     to come from the tile instead. Sources render their body on pure black, and in square mode
-     the image is unscaled — so the clip lands at the tile edge, outside the body, and the body
-     ends up exactly the size it is on the tiles either side of it. */
-  .gallery-thumb-boxed {
-    background: #000;
   }
   /* The drawn disc is the one tile that is still a square plate, so it is the one tile that
      still wants a frame. The fetched tiles are clipped to the body itself (see discStyle) and

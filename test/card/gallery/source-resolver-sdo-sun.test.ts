@@ -475,6 +475,58 @@ describe("source-resolver-sdo-sun", () => {
       // Doubling means a month of reach costs 14 requests, not the 2880 a per-slot walk would.
       expect(archive.calls).toBe(14);
     });
+
+    // Same theoretical bound as the 487-minute case below (2026-08-21 SDO stall's "optimal
+    // number of probes" test), swept across gaps from "inside the publish buffer" up to the
+    // 30-day ceiling — so a regression in the search strategy shows up as a budget overrun at
+    // whichever gap size it actually affects, not just the one distance that's been measured.
+    it.each([
+      ["20 minutes", 20],
+      ["40 minutes", 40],
+      ["3 hours", 3 * 60],
+      ["6 hours", 6 * 60],
+      ["12 hours", 12 * 60],
+      ["15 hours", 15 * 60],
+      ["24 hours", 24 * 60],
+      ["48 hours", 48 * 60],
+      ["30 days", 30 * 24 * 60],
+    ] as const)(
+      "stays within the optimal probe budget — newest frame %s old",
+      async (label, gapMinutes) => {
+        vi.spyOn(Date, "now").mockReturnValue(NOW);
+        const newestSlot =
+          Math.floor((NOW - gapMinutes * 60000) / SUN_CACHE_TTL_MS) * SUN_CACHE_TTL_MS;
+        const archive = stubArchivePublishedUpTo(new Date(newestSlot).toISOString());
+        const debug = emptyDebugAccumulator();
+
+        const image = await new SdoSunResolver(cache).resolve(debug, debug);
+
+        expect(new Set(archive.probes.map((p) => p.slot)).size).toBe(archive.probes.length); // never asks twice
+
+        if (archive.calls === 1) {
+          // The 30-min publish buffer already covers this gap — the very first guess landed on
+          // or before the newest published frame (not necessarily equal to it: resolve() trusts
+          // a guess that loads rather than searching forward for anything even newer), so
+          // recover() never ran at all.
+          print(`\n${label}: no recovery needed — the guess landed directly`);
+          return;
+        }
+
+        expect(image.date.getTime()).toBe(newestSlot); // recover() explicitly targets the newest
+
+        // Exponential search: gallop out doubling the reach to bracket the gap, then bisect the
+        // bracket. Both halves are ceil(log2(d+1)) probes for a d-slot gap, plus the one initial
+        // guess that discovered the gap exists — see the "optimal number of probes" test above
+        // for the full derivation.
+        const gapSlots = (archive.probes[0].slot - newestSlot) / SUN_CACHE_TTL_MS;
+        const optimal = 1 + 2 * Math.ceil(Math.log2(gapSlots + 1));
+        print(
+          `\n${label}: gap ${gapSlots} slots (${(gapSlots * 15) / 60}h), ` +
+            `spent ${archive.calls}, optimal ${optimal}`
+        );
+        expect(archive.calls).toBeLessThanOrEqual(optimal);
+      }
+    );
   });
 
   // Captured live from sdo.gsfc.nasa.gov on 2026-08-21 at 20:37 UTC, while SDO's browse

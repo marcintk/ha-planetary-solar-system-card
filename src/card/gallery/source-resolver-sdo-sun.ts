@@ -91,8 +91,10 @@ export class SdoSunResolver extends SourceResolver {
       if (!found) {
         // Nothing newer than the frame we already hold, so the gap below is known-empty and
         // there is nothing to search. Re-commit it so the TTL entry stops advertising the
-        // guess that just 404'd.
+        // guess that just 404'd, and stamp the check so freshCachedSlot() holds off re-probing
+        // for a full TTL instead of retrying on every tick (#152).
         this.cache.set(this.source, confirmed);
+        this.cache.recordChecked(this.source);
         return confirmed;
       }
     } else {
@@ -122,8 +124,11 @@ export class SdoSunResolver extends SourceResolver {
 
     // Committed once, for the slot that won — an attempt that 404s never touches the shared
     // cache, so a concurrent reader (another refresh() tick racing this search) can never
-    // observe a still-unconfirmed guess.
+    // observe a still-unconfirmed guess. Also the cold-start search's only exit, so it needs
+    // its own stamp here too (#152) — without it, a cold start that lands on an old/stalled
+    // frame settles with no throttle behind it, and the very next tick re-probes from scratch.
     this.cache.set(this.source, found);
+    this.cache.recordChecked(this.source);
     return found;
   }
 }
@@ -141,8 +146,16 @@ function isTimeout(err: unknown): boolean {
 function freshCachedSlot(cache: UrlCache): SourcedImage | null {
   const entry = cache.getEntry("sun");
   if (!entry) return null;
-  const validUntil = entry.image.date.getTime() + SUN_CACHE_TTL_MS + SUN_PUBLISH_BUFFER_MS;
-  return Date.now() < validUntil ? entry.image : null;
+  const slotValidUntil = entry.image.date.getTime() + SUN_CACHE_TTL_MS + SUN_PUBLISH_BUFFER_MS;
+  // A stalled feed keeps confirming the same (older) frame forever, so slotValidUntil alone
+  // never advances and every tick re-probes NASA (#152: two requests/min for hours, no
+  // backoff, since "still nothing newer" is a successful check, not a failure). recover()
+  // stamps lastCheckedAt only for that specific outcome — deliberately not entry.fetchedAt,
+  // which the optimistic getSunImageUrl() guess also writes, at a different moment per card
+  // instance, and which is exactly what #122 already ruled out as an expiry anchor.
+  const lastCheckedAt = cache.getLastCheckedAt("sun") ?? 0;
+  const recheckValidUntil = lastCheckedAt + SUN_CACHE_TTL_MS;
+  return Date.now() < Math.max(slotValidUntil, recheckValidUntil) ? entry.image : null;
 }
 
 export function getSunImageUrl(cache: UrlCache = urlCache): SourcedImage {

@@ -6,6 +6,7 @@ import {
   getLocalTimeInZone,
 } from "../astronomy/solar-position.js";
 import type { Colors, LocationData } from "../types.js";
+import type { EclipticViewDirection } from "./svg-utils.js";
 import { CENTER, createSvgElement, MAX_RADIUS, polarOffset, VIEW_SIZE } from "./svg-utils.js";
 
 const NEEDLE_COLOR = "color-mix(in srgb, currentColor 70%, transparent)";
@@ -140,7 +141,7 @@ function renderVisibilityCone(
   halfAngleDeg: number,
   clipId: string,
   fillColor: string,
-  eclipticViewDirection = -1
+  eclipticViewDirection: EclipticViewDirection = -1
 ): void {
   const D = VIEW_SIZE;
   const HALF_ANGLE = (halfAngleDeg * Math.PI) / 180;
@@ -181,7 +182,7 @@ export function renderDayNightSplit(
   date: Date,
   earthBodySize: number,
   locationData: LocationData | null,
-  eclipticViewDirection = -1,
+  eclipticViewDirection: EclipticViewDirection = -1,
   colors: Colors = {}
 ): void {
   const earthAngle = calculatePlanetPosition(EARTH, date);
@@ -292,7 +293,7 @@ export function renderObserverNeedle(
   earthY: number,
   observerAngle: number,
   earthSize: number,
-  eclipticViewDirection = -1
+  eclipticViewDirection: EclipticViewDirection = -1
 ): void {
   const tip = polarOffset(earthX, earthY, earthSize, observerAngle, eclipticViewDirection);
 

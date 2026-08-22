@@ -160,15 +160,24 @@ describe("discStyle", () => {
 
   // The invariant the two numbers exist to satisfy. clip-path resolves in the element's own
   // coordinates and transform applies to the result, so clip radius x scale must land exactly
-  // on 50% — any more and the circle escapes the tile, which is the overflow that put the
-  // rotated sky frame over the status bar in the first place.
-  it.each(SOURCES)("clips %s so the scaled circle exactly fills the tile", (source) => {
+  // on the source's target — any more and the circle escapes the tile, which is the overflow
+  // that put the rotated sky frame over the status bar in the first place. Sun's target is
+  // lower than the rest (see TARGET_FRACTION) — it's the one source whose real apparent size
+  // barely varies, so without its own lower target it would render at full size on nearly
+  // every frame while Moon and Earth, pinned to their rarely-hit maximum, mostly don't.
+  const EXPECTED_TARGET: Record<(typeof SOURCES)[number], number> = {
+    moon: 46,
+    mymoon: 46,
+    earth: 46,
+    sun: 41.5,
+  };
+  it.each(SOURCES)("clips %s so the scaled circle lands on its own target size", (source) => {
     const style = discStyle(source, "circle");
     const radius = Number(/circle\((\d+(?:\.\d+)?)%\)/.exec(style)?.[1]);
     const scale = Number(/scale\((\d+(?:\.\d+)?)\)/.exec(style)?.[1]);
     // Not exact: both numbers are rounded for legible CSS output. 0.2% of a 104px tile is a
     // fifth of a pixel — tight enough to catch a decoupled pair, loose enough for rounding.
-    expect(Math.abs(radius * scale - 50)).toBeLessThan(0.2);
+    expect(Math.abs(radius * scale - EXPECTED_TARGET[source])).toBeLessThan(0.2);
   });
 
   // Each source leaves a different margin around its body, so a single shared constant would
@@ -178,7 +187,6 @@ describe("discStyle", () => {
       Number(/scale\((\d+(?:\.\d+)?)\)/.exec(discStyle(source, "circle"))?.[1]);
     // Earth is framed much more loosely by DSCOVR than the Moon is by SVS.
     expect(scaleOf("earth")).toBeGreaterThan(scaleOf("moon"));
-    expect(scaleOf("sun")).toBeGreaterThan(scaleOf("moon"));
     // Never enough to crop: every source's body fits inside its own frame.
     for (const source of SOURCES) expect(scaleOf(source)).toBeLessThan(1.3);
   });
@@ -189,8 +197,13 @@ describe("discStyle", () => {
   });
 
   describe("square", () => {
-    it("leaves the published frame untouched", () => {
-      for (const source of SOURCES) expect(discStyle(source, "square")).toBe("");
+    // Same target size as circle mode, but a square clip instead of a round one — so the
+    // shape setting still changes the puck's outline, not just whether it exists.
+    it("crops to an inset square and scales to the shared target", () => {
+      for (const source of SOURCES) {
+        const style = discStyle(source, "square");
+        expect(style).toMatch(/^clip-path: inset\(\d+(\.\d+)?%\); transform: scale\(/);
+      }
     });
 
     // The one exception, and it is not cosmetic: an unclipped rotated square sweeps its

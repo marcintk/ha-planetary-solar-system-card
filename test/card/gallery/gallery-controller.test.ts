@@ -281,6 +281,17 @@ describe("GalleryController.openPanel / closePanel", () => {
     await vi.waitFor(() => expect(gallery.imageLoaded).toBe(true));
   });
 
+  it("closes the panel when the already-open source is clicked again", () => {
+    const gallery = new GalleryController(
+      () => {},
+      () => "UTC"
+    );
+    gallery.configure("open", DEFAULT_GALLERY_SOURCES, 60000);
+    gallery.openPanel("earth");
+    gallery.openPanel("earth");
+    expect(gallery.panelMode).toBe("none");
+  });
+
   it("closePanel resets panel state", () => {
     const gallery = new GalleryController(
       () => {},
@@ -513,6 +524,18 @@ describe("GalleryController.viewModel", () => {
       { source: "earth", url: null, date: null },
       { source: "sun", url: null, date: null },
     ]);
+  });
+
+  it("keeps the strip visible in below position even with a panel open", async () => {
+    const gallery = new GalleryController(
+      () => {},
+      () => "UTC"
+    );
+    gallery.configure("open", DEFAULT_GALLERY_SOURCES, 60000);
+    gallery.openPanel("earth");
+    await vi.waitFor(() => expect(gallery.imageLoaded).toBe(true));
+    expect(gallery.viewModel("below").showStrip).toBe(true);
+    expect(gallery.viewModel("overlay").showStrip).toBe(false);
   });
 
   it("hides the strip while collapsed but still reports its thumbnails", () => {

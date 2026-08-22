@@ -141,14 +141,17 @@ export class GalleryController {
     return this._mode === "slide" ? [this._sources[this._slideIndex]] : this._sources;
   }
 
-  viewModel(): GalleryViewModel {
+  // position defaults to "overlay" (the strip must hide there, since it floats over the
+  // full-screen view it would otherwise sit on top of) — "below" is a normal flow sibling of
+  // that view instead, so it has no need to hide just because a panel opened.
+  viewModel(position: GalleryPosition = "overlay"): GalleryViewModel {
     return {
       error: this._error,
       panelSource: this._panelMode,
       imageUrl: this._imageUrl,
       imageDate: this._imageDate,
       imageLoaded: this._imageLoaded,
-      showStrip: this._open && this._panelMode === "none",
+      showStrip: this._open && (position === "below" || this._panelMode === "none"),
       thumbnails: this.displaySources.map((source) => {
         const image = source === "drawnmoon" ? undefined : this._images[source];
         return { source, url: image?.url ?? null, date: image?.date ?? null };
@@ -223,6 +226,14 @@ export class GalleryController {
   // a source completes (already in flight from start()/configure() — this only nudges it
   // rather than waiting for the next tick).
   openPanel(mode: ImageSource): void {
+    // Re-clicking the tile that's already open is the only way to reach this with mode ===
+    // panelMode: in "overlay" position the strip is hidden while a panel is open, so its tiles
+    // aren't there to re-click; in "below" they stay visible, and clicking the open one again
+    // reads as "close it", not "open it again".
+    if (this._panelMode === mode) {
+      this.closePanel();
+      return;
+    }
     this._panelMode = mode;
     this._error = null;
     const known = this._images[mode];

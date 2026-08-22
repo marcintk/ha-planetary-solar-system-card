@@ -105,45 +105,72 @@ export function buildMoonTitle(date: Date, isLiveMode: boolean): string {
  * full-moon frame), Sun 94.3% at perihelion, Earth 74.4-82.2% across DSCOVR's Lissajous orbit
  * around L1, which is much the widest swing of the three.
  *
- * Earth is deliberately set above its largest measurement: four sampled dates are not the
- * whole orbit, and the failure modes are asymmetric — too small leaves a thin black ring, too
- * large slices the limb off.
+ * Earth is pinned to exactly its largest sampled measurement rather than padded above it: this
+ * value is also what every source gets rescaled against to reach a shared on-screen size (see
+ * `TARGET_FRACTION`), so slack here no longer just leaves a thin black ring — it stays visible
+ * as Earth reading smaller than Sun and Moon on every day but its widest. Four sampled dates
+ * are not the whole orbit, so a day beyond all of them could still slice the limb — accepted
+ * deliberately, since DSCOVR's orbit repeats roughly every six months and is unlikely to clear
+ * the sampled ceiling by much.
  */
 const DISC_FRACTION: Record<ImageSource, number> = {
   mymoon: 0.963,
   moon: 0.963,
-  earth: 0.88,
+  earth: 0.822,
   sun: 0.943,
 };
 
 /**
- * Crops a thumbnail down to the body itself, so the frame's black surround drops out and the
- * card shows through instead.
+ * Every body renders at this same fraction of its tile, whichever source it is. Without a
+ * shared target each source's own frame margin bleeds through at a different size — Earth's
+ * loose DSCOVR crop noticeably smaller than the Moon's tight SVS one — which reads as
+ * inconsistency rather than as the bodies' real relative sizes. A fixed target and a uniform
+ * black ring instead put every tile on equal footing.
  *
- * Two coupled numbers from one measurement: clip to the disc's own radius, then scale by the
- * inverse so that radius reaches the edge of the tile. They must stay coupled — `clip-path`
- * resolves in the element's own coordinates and `transform` applies to the result, so scaling
- * without shrinking the clip by the same factor pushes the circle back outside the tile,
- * which is the overflow this exists to prevent.
+ * Sun gets its own, smaller target rather than sharing the rest's 0.92: Moon and Earth are
+ * pinned to their largest measurement (see DISC_FRACTION), so most days show them well under
+ * that — genuinely smaller, not just cropped differently, since their distance really varies.
+ * The Sun's distance barely does (~3% over a year, against the Moon's ~14%), so it renders at
+ * its full target on nearly every frame, and matching Moon/Earth's on-screen size means giving
+ * it a lower one of its own instead of counting on real-world variance to shrink it for free.
+ */
+const TARGET_FRACTION: Record<ImageSource, number> = {
+  mymoon: 0.92,
+  moon: 0.92,
+  earth: 0.92,
+  sun: 0.83,
+};
+
+/**
+ * Crops a thumbnail down to the body itself, then rescales it so every source ends up the same
+ * size with the same margin — rather than each source's own, unequal frame margin.
+ *
+ * Two coupled numbers from one measurement: clip to the disc's own radius, then scale by
+ * `TARGET_FRACTION` divided by that radius so it lands on the shared target instead of the
+ * disc's own edge. They must stay coupled — `clip-path` resolves in the element's own
+ * coordinates and `transform` applies to the result, so scaling without shrinking the clip by
+ * the matching factor pushes the circle back outside the tile, which is the overflow this
+ * exists to prevent.
  */
 export function discStyle(source: ImageSource, shape: GalleryShape, rotationDeg = 0): string {
-  // Square keeps the frame as published — except for the sky tile, which cannot have one: a
-  // rotated square is not a square. The tile clips the corners that swing outside it while the
-  // card shows through where the image's own corners swing in, so an unclipped rotated frame
-  // renders as an octagon at every angle but 0 and 90. Scaling it down by 1/(|cos|+|sin|)
-  // would keep all four corners, at the cost of a tilted diamond up to 29% smaller than its
-  // neighbours. A circle is the one shape rotation leaves alone, so the sky tile takes one
-  // whatever the setting — a looser crop than circle mode's, 50% of the frame rather than 48%,
-  // so it still shows more of the surround than its cropped neighbours do.
-  if (shape === "square") {
-    return rotationDeg
-      ? `clip-path: circle(50%); transform: rotate(${rotationDeg.toFixed(1)}deg)`
-      : "";
+  // The sky tile is the one exception: a rotated square is not a square. The tile clips the
+  // corners that swing outside it while the card shows through where the image's own corners
+  // swing in, so an unclipped rotated frame renders as an octagon at every angle but 0 and 90.
+  // Scaling it down by 1/(|cos|+|sin|) would keep all four corners, at the cost of a tilted
+  // diamond up to 29% smaller than its neighbours. A circle is the one shape rotation leaves
+  // alone, so the sky tile takes one whatever the setting, at the frame's own edge rather than
+  // the shared target — it needs no rescale, since the clip already lands on the tile edge.
+  if (shape === "square" && rotationDeg) {
+    return `clip-path: circle(50%); transform: rotate(${rotationDeg.toFixed(1)}deg)`;
   }
   const fraction = DISC_FRACTION[source];
-  const scale = `scale(${(1 / fraction).toFixed(3)})`;
+  const scale = `scale(${(TARGET_FRACTION[source] / fraction).toFixed(3)})`;
   const transform = rotationDeg ? `rotate(${rotationDeg.toFixed(1)}deg) ${scale}` : scale;
-  return `clip-path: circle(${(fraction * 50).toFixed(1)}%); transform: ${transform}`;
+  const clip =
+    shape === "circle"
+      ? `circle(${(fraction * 50).toFixed(1)}%)`
+      : `inset(${((1 - fraction) * 50).toFixed(1)}%)`;
+  return `clip-path: ${clip}; transform: ${transform}`;
 }
 
 /**

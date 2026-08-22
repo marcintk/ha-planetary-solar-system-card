@@ -294,7 +294,7 @@ describe("SolarViewCard gallery", () => {
       const labelOf = (source) =>
         card.shadowRoot.querySelector(`[data-source="${source}"] .gallery-label`).textContent;
       expect(labelOf("moon")).toBe("MOON");
-      expect(labelOf("mymoon")).toBe("MY SKY");
+      expect(labelOf("mymoon")).toBe("MYMOON");
       card.remove();
     });
 
@@ -332,7 +332,7 @@ describe("SolarViewCard gallery", () => {
       const thumbs = [...card.shadowRoot.querySelectorAll(".gallery-thumb")];
       expect(thumbs.map((t) => t.dataset.source)).toEqual(["mymoon", "moon", "earth", "sun"]);
       const labels = thumbs.map((t) => t.querySelector(".gallery-label").textContent);
-      expect(labels).toEqual(["MY SKY", "MOON", "DSCOVR/E", "SDO/S"]);
+      expect(labels).toEqual(["MYMOON", "MOON", "EARTH", "SUN"]);
 
       // Each candidate is preloaded off-DOM before it's ever assigned to the thumbnail, so
       // by the time the fetch/preload chain settles the age is already known — no separate
@@ -406,7 +406,9 @@ describe("SolarViewCard gallery", () => {
       card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"]').click();
       await flush();
       expect(card._gallery.panelMode).toBe("sun");
-      expect(card.shadowRoot.querySelector(".status-bar").textContent).toContain("SUN · SDO HMI");
+      expect(card.shadowRoot.querySelector(".status-bar").textContent).toContain(
+        "SUN · NASA SDO HMI"
+      );
       const img = card.shadowRoot.querySelector("#image-view");
       expect(img.classList.contains("visible")).toBe(true);
       expect(card.shadowRoot.querySelector(".gallery")).toBeNull();
@@ -697,7 +699,9 @@ describe("SolarViewCard gallery", () => {
       expect(img.src).toBe(
         `${EPIC_BASE_URL}/archive/natural/2026/08/10/jpg/epic_1b_20260810234950.jpg`
       );
-      expect(card.shadowRoot.querySelector(".status-bar").textContent).toContain("EARTH · DSCOVR");
+      expect(card.shadowRoot.querySelector(".status-bar").textContent).toContain(
+        "EARTH · NASA DSCOVR"
+      );
       card.remove();
     });
 

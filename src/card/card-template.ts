@@ -74,10 +74,10 @@ export const IMAGE_SOURCE_LABELS: Record<ImageSource, string> = {
 
 // Labels for the gallery thumbnail strip — the top line of every tile's caption.
 export const GALLERY_SOURCE_LABELS: Record<GallerySource, string> = {
-  mymoon: "MY SKY",
+  mymoon: "MYMOON",
   moon: "MOON",
-  earth: "DSCOVR/E",
-  sun: "SDO/S",
+  earth: "EARTH",
+  sun: "SUN",
   drawnmoon: "DRAWN",
 };
 
@@ -114,20 +114,23 @@ export function buildMoonTitle(date: Date, isLiveMode: boolean): string {
  * the sampled ceiling by much.
  */
 const DISC_FRACTION: Record<ImageSource, number> = {
-  mymoon: 0.963,
-  moon: 0.963,
-  earth: 0.822,
-  sun: 0.943,
+  mymoon: 0.95,
+  moon: 0.95,
+  earth: 0.82,
+  sun: 0.945,
 };
 
 /**
- * Every body renders at this same fraction of its tile, whichever source it is. Without a
- * shared target each source's own frame margin bleeds through at a different size — Earth's
- * loose DSCOVR crop noticeably smaller than the Moon's tight SVS one — which reads as
- * inconsistency rather than as the bodies' real relative sizes. A fixed target and a uniform
- * black ring instead put every tile on equal footing.
+ * Every body renders at this same fraction of its tile, whichever source it is — and whichever
+ * shape: square and circle share this table, so the object is the same on-screen size in both,
+ * only the crop around it (inset square vs round) changes. Without a shared target each
+ * source's own frame margin bleeds through at a different size — Earth's loose DSCOVR crop
+ * noticeably smaller than the Moon's tight SVS one — which reads as inconsistency rather than
+ * as the bodies' real relative sizes. A fixed target and a uniform margin instead put every
+ * tile on equal footing, and staying under 1.0 everywhere leaves a safety margin against
+ * DISC_FRACTION being a sampled ceiling rather than a proven one (see its own comment).
  *
- * Sun gets its own, smaller target rather than sharing the rest's 0.92: Moon and Earth are
+ * Sun gets its own, smaller target rather than sharing the rest's 0.90: Moon and Earth are
  * pinned to their largest measurement (see DISC_FRACTION), so most days show them well under
  * that — genuinely smaller, not just cropped differently, since their distance really varies.
  * The Sun's distance barely does (~3% over a year, against the Moon's ~14%), so it renders at
@@ -135,10 +138,10 @@ const DISC_FRACTION: Record<ImageSource, number> = {
  * it a lower one of its own instead of counting on real-world variance to shrink it for free.
  */
 const TARGET_FRACTION: Record<ImageSource, number> = {
-  mymoon: 0.92,
-  moon: 0.92,
-  earth: 0.92,
-  sun: 0.83,
+  mymoon: 0.89,
+  moon: 0.89,
+  earth: 0.87,
+  sun: 0.8,
 };
 
 /**
@@ -221,8 +224,8 @@ const IMAGE_STATUS_VERB: Record<ImageSource, string> = {
 const IMAGE_STATUS_INSTRUMENT: Record<ImageSource, string> = {
   mymoon: "NASA SVS",
   moon: "NASA SVS",
-  earth: "DSCOVR",
-  sun: "SDO HMI",
+  earth: "NASA DSCOVR",
+  sun: "NASA SDO HMI",
 };
 
 export function buildImageStatusBar(

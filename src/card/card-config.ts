@@ -1,13 +1,9 @@
 import type { CardConfig, Colors, ZoomLevel } from "../types.js";
-import type { GallerySource } from "./card-template.js";
-import { GALLERY_SOURCES } from "./card-template.js";
+import type { GallerySource, ImageSource } from "./card-template.js";
+import { IMAGE_SOURCES } from "./card-template.js";
 import { DEFAULT_ZOOM_LEVEL, MAX_ZOOM, MIN_ZOOM } from "./card-view-state.js";
 import type { GalleryMode, GalleryPosition, GalleryShape } from "./gallery/gallery-controller.js";
-import {
-  DEFAULT_GALLERY_INTERVAL_MS,
-  DEFAULT_GALLERY_SOURCES,
-  GALLERY_MODES,
-} from "./gallery/gallery-controller.js";
+import { DEFAULT_GALLERY_INTERVAL_MS } from "./gallery/gallery-controller.js";
 
 export interface ParsedCardConfig {
   zoomLevel: ZoomLevel;
@@ -78,30 +74,33 @@ function resolveOverrideTimezone(timezone: string | undefined, lon: number): str
 // range-check rule lives. card.ts's setConfig hands the result straight to _zoom.configure()/
 // _gallery.configure() and its own remaining fields, instead of parsing inline.
 
-// Unknown names are dropped rather than rejecting the whole list, and duplicates collapse to
-// their first position — a typo costs the user that one thumbnail, not their entire gallery.
-// Order is preserved because it *is* the layout: sources[0] renders leftmost.
-function resolveSources(raw: unknown): GallerySource[] | null {
-  if (!Array.isArray(raw)) return null;
-  const kept = [...new Set(raw as GallerySource[])].filter((s) => GALLERY_SOURCES.includes(s));
-  return kept.length ? kept : null;
-}
-
-// Two generations of `gallery.mode` values map onto the current three. The pre-#140 names
-// picked sources as well as presentation ("earth", "both"); source selection is gone, so all
-// of them collapse to whether the strip is open. "closed" is #140's own spelling of "off".
-const LEGACY_GALLERY_MODES: Record<string, GalleryMode> = {
-  none: "off",
-  closed: "off",
-  earth: "open",
-  sun: "open",
-  both: "open",
+// Each source's own on/off default — mymoon is the one tile that costs nothing extra to
+// answer (no observer-independent equivalent already on screen the way moon/earth/sun's NASA
+// photographs are optional extras), so it alone ships enabled.
+const SOURCE_DEFAULTS: Record<ImageSource, boolean> = {
+  mymoon: true,
+  moon: false,
+  earth: false,
+  sun: false,
 };
 
+// Which sources are enabled, in the fixed mymoon/moon/earth/sun order — that order is no
+// longer configurable now that each source is its own boolean rather than a position in a
+// list, so IMAGE_SOURCES' own order is the only order there is.
+function resolveGallerySources(gallery: CardConfig["gallery"]): GallerySource[] {
+  return IMAGE_SOURCES.filter((source) => (gallery?.[source] ?? SOURCE_DEFAULTS[source]) === true);
+}
+
+// "slide" is the only legacy spelling that still means what it always did. Every other legacy
+// value — the pre-#140 names that doubled as source selection ("earth", "sun", "both"), #140's
+// own "open", and "none"/"closed" — collapses to whichever of the two remaining states it's
+// closer to: "none"/"closed" meant a fully closed strip, so those stay off; everything else
+// (including a config that never set gallery.mode at all) becomes the new default, "show".
 function resolveGalleryMode(gallery: CardConfig["gallery"]): GalleryMode {
   const raw = gallery?.mode as string;
-  if (GALLERY_MODES.includes(raw as GalleryMode)) return raw as GalleryMode;
-  return LEGACY_GALLERY_MODES[raw] ?? "off";
+  if (raw === "slide") return "slide";
+  if (raw === "off" || raw === "none" || raw === "closed") return "off";
+  return "show";
 }
 
 export function parseCardConfig(config: CardConfig): ParsedCardConfig {
@@ -146,7 +145,7 @@ export function parseCardConfig(config: CardConfig): ParsedCardConfig {
   const galleryPosition: GalleryPosition =
     config.gallery?.position === "below" ? "below" : "overlay";
   const galleryShape: GalleryShape = config.gallery?.shape === "circle" ? "circle" : "square";
-  const gallerySources = resolveSources(config.gallery?.sources) ?? DEFAULT_GALLERY_SOURCES;
+  const gallerySources = resolveGallerySources(config.gallery);
   const rawInterval = Number(config.gallery?.slide_interval_secs);
   const galleryIntervalMs =
     Number.isFinite(rawInterval) && rawInterval >= 0.1

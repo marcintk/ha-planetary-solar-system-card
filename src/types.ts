@@ -123,7 +123,10 @@ export interface CardConfig {
     position?: string;
     shape?: string;
     slide_interval_secs?: number;
-    sources?: string[];
+    mymoon?: boolean;
+    moon?: boolean;
+    earth?: boolean;
+    sun?: boolean;
   };
   location?: { latitude?: number; longitude?: number; name?: string; timezone?: string };
 }

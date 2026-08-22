@@ -1,6 +1,8 @@
 import type { TemplateResult } from "lit";
 import { html, LitElement, nothing } from "lit";
 import { getMoonSkyAngles } from "../astronomy/parallactic.js";
+import { computeSolarElevationDeg } from "../astronomy/solar-position.js";
+import { computeTwilightBand } from "../renderer/observer.js";
 import type { CardConfig, Colors, HASSConfig, Hemisphere, LocationData } from "../types.js";
 import { parseCardConfig } from "./card-config.js";
 import { cardStyles } from "./card-styles.js";
@@ -328,6 +330,7 @@ export class SolarViewCard extends LitElement {
       class="gallery-thumb ${this._galleryShape === "circle" ? "gallery-thumb-circle" : ""}"
       data-source=${source}
       title=${`Show ${GALLERY_SOURCE_LABELS[source]}`}
+      style=${sky ? `background: ${sky.background}` : nothing}
       @click=${this._onGalleryClick}
     >
       <img
@@ -349,13 +352,17 @@ export class SolarViewCard extends LitElement {
 
   /**
    * The full-screen image's inline style: the configured height cap, plus the sky tile's own
-   * rotation so the panel shows what the thumbnail showed rather than snapping back to the
-   * geocentric frame the moment it is opened.
+   * rotation and backdrop so the panel shows what the thumbnail showed rather than snapping
+   * back to the geocentric frame the moment it is opened.
    */
   private _panelStyle(panelSource: ImagePanelMode): string | typeof nothing {
     const parts = [this._heightStyle];
     if (panelSource === "mymoon") {
-      parts.push(`transform: rotate(${this._skyView().rotation.toFixed(1)}deg)`);
+      const sky = this._skyView();
+      parts.push(
+        `transform: rotate(${sky.rotation.toFixed(1)}deg)`,
+        `background: ${sky.background}`
+      );
     }
     return parts.filter(Boolean).join("; ") || nothing;
   }
@@ -363,24 +370,27 @@ export class SolarViewCard extends LitElement {
   /**
    * How the Moon hangs in the observer's sky right now.
    *
-   * Returns null-safe defaults when no location is known yet: an unrotated frame is the
-   * geocentric one, which is the honest thing to show when there is no observer to rotate for.
+   * Returns null-safe defaults when no location is known yet: an unrotated frame on the
+   * default black backdrop is the geocentric one, which is the honest thing to show when
+   * there is no observer to rotate or light for.
    *
    * "Below horizon" is not a failure and not a dark Moon — the frame still shows a normally
    * lit gibbous or crescent. It means the Earth is in the way from here, which happens on
    * roughly half of any given hour's worth of nights, at every latitude, because the Moon
-   * keeps its own hours rather than the Sun's.
+   * keeps its own hours rather than the Sun's. The backdrop answers a related but separate
+   * question — not "is the Moon up" but "what does my own sky look like right now" — using
+   * the same day/twilight/night bands and colors as the visibility cone, so a below-horizon
+   * Moon over a bright noon backdrop reads correctly as "up, but you couldn't see it anyway."
    */
-  private _skyView(): { rotation: number; belowHorizon: boolean } {
+  private _skyView(): { rotation: number; belowHorizon: boolean; background: string } {
     const location = this._locationData;
-    if (!location) return { rotation: 0, belowHorizon: false };
+    if (!location) return { rotation: 0, belowHorizon: false, background: "#000" };
 
-    const { parallacticDeg, altitudeDeg } = getMoonSkyAngles(
-      new Date(),
-      location.lat,
-      location.lon
-    );
-    return { rotation: parallacticDeg, belowHorizon: altitudeDeg <= 0 };
+    const now = new Date();
+    const { parallacticDeg, altitudeDeg } = getMoonSkyAngles(now, location.lat, location.lon);
+    const sunElevDeg = computeSolarElevationDeg(location.lat, location.lon, now);
+    const { color } = computeTwilightBand(sunElevDeg, null, this._colors);
+    return { rotation: parallacticDeg, belowHorizon: altitudeDeg <= 0, background: color };
   }
 
   /**

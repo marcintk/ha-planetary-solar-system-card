@@ -26,7 +26,7 @@ describe("gallery backoff integration", () => {
 
   function createAndMount(config) {
     const card = document.createElement("ha-planetary-solar-system-card-test");
-    card.setConfig({ gallery: { mode: "both" }, ...config });
+    card.setConfig({ gallery: { mode: "both", sun: true }, ...config });
     document.body.appendChild(card);
     return card;
   }

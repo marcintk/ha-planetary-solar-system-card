@@ -48,9 +48,13 @@ describe("SolarViewCard gallery", () => {
     // other than "none" auto-opens the strip on connect, so most tests here don't need to
     // click the gallery button to open it — only to close/reopen it.
     // Not the shared createAndMount: every test here needs the gallery switched on.
-    function mountWithGallery(config) {
+    function mountWithGallery(config = {}) {
       const card = document.createElement("ha-planetary-solar-system-card-test");
-      card.setConfig({ gallery: { mode: "both" }, ...config });
+      const { gallery, ...rest } = config;
+      card.setConfig({
+        gallery: { mode: "both", mymoon: true, moon: true, earth: true, sun: true, ...gallery },
+        ...rest,
+      });
       document.body.appendChild(card);
       return card;
     }
@@ -79,38 +83,36 @@ describe("SolarViewCard gallery", () => {
       card.remove();
     });
 
-    it("opening the default gallery shows the whole strip", async () => {
+    it("opening the default gallery shows only mymoon, the one tile enabled by default", async () => {
       const card = document.createElement("ha-planetary-solar-system-card-test");
       document.body.appendChild(card);
       clickButton(card, "gallery");
       await flush();
 
       const tiles = [...card.shadowRoot.querySelectorAll(".gallery > *")];
-      expect(tiles.map((t) => t.getAttribute("data-source"))).toEqual([
-        "mymoon",
-        "moon",
-        "earth",
-        "sun",
-      ]);
+      expect(tiles.map((t) => t.getAttribute("data-source"))).toEqual(["mymoon"]);
       card.remove();
     });
 
-    // Position is the user's, not ours: sources[0] renders leftmost whatever it is.
-    it("renders tiles in the order sources lists them", () => {
+    // Order is fixed (mymoon, moon, earth, sun) now that individual booleans replace the old
+    // ordered sources list — there is no longer a list position to render tiles by.
+    it("renders enabled tiles in the fixed mymoon/moon/earth/sun order regardless of config order", () => {
       const card = createAndMount({
-        gallery: { mode: "open", sources: ["sun", "moon", "mymoon"] },
+        gallery: { mode: "open", sun: true, moon: true, mymoon: true },
       });
       const order = [...card.shadowRoot.querySelectorAll(".gallery > *")].map((t) =>
         t.getAttribute("data-source")
       );
-      expect(order).toEqual(["sun", "moon", "mymoon"]);
+      expect(order).toEqual(["mymoon", "moon", "sun"]);
       card.remove();
     });
 
     // Every NASA tile opens full-screen, including both moons — they are fetched images, so
     // the pointer affordance promises something a click can actually deliver.
     it("makes every strip tile a button", () => {
-      const card = createAndMount({ gallery: { mode: "open" } });
+      const card = createAndMount({
+        gallery: { mode: "open", mymoon: true, moon: true, earth: true, sun: true },
+      });
       const tiles = [...card.shadowRoot.querySelectorAll(".gallery > *")];
       expect(tiles.map((t) => t.tagName)).toEqual(["BUTTON", "BUTTON", "BUTTON", "BUTTON"]);
       card.remove();
@@ -158,6 +160,63 @@ describe("SolarViewCard gallery", () => {
       vi.useRealTimers();
     });
 
+    // The sky tile's backdrop answers a different question than "is the Moon up": what does
+    // the observer's own sky look like right now. Reuses the visibility cone's own day/twilight/
+    // night color bands, so this only needs to prove the right band is picked, not re-derive
+    // the astronomy — computeTwilightBand's own tests own that.
+    it("colors the sky tile's backdrop by the observer's own day/night, not the Moon's", () => {
+      vi.useFakeTimers();
+      const config = {
+        gallery: { mode: "open" },
+        location: { latitude: 33.2148, longitude: -97.1331, timezone: "America/Chicago" },
+      };
+      const backgroundOf = (card) =>
+        card.shadowRoot.querySelector('[data-source="mymoon"]').getAttribute("style");
+
+      vi.setSystemTime(new Date("2026-08-22T18:00:00Z")); // 13:00 CDT, Sun well up
+      const dayCard = document.createElement("ha-planetary-solar-system-card-test");
+      dayCard.setConfig(config);
+      document.body.appendChild(dayCard);
+      expect(backgroundOf(dayCard)).toContain("background: color-mix(in srgb, currentColor 8%");
+      dayCard.remove();
+
+      vi.setSystemTime(new Date("2026-08-22T06:00:00Z")); // 01:00 CDT, deep night
+      const nightCard = document.createElement("ha-planetary-solar-system-card-test");
+      nightCard.setConfig(config);
+      document.body.appendChild(nightCard);
+      expect(backgroundOf(nightCard)).toContain("rgb(30, 20, 60)");
+      nightCard.remove();
+      vi.useRealTimers();
+    });
+
+    // No location means no observer to light the tile for, same reasoning as the unrotated
+    // frame: the honest default, not a guess.
+    it("falls back to a black sky-tile backdrop with no location known", () => {
+      const card = createAndMount({ gallery: { mode: "open" } });
+      const style = card.shadowRoot.querySelector('[data-source="mymoon"]').getAttribute("style");
+      expect(style).toBe("background: #000");
+      card.remove();
+    });
+
+    // Opening the sky tile must carry its backdrop into the full-screen view too, same as it
+    // already carries the rotation (see "carries the sky rotation into the full-screen view").
+    it("carries the sky backdrop into the full-screen view", async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-08-22T18:00:00Z")); // Sun well up
+      const card = createAndMount({
+        gallery: { mode: "open" },
+        location: { latitude: 33.2148, longitude: -97.1331, timezone: "America/Chicago" },
+      });
+      await vi.advanceTimersByTimeAsync(0);
+      card.shadowRoot.querySelector('[data-source="mymoon"]').click();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(card.shadowRoot.querySelector("#image-view").getAttribute("style")).toContain(
+        "background: color-mix(in srgb, currentColor 8%"
+      );
+      card.remove();
+      vi.useRealTimers();
+    });
+
     // Every fetched tile is cropped to the body itself, so the frame's black surround drops
     // out and the card shows through. Only the sky tile also rotates — that rotation is what
     // makes it the observer's view rather than NASA's, so the two moons must not match.
@@ -166,7 +225,14 @@ describe("SolarViewCard gallery", () => {
       vi.setSystemTime(new Date("2026-08-22T01:00:00Z"));
       const card = document.createElement("ha-planetary-solar-system-card-test");
       card.setConfig({
-        gallery: { mode: "open", shape: "circle" },
+        gallery: {
+          mode: "open",
+          shape: "circle",
+          mymoon: true,
+          moon: true,
+          earth: true,
+          sun: true,
+        },
         location: { latitude: 33.2148, longitude: -97.1331, timezone: "America/Chicago" },
       });
       document.body.appendChild(card);
@@ -186,7 +252,7 @@ describe("SolarViewCard gallery", () => {
     // Thumbnails are 216 px; the full-screen view is the same frame at 730. Swapping the size
     // segment keeps the panel on the exact frame the tile showed.
     it("opens the moon full-screen at the larger resolution", async () => {
-      const card = createAndMount({ gallery: { mode: "open" } });
+      const card = createAndMount({ gallery: { mode: "open", moon: true } });
       await flush();
       card.shadowRoot.querySelector('[data-source="moon"]').click();
       await flush();
@@ -201,7 +267,7 @@ describe("SolarViewCard gallery", () => {
     // a panel opens. Regression: opening a panel used to hide the strip regardless of position,
     // which shrank the whole card back down the moment a below-position thumbnail was clicked.
     it("keeps the strip visible below the view after opening a panel", async () => {
-      const card = createAndMount({ gallery: { mode: "open", position: "below" } });
+      const card = createAndMount({ gallery: { mode: "open", position: "below", moon: true } });
       await flush();
       card.shadowRoot.querySelector('[data-source="moon"]').click();
       await flush();
@@ -212,7 +278,7 @@ describe("SolarViewCard gallery", () => {
     // In "below" position the just-clicked tile stays visible next to its own full-screen
     // view, so clicking it again is reachable — and reads as "close", not "reopen".
     it("closes the panel when the open tile is clicked again in below position", async () => {
-      const card = createAndMount({ gallery: { mode: "open", position: "below" } });
+      const card = createAndMount({ gallery: { mode: "open", position: "below", moon: true } });
       await flush();
       card.shadowRoot.querySelector('[data-source="moon"]').click();
       await flush();
@@ -241,7 +307,9 @@ describe("SolarViewCard gallery", () => {
     // gallery.shape flips the crop between a round puck and a square one — both are scaled
     // to the same shared target size.
     it("crops to a square puck when gallery.shape is square", () => {
-      const card = createAndMount({ gallery: { mode: "open", shape: "square" } });
+      const card = createAndMount({
+        gallery: { mode: "open", shape: "square", moon: true, earth: true, sun: true },
+      });
       const styleOf = (source) =>
         card.shadowRoot.querySelector(`[data-source="${source}"] img`).getAttribute("style");
       for (const source of ["moon", "earth", "sun"]) {
@@ -265,7 +333,7 @@ describe("SolarViewCard gallery", () => {
     });
 
     it("labels the two moon tiles apart", () => {
-      const card = createAndMount({ gallery: { mode: "open" } });
+      const card = createAndMount({ gallery: { mode: "open", moon: true } });
       const labelOf = (source) =>
         card.shadowRoot.querySelector(`[data-source="${source}"] .gallery-label`).textContent;
       expect(labelOf("moon")).toBe("MOON");
@@ -279,10 +347,7 @@ describe("SolarViewCard gallery", () => {
     // line above the body and the age span the line below it.
     it("gives every tile the same caption structure", () => {
       const card = createAndMount({
-        gallery: {
-          mode: "open",
-          sources: ["mymoon", "moon", "earth", "sun"],
-        },
+        gallery: { mode: "open", mymoon: true, moon: true, earth: true, sun: true },
       });
       const shapes = [...card.shadowRoot.querySelectorAll(".gallery-info")].map((info) =>
         [...info.children].map((el) => `${el.tagName}.${el.className}`)
@@ -875,7 +940,16 @@ describe("SolarViewCard gallery", () => {
       const card = mountWithGallery({ gallery: { mode: "slide", slide_interval_secs: 120 } });
       await vi.advanceTimersByTimeAsync(0);
 
-      card.setConfig({ gallery: { mode: "slide", slide_interval_secs: 180 } });
+      card.setConfig({
+        gallery: {
+          mode: "slide",
+          slide_interval_secs: 180,
+          mymoon: true,
+          moon: true,
+          earth: true,
+          sun: true,
+        },
+      });
       await vi.advanceTimersByTimeAsync(120 * 1000); // past the old interval, before the new one
       expect(card.shadowRoot.querySelector(".gallery-thumb").dataset.source).toBe("mymoon");
 

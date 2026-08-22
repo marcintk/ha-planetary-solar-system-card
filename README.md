@@ -52,16 +52,17 @@ colors:
 type: custom:ha-planetary-solar-system-card
 gallery:
   mode: slide
-  sources: [mymoon, moon, earth, sun]
+  moon: true
+  earth: true
+  sun: true
   slide_interval_secs: 30
 ```
 
 ```yaml
 type: custom:ha-planetary-solar-system-card
 gallery:
-  mode: open
   position: below
-  sources: [mymoon, earth]
+  earth: true
 ```
 
 ```yaml
@@ -112,8 +113,8 @@ Pressing **↺** again mid-animation stops on the frame you're viewing rather th
 ## Live Imagery
 
 A thumbnail strip beside the solar view. ☷ toggles it; clicking a NASA thumbnail opens it
-full-screen. Which tiles appear — and in what left-to-right order — is `gallery.sources` (see
-[Gallery](#gallery)).
+full-screen. Which tiles appear is `gallery.mymoon` / `gallery.moon` / `gallery.earth` /
+`gallery.sun`; left-to-right order is fixed (see [Gallery](#gallery)).
 
 | Thumbnail | Source            | Shows                                        | We fetch | Age of what you see |
 | --------- | ----------------- | -------------------------------------------- | -------- | ------------------- |
@@ -210,33 +211,30 @@ the cycle resumes. Replay and the gallery don't pause it.
 
 `gallery` (object, unset by default) — Live Imagery gallery options:
 
-| Key                           | Type     | Default        | Description                                                                                                     |
-| ----------------------------- | -------- | -------------- | --------------------------------------------------------------------------------------------------------------- |
-| `gallery.mode`                | string   | `"off"`        | `"off"` starts the strip collapsed, `"open"` shows it, `"slide"` shows one tile at a time and rotates           |
-| `gallery.sources`             | string[] | the four below | Which tiles to show, in left-to-right order. Unknown names and duplicates are dropped                           |
-| `gallery.position`            | string   | `"overlay"`    | `"overlay"` floats the strip over the solar view, `"below"` puts it underneath and grows the card by its height |
-| `gallery.shape`               | string   | `"square"`     | `"square"` shows the frame as its source publishes it, `"circle"` crops each tile to the body itself            |
-| `gallery.slide_interval_secs` | number   | `60`           | How often `slide` mode advances to the next source                                                              |
+| Key                           | Type    | Default     | Description                                                                                                          |
+| ----------------------------- | ------- | ----------- | -------------------------------------------------------------------------------------------------------------------- |
+| `gallery.mode`                | string  | `"show"`    | `"off"` collapses the strip, `"show"` displays every enabled tile at once, `"slide"` shows one at a time and rotates |
+| `gallery.mymoon`              | boolean | `true`      | Show the MY SKY tile                                                                                                 |
+| `gallery.moon`                | boolean | `false`     | Show the MOON tile                                                                                                   |
+| `gallery.earth`               | boolean | `false`     | Show the DSCOVR/E tile                                                                                               |
+| `gallery.sun`                 | boolean | `false`     | Show the SDO/S tile                                                                                                  |
+| `gallery.position`            | string  | `"overlay"` | `"overlay"` floats the strip over the solar view, `"below"` puts it underneath and grows the card by its height      |
+| `gallery.shape`               | string  | `"square"`  | `"square"` shows the frame as its source publishes it, `"circle"` crops each tile to the body itself                 |
+| `gallery.slide_interval_secs` | number  | `60`        | How often `slide` mode advances to the next enabled source                                                           |
 
-Source names:
+Each `gallery.<source>` boolean controls both fetching and display — a source that's off is never
+requested in the background either. Render order is always MY SKY, MOON, DSCOVR/E, SDO/S, whichever
+subset is enabled; it isn't configurable.
 
-| Name     | Tile     |
-| -------- | -------- |
-| `mymoon` | MY SKY   |
-| `moon`   | MOON     |
-| `earth`  | DSCOVR/E |
-| `sun`    | SDO/S    |
-
-Omit `sources` and you get all four tiles in that order.
-
-The ☷ button is always available; `mode` only decides whether the strip starts open.
+The ☷ button is always available; `mode` only decides whether the strip starts open, and whether it
+shows every enabled tile at once or rotates through them.
 
 ```yaml
 gallery:
-  mode: open
   position: below
   shape: circle
-  sources: [mymoon, earth, sun]
+  earth: true
+  sun: true
 ```
 
 `shape: circle` crops away each frame's black margin so the bodies float on the card, all at the
@@ -247,13 +245,15 @@ closer to all of it — the bodies then render at visibly different sizes.
 MY SKY takes a slightly different route to the same look, because a rotated square is not a square —
 the tile clips the corners that swing outside it while the card shows through where the image's own
 corners swing in, so a rotated frame renders as an octagon at every angle except 0° and 90°. Instead
-of its own frame it gets a black backdrop from the tile, with the body clipped to a circle inside
-it. Every source renders its body on black, so the result is framed exactly like its neighbours,
-with a turned Moon inside.
+of its own frame it gets a backdrop colored by your own local sky — day, twilight or night, the same
+bands and colors as the [visibility cone](#horizon-twilight-zones) — with the body clipped to a
+circle inside it. Every other source renders its body on plain black, so MY SKY is the one tile
+whose backdrop actually changes through the day.
 
-Older configs keep working. `mode: none` and `mode: closed` both mean `off`; `earth`, `sun` and
-`both` open the strip; `slide` is unchanged. `moon` resolves to NASA's render; a config still naming
-the retired `drawnmoon` source simply drops it, same as any other unrecognised name.
+Older configs keep working. `mode: none` and `mode: closed` both mean `off`; every other legacy
+`mode` value (`earth`, `sun`, `both`, `open`) becomes the new default, `show`; `slide` is unchanged.
+`gallery.sources` is gone — a config still setting it is ignored, and falls back to the defaults
+above.
 
 #### Adding a source later
 

@@ -173,11 +173,9 @@ export function buildGalleryCaption(label: string, detail: string): TemplateResu
   </div>`;
 }
 
-// The gallery strip, in render order when `gallery.sources` says nothing. Also every name
-// `gallery.sources` accepts — order there is only the validation set, the user's own list
-// order is what decides layout.
+// The fixed render order — no longer configurable now that each source is its own
+// `gallery.<source>` boolean rather than a position in a list.
 export const IMAGE_SOURCES: ImageSource[] = ["mymoon", "moon", "earth", "sun"];
-export const GALLERY_SOURCES: GallerySource[] = IMAGE_SOURCES;
 
 // Full-screen status bar leads with the target body, the probe name follows (e.g.
 // "EARTH · DSCOVR · captured ..."). Kept separate from IMAGE_SOURCE_LABELS, which stays

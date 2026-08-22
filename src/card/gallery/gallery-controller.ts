@@ -7,11 +7,11 @@ import type { SourcedImage } from "./url-cache.js";
 
 export type ImagePanelMode = "none" | ImageSource;
 
-// How the strip presents itself. Which sources appear is no longer configurable — all four
-// tiles always show — so this is the whole of `gallery.mode` again, as it was before #140,
-// but without that version's conflation of presentation and source selection.
-export type GalleryMode = "off" | "open" | "slide";
-export const GALLERY_MODES: GalleryMode[] = ["off", "open", "slide"];
+// How the strip presents itself — purely presentation now, unrelated to which sources are
+// enabled (that's each gallery.<source> boolean, resolved in card-config.ts). "show" is a
+// static strip, "slide" rotates one tile at a time through the enabled sources, "off" hides it.
+export type GalleryMode = "off" | "slide" | "show";
+export const GALLERY_MODES: GalleryMode[] = ["off", "slide", "show"];
 export const DEFAULT_GALLERY_INTERVAL_MS = 60000;
 
 // Where the strip sits. "overlay" floats it over the bottom of the solar view, which costs no
@@ -24,9 +24,10 @@ export type GalleryPosition = "overlay" | "below";
 // through around it.
 export type GalleryShape = "circle" | "square";
 
-// What the strip shows when `gallery.sources` says nothing: every source, in the order
-// card-template.ts lists them.
-export const DEFAULT_GALLERY_SOURCES: GallerySource[] = IMAGE_SOURCES;
+// The enabled set before setConfig's first call resolves gallery.<source> against each
+// source's own default (see card-config.ts) — mymoon only, so a card mounted with no config
+// at all still shows something rather than an empty strip.
+export const DEFAULT_GALLERY_SOURCES: GallerySource[] = ["mymoon"];
 
 // Render-ready shape for card.ts's template — raw data only (dates, urls, booleans), no
 // formatting, so formatRelativeAge/date-formatting stays in card.ts alongside its other

@@ -1,3 +1,16 @@
+// The card's own wall-clock stamp: two-digit year through minutes, in the browser's local
+// zone. Lives here beside the relative phrasings rather than in card-template.ts, so the
+// modules that only need a timestamp (the debug overlay) don't have to import a template
+// module to get one.
+export function formatDate(date: Date): string {
+  const y = String(date.getFullYear()).slice(-2);
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  const hh = String(date.getHours()).padStart(2, "0");
+  const mm = String(date.getMinutes()).padStart(2, "0");
+  return `${y}-${m}-${d} ${hh}:${mm}`;
+}
+
 export function formatRelativeAge(date: Date, now: Date): string {
   const diffMin = Math.floor((now.getTime() - date.getTime()) / 60000);
   if (diffMin < 1) return "just now";

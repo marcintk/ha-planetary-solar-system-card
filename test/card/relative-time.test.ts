@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { formatRelativeAge, formatRelativeWhen } from "../../src/card/relative-time.js";
+import { formatDate, formatRelativeAge, formatRelativeWhen } from "../../src/card/relative-time.js";
+
+describe("formatDate", () => {
+  it("formats as YY-MM-DD HH:MM with zero-padding", () => {
+    expect(formatDate(new Date(2026, 1, 5, 9, 3))).toBe("26-02-05 09:03");
+  });
+});
 
 describe("formatRelativeAge", () => {
   const now = new Date("2026-08-12T12:00:00Z");

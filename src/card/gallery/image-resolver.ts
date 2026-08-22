@@ -1,10 +1,10 @@
-import type { ImageSource } from "../card-template.js";
-import type { DebugAccumulator, DebugRowId } from "./debug.js";
-import { DEBUG_ROW_KEYS } from "./debug.js";
+import type { DebugAccumulator } from "./debug-stats.js";
 import type { SourceResolver } from "./source-resolver.js";
 import { DscovrEarthResolver } from "./source-resolver-dscovr-earth.js";
 import { SdoSunResolver } from "./source-resolver-sdo-sun.js";
 import { SvsMoonResolver } from "./source-resolver-svs-moon.js";
+import type { DebugRowId, ImageSource } from "./sources.js";
+import { SOURCES } from "./sources.js";
 import type { SourcedImage } from "./url-cache.js";
 
 // The single gateway to a resolved sun/earth image — dispatches to the per-source resolver
@@ -58,7 +58,7 @@ export class ImageResolver {
     }
     const settled = await Promise.allSettled(
       pending.map((source) => {
-        const { url, img } = DEBUG_ROW_KEYS[source];
+        const { url, img } = SOURCES[source].debugRow;
         return this._resolvers[source].resolve(debug[url], debug[img]);
       })
     );

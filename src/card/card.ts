@@ -5,16 +5,9 @@ import { computeSolarElevationDeg, getSkyMode } from "../astronomy/solar-positio
 import type { CardConfig, Colors, HASSConfig, Hemisphere, LocationData } from "../types.js";
 import { parseCardConfig } from "./card-config.js";
 import { cardStyles } from "./card-styles.js";
-import type { GallerySource, ImageSource } from "./card-template.js";
-import {
-  buildGalleryCaption,
-  buildStatusBarView,
-  discStyle,
-  formatDate,
-  GALLERY_SOURCE_LABELS,
-} from "./card-template.js";
+import { buildGalleryCaption, buildStatusBarView, discStyle } from "./card-template.js";
 import { DateNavigation } from "./date-navigation.js";
-import { buildDebugOverlay } from "./gallery/debug.js";
+import { buildDebugOverlay } from "./gallery/debug-view.js";
 import type {
   GalleryMode,
   GalleryPosition,
@@ -23,7 +16,9 @@ import type {
 } from "./gallery/gallery-controller.js";
 import { GalleryController } from "./gallery/gallery-controller.js";
 import { fullSizeMoonUrl } from "./gallery/source-resolver-svs-moon.js";
-import { formatRelativeWhen } from "./relative-time.js";
+import type { GallerySource, ImageSource } from "./gallery/sources.js";
+import { SOURCES } from "./gallery/sources.js";
+import { formatDate, formatRelativeWhen } from "./relative-time.js";
 import { SolarView } from "./solar-view.js";
 import { resolveTheme, THEME_OVERRIDE_VARS } from "./theme.js";
 import { ZoomController } from "./zoom-controller.js";
@@ -349,12 +344,12 @@ export class SolarViewCard extends LitElement {
     url: string | null,
     date: Date | null
   ): TemplateResult {
-    const sky = source === "mymoon" ? this._skyView() : null;
+    const sky = SOURCES[source].skyFrame ? this._skyView() : null;
     const discStyleValue = discStyle(source, this._galleryShape, sky ? sky.rotation : 0);
     return html`<button
       class="gallery-thumb ${this._galleryShape === "circle" ? "gallery-thumb-circle" : ""}"
       data-source=${source}
-      title=${`Show ${GALLERY_SOURCE_LABELS[source]}`}
+      title=${`Show ${SOURCES[source].tile}`}
       @click=${this._onGalleryClick}
     >
       ${
@@ -376,7 +371,7 @@ export class SolarViewCard extends LitElement {
             }`
       }
       ${buildGalleryCaption(
-        GALLERY_SOURCE_LABELS[source],
+        SOURCES[source].tile,
         date ? formatRelativeWhen(date, new Date()) : "loading…"
       )}
     </button>`;
@@ -403,7 +398,7 @@ export class SolarViewCard extends LitElement {
    * is opened. Every other source needs no style of its own here.
    */
   private _panelImageStyle(panelSource: ImagePanelMode): string | typeof nothing {
-    if (panelSource !== "mymoon") return nothing;
+    if (panelSource === "none" || !SOURCES[panelSource].skyFrame) return nothing;
     return `transform: rotate(${this._skyView().rotation.toFixed(1)}deg)`;
   }
 

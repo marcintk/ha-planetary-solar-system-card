@@ -126,8 +126,20 @@ const DISC_FRACTION: Record<ImageSource, number> = {
  * loose DSCOVR crop noticeably smaller than the Moon's tight SVS one — which reads as
  * inconsistency rather than as the bodies' real relative sizes. A fixed target and a uniform
  * black ring instead put every tile on equal footing.
+ *
+ * Sun gets its own, smaller target rather than sharing the rest's 0.92: Moon and Earth are
+ * pinned to their largest measurement (see DISC_FRACTION), so most days show them well under
+ * that — genuinely smaller, not just cropped differently, since their distance really varies.
+ * The Sun's distance barely does (~3% over a year, against the Moon's ~14%), so it renders at
+ * its full target on nearly every frame, and matching Moon/Earth's on-screen size means giving
+ * it a lower one of its own instead of counting on real-world variance to shrink it for free.
  */
-const TARGET_FRACTION = 0.92;
+const TARGET_FRACTION: Record<ImageSource, number> = {
+  mymoon: 0.92,
+  moon: 0.92,
+  earth: 0.92,
+  sun: 0.83,
+};
 
 /**
  * Crops a thumbnail down to the body itself, then rescales it so every source ends up the same
@@ -152,7 +164,7 @@ export function discStyle(source: ImageSource, shape: GalleryShape, rotationDeg 
     return `clip-path: circle(50%); transform: rotate(${rotationDeg.toFixed(1)}deg)`;
   }
   const fraction = DISC_FRACTION[source];
-  const scale = `scale(${(TARGET_FRACTION / fraction).toFixed(3)})`;
+  const scale = `scale(${(TARGET_FRACTION[source] / fraction).toFixed(3)})`;
   const transform = rotationDeg ? `rotate(${rotationDeg.toFixed(1)}deg) ${scale}` : scale;
   const clip =
     shape === "circle"

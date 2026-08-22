@@ -60,13 +60,6 @@ gallery:
 
 ```yaml
 type: custom:ha-planetary-solar-system-card
-gallery:
-  position: below
-  earth: true
-```
-
-```yaml
-type: custom:ha-planetary-solar-system-card
 location:
   latitude: 51.5074
   longitude: -0.1278
@@ -98,17 +91,6 @@ the animation matches the scale you were browsing:
 | hour steps, or none | last 12 hours        | 20 minutes          |
 | day steps           | last 36 days         | 1 day               |
 | month steps         | last 180 days (~6mo) | 5 days              |
-
-The button title shows the active window (`Replay last 12h` / `36d` / `6mo`), and the **Now** button
-resets it back to hours.
-
-Day and month replays advance in whole days on purpose. The observer needle and visibility cone
-track Earth's daily rotation, so a step that isn't a whole number of days would land each frame at a
-different local time and spin the cone instead of showing orbital motion. Whole-day steps hold your
-local time of day fixed, leaving only the planets moving.
-
-Pressing **↺** again mid-animation stops on the frame you're viewing rather than jumping back; the
-**Now** button lights up to show the date is no longer live.
 
 ## Live Imagery
 

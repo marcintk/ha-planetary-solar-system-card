@@ -82,14 +82,20 @@ export function fullSizeMoonUrl(url: string): string {
 /**
  * One class, instantiated once per Moon tile.
  *
- * The two tiles show the same body from the same renders but at different instants — the
- * object tile follows the current hour, the sky tile pins to 22:00 local — so the reference
- * time is a strategy rather than a hardcoded `Date.now()`, and each instance owns its own
- * cache key. When both strategies happen to land on the same hour they resolve the same URL,
- * and the shared decode gate means the bytes are fetched once.
+ * The two tiles show the same body from the same NASA render at the same instant now — the
+ * object tile geocentric, the sky tile rotated into the observer's own orientation by card.ts —
+ * so both instances share one cache key ("moon") regardless of which of them is actually
+ * asked. `source` stays each instance's own identity (mymoon vs moon), used for nothing but
+ * labelling; every `this.cache.*()` call goes through the shared key instead, so whichever
+ * instance's resolve() call lands first in a given tick fetches and decodes the frame, and the
+ * other's getCached()/isDecoded() see that work already done rather than repeating it.
  */
 export class SvsMoonResolver extends SourceResolver {
   readonly source: ImageSource;
+
+  protected get cacheKey(): string {
+    return "moon";
+  }
 
   constructor(
     source: ImageSource,
@@ -105,14 +111,14 @@ export class SvsMoonResolver extends SourceResolver {
   // there is nothing to anchor: the reference time already determines exactly one frame, so
   // "is the cached image the frame we want" is the whole question.
   protected getCached(): SourcedImage | null {
-    const entry = this.cache.getEntry(this.source);
+    const entry = this.cache.getEntry(this.cacheKey);
     if (!entry) return null;
     return entry.image.url === getMoonFrameImage(this._referenceTime()).url ? entry.image : null;
   }
 
   protected fetchCandidateUrl(): Promise<SourcedImage> {
     const image = getMoonFrameImage(this._referenceTime());
-    this.cache.set(this.source, image);
+    this.cache.set(this.cacheKey, image);
     return Promise.resolve(image);
   }
 

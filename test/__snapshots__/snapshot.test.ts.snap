@@ -189,9 +189,7 @@ exports[`cardStyles > matches snapshot 1`] = `
        centred rather than a single row split left/right: once the thumbnails are clipped to
        the body, a full-width row runs off the disc at both ends, and centring on the tile
        centres on the body too — the sources all sit their subject dead centre in frame. */
-    /* Top pulled down 1px past the other three sides — flush with the tile edge read too
-       cramped against the disc's own limb. */
-    inset: 3px 2px 2px;
+    inset: 1px 2px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;

@@ -130,16 +130,17 @@ describe("GalleryController moon sources", () => {
   });
 
   // Same NASA product, same instant — both moon resolvers ask for "now" and land on the same
-  // frame — but each still holds its own cache entry, since card.ts rotates mymoon's copy into
-  // the observer's own sky and the two must not share mutable state.
-  it("gives each moon tile its own image entry, resolved to the same frame", async () => {
+  // frame — and now share one underlying cache entry/object too (SvsMoonResolver's cacheKey),
+  // so whichever of the two fetches first, the other rides along for free. Safe to share the
+  // literal object: card.ts rotates mymoon's copy at render time via a CSS transform, never by
+  // mutating the SourcedImage itself.
+  it("gives each moon tile the same resolved image, fetched only once", async () => {
     const gallery = new GalleryController(() => {});
     gallery.configure("show", IMAGE_SOURCES, 60000);
     gallery.start();
     await vi.waitFor(() => expect(gallery.images.moon).toBeDefined());
     await vi.waitFor(() => expect(gallery.images.mymoon).toBeDefined());
-    expect(gallery.images.mymoon?.date).toEqual(gallery.images.moon?.date);
-    expect(gallery.images.mymoon).not.toBe(gallery.images.moon);
+    expect(gallery.images.mymoon).toBe(gallery.images.moon);
   });
 
   it("carries url and date onto both moon thumbnails once resolved", async () => {

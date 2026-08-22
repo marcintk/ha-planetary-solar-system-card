@@ -38,6 +38,23 @@ export abstract class SourceResolver {
   protected abstract getCached(): SourcedImage | null;
   protected abstract fetchCandidateUrl(debug: DebugAccumulator): Promise<SourcedImage>;
 
+  // Lets a caller skip calling resolve() at all while this source's own cache is still
+  // current — image-resolver.ts's resolveAll() uses this the same way it already skips a
+  // source still mid-fetch, so a tick that has nothing new to do leaves no trace (no debug
+  // counters move, no resolve() call happens) instead of running the whole cache-check
+  // protocol just to immediately return the same cached image.
+  //
+  // Deliberately checks isDecoded() too, not just getCached() alone: getCached() can be
+  // non-null for a URL a resolver wrote optimistically before anything confirmed it loads
+  // (see getSunImageUrl() / fetchLatestEarthImageUrl()'s own comments). Skipping on that
+  // alone would mean a failed fetch "poisons" every following tick into silently doing
+  // nothing instead of retrying — this mirrors exactly what resolve() itself treats as an
+  // instant-success shortcut, so isFresh() is true only when resolve() would be a no-op.
+  isFresh(): boolean {
+    const cached = this.getCached();
+    return cached != null && this.cache.isDecoded(this.source, cached.url);
+  }
+
   // Only sun overrides this: one-step fallback to the previous 15-min slot when the computed
   // one 404s. Earth's URL is already confirmed by a real API lookup, so the default (rethrow)
   // is correct for it.

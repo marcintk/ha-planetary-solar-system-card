@@ -3,6 +3,7 @@ import {
   DEFAULT_GALLERY_SOURCES,
   GalleryController,
 } from "../../../src/card/gallery/gallery-controller.js";
+import { EARTH_CACHE_TTL_MS } from "../../../src/card/gallery/source-resolver-dscovr-earth.js";
 import { urlCache } from "../../../src/card/gallery/url-cache.js";
 
 // Every fetch path preloads a candidate off-DOM via `new Image()` before ever assigning it,
@@ -552,7 +553,7 @@ describe("GalleryController.debugStats", () => {
     });
   });
 
-  it("gates the image preload on URL identity, skipping it once the URL is unchanged", async () => {
+  it("skips a source entirely on the next tick while its own cache is still current", async () => {
     const gallery = new GalleryController(
       () => {},
       () => "UTC"
@@ -561,35 +562,20 @@ describe("GalleryController.debugStats", () => {
     gallery.start();
     await vi.waitFor(() => expect(gallery.images.earth).toBeDefined());
 
+    const afterFirstTick = gallery.debugStats;
+    expect(afterFirstTick["earth-url"].fetches).toBe(1);
+    expect(afterFirstTick["earth-img"].fetches).toBe(1);
+    expect(afterFirstTick.sun.fetches).toBe(1);
+
     gallery.tick();
-    // Second tick's URL is unchanged for both sources, so cacheHits is the one signal
-    // guaranteed to still move once the second refresh() has fully settled — unlike
-    // `fetches` (which no longer climbs on a same-URL tick — see below) or `refreshes`
-    // (which increments synchronously before the awaited work even starts).
-    await vi.waitFor(() => expect(gallery.debugStats["earth-url"].cacheHits).toBe(1));
+    await Promise.resolve();
+    await Promise.resolve();
 
-    // Earth's EPIC API lookup (url row) and image preload (img row) are counted separately.
-    // The second tick's EPIC lookup hits url-cache.ts's own TTL cache (no real fetch, so it
-    // isn't counted), and its preload is gated out since the URL is unchanged — so each row
-    // only ever sees 1 real fetch across both ticks. Sun (no metadata API, just the preload)
-    // is gated to 1 fetch across both ticks too.
-    expect(gallery.debugStats["earth-url"].fetches).toBe(1);
-    expect(gallery.debugStats["earth-img"].fetches).toBe(1);
-    expect(gallery.debugStats["earth-url"].refreshes).toBe(2);
-    // img's own refreshes only counts ticks that actually needed a real preload — the first
-    // tick's brand-new URL, not the second tick's gated (unchanged-URL) one.
-    expect(gallery.debugStats["earth-img"].refreshes).toBe(1);
-    expect(gallery.debugStats.sun.refreshes).toBe(2);
-    expect(gallery.debugStats.sun.fetches).toBe(1);
-    expect(gallery.debugStats["earth-url"].elapsed).not.toBeNull();
-    expect(gallery.debugStats["earth-img"].elapsed).not.toBeNull();
-    expect(gallery.debugStats["earth-img"].lastAttemptAt).not.toBeNull();
-
-    // First tick found nothing cached (0 cache hits); the second tick's cache is still fresh
-    // for both sources (checked before any fetch is attempted), so it's the direct signal
-    // that TTL gating is actually working — unlike `fetches`, this can't be zero by luck.
-    expect(gallery.debugStats["earth-url"].cacheHits).toBe(1);
-    expect(gallery.debugStats.sun.cacheHits).toBe(1);
+    // Both sources are still within their own TTL/publish window and already confirmed to
+    // decode, so resolveAll() never even calls resolve() for them this tick — every counter
+    // is untouched, not just the network-facing ones. This is the whole point of isFresh():
+    // a tick with nothing new to do should leave no trace, not just skip the real fetch.
+    expect(gallery.debugStats).toEqual(afterFirstTick);
   });
 
   it("skips a source still mid-fetch instead of stacking a second overlapping request", async () => {
@@ -618,7 +604,14 @@ describe("GalleryController.debugStats", () => {
     resolveFetch({ ok: true, json: () => Promise.resolve([{ identifier: "20260810234950" }]) });
     await vi.waitFor(() => expect(gallery.images.earth).toBeDefined());
 
-    // Now that it settled, a subsequent tick is free to fetch again.
+    // Now that it settled, earth is confirmed and within its own 1-hour TTL — isFresh() skips
+    // it, same as any other still-current source, regardless of the in-flight guard clearing.
+    gallery.tick();
+    await Promise.resolve();
+    expect(gallery.debugStats["earth-url"].refreshes).toBe(1);
+
+    // Only once its TTL has actually elapsed does a tick attempt it again.
+    vi.spyOn(Date, "now").mockReturnValue(Date.now() + EARTH_CACHE_TTL_MS + 1);
     gallery.tick();
     await vi.waitFor(() => expect(gallery.debugStats["earth-url"].refreshes).toBe(2));
   });

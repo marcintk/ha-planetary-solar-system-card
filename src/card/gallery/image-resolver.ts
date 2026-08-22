@@ -42,15 +42,19 @@ export class ImageResolver {
   }
 
   // Resolves every requested source concurrently, skipping any still mid-fetch from a
-  // previous call — that source keeps serving whatever's cached until the in-flight one
-  // settles, rather than stacking a second overlapping request for the same image. Returns
-  // settled results only for the sources actually attempted this call, so the caller can tell
-  // "not requested" (skipped, still in flight) apart from "requested and failed".
+  // previous call (that source keeps serving whatever's cached until the in-flight one
+  // settles, rather than stacking a second overlapping request) and any whose own cache is
+  // still current (nothing to learn by asking again before its TTL/publish window is up —
+  // sun's 15-min slot, earth's hourly EPIC poll, etc., each via that resolver's own
+  // isFresh()). Returns settled results only for the sources actually attempted this call, so
+  // the caller can tell "not requested" (skipped) apart from "requested and failed".
   async resolveAll(
     sources: readonly ImageSource[],
     debug: Record<DebugRowId, DebugAccumulator>
   ): Promise<{ source: ImageSource; result: PromiseSettledResult<SourcedImage> }[]> {
-    const pending = sources.filter((source) => !this._inFlight[source]);
+    const pending = sources.filter(
+      (source) => !this._inFlight[source] && !this._resolvers[source].isFresh()
+    );
     for (const source of pending) {
       this._inFlight[source] = true;
     }

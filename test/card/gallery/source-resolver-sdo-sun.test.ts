@@ -197,6 +197,35 @@ describe("source-resolver-sdo-sun", () => {
       expect(refreshed).toEqual(original);
     });
 
+    // The primary probe itself hanging is different from one that 404s: a host that never
+    // answers has no newer frame hiding behind it, and walking back would queue every
+    // remaining probe behind its own 15s bound. Aborts on the spot instead, leaving the
+    // cooldown to decide when to look again.
+    it("aborts without searching when the primary probe times out rather than misses", async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(Date.UTC(2026, 7, 15, 22, 42, 30));
+      let calls = 0;
+      vi.stubGlobal(
+        "Image",
+        class {
+          src = "";
+          decode() {
+            calls++;
+            return new Promise<never>(() => {}); // never settles, on any slot
+          }
+        }
+      );
+
+      const debug = emptyDebugAccumulator();
+      const resolving = new SdoSunResolver(cache).resolve(debug, debug);
+      const settled = expect(resolving).rejects.toThrow("Image load timed out");
+      await vi.advanceTimersByTimeAsync(FETCH_TIMEOUT_MS + 1);
+      await settled;
+
+      expect(calls).toBe(1); // the primary attempt, and nothing after it
+      vi.useRealTimers();
+    });
+
     it("never commits a failed intermediate guess to the cache", async () => {
       const NOW = Date.UTC(2026, 7, 15, 22, 42, 30);
       vi.spyOn(Date, "now").mockReturnValue(NOW);

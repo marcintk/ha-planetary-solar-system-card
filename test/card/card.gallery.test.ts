@@ -345,7 +345,7 @@ describe("SolarViewCard gallery", () => {
       card.remove();
     });
 
-    it("a sun thumbnail preload failure retries the previous 15-min slot once", async () => {
+    it("a sun thumbnail preload failure lands on the newest slot that loads", async () => {
       failFirstDecodeFor("sdo.gsfc.nasa.gov");
       const card = mountWithGallery();
       await flush();
@@ -353,9 +353,10 @@ describe("SolarViewCard gallery", () => {
       // Retried once, on an earlier slot — thumbnail shows the fallback.
       const sunImg = card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"] img');
       expect(sunImg.getAttribute("src")).not.toBe("");
-      // Retried slot is one 15-min step earlier than a fresh (un-retried) lookup would give —
-      // recompute against a scratch cache so this reads the primary slot instead of the
-      // retried one the card just cached into the shared default.
+      // The primary guess uses the 30-min buffer floor and misses; the search doubles to 60
+      // to bracket the gap, then narrows to 45 — one slot back, the newest that loads.
+      // Recompute against a scratch cache so this reads the primary slot instead of the
+      // recovered one the card just cached into the shared default.
       const primarySlot = getSunImageUrl(new UrlCache()).date.getTime();
       expect(card._gallery.images.sun.date.getTime()).toBe(primarySlot - 15 * 60000);
       card.remove();
@@ -667,9 +668,10 @@ describe("SolarViewCard gallery", () => {
 
     it("does not refresh the open full image before the 15-minute TTL elapses", async () => {
       vi.useFakeTimers();
-      // Pinned to the start of a sun slot's publish-buffer window so a 10-min advance stays
-      // safely inside the 15-min hold regardless of real wall-clock time at test run.
-      vi.setSystemTime(Date.UTC(2026, 0, 1, 0, 35, 0));
+      // Pinned to the start of a sun slot's publish-buffer window (slot 00:00 plus the
+      // 30-min buffer floor) so a 10-min advance stays safely inside the 15-min hold
+      // regardless of real wall-clock time at test run.
+      vi.setSystemTime(Date.UTC(2026, 0, 1, 0, 30, 0));
       const card = mountWithGallery({ refresh_mins: 10 });
       await vi.advanceTimersByTimeAsync(0);
       card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"]').click();
@@ -750,8 +752,8 @@ describe("SolarViewCard gallery", () => {
       vi.useFakeTimers();
       stubEarthFetch();
       // Hangs earth's preload only. The strip fetches every source now, so hanging all of
-      // them would also stall sun through SUN_MAX_RETRIES worth of 15s waits before the
-      // shared Promise.allSettled settles — unrelated to what this test is checking.
+      // them would also stall sun through its whole buffer ladder worth of 15s waits before
+      // the shared Promise.allSettled settles — unrelated to what this test is checking.
       hangDecodeFor("epic.gsfc.nasa.gov");
       const card = mountWithGallery();
       await vi.advanceTimersByTimeAsync(0);
@@ -781,8 +783,9 @@ describe("SolarViewCard gallery", () => {
       const card = mountWithGallery({ gallery: { mode: "sun" } });
       await vi.advanceTimersByTimeAsync(0);
       card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"]').click();
-      // Primary attempt times out, then all SUN_MAX_RETRIES retries (getPreviousSunSlot) also
-      // hang and time out — 4 sequential 15s bounds before the banner surfaces.
+      // A timed-out probe aborts the search immediately — a host that is not answering has
+      // no newer frame to find, so one 15s bound surfaces the banner rather than queueing a
+      // month's worth of doublings behind a dead connection.
       await vi.advanceTimersByTimeAsync(60000);
       const img = card.shadowRoot.querySelector("#image-view");
       expect(img.classList.contains("visible")).toBe(false);

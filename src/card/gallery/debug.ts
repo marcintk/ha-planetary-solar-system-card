@@ -43,9 +43,10 @@ export const DEBUG_ROW_KEYS: Record<ImageSource, { url: DebugRowId; img: DebugRo
 // (cache still fresh AND URL unchanged) needs no counter of its own, since `cacheHits` already
 // answers that question. `fetches` vs. `failures` separates "tried" from "failed", since a
 // failed preload (sun's retry path) previously vanished from the count entirely instead of
-// showing up as a real network cost. `retries` counts how often sun's primary 15-min-slot guess
-// missed and fell back to the previous slot — a rising rate here means SUN_PUBLISH_BUFFER_MS
-// (source-resolver-sdo-sun.ts) needs widening. `lastAttemptAt` is the raw timestamp of the most
+// showing up as a real network cost. `retries` counts how often sun's primary guess missed and
+// fell back to a widened publish buffer — steady state should sit at zero, since the buffer
+// (source-resolver-sdo-sun.ts) learns the feed's real lag; a rising rate means it is spending
+// its ticks probing rather than resting at the floor. `lastAttemptAt` is the raw timestamp of the most
 // recent preload attempt, formatted at render time.
 // Field order matches the overlay's column order (buildDebugOverlay below).
 export interface SourceDebugStats {

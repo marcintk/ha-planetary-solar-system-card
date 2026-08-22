@@ -182,7 +182,11 @@ describe("source-resolver-dscovr-earth", () => {
       expect(new DscovrEarthResolver(cache).hydrate()).toBeUndefined();
     });
 
-    it("returns the cached earth image while its 1-hour TTL is still fresh", async () => {
+    it("ignores a looked-up URL that was never actually confirmed to decode", async () => {
+      // fetchLatestEarthImageUrl() caches its computed URL as soon as the EPIC API answers,
+      // before the image bytes are ever fetched (see its own cache.set() call). hydrate() must
+      // not trust that alone, for the same reason sun's hydrate() must not: nothing has proven
+      // this URL actually loads.
       vi.stubGlobal(
         "fetch",
         vi.fn().mockResolvedValue({
@@ -190,8 +194,34 @@ describe("source-resolver-dscovr-earth", () => {
           json: () => Promise.resolve([{ identifier: "20260810234950" }]),
         })
       );
-      const first = await fetchLatestEarthImageUrl(undefined, cache);
-      expect(new DscovrEarthResolver(cache).hydrate()).toEqual(first);
+      await fetchLatestEarthImageUrl(undefined, cache);
+      expect(new DscovrEarthResolver(cache).hydrate()).toBeUndefined();
+    });
+
+    it("returns the last confirmed earth image regardless of its TTL window", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          ok: true,
+          json: () => Promise.resolve([{ identifier: "20260810234950" }]),
+        })
+      );
+      vi.stubGlobal(
+        "Image",
+        class {
+          src = "";
+          decode() {
+            return Promise.resolve();
+          }
+        }
+      );
+      const debug = emptyDebugAccumulator();
+      const confirmed = await new DscovrEarthResolver(cache).resolve(debug, debug);
+
+      // Long past the 1-hour TTL — hydrate() isn't a freshness check, it only answers "do we
+      // know something that actually works".
+      vi.spyOn(Date, "now").mockReturnValue(Date.now() + 6 * 3600000);
+      expect(new DscovrEarthResolver(cache).hydrate()).toEqual(confirmed);
     });
   });
 });

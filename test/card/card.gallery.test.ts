@@ -234,6 +234,20 @@ describe("SolarViewCard gallery", () => {
       card.remove();
     });
 
+    // In "below" position the just-clicked tile stays visible next to its own full-screen
+    // view, so clicking it again is reachable — and reads as "close", not "reopen".
+    it("closes the panel when the open tile is clicked again in below position", async () => {
+      const card = createAndMount({ gallery: { mode: "open", position: "below" } });
+      await flush();
+      card.shadowRoot.querySelector('[data-source="moon"]').click();
+      await flush();
+      expect(card.shadowRoot.querySelector("#image-view").className).toContain("visible");
+      card.shadowRoot.querySelector('[data-source="moon"]').click();
+      await flush();
+      expect(card.shadowRoot.querySelector("#image-view").className).not.toContain("visible");
+      card.remove();
+    });
+
     // Opening the sky tile must not snap back to the geocentric frame.
     it("carries the sky rotation into the full-screen view", async () => {
       const card = createAndMount({

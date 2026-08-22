@@ -226,6 +226,14 @@ export class GalleryController {
   // a source completes (already in flight from start()/configure() — this only nudges it
   // rather than waiting for the next tick).
   openPanel(mode: ImageSource): void {
+    // Re-clicking the tile that's already open is the only way to reach this with mode ===
+    // panelMode: in "overlay" position the strip is hidden while a panel is open, so its tiles
+    // aren't there to re-click; in "below" they stay visible, and clicking the open one again
+    // reads as "close it", not "open it again".
+    if (this._panelMode === mode) {
+      this.closePanel();
+      return;
+    }
     this._panelMode = mode;
     this._error = null;
     const known = this._images[mode];

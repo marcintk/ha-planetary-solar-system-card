@@ -281,6 +281,17 @@ describe("GalleryController.openPanel / closePanel", () => {
     await vi.waitFor(() => expect(gallery.imageLoaded).toBe(true));
   });
 
+  it("closes the panel when the already-open source is clicked again", () => {
+    const gallery = new GalleryController(
+      () => {},
+      () => "UTC"
+    );
+    gallery.configure("open", DEFAULT_GALLERY_SOURCES, 60000);
+    gallery.openPanel("earth");
+    gallery.openPanel("earth");
+    expect(gallery.panelMode).toBe("none");
+  });
+
   it("closePanel resets panel state", () => {
     const gallery = new GalleryController(
       () => {},

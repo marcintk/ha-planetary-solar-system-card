@@ -5,7 +5,7 @@ import { parseCardConfig } from "./card-config.js";
 import { cardStyles } from "./card-styles.js";
 import { buildGalleryCaption, buildStatusBarView, discStyle } from "./card-template.js";
 import { DateNavigation } from "./date-navigation.js";
-import { buildDebugOverlay } from "./gallery/debug-view.js";
+import { buildDebugOverlay } from "./debug-view.js";
 import type {
   GalleryMode,
   GalleryPosition,

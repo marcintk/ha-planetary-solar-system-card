@@ -382,3 +382,119 @@ describe("ZoomController.isDefaultView with the auto-cycle running", () => {
     expect(zoom.isDefaultView).toBe(false);
   });
 });
+
+// The geometry that used to live in ViewState's own suite. Kept because mutation testing
+// showed the controller's behavioural tests don't pin it: dropping the half-width offset from
+// viewBox, removing the level clamp, and making the drag scale independent of zoom all left
+// the suite green. Coverage stayed at 100% throughout — these assert the arithmetic itself.
+describe("ZoomController view geometry", () => {
+  function initialized() {
+    const zoom = new ZoomController(
+      () => {},
+      () => {}
+    );
+    zoom.ensureInitialized();
+    return zoom;
+  }
+
+  describe("viewBox", () => {
+    it("centres the box on the pan centre rather than starting at it", () => {
+      // Level 1 is 800 wide on an 800 view, centred at (400, 400).
+      expect(initialized().viewBox).toBe("0 0 800 800");
+    });
+
+    it("shrinks around the same centre as the zoom level climbs", () => {
+      const zoom = initialized();
+      zoom.zoomIn(); // level 2 -> 640 wide
+      expect(zoom.viewBox).toBe("80 80 640 640");
+    });
+
+    it("follows the pan centre after a drag", () => {
+      const zoom = initialized();
+      zoom.startDrag(0, 0);
+      zoom.updateDrag(-100, -50, { width: 800 } as DOMRect);
+      // scale is 1 at level 1 on an 800px element, so the centre moves by the raw delta.
+      expect(zoom.viewBox).toBe("100 50 800 800");
+    });
+  });
+
+  describe("zoom ladder", () => {
+    it("clamps at the top rung instead of running past it", () => {
+      const zoom = initialized();
+      for (let i = 0; i < 6; i++) zoom.zoomIn();
+      expect(zoom.zoomLevel).toBe(4);
+      expect(zoom.panZoomState?.width).toBe(320);
+    });
+
+    it("clamps at the bottom rung instead of running past it", () => {
+      const zoom = initialized();
+      for (let i = 0; i < 6; i++) zoom.zoomOut();
+      expect(zoom.zoomLevel).toBe(1);
+      expect(zoom.panZoomState?.width).toBe(800);
+    });
+
+    // zoomIn/zoomOut guard their own ends, so the clamp inside the level setter is only
+    // reachable through configure() — a default_zoom off the ladder. card-config.ts range-checks
+    // that too, making this the second of two gates rather than the only one.
+    it("pulls a configured level off the ladder back onto it", () => {
+      const zoom = initialized();
+      zoom.configure(9 as never, false, 4, false);
+      expect(zoom.zoomLevel).toBe(4);
+      zoom.configure(-3 as never, false, 4, false);
+      expect(zoom.zoomLevel).toBe(1);
+    });
+
+    it("returns to the same width after zooming in and back out", () => {
+      const zoom = initialized();
+      const before = zoom.panZoomState?.width;
+      zoom.zoomIn();
+      zoom.zoomOut();
+      expect(zoom.panZoomState?.width).toBe(before);
+    });
+  });
+
+  describe("drag", () => {
+    // The pointer moves in screen pixels; the pan moves in view units. Zoomed in, the view is
+    // showing less, so the same finger travel has to move the scene less — scale is the
+    // viewBox width over the element's own width, not a constant.
+    it("scales pointer travel by how much of the view is on screen", () => {
+      const wide = initialized();
+      wide.startDrag(0, 0);
+      wide.updateDrag(-80, 0, { width: 800 } as DOMRect);
+      const atLevel1 = wide.panZoomState?.centerX as number;
+
+      const tight = initialized();
+      tight.zoomIn(); // 640 wide in the same 800px element
+      tight.startDrag(0, 0);
+      tight.updateDrag(-80, 0, { width: 800 } as DOMRect);
+      const atLevel2 = tight.panZoomState?.centerX as number;
+
+      expect(atLevel1 - 400).toBeCloseTo(80, 6);
+      expect(atLevel2 - 400).toBeCloseTo(80 * (640 / 800), 6);
+    });
+
+    it("ignores pointer movement that never started a drag", () => {
+      const zoom = initialized();
+      zoom.updateDrag(-100, -100, { width: 800 } as DOMRect);
+      expect(zoom.panZoomState).toEqual({ centerX: 400, centerY: 400, width: 800 });
+    });
+
+    it("stops panning once the drag ends", () => {
+      const zoom = initialized();
+      zoom.startDrag(0, 0);
+      zoom.updateDrag(-40, 0, { width: 800 } as DOMRect);
+      zoom.endDrag();
+      zoom.updateDrag(-400, 0, { width: 800 } as DOMRect);
+      expect(zoom.panZoomState?.centerX).toBe(440);
+    });
+  });
+
+  describe("panZoomState", () => {
+    it("hands out a snapshot the caller cannot pan the view with", () => {
+      const zoom = initialized();
+      const snapshot = zoom.panZoomState as { centerX: number };
+      snapshot.centerX = 999;
+      expect(zoom.panZoomState?.centerX).toBe(400);
+    });
+  });
+});

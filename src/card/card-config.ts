@@ -1,9 +1,9 @@
 import type { CardConfig, Colors, ZoomLevel } from "../types.js";
-import { DEFAULT_ZOOM_LEVEL, MAX_ZOOM, MIN_ZOOM } from "./card-view-state.js";
 import type { GalleryMode, GalleryPosition, GalleryShape } from "./gallery/gallery-controller.js";
 import { DEFAULT_GALLERY_INTERVAL_MS } from "./gallery/gallery-controller.js";
 import type { GallerySource } from "./gallery/sources.js";
 import { IMAGE_SOURCES, SOURCES } from "./gallery/sources.js";
+import { DEFAULT_ZOOM_LEVEL, MAX_ZOOM, MIN_ZOOM } from "./zoom-levels.js";
 
 export interface ParsedCardConfig {
   zoomLevel: ZoomLevel;

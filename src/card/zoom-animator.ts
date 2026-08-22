@@ -1,16 +1,17 @@
-import type { ZoomLevel } from "../types.js";
-import { type ViewState, ZOOM_LEVELS } from "./card-view-state.js";
-
 const ZOOM_ANIMATE_DURATION_MS = 2000;
 
+/**
+ * Eases one number to another over a fixed duration, one requestAnimationFrame at a time.
+ *
+ * Deliberately knows nothing about zoom levels or view state — it interpolates a viewBox width
+ * and hands each frame back. What a frame *means* (assigning the width, repainting, committing
+ * the final level) is ZoomController's, which is the only thing that owns that state. That
+ * split is what lets this be tested with two spies and no scene at all.
+ */
 export class ZoomAnimator {
-  private _viewState: ViewState;
-  private _onFrame: () => void;
   private _animationId: number | null;
 
-  constructor(viewState: ViewState, onFrame: () => void) {
-    this._viewState = viewState;
-    this._onFrame = onFrame;
+  constructor() {
     this._animationId = null;
   }
 
@@ -18,30 +19,27 @@ export class ZoomAnimator {
     return this._animationId !== null;
   }
 
-  animateTo(targetLevel: ZoomLevel, fromWidth: number, onComplete?: () => void): void {
+  animateTo(
+    fromWidth: number,
+    toWidth: number,
+    onStep: (width: number) => void,
+    onComplete?: () => void
+  ): void {
     this.cancel();
 
-    const startWidth = fromWidth;
-    const targetWidth = ZOOM_LEVELS[targetLevel];
     let startTime: number | null = null;
 
     const step = (timestamp: number) => {
       if (startTime === null) startTime = timestamp;
       const elapsed = timestamp - startTime;
       const t = Math.min(elapsed / ZOOM_ANIMATE_DURATION_MS, 1);
-      const eased = easeInOutCubic(t);
 
-      const w = startWidth + (targetWidth - startWidth) * eased;
-
-      this._viewState.setViewport(w);
-      this._onFrame();
+      onStep(fromWidth + (toWidth - fromWidth) * easeInOutCubic(t));
 
       if (t < 1) {
         this._animationId = requestAnimationFrame(step);
       } else {
-        this._viewState.setZoomLevel(targetLevel);
         this._animationId = null;
-        this._onFrame();
         onComplete?.();
       }
     };

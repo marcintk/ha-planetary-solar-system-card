@@ -83,14 +83,13 @@ the standard astronomical twilight definitions:
 ## Replay
 
 The **↺** button animates the recent past, always in 36 frames over roughly five seconds, ending on
-the date you were already viewing. How far back it reaches follows the last time step you took, so
-the animation matches the scale you were browsing:
+the date you were already viewing:
 
-| Last navigation     | Replay covers        | Each frame advances |
-| ------------------- | -------------------- | ------------------- |
-| hour steps, or none | last 12 hours        | 20 minutes          |
-| day steps           | last 36 days         | 1 day               |
-| month steps         | last 180 days (~6mo) | 5 days              |
+| Last navigation     | Replay covers        | Each frame advances | Press                      |
+| ------------------- | -------------------- | ------------------- | -------------------------- |
+| hour steps, or none | last 12 hours        | 20 minutes          | **<** or **>**, then **↺** |
+| day steps           | last 36 days         | 1 day               | **≪** or **≫**, then **↺** |
+| month steps         | last 180 days (~6mo) | 5 days              | **⋘** or **⋙**, then **↺** |
 
 ## Live Imagery
 

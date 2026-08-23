@@ -15,7 +15,7 @@ import {
 } from "./bodies.js";
 import { computeCometVisualEllipse, renderCometBody, renderCometOrbit } from "./comets.js";
 import { type LabelTarget, renderDynamicLabels } from "./labels.js";
-import { calculateObserverAngle, renderDayNightSplit, renderObserverNeedle } from "./observer.js";
+import { renderDayNightSplit, renderObserverNeedle } from "./observer.js";
 import { MARKER_GROUP_ID, renderOffscreenMarkers } from "./offscreen-markers.js";
 import { computePlanetVisualEllipse, packOrbitRadii } from "./orbit-packing.js";
 import { renderSeasonOverlay } from "./seasons.js";
@@ -71,7 +71,14 @@ export function renderSolarSystem(
 
   // Day/night split (rendered first, behind everything)
   const earthRadius = orbitRadii[EARTH_INDEX];
-  renderDayNightSplit(svg, earthRadius, date, locationData, eclipticViewDirection, colors);
+  const observerAngle = renderDayNightSplit(
+    svg,
+    earthRadius,
+    date,
+    locationData,
+    eclipticViewDirection,
+    colors
+  );
 
   // Season quadrant overlay (after day/night, before orbits)
   renderSeasonOverlay(svg, hemisphere, colors, eclipticViewDirection);
@@ -91,7 +98,6 @@ export function renderSolarSystem(
   // once every body's position is known)
   let earthX = CENTER;
   let earthY = CENTER;
-  let earthAngle = 0;
 
   PLANETS.forEach((planet, i) => {
     const { angle, trueAnomaly } = calculatePlanetOrbit(planet, date);
@@ -100,7 +106,6 @@ export function renderSolarSystem(
     if (planet.name === EARTH.name) {
       earthX = x;
       earthY = y;
-      earthAngle = angle;
     }
     positions.push({ name: planet.name, x, y, color: planet.color });
     if (planet.name === "Saturn") {
@@ -129,7 +134,7 @@ export function renderSolarSystem(
     positions.push({ name: comet.name, x: cx, y: cy, color: comet.color });
   }
 
-  // Draw Moon near Earth (earthX/earthY/earthAngle set in the planet loop above)
+  // Draw Moon near Earth (earthX/earthY set in the planet loop above)
 
   // Earth's orbit-packing bubble (see orbit-packing.ts) already reserves
   // room for the Moon's full circle on both sides, so it never needs
@@ -174,13 +179,9 @@ export function renderSolarSystem(
   ];
   renderDynamicLabels(svg, planetLabels, labelObstacles, DEFAULT_LABEL_COLOR);
 
-  // Observer needle on Earth (tip at surface)
-  const observerAngle = calculateObserverAngle(
-    earthAngle,
-    date,
-    locationData?.timezone,
-    locationData?.lon
-  );
+  // Observer needle on Earth (tip at surface). Points along the same zenith the horizon line
+  // was drawn square to — renderDayNightSplit hands it back rather than the needle deriving its
+  // own, which is how the two came to disagree (#167).
   renderObserverNeedle(svg, earthX, earthY, observerAngle, EARTH.size, eclipticViewDirection);
 
   // Re-derives which bodies' markers belong offscreen from this render's positions and the

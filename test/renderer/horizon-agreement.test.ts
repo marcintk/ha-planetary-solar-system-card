@@ -377,6 +377,45 @@ describe("the visibility cone and the horizon line share one apex", () => {
   });
 });
 
+describe("the needle is square to the horizon", () => {
+  // The needle marks the observer on Earth, and everything drawn around it — twilight cone,
+  // horizon line, zenith line — is built on the observer's true zenith. So it has to be the
+  // same direction, and perpendicularity has to be structural rather than coincidental.
+  //
+  // It used to be drawn from a clock angle instead: Earth's orbital angle plus the fraction of
+  // the day elapsed, sweeping 15°/hour evenly. The zenith's projection into the ecliptic plane
+  // does not sweep evenly — it traces an ellipse offset from the origin by sin(lat)·sin(obliquity)
+  // — so the two ran up to 33° apart at Kraków (#167).
+  it.each(USNO)("keeps the needle normal to the horizon at $site on $day", (fixture) => {
+    const location = SITES[fixture.site];
+    for (let hour = 0; hour < 24; hour++) {
+      const date = at(fixture.day, "00:00");
+      date.setUTCHours(hour);
+      const { svg } = renderSolarSystem(date, "north", location);
+
+      const num = (el: Element, name: string) => Number(el.getAttribute(name));
+      const dashed = [...svg.querySelectorAll("line")].filter(
+        (line) => line.getAttribute("stroke-dasharray") === "4, 4"
+      );
+      const horizon = dashed[0];
+      // The needle is the only line stroked at 70% currentColor — the comet tail is also
+      // round-capped, so linecap alone would pick that up instead.
+      const needle = [...svg.querySelectorAll("line")].find((line) =>
+        (line.getAttribute("style") ?? "").includes("currentColor 70%")
+      );
+
+      const hx = num(horizon, "x2") - num(horizon, "x1");
+      const hy = num(horizon, "y2") - num(horizon, "y1");
+      const nx = num(needle, "x2") - num(needle, "x1");
+      const ny = num(needle, "y2") - num(needle, "y1");
+
+      const cosAngle = (hx * nx + hy * ny) / (Math.hypot(hx, hy) * Math.hypot(nx, ny));
+      const offBy = Math.abs(90 - (Math.acos(Math.min(1, Math.max(-1, cosAngle))) * 180) / Math.PI);
+      expect(offBy, date.toISOString()).toBeLessThan(1e-6);
+    }
+  });
+});
+
 describe("the drawn horizon line agrees with both bodies", () => {
   const HOURS = 24;
 

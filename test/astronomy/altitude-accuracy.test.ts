@@ -11,7 +11,8 @@ const SITES: Record<string, [lat: number, lon: number]> = {
 /**
  * How far off an altitude is allowed to be, in degrees.
  *
- * Set from what the card needs, not from what the code currently manages. The tightest thing
+ * The card's own requirement. Set from what it needs, not from what the code manages — see
+ * ALTITUDE_PIN_DEG below for that. The tightest thing
  * anything here drives is a twilight band edge (0°, -6°, -12°, -18°), and near the horizon the
  * Sun falls about 0.2°/minute. So 0.1° of altitude is half a minute of clock time on a band
  * transition — under the minute this card ever displays, with room to spare.
@@ -21,7 +22,23 @@ const SITES: Record<string, [lat: number, lon: number]> = {
  * 1% of a 0.5° altitude is 0.005°, tighter than the ephemeris. The physical error does not
  * scale with the reading, so neither should the bound.
  */
-const ALTITUDE_TOLERANCE_DEG = 0.1;
+const ALTITUDE_REQUIREMENT_DEG = 0.1;
+
+/**
+ * What the two models actually achieve, per body, across every sample below.
+ *
+ * Separate from the requirement above and much tighter, because the two answer different
+ * questions. The requirement says "accurate enough for the card"; these say "and no worse than
+ * today". Held at roughly 1.4x the measured worst case — Sun 0.0108°, Moon 0.0222° — which is
+ * enough headroom for floating-point and platform variation and not enough to hide a real
+ * degradation. A failure here is a regression report, not a broken card: read it against
+ * ALTITUDE_REQUIREMENT_DEG to see whether anything user-visible actually moved.
+ *
+ * The Moon's is looser than the Sun's for a physical reason, not a modelling one: its series is
+ * truncated where the remaining Meeus terms stop mattering at the size a 104px thumbnail can
+ * show, and it is 400x closer, so the same angular slack is far less distance.
+ */
+const ALTITUDE_PIN_DEG: Record<"Sun" | "Moon", number> = { Sun: 0.015, Moon: 0.03 };
 
 /**
  * Ground truth from the US Naval Observatory's celestial-navigation service:
@@ -113,6 +130,8 @@ describe("Sun and Moon altitude against the USNO almanac", () => {
         ? computeSolarElevationDeg(lat, lon, date)
         : getMoonSkyAngles(date, lat, lon).altitudeDeg;
 
-    expect(Math.abs(ours - expected)).toBeLessThanOrEqual(ALTITUDE_TOLERANCE_DEG);
+    const error = Math.abs(ours - expected);
+    expect(error, "card requirement").toBeLessThanOrEqual(ALTITUDE_REQUIREMENT_DEG);
+    expect(error, "accuracy pin").toBeLessThanOrEqual(ALTITUDE_PIN_DEG[body]);
   });
 });

@@ -174,7 +174,11 @@ const MINUTE = 60000;
  */
 const RISE_ALTITUDE = { sun: -0.8333, moon: 0.125 };
 
-/** When our own model has the body crossing `altitude`, searched over one UTC day. */
+/**
+ * When our own model has the body crossing `altitude`, searched over one UTC day and refined to
+ * the second. A minute-resolution scan would quantise the answer to the same size as the error
+ * being measured — the whole margin below is under ten seconds.
+ */
 function crossing(
   altitudeAt: (date: Date) => number,
   day: string,
@@ -182,18 +186,48 @@ function crossing(
   direction: "rise" | "set"
 ): Date | null {
   const start = at(day, "00:00").getTime();
-  let previous = altitudeAt(new Date(start)) - altitude;
+  const crossed = (a: number, b: number) =>
+    direction === "rise" ? a <= 0 && b > 0 : a >= 0 && b < 0;
+  const height = (t: number) => altitudeAt(new Date(t)) - altitude;
+
+  let previous = height(start);
   for (let minute = 1; minute <= 1440; minute++) {
-    const now = altitudeAt(new Date(start + minute * MINUTE)) - altitude;
-    const rose = previous <= 0 && now > 0;
-    const set = previous >= 0 && now < 0;
-    if (direction === "rise" ? rose : set) return new Date(start + minute * MINUTE);
+    const t = start + minute * MINUTE;
+    const now = height(t);
+    if (crossed(previous, now)) {
+      // Bisect the one-minute bracket down to a second.
+      let lo = t - MINUTE;
+      let hi = t;
+      while (hi - lo > 1000) {
+        const mid = (lo + hi) / 2;
+        if (crossed(height(lo), height(mid))) hi = mid;
+        else lo = mid;
+      }
+      return new Date(hi);
+    }
     previous = now;
   }
   return null;
 }
 
-const minutesApart = (a: Date, b: Date) => Math.abs(a.getTime() - b.getTime()) / MINUTE;
+/**
+ * How far our crossing falls outside the minute the almanac printed.
+ *
+ * The USNO publishes whole minutes, rounded to nearest — our London sunset lands at 17:47:41
+ * and it prints 17:48 — so any instant within 30 seconds of the printed time is consistent with
+ * it. That half-minute is the reference's own resolution, not slack granted to us: it is
+ * subtracted off, and what remains is real model error.
+ */
+const secondsOutsidePrintedMinute = (ours: Date, printed: Date) =>
+  Math.max(0, Math.abs(ours.getTime() - printed.getTime()) - 30_000) / 1000;
+
+/**
+ * The margin left over after that. Both bodies currently sit under ten seconds — the Sun at 6,
+ * the Moon at 9 — so this is a pin on what the models actually achieve, not a restatement of
+ * what the card needs (0.1° of altitude, roughly half a minute, which is the bound the altitude
+ * suite states). A failure here means accuracy regressed, not that the card broke.
+ */
+const CROSSING_TOLERANCE_SEC = 15;
 
 /**
  * Where the two bodies sit relative to the horizon line the card actually draws.
@@ -231,7 +265,7 @@ function skyFrameAt(date: Date, location: LocationData) {
 describe("rise and set against the USNO almanac", () => {
   // The Moon is the accurate one: the Meeus ch.47 series in moon-position.ts lands inside a
   // minute at every site and season below. That is the number the mymoon tile depends on.
-  it.each(USNO)("puts the Moon within 2 minutes at $site on $day", (fixture) => {
+  it.each(USNO)("puts the Moon on the printed minute at $site on $day", (fixture) => {
     const { lat, lon } = SITES[fixture.site];
     const altitudeAt = (date: Date) => getMoonSkyAngles(date, lat, lon).altitudeDeg;
 
@@ -241,16 +275,17 @@ describe("rise and set against the USNO almanac", () => {
     ] as const) {
       const ours = crossing(altitudeAt, fixture.day, RISE_ALTITUDE.moon, direction);
       expect(ours, `no ${direction} found`).not.toBeNull();
-      expect(minutesApart(ours, at(fixture.day, fixture[event]))).toBeLessThanOrEqual(2);
+      expect(
+        secondsOutsidePrintedMinute(ours, at(fixture.day, fixture[event]))
+      ).toBeLessThanOrEqual(CROSSING_TOLERANCE_SEC);
     }
   });
 
-  // Two minutes for the Sun as well. It used to be twelve, and that number was fitted to the
-  // circular model's own error rather than to any requirement — which meant it could only ever
-  // catch a regression, never the inaccuracy already sitting there. Two minutes is where the
-  // requirement lands: the card renders these to the minute, so one minute of model error plus
-  // one of rounding is the whole budget.
-  it.each(USNO)("puts the Sun within 2 minutes at $site on $day", (fixture) => {
+  // The Sun held to the same bound as the Moon. This assertion used to allow twelve minutes,
+  // fitted to the circular model's own error rather than to anything — which meant it could
+  // catch a regression but never the inaccuracy already sitting there. It allowed the 11-minute
+  // sunset error to pass for as long as it existed.
+  it.each(USNO)("puts the Sun on the printed minute at $site on $day", (fixture) => {
     const { lat, lon } = SITES[fixture.site];
     const altitudeAt = (date: Date) => computeSolarElevationDeg(lat, lon, date);
 
@@ -260,7 +295,9 @@ describe("rise and set against the USNO almanac", () => {
     ] as const) {
       const ours = crossing(altitudeAt, fixture.day, RISE_ALTITUDE.sun, direction);
       expect(ours, `no ${direction} found`).not.toBeNull();
-      expect(minutesApart(ours, at(fixture.day, fixture[event]))).toBeLessThanOrEqual(2);
+      expect(
+        secondsOutsidePrintedMinute(ours, at(fixture.day, fixture[event]))
+      ).toBeLessThanOrEqual(CROSSING_TOLERANCE_SEC);
     }
   });
 });

@@ -88,7 +88,7 @@ the date you were already viewing:
 
 | Last navigation     | Replay covers        | Each frame advances | Press                      |
 | ------------------- | -------------------- | ------------------- | -------------------------- |
-| hour steps, or none | last 12 hours        | 20 minutes          | **<** or **>**, then **↺** |
+| hour steps, or none | last 12 hours        | 20 minutes          | **↺** alone — the default  |
 | day steps           | last 36 days         | 1 day               | **≪** or **≫**, then **↺** |
 | month steps         | last 180 days (~6mo) | 5 days              | **⋘** or **⋙**, then **↺** |
 

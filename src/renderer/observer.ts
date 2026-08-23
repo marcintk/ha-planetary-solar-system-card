@@ -4,6 +4,7 @@ import {
   computeSolarElevationDeg,
   computeZenithAngleFromSun,
   getLocalTimeInZone,
+  SUNSET_ELEVATION_DEG,
 } from "../astronomy/solar-position.js";
 import type { Colors, LocationData } from "../types.js";
 import type { EclipticViewDirection } from "./svg-utils.js";
@@ -110,7 +111,7 @@ export function computeTwilightBand(
   colors: Colors
 ): { color: string; halfAngle: number } {
   let color: string;
-  if (elevationDeg >= 0) color = colors.cone_day ?? CONE_DAY;
+  if (elevationDeg >= SUNSET_ELEVATION_DEG) color = colors.cone_day ?? CONE_DAY;
   else if (elevationDeg >= -6) color = colors.cone_twilight_civil ?? CONE_CIVIL;
   else if (elevationDeg >= -12) color = colors.cone_twilight_nautical ?? CONE_NAUTICAL;
   else if (elevationDeg >= -18) color = colors.cone_twilight_astronomical ?? CONE_ASTRONOMICAL;
@@ -124,7 +125,7 @@ export function computeTwilightBand(
   // projected axis is exactly what pushed the -6/-12/-18 cone edges away from the Sun's
   // actual direction after sunset (worst at mid latitudes).
   const halfAngle =
-    elevationDeg >= 0 || elevationDeg < -18
+    elevationDeg >= SUNSET_ELEVATION_DEG || elevationDeg < -18
       ? 90
       : zenithAngleFromSun != null
         ? (Math.abs(zenithAngleFromSun) * 180) / Math.PI

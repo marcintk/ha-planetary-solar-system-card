@@ -229,12 +229,27 @@ export function computeZenithAngleFromSun(lat: number, lon: number, date: Date):
 }
 
 /**
+ * The Sun's centre altitude at the moment an almanac calls it sunset: refraction lifts the disc
+ * 34' before it is geometrically there, and the upper limb clears the horizon a further 16' —
+ * the Sun's own radius — ahead of its centre.
+ *
+ * Day ends here rather than at a flat 0°, because 0° is not an event anyone can see: the Sun's
+ * centre reaching the geometric horizon leaves the whole disc still plainly above it. Every
+ * published twilight table starts civil twilight at sunset, which is this angle.
+ *
+ * Only the Day edge is refracted. The -6/-12/-18 boundaries below are defined on the Sun's
+ * centre with no correction, so the interval an almanac prints is asymmetric by construction —
+ * a refracted start and a geometric end. That is the convention, not an inconsistency here.
+ */
+export const SUNSET_ELEVATION_DEG = -0.8333;
+
+/**
  * Classify a solar elevation angle into a sky mode string.
  * @param {number} elevDeg
  * @returns {string}
  */
 export function getSkyMode(elevDeg: number): string {
-  if (elevDeg >= 0) return "Day";
+  if (elevDeg >= SUNSET_ELEVATION_DEG) return "Day";
   if (elevDeg >= -6) return "Civil Twilight";
   if (elevDeg >= -12) return "Nautical Twilight";
   if (elevDeg >= -18) return "Astronomical Twilight";

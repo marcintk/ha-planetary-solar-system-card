@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { getMoonSkyAngles } from "../../src/astronomy/parallactic.js";
 import { MOON } from "../../src/astronomy/planet-data.js";
-import { computeSolarElevationDeg } from "../../src/astronomy/solar-position.js";
+import { computeSolarElevationDeg, getSkyMode } from "../../src/astronomy/solar-position.js";
 import { ViewingLocation } from "../../src/card/viewing-location.js";
 import { renderSolarSystem } from "../../src/renderer/index.js";
 import { CENTER } from "../../src/renderer/svg-utils.js";
@@ -262,6 +262,26 @@ describe("rise and set against the USNO almanac", () => {
       expect(ours, `no ${direction} found`).not.toBeNull();
       expect(minutesApart(ours, at(fixture.day, fixture[event]))).toBeLessThanOrEqual(2);
     }
+  });
+});
+
+describe("the sky mode flips at the almanac's sunset", () => {
+  // What the status bar shows as "Next: Civil Twilight", checked against the time an almanac
+  // prints for sunset. These have to be the same moment: civil twilight *begins* at sunset.
+  //
+  // The Day edge used to sit at a flat 0deg, which ran ~5 minutes early and is not an event
+  // anyone can observe — the Sun's centre reaching the geometric horizon still leaves the whole
+  // disc above it. Two minutes either side of the almanac time is well outside the ~1 minute
+  // the model is accurate to, and well inside the 5 minutes the old threshold was out by.
+  const MARGIN = 2 * MINUTE;
+
+  it.each(USNO)("calls it Day before sunset and twilight after at $site on $day", (fixture) => {
+    const { lat, lon } = SITES[fixture.site];
+    const sunset = at(fixture.day, fixture.sunSet).getTime();
+
+    const modeAt = (t: number) => getSkyMode(computeSolarElevationDeg(lat, lon, new Date(t)));
+    expect(modeAt(sunset - MARGIN), "before sunset").toBe("Day");
+    expect(modeAt(sunset + MARGIN), "after sunset").toBe("Civil Twilight");
   });
 });
 

@@ -79,10 +79,11 @@ within **1 minute** for both. The Moon marker and the drawn horizon line agree e
 the horizon, where the Moon's 5.1° of ecliptic latitude has nowhere to go in a top-down view of the
 ecliptic plane.
 
-Note that a band edge is not a clock sunset. Twilight bands are defined by geometric solar
-elevation, centre of disc; an almanac's sunset is the moment the disc _appears_ to touch the
-horizon, 0.8333° lower once you count refraction and the Sun's own radius. At mid-latitudes that is
-a real four-minute gap, and both numbers are right.
+Day ends at the almanac's sunset — the Sun's centre at **-0.8333°**, where 34' of refraction plus
+the Sun's own 16' radius put the upper limb on the horizon. The -6°/-12°/-18° boundaries below are
+measured to the Sun's centre with no correction, so a civil-twilight interval has a refracted start
+and a geometric end. That asymmetry is the published convention, and it is what makes these
+transition times line up with any almanac you check them against.
 
 | Zone                  | Sun elevation | Meaning                                                          |
 | --------------------- | ------------- | ---------------------------------------------------------------- |

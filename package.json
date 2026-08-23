@@ -19,7 +19,8 @@
     "typecheck": "tsc --noEmit",
     "check:ci": "tsc --noEmit && biome check src/ test/ && prettier --check \"**/*.md\"",
     "format:md": "prettier --write \"**/*.md\"",
-    "format:md:check": "prettier --check \"**/*.md\""
+    "format:md:check": "prettier --check \"**/*.md\"",
+    "demo:record": "node scripts/demo/record-demo.mjs"
   },
   "keywords": [
     "home-assistant",
@@ -36,6 +37,7 @@
     "@vitest/coverage-v8": "^4.1.11",
     "ha-card-shared": "github:marcintk/ha-card-shared#v1.4.1",
     "jsdom": "^30.0.1",
+    "playwright": "^1.62.1",
     "prettier": "^3.9.6",
     "rollup": "^4.62.4",
     "tslib": "^2.8.1",

@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>capture rig</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #1c1c1c; }
+    #wrap { width: 1000px; }
+    ha-planetary-solar-system-card { display: block; width: 100%; }
+  </style>
+</head>
+<body>
+  <div id="wrap"></div>
+  <script type="module">
+    import "/docs/card.js";
+    // setConfig must land before the first render or default_zoom is ignored.
+    const card = document.createElement("ha-planetary-solar-system-card");
+    card.id = "demo-card";
+    card.setConfig({
+      default_zoom: 3,
+      height: 560,
+      theme: "dark",
+      gallery: { mymoon: true, moon: true, earth: true, sun: true },
+    });
+    document.getElementById("wrap").appendChild(card);
+    card.hass = {
+      config: {
+        latitude: 41.8781,
+        longitude: -87.6298,
+        time_zone: "America/Chicago",
+        location_name: "Chicago",
+      },
+    };
+    window.__ready = true;
+  </script>
+</body>
+</html>

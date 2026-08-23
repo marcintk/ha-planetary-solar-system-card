@@ -2,11 +2,9 @@
  * The Moon's equatorial coordinates *of date* (Meeus, *Astronomical Algorithms*, ch. 47),
  * plus Greenwich mean sidereal time.
  *
- * Separate from moon-phase.ts on purpose. That module answers "how lit is it", which the
- * three largest periodic terms settle to well inside a phase-name segment. This one answers
- * "where is it on the sky", which feeds a parallactic angle — and there the same three terms
- * leave up to 6.07° of orientation error, against 0.62° for the series below. The phase
- * module keeps its cheaper approximation; nothing here replaces it.
+ * The series is truncated where the remaining rows stop moving a parallactic angle by more
+ * than a few arc-seconds: the three largest terms alone leave up to 6.07° of orientation
+ * error, against 0.62° for the rows kept below.
  *
  * Coordinates are *of date*, not J2000. A local hour angle is measured against the true
  * equinox of the moment, so precessing back to J2000 would introduce the ~0.4° error it

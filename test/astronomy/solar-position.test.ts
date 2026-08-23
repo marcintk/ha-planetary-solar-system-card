@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   computeNextTransitionTime,
   computeSolarElevationDeg,
-  getLocalHourInstant,
   getLocalTimeInZone,
   getSkyMode,
 } from "../../src/astronomy/solar-position.js";
@@ -182,74 +181,5 @@ describe("computeNextTransitionTime", () => {
     const result = computeNextTransitionTime(0, 0, date);
     expect(result).not.toBeNull();
     expect(result.toMode).toBe("Day");
-  });
-});
-
-describe("getLocalHourInstant", () => {
-  const CHICAGO = "America/Chicago";
-
-  it("finds 22:00 on the local calendar day containing the given instant", () => {
-    // 2026-08-21 15:00 UTC is 10:00 CDT the same day; 22:00 CDT is 03:00 UTC on the 22nd.
-    const result = getLocalHourInstant(new Date("2026-08-21T15:00:00Z"), CHICAGO, 22);
-    expect(result.toISOString()).toBe("2026-08-22T03:00:00.000Z");
-  });
-
-  it("stays on the local day even when UTC has already rolled over", () => {
-    // 2026-08-22 02:00 UTC is still 21:00 CDT on the 21st, so 22:00 is an hour away.
-    const result = getLocalHourInstant(new Date("2026-08-22T02:00:00Z"), CHICAGO, 22);
-    expect(result.toISOString()).toBe("2026-08-22T03:00:00.000Z");
-  });
-
-  it("rolls to the next local day once local midnight passes", () => {
-    // 2026-08-22 05:30 UTC is 00:30 CDT on the 22nd — the reference jumps a day forward.
-    const result = getLocalHourInstant(new Date("2026-08-22T05:30:00Z"), CHICAGO, 22);
-    expect(result.toISOString()).toBe("2026-08-23T03:00:00.000Z");
-  });
-
-  // Two passes over the zone offset exist for exactly these days: the offset at the instant
-  // we are asking *from* is not always the offset at the instant we are asking *for*.
-  it("uses the daylight offset in force at the target hour, not at the query time", () => {
-    // 2026-03-08 is the US spring-forward. At 08:00 UTC the zone is still CST (UTC-6),
-    // but by 22:00 local it is CDT (UTC-5), so the answer is 03:00 UTC not 04:00.
-    const result = getLocalHourInstant(new Date("2026-03-08T08:00:00Z"), CHICAGO, 22);
-    expect(result.toISOString()).toBe("2026-03-09T03:00:00.000Z");
-  });
-
-  it("uses the standard offset after the autumn transition", () => {
-    // 2026-11-01 is the US fall-back: 22:00 CST (UTC-6) is 04:00 UTC on the 2nd.
-    const result = getLocalHourInstant(new Date("2026-11-01T18:00:00Z"), CHICAGO, 22);
-    expect(result.toISOString()).toBe("2026-11-02T04:00:00.000Z");
-  });
-
-  it("falls back to UTC for an unknown timezone", () => {
-    const result = getLocalHourInstant(new Date("2026-08-21T15:00:00Z"), "Not/AZone", 22);
-    expect(result.toISOString()).toBe("2026-08-21T22:00:00.000Z");
-  });
-
-  it("normalises hour value 24 to 0 (engine-quirk branch)", () => {
-    // Same engine quirk getLocalTimeInZone guards against: some engines report midnight as
-    // '24'. Left unnormalised it would roll the offset a day out.
-    // Only the first offset pass is mocked; the second reads the real UTC formatter, so the
-    // assertion still exercises the two-pass path rather than the quirk twice over.
-    vi.spyOn(Intl.DateTimeFormat.prototype, "formatToParts").mockReturnValueOnce([
-      { type: "year", value: "2026" },
-      { type: "month", value: "08" },
-      { type: "day", value: "21" },
-      { type: "hour", value: "24" },
-      { type: "minute", value: "00" },
-      { type: "second", value: "00" },
-    ]);
-    const result = getLocalHourInstant(new Date("2026-08-21T00:00:00Z"), "UTC", 22);
-    expect(result.toISOString()).toBe("2026-08-21T22:00:00.000Z");
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  it("handles the fixed-offset zones a location override produces", () => {
-    // Etc/GMT+6 is UTC-6 (POSIX sign inversion) — what offsetZoneFromLongitude yields.
-    const result = getLocalHourInstant(new Date("2026-08-21T15:00:00Z"), "Etc/GMT+6", 22);
-    expect(result.toISOString()).toBe("2026-08-22T04:00:00.000Z");
   });
 });

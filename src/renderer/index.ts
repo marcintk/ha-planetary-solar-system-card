@@ -143,7 +143,7 @@ export function renderSolarSystem(
     eclipticViewDirection
   );
 
-  positions.push({ name: MOON.name, x: moonX, y: moonY, color: MOON.color, offscreen: false });
+  positions.push({ name: MOON.name, x: moonX, y: moonY, color: MOON.color });
   planetLabels.push({ name: MOON.name, x: moonX, y: moonY, radius: MOON.size });
 
   // Moon orbit (dashed circle centered on Earth). Same stroke weight and dash pattern as

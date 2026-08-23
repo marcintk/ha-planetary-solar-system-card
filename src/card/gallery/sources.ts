@@ -103,7 +103,7 @@ export interface SourceSpec {
 export const SOURCES: Record<ImageSource, SourceSpec> = {
   mymoon: {
     label: "NASA SVS Moon",
-    tile: "MYMOON",
+    tile: "MY-MOON",
     body: "MOON",
     verb: "rendered",
     instrument: "NASA SVS",

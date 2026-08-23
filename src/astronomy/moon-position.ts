@@ -25,6 +25,13 @@ export interface MoonEquatorial {
   raDeg: number;
   /** Declination of date, degrees in [-90, 90]. */
   decDeg: number;
+  /**
+   * Geocentric ecliptic longitude of date, degrees in [0, 360) — the same frame
+   * `calculatePlanetPosition` reports the planets in, which is what lets the solar view place
+   * the Moon marker against Earth's orbital angle. Free here: the series below computes it on
+   * the way to the equatorial pair.
+   */
+  eclipticLonDeg: number;
 }
 
 // Meeus 47.A / 47.B, leading terms: [D, M, M', F, coefficient in 1e-6 degrees]. Truncated
@@ -111,6 +118,7 @@ export function getMoonEquatorial(date: Date): MoonEquatorial {
   const obliquity = 23.4393 - 3.563e-7 * d;
 
   return {
+    eclipticLonDeg: norm360(eclipticLon),
     raDeg: norm360(
       Math.atan2(
         sin(eclipticLon) * cos(obliquity) - tan(eclipticLat) * sin(obliquity),

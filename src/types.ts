@@ -14,7 +14,9 @@ export interface Planet extends CelestialBody {
   longitudeOfPerihelion: number;
 }
 
-export type MoonData = Omit<Planet, "au" | "eccentricity" | "longitudeOfPerihelion">;
+// Only what the renderer draws with: the Moon's position comes from the Meeus series in
+// astronomy/moon-position.ts, not from orbital elements of its own.
+export type MoonData = Pick<Planet, "name" | "color" | "size">;
 
 export interface Comet {
   name: string;

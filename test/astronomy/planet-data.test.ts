@@ -37,8 +37,10 @@ describe("planet-data constants", () => {
     expect(earth.au).toBe(1.0);
   });
 
-  it("MOON has required fields", () => {
-    expect(MOON.periodDays).toBeCloseTo(27.32, 1);
+  it("MOON carries only what the renderer draws with", () => {
+    // Its position comes from the Meeus series in moon-position.ts, so it has no orbital
+    // elements of its own to get stale.
+    expect(Object.keys(MOON).sort()).toEqual(["color", "name", "size"]);
   });
 
   it("SUN has color and size", () => {

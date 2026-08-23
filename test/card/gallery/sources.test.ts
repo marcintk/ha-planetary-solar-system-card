@@ -12,7 +12,7 @@ describe("SOURCES catalog", () => {
     expect(SOURCES.earth.label).toBe("DSCOVR Earth");
     expect(SOURCES.sun.label).toBe("SDO HMI Continuum");
 
-    expect(IMAGE_SOURCES.map((s) => SOURCES[s].tile)).toEqual(["MYMOON", "MOON", "EARTH", "SUN"]);
+    expect(IMAGE_SOURCES.map((s) => SOURCES[s].tile)).toEqual(["MY-MOON", "MOON", "EARTH", "SUN"]);
     expect(IMAGE_SOURCES.map((s) => SOURCES[s].body)).toEqual(["MOON", "MOON", "EARTH", "SUN"]);
   });
 

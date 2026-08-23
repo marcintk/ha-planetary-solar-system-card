@@ -177,6 +177,14 @@ function renderVisibilityCone(
   );
 }
 
+/**
+ * Draws the observer's sky onto the scene and returns the direction it was all built from —
+ * the zenith, projected onto the ecliptic plane.
+ *
+ * Returned rather than kept private because the needle has to point the same way. It used to
+ * call `calculateObserverAngle` again for itself and get a clock angle instead, which put it up
+ * to 33° off the horizon it is drawn beside (#167).
+ */
 export function renderDayNightSplit(
   svg: SVGElement,
   earthRadius: number,
@@ -184,7 +192,7 @@ export function renderDayNightSplit(
   locationData: LocationData | null,
   eclipticViewDirection: EclipticViewDirection = -1,
   colors: Colors = {}
-): void {
+): number {
   const earthAngle = calculatePlanetPosition(EARTH, date);
   const observerAngle = calculateObserverAngle(
     earthAngle,
@@ -209,8 +217,10 @@ export function renderDayNightSplit(
   // day/night; at high latitudes this diverges significantly from true sunrise/sunset.
   // The projection is continuous through both solar noon and midnight by construction,
   // unlike inverting elevation with a sign borrowed from the approximate 2D model (which
-  // jumped at midnight — see #78). The needle keeps the time-based observerAngle so it
-  // continues showing Earth's rotation.
+  // jumped at midnight — see #78).
+  //
+  // With no location there is no zenith to compute, so `observerAngle` stands in — a clock
+  // hand, even and always defined. That fallback is its only remaining job.
   const zenithAngleFromSun =
     locationData && locationData.lat != null
       ? computeZenithAngleFromSun(locationData.lat, locationData.lon, date)
@@ -295,6 +305,8 @@ export function renderDayNightSplit(
       y2: zenith.y,
     })
   );
+
+  return displayObserverAngle;
 }
 
 export function renderObserverNeedle(

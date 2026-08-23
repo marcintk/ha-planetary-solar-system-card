@@ -169,16 +169,16 @@ a pipeline stall doesn't break the feed.
 
 `gallery` (object, unset by default) — Live Imagery gallery options:
 
-| Key                           | Type    | Default     | Description                                                                                                          |
-| ----------------------------- | ------- | ----------- | -------------------------------------------------------------------------------------------------------------------- |
-| `gallery.mode`                | string  | `"show"`    | `"off"` collapses the strip, `"show"` displays every enabled tile at once, `"slide"` shows one at a time and rotates |
-| `gallery.position`            | string  | `"overlay"` | `"overlay"` floats the strip over the solar view, `"below"` puts it underneath and grows the card by its height      |
-| `gallery.shape`               | string  | `"square"`  | `"square"` shows the frame as its source publishes it, `"circle"` crops each tile to the body itself                 |
-| `gallery.slide_interval_secs` | number  | `60`        | How often `slide` mode advances to the next enabled source                                                           |
-| `gallery.mymoon`              | boolean | `true`      | Show the MY MOON tile — Moon from your sky, NASA SVS render                                                          |
-| `gallery.moon`                | boolean | `false`     | Show the MOON tile — Moon from Earth's centre, NASA SVS render                                                       |
-| `gallery.earth`               | boolean | `false`     | Show the EARTH tile — Earth from Sun–Earth L1, DSCOVR spacecraft                                                     |
-| `gallery.sun`                 | boolean | `false`     | Show the SUN tile — Sun from Earth geosync orbit, SDO spacecraft                                                     |
+| Key                           | Type    | Default     | Description                                                                                                                              |
+| ----------------------------- | ------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `gallery.mode`                | string  | `"show"`    | `"off"` collapses the strip, `"show"` displays every enabled tile at once, `"slide"` shows one at a time and rotates                     |
+| `gallery.position`            | string  | `"overlay"` | `"overlay"` floats the strip over the solar view, `"below"` puts it underneath and grows the card by its height                          |
+| `gallery.shape`               | string  | `"square"`  | `"square"` shows the frame as its source publishes it, `"circle"` clips it to a circle sized to the body's disc (not a pixel-exact crop) |
+| `gallery.slide_interval_secs` | number  | `60`        | How often `slide` mode advances to the next enabled source                                                                               |
+| `gallery.mymoon`              | boolean | `true`      | Show the MY MOON tile — Moon from your sky, NASA SVS render                                                                              |
+| `gallery.moon`                | boolean | `false`     | Show the MOON tile — Moon from Earth's centre, NASA SVS render                                                                           |
+| `gallery.earth`               | boolean | `false`     | Show the EARTH tile — Earth from Sun–Earth L1, DSCOVR spacecraft                                                                         |
+| `gallery.sun`                 | boolean | `false`     | Show the SUN tile — Sun from Earth geosync orbit, SDO spacecraft                                                                         |
 
 ### Location
 

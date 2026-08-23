@@ -1,4 +1,5 @@
 import type { Colors, Hemisphere } from "../types.js";
+import type { EclipticViewDirection } from "./svg-utils.js";
 import { CENTER, createSvgElement, MAX_RADIUS, VIEW_SIZE } from "./svg-utils.js";
 
 const DEFAULT_SEASON_LINE_COLOR = "color-mix(in srgb, currentColor 25%, transparent)";
@@ -9,7 +10,7 @@ export function renderSeasonOverlay(
   svg: SVGElement,
   hemisphere: Hemisphere,
   colors: Colors = {},
-  eclipticViewDirection = -1
+  eclipticViewDirection: EclipticViewDirection = -1
 ): void {
   const lineColor = colors.season_line ?? DEFAULT_SEASON_LINE_COLOR;
   const labelColor = colors.season_label ?? DEFAULT_SEASON_LABEL_COLOR;

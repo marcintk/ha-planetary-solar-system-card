@@ -1,4 +1,4 @@
-import type { DebugAccumulator } from "./debug.js";
+import type { DebugAccumulator } from "./debug-stats.js";
 import { FETCH_TIMEOUT_MS, SourceResolver, timedAttempt } from "./source-resolver.js";
 import type { SourcedImage, UrlCache } from "./url-cache.js";
 import { urlCache } from "./url-cache.js";

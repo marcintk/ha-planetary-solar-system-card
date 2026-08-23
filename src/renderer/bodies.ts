@@ -1,4 +1,5 @@
 import type { CelestialBody, CometVisualEllipse } from "../types.js";
+import type { EclipticViewDirection } from "./svg-utils.js";
 import {
   BODY_LABEL_ATTRS,
   CENTER,
@@ -45,7 +46,7 @@ function verticalAxisIntersections(
 export function renderOrbit(
   svg: SVGElement,
   ellipse: CometVisualEllipse,
-  eclipticViewDirection: number
+  eclipticViewDirection: EclipticViewDirection
 ): void {
   const orbitColor = ORBIT_COLOR;
   const { aPx, bPx, cPx, rotationDeg } = ellipse;

@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ViewState } from "../../src/card/card-view-state.js";
 import { ZoomAnimator } from "../../src/card/zoom-animator.js";
 
+// The animator is a tween over one number now: no view state, no zoom levels, nothing to set
+// up but a pair of spies. Everything below drives it with the two widths ZOOM_LEVELS actually
+// uses either side of a single rung (800 -> 640) so the numbers stay recognisable.
 describe("ZoomAnimator", () => {
   let rafCallbacks: { id: number; cb: (ts: number) => void }[];
   let rafId: number;
@@ -29,68 +31,70 @@ describe("ZoomAnimator", () => {
     for (const r of pending) r.cb(timestamp);
   }
 
-  // Helper: simulates what the card does — snapshot width, change zoom, animate from old width
-  function simulateZoomTo(vs, animator, targetLevel) {
-    const prevWidth = vs.width;
-    vs.setZoomLevel(targetLevel);
-    animator.animateTo(targetLevel, prevWidth);
-  }
-
-  it("isAnimating is false initially", () => {
-    const vs = new ViewState(1);
-    const animator = new ZoomAnimator(vs, () => {});
-    expect(animator.isAnimating).toBe(false);
+  it("is not animating until asked", () => {
+    expect(new ZoomAnimator().isAnimating).toBe(false);
   });
 
-  it("animateTo starts animation", () => {
-    const vs = new ViewState(1);
-    const animator = new ZoomAnimator(vs, () => {});
-    simulateZoomTo(vs, animator, 2);
+  it("animateTo starts animating", () => {
+    const animator = new ZoomAnimator();
+    animator.animateTo(800, 640, () => {});
     expect(animator.isAnimating).toBe(true);
   });
 
-  it("animation calls onFrame on each step", () => {
-    const vs = new ViewState(1);
-    const onFrame = vi.fn();
-    const animator = new ZoomAnimator(vs, onFrame);
-    simulateZoomTo(vs, animator, 2);
+  it("reports a width on every frame", () => {
+    const animator = new ZoomAnimator();
+    const onStep = vi.fn();
+    animator.animateTo(800, 640, onStep);
 
     flushFrame(0);
-    expect(onFrame).toHaveBeenCalled();
+    expect(onStep).toHaveBeenCalled();
   });
 
-  it("animation interpolates width between start and target", () => {
-    const vs = new ViewState(1); // width=800
-    const animator = new ZoomAnimator(vs, () => {});
-    simulateZoomTo(vs, animator, 2); // from 800 to 640
+  it("eases between the two widths rather than jumping", () => {
+    const animator = new ZoomAnimator();
+    const widths: number[] = [];
+    animator.animateTo(800, 640, (w) => widths.push(w));
 
-    // First frame at t=0
     flushFrame(0);
-    // Mid-animation frame at t=1000 (halfway through 2000ms)
-    flushFrame(1000);
-    const midWidth = vs.width;
-    expect(midWidth).toBeGreaterThan(640);
-    expect(midWidth).toBeLessThan(800);
+    flushFrame(1000); // halfway through the 2000ms duration
+    const mid = widths.at(-1);
+    expect(mid).toBeGreaterThan(640);
+    expect(mid).toBeLessThan(800);
   });
 
-  it("animation completes after 2000ms and snaps to target", () => {
-    const vs = new ViewState(1); // width=800
-    const animator = new ZoomAnimator(vs, () => {});
-    simulateZoomTo(vs, animator, 2); // from 800 to 640
+  it("lands exactly on the target and stops", () => {
+    const animator = new ZoomAnimator();
+    const widths: number[] = [];
+    const onComplete = vi.fn();
+    animator.animateTo(800, 640, (w) => widths.push(w), onComplete);
 
     flushFrame(0);
     flushFrame(2000);
 
-    expect(vs.width).toBe(640);
-    expect(vs.width).toBe(640);
-    expect(vs.zoomLevel).toBe(2);
+    expect(widths.at(-1)).toBe(640);
+    expect(onComplete).toHaveBeenCalledTimes(1);
     expect(animator.isAnimating).toBe(false);
   });
 
-  it("cancel stops animation", () => {
-    const vs = new ViewState(1);
-    const animator = new ZoomAnimator(vs, () => {});
-    simulateZoomTo(vs, animator, 2);
+  it("runs onComplete after the final step, not before it", () => {
+    const animator = new ZoomAnimator();
+    const order: string[] = [];
+    animator.animateTo(
+      800,
+      640,
+      () => order.push("step"),
+      () => order.push("complete")
+    );
+
+    flushFrame(0);
+    flushFrame(2000);
+    expect(order.at(-2)).toBe("step");
+    expect(order.at(-1)).toBe("complete");
+  });
+
+  it("cancel stops it and drops the pending frame", () => {
+    const animator = new ZoomAnimator();
+    animator.animateTo(800, 640, () => {});
     expect(animator.isAnimating).toBe(true);
 
     animator.cancel();
@@ -98,43 +102,33 @@ describe("ZoomAnimator", () => {
     expect(rafCallbacks).toHaveLength(0);
   });
 
-  it("new animateTo interrupts and starts from current position", () => {
-    const vs = new ViewState(1); // width=800
-    const animator = new ZoomAnimator(vs, () => {});
-    simulateZoomTo(vs, animator, 2); // from 800 to 640
+  // A second zoom part-way through the first has to pick up from where the view actually is,
+  // not from the rung it was heading for — otherwise the scene jumps backwards before easing on.
+  it("a new animateTo interrupts the old one and never fires its completion", () => {
+    const animator = new ZoomAnimator();
+    const widths: number[] = [];
+    const firstComplete = vi.fn();
+    animator.animateTo(800, 640, (w) => widths.push(w), firstComplete);
 
-    // Advance to midpoint
     flushFrame(0);
     flushFrame(1000);
-    const midWidth = vs.width;
-    expect(midWidth).toBeGreaterThan(640);
-    expect(midWidth).toBeLessThan(800);
+    const interruptedAt = widths.at(-1) as number;
 
-    // Now interrupt: animate from current midWidth to level 3 (480)
-    const curWidth = vs.width;
-    vs.setZoomLevel(3);
-    animator.animateTo(3, curWidth);
-
-    // First frame of new animation
+    animator.animateTo(interruptedAt, 480, (w) => widths.push(w));
     flushFrame(2000);
     flushFrame(3000);
-    const newMidWidth = vs.width;
-    // Should be between midWidth and 480
-    expect(newMidWidth).toBeLessThan(midWidth);
-    expect(newMidWidth).toBeGreaterThan(480);
+
+    const resumed = widths.at(-1) as number;
+    expect(resumed).toBeLessThan(interruptedAt);
+    expect(resumed).toBeGreaterThan(480);
+    expect(firstComplete).not.toHaveBeenCalled();
   });
 
-  it("animation preserves centerX and centerY", () => {
-    const vs = new ViewState(1);
-    vs.centerX = 500;
-    vs.centerY = 300;
-    const animator = new ZoomAnimator(vs, () => {});
-    simulateZoomTo(vs, animator, 3);
-
+  it("completes with no onComplete supplied", () => {
+    const animator = new ZoomAnimator();
+    animator.animateTo(800, 640, () => {});
     flushFrame(0);
-    flushFrame(1000);
-
-    expect(vs.centerX).toBe(500);
-    expect(vs.centerY).toBe(300);
+    flushFrame(2000);
+    expect(animator.isAnimating).toBe(false);
   });
 });

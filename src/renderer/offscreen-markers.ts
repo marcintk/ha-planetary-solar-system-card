@@ -1,3 +1,4 @@
+import { MOON } from "../astronomy/planet-data.js";
 import type { PanZoomState, ViewPosition } from "../types.js";
 import { createSvgElement } from "./svg-utils.js";
 
@@ -137,8 +138,9 @@ export function renderOffscreenMarkers(
   const bottom = viewState.centerY + halfH;
 
   for (const pos of positions) {
-    // Skip bodies that opt out of offscreen markers (e.g. Moon)
-    if (pos.offscreen === false) continue;
+    // The Moon rides a fixed 22px offset from Earth, so it is offscreen exactly when Earth is
+    // and a second marker for it would only ever duplicate Earth's.
+    if (pos.name === MOON.name) continue;
 
     // Skip if inside viewport
     if (pos.x >= left && pos.x <= right && pos.y >= top && pos.y <= bottom) {

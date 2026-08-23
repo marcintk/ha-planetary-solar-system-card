@@ -1,5 +1,5 @@
-import type { ImageSource } from "../card-template.js";
 import { SourceResolver } from "./source-resolver.js";
+import type { ImageSource } from "./sources.js";
 import type { SourcedImage, UrlCache } from "./url-cache.js";
 
 // NASA's Scientific Visualization Studio publishes "Moon Phase and Libration, <year>": 8,760
@@ -33,51 +33,6 @@ export const MOON_PRODUCT_IDS: Record<number, number> = {
   2025: 5415,
   2026: 5587,
 };
-
-function pad(value: number, width: number): string {
-  return String(value).padStart(width, "0");
-}
-
-/**
- * The frame for one instant, at one of the published resolutions.
- *
- * Throws rather than degrading for an unmapped year, and that is deliberate. SVS answers an
- * out-of-range date with the *last frame of the current product* under a 200, not a 404 — ask
- * it for March 2027 today and it returns a Moon at 38% when the truth is 9%. A source that
- * failed quietly here would show a confidently wrong Moon instead of no Moon.
- */
-export function moonFrameUrl(at: Date, size: string): string {
-  const year = at.getUTCFullYear();
-  const product = MOON_PRODUCT_IDS[year];
-  if (product == null) {
-    throw new Error(`No NASA SVS moon product is published for ${year}`);
-  }
-  // Products are filed in hundreds: 5587 lives under a005500/a005587.
-  const group = Math.floor(product / 100) * 100;
-  const frame = Math.floor((at.getTime() - Date.UTC(year, 0, 1)) / MOON_FRAME_MS) + 1;
-  return `${SVS_BASE_URL}/a${pad(group, 6)}/a${pad(product, 6)}/frames/${size}/moon.${pad(frame, 4)}.jpg`;
-}
-
-/**
- * The frame covering `at`, dated by the frame's own hour rather than the query instant — so
- * two cards asking at different minutes of the same hour agree on both the URL and the date
- * shown beneath it.
- */
-export function getMoonFrameImage(at: Date, size: string = MOON_THUMB_SIZE): SourcedImage {
-  const hour = new Date(Math.floor(at.getTime() / MOON_FRAME_MS) * MOON_FRAME_MS);
-  return { url: moonFrameUrl(hour, size), date: hour };
-}
-
-/**
- * The full-screen counterpart of a thumbnail URL.
- *
- * Both sizes are the same frame at two resolutions, so swapping the size segment is exact —
- * no second lookup, no second cache entry, and the panel cannot drift onto a different hour
- * than the tile the user clicked. Anything that is not a moon URL passes through untouched.
- */
-export function fullSizeMoonUrl(url: string): string {
-  return url.replace(`/${MOON_THUMB_SIZE}/`, `/${MOON_FULL_SIZE}/`);
-}
 
 /**
  * One class, instantiated once per Moon tile.
@@ -126,4 +81,49 @@ export class SvsMoonResolver extends SourceResolver {
   // the previous slot is a good guess. Here every frame of the year is already on disk, so a
   // failure means the product id is wrong or the network is down — neither of which an earlier
   // frame fixes. Fall through to the shared cooldown like any other source.
+}
+
+function pad(value: number, width: number): string {
+  return String(value).padStart(width, "0");
+}
+
+/**
+ * The frame for one instant, at one of the published resolutions.
+ *
+ * Throws rather than degrading for an unmapped year, and that is deliberate. SVS answers an
+ * out-of-range date with the *last frame of the current product* under a 200, not a 404 — ask
+ * it for March 2027 today and it returns a Moon at 38% when the truth is 9%. A source that
+ * failed quietly here would show a confidently wrong Moon instead of no Moon.
+ */
+export function moonFrameUrl(at: Date, size: string): string {
+  const year = at.getUTCFullYear();
+  const product = MOON_PRODUCT_IDS[year];
+  if (product == null) {
+    throw new Error(`No NASA SVS moon product is published for ${year}`);
+  }
+  // Products are filed in hundreds: 5587 lives under a005500/a005587.
+  const group = Math.floor(product / 100) * 100;
+  const frame = Math.floor((at.getTime() - Date.UTC(year, 0, 1)) / MOON_FRAME_MS) + 1;
+  return `${SVS_BASE_URL}/a${pad(group, 6)}/a${pad(product, 6)}/frames/${size}/moon.${pad(frame, 4)}.jpg`;
+}
+
+/**
+ * The frame covering `at`, dated by the frame's own hour rather than the query instant — so
+ * two cards asking at different minutes of the same hour agree on both the URL and the date
+ * shown beneath it.
+ */
+export function getMoonFrameImage(at: Date, size: string = MOON_THUMB_SIZE): SourcedImage {
+  const hour = new Date(Math.floor(at.getTime() / MOON_FRAME_MS) * MOON_FRAME_MS);
+  return { url: moonFrameUrl(hour, size), date: hour };
+}
+
+/**
+ * The full-screen counterpart of a thumbnail URL.
+ *
+ * Both sizes are the same frame at two resolutions, so swapping the size segment is exact —
+ * no second lookup, no second cache entry, and the panel cannot drift onto a different hour
+ * than the tile the user clicked. Anything that is not a moon URL passes through untouched.
+ */
+export function fullSizeMoonUrl(url: string): string {
+  return url.replace(`/${MOON_THUMB_SIZE}/`, `/${MOON_FULL_SIZE}/`);
 }

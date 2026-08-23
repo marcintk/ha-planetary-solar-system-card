@@ -61,7 +61,6 @@ export interface ViewPosition {
   x: number;
   y: number;
   color: string;
-  offscreen?: boolean;
 }
 
 export interface PanZoomState {
@@ -84,12 +83,6 @@ export interface CometPosition {
   angle: number;
   radius: number;
   trueAnomaly: number;
-}
-
-export interface MoonPhase {
-  phase: number;
-  phaseName: string;
-  illumination: number;
 }
 
 export interface NextTransition {

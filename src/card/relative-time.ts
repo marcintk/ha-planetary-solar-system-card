@@ -11,11 +11,13 @@ export function formatDate(date: Date): string {
   return `${y}-${m}-${d} ${hh}:${mm}`;
 }
 
+// Minutes to the coarsest unit that still reads as a number, shared by both tenses below so
+// the "m" -> "h" step happens at one place rather than once per affix.
+const bucket = (minutes: number) => (minutes < 60 ? `${minutes}m` : `${Math.floor(minutes / 60)}h`);
+
 export function formatRelativeAge(date: Date, now: Date): string {
   const diffMin = Math.floor((now.getTime() - date.getTime()) / 60000);
-  if (diffMin < 1) return "just now";
-  if (diffMin < 60) return `${diffMin}m ago`;
-  return `${Math.floor(diffMin / 60)}h ago`;
+  return diffMin < 1 ? "just now" : `${bucket(diffMin)} ago`;
 }
 
 /**
@@ -31,13 +33,12 @@ export function formatRelativeWhen(date: Date, now: Date): string {
   // now" the same way it does on its way past — rounding would tick over to "in 1m" while the
   // moment is still half a minute away.
   const diffMin = Math.floor((date.getTime() - now.getTime()) / 60000);
-  if (diffMin <= 0) return formatRelativeAge(date, now);
-  if (diffMin < 60) return `in ${diffMin}m`;
-  return `in ${Math.floor(diffMin / 60)}h`;
+  return diffMin <= 0 ? formatRelativeAge(date, now) : `in ${bucket(diffMin)}`;
 }
 
-// Same floor-to-minutes/floor-to-hours bucketing as formatRelativeAge, just phrased for a
-// duration-since-mount instead of an age-of-a-timestamp, so "running for" reads naturally.
+// Deliberately not `bucket`: a duration-since-mount starts at zero, so it needs a seconds case
+// the relative phrasings never reach, and it keeps the remainder minutes ("2h 5m") that an age
+// throws away.
 export function formatDuration(ms: number): string {
   const minutes = Math.floor(ms / 60000);
   if (minutes < 1) return `${Math.floor(ms / 1000)}s`;

@@ -11,7 +11,6 @@ export type ImagePanelMode = "none" | ImageSource;
 // enabled (that's each gallery.<source> boolean, resolved in card-config.ts). "show" is a
 // static strip, "slide" rotates one tile at a time through the enabled sources, "off" hides it.
 export type GalleryMode = "off" | "slide" | "show";
-export const GALLERY_MODES: GalleryMode[] = ["off", "slide", "show"];
 export const DEFAULT_GALLERY_INTERVAL_MS = 60000;
 
 // Where the strip sits. "overlay" floats it over the bottom of the solar view, which costs no

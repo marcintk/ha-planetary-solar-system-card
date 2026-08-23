@@ -1,5 +1,6 @@
 import type { Comet, CometVisualEllipse } from "../types.js";
 import { ORBIT_COLOR } from "./bodies.js";
+import type { EclipticViewDirection } from "./svg-utils.js";
 import {
   auToRadius,
   BODY_LABEL_ATTRS,
@@ -41,7 +42,7 @@ export function computeCometVisualEllipse(comet: Comet): CometVisualEllipse {
 export function renderCometOrbit(
   svg: SVGElement,
   comet: Comet,
-  eclipticViewDirection: number
+  eclipticViewDirection: EclipticViewDirection
 ): void {
   const { aPx, bPx, cPx, rotationDeg } = computeCometVisualEllipse(comet);
 

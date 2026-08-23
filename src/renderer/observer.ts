@@ -4,9 +4,11 @@ import {
   computeSolarElevationDeg,
   computeZenithAngleFromSun,
   getLocalTimeInZone,
+  SUNSET_ELEVATION_DEG,
 } from "../astronomy/solar-position.js";
 import type { Colors, LocationData } from "../types.js";
-import { CENTER, createSvgElement, MAX_RADIUS, VIEW_SIZE } from "./svg-utils.js";
+import type { EclipticViewDirection } from "./svg-utils.js";
+import { CENTER, createSvgElement, MAX_RADIUS, polarOffset, VIEW_SIZE } from "./svg-utils.js";
 
 const NEEDLE_COLOR = "color-mix(in srgb, currentColor 70%, transparent)";
 
@@ -109,7 +111,7 @@ export function computeTwilightBand(
   colors: Colors
 ): { color: string; halfAngle: number } {
   let color: string;
-  if (elevationDeg >= 0) color = colors.cone_day ?? CONE_DAY;
+  if (elevationDeg >= SUNSET_ELEVATION_DEG) color = colors.cone_day ?? CONE_DAY;
   else if (elevationDeg >= -6) color = colors.cone_twilight_civil ?? CONE_CIVIL;
   else if (elevationDeg >= -12) color = colors.cone_twilight_nautical ?? CONE_NAUTICAL;
   else if (elevationDeg >= -18) color = colors.cone_twilight_astronomical ?? CONE_ASTRONOMICAL;
@@ -123,7 +125,7 @@ export function computeTwilightBand(
   // projected axis is exactly what pushed the -6/-12/-18 cone edges away from the Sun's
   // actual direction after sunset (worst at mid latitudes).
   const halfAngle =
-    elevationDeg >= 0 || elevationDeg < -18
+    elevationDeg >= SUNSET_ELEVATION_DEG || elevationDeg < -18
       ? 90
       : zenithAngleFromSun != null
         ? (Math.abs(zenithAngleFromSun) * 180) / Math.PI
@@ -140,7 +142,7 @@ function renderVisibilityCone(
   halfAngleDeg: number,
   clipId: string,
   fillColor: string,
-  eclipticViewDirection = -1
+  eclipticViewDirection: EclipticViewDirection = -1
 ): void {
   const D = VIEW_SIZE;
   const HALF_ANGLE = (halfAngleDeg * Math.PI) / 180;
@@ -151,15 +153,11 @@ function renderVisibilityCone(
   // flips too. Hardcoding sweep=1 only drew the correct wedge for the north (-1) case.
   const sweepFlag = eclipticViewDirection === -1 ? 1 : 0;
 
-  const leftAngle = observerAngle + HALF_ANGLE;
-  const rightAngle = observerAngle - HALF_ANGLE;
-  const leftX = anchorX + D * Math.cos(leftAngle);
-  const leftY = anchorY + eclipticViewDirection * D * Math.sin(leftAngle);
-  const rightX = anchorX + D * Math.cos(rightAngle);
-  const rightY = anchorY + eclipticViewDirection * D * Math.sin(rightAngle);
+  const left = polarOffset(anchorX, anchorY, D, observerAngle + HALF_ANGLE, eclipticViewDirection);
+  const right = polarOffset(anchorX, anchorY, D, observerAngle - HALF_ANGLE, eclipticViewDirection);
 
   // SVG path: MoveTo apex, LineTo left edge, Arc to right edge, ClosePath
-  const pathD = `M ${anchorX} ${anchorY} L ${leftX} ${leftY} A ${D} ${D} 0 ${largeArcFlag} ${sweepFlag} ${rightX} ${rightY} Z`;
+  const pathD = `M ${anchorX} ${anchorY} L ${left.x} ${left.y} A ${D} ${D} 0 ${largeArcFlag} ${sweepFlag} ${right.x} ${right.y} Z`;
 
   const defs =
     svg.querySelector("defs") || svg.insertBefore(createSvgElement("defs", {}), svg.firstChild);
@@ -179,15 +177,22 @@ function renderVisibilityCone(
   );
 }
 
+/**
+ * Draws the observer's sky onto the scene and returns the direction it was all built from —
+ * the zenith, projected onto the ecliptic plane.
+ *
+ * Returned rather than kept private because the needle has to point the same way. It used to
+ * call `calculateObserverAngle` again for itself and get a clock angle instead, which put it up
+ * to 33° off the horizon it is drawn beside (#167).
+ */
 export function renderDayNightSplit(
   svg: SVGElement,
   earthRadius: number,
   date: Date,
-  earthBodySize: number,
   locationData: LocationData | null,
-  eclipticViewDirection = -1,
+  eclipticViewDirection: EclipticViewDirection = -1,
   colors: Colors = {}
-): void {
+): number {
   const earthAngle = calculatePlanetPosition(EARTH, date);
   const observerAngle = calculateObserverAngle(
     earthAngle,
@@ -196,16 +201,7 @@ export function renderDayNightSplit(
     locationData?.lon
   );
 
-  const earthDirX = Math.cos(earthAngle);
-  const earthDirY = Math.sin(earthAngle);
-  const obsDirX = Math.cos(observerAngle);
-  const obsDirY = Math.sin(observerAngle);
-
-  // Anchor point at Earth's surface
-  const earthOrbitalX = CENTER + earthRadius * earthDirX;
-  const earthOrbitalY = CENTER + eclipticViewDirection * earthRadius * earthDirY;
-  const anchorX = earthOrbitalX + earthBodySize * obsDirX;
-  const anchorY = earthOrbitalY + eclipticViewDirection * earthBodySize * obsDirY;
+  const earthOrbital = polarOffset(CENTER, CENTER, earthRadius, earthAngle, eclipticViewDirection);
 
   // Filled cone — colour determined by which twilight phase the solar elevation falls in.
   // Half-angle = 90° − elevationDeg expands the cone below the horizon during twilight.
@@ -221,8 +217,10 @@ export function renderDayNightSplit(
   // day/night; at high latitudes this diverges significantly from true sunrise/sunset.
   // The projection is continuous through both solar noon and midnight by construction,
   // unlike inverting elevation with a sign borrowed from the approximate 2D model (which
-  // jumped at midnight — see #78). The needle keeps the time-based observerAngle so it
-  // continues showing Earth's rotation.
+  // jumped at midnight — see #78).
+  //
+  // With no location there is no zenith to compute, so `observerAngle` stands in — a clock
+  // hand, even and always defined. That fallback is its only remaining job.
   const zenithAngleFromSun =
     locationData && locationData.lat != null
       ? computeZenithAngleFromSun(locationData.lat, locationData.lon, date)
@@ -235,10 +233,18 @@ export function renderDayNightSplit(
     zenithAngleFromSun,
     colors
   );
+  // Everything below hangs off Earth's centre — cone apex, horizon line, zenith line alike.
+  //
+  // The apex used to sit a body radius out, on Earth's drawn surface. That looks like the
+  // observer standing on the planet, but the planet is drawn ~10 px wide against a 22 px Moon
+  // orbit: an offset by that radius is a parallax of ~27° at the Moon's distance, against the
+  // 0.95° the real geometry has. It put the Moon marker on the wrong side of the horizon for
+  // ~14% of the day (#166), and it left the cone's own 90° edge sitting 10 px off the horizon
+  // line that is supposed to *be* that edge. One pivot, and the two coincide by construction.
   renderVisibilityCone(
     svg,
-    anchorX,
-    anchorY,
+    earthOrbital.x,
+    earthOrbital.y,
     displayObserverAngle,
     halfAngle,
     "sky-clip",
@@ -255,59 +261,52 @@ export function renderDayNightSplit(
     "stroke-dasharray": "4, 4",
   };
 
+  // Where an arm cast from Earth's centre at `angle` meets the cone's clip circle, plus a
+  // margin. The unit direction handed to rayCircleDistance carries the same mirror as the
+  // endpoint it ends up producing, so both go through polarOffset rather than spelling the
+  // sine out twice.
+  const armEnd = (angle: number) => {
+    const { x, y } = earthOrbital;
+    const dir = polarOffset(0, 0, 1, angle, eclipticViewDirection);
+    const dist = rayCircleDistance(x, y, dir.x, dir.y, CENTER, CENTER, CLIP_R) + EXTRA;
+    return polarOffset(x, y, dist, angle, eclipticViewDirection);
+  };
+
   // Horizon line — each arm extends to the cone clip circle edge + margin
-  const leftAngle = displayObserverAngle + Math.PI / 2;
-  const rightAngle = displayObserverAngle - Math.PI / 2;
-  const leftD =
-    rayCircleDistance(
-      anchorX,
-      anchorY,
-      Math.cos(leftAngle),
-      eclipticViewDirection * Math.sin(leftAngle),
-      CENTER,
-      CENTER,
-      CLIP_R
-    ) + EXTRA;
-  const rightD =
-    rayCircleDistance(
-      anchorX,
-      anchorY,
-      Math.cos(rightAngle),
-      eclipticViewDirection * Math.sin(rightAngle),
-      CENTER,
-      CENTER,
-      CLIP_R
-    ) + EXTRA;
+  const left = armEnd(displayObserverAngle + Math.PI / 2);
+  const right = armEnd(displayObserverAngle - Math.PI / 2);
   svg.appendChild(
     createSvgElement("line", {
       ...lineStyle,
-      x1: anchorX + leftD * Math.cos(leftAngle),
-      y1: anchorY + eclipticViewDirection * leftD * Math.sin(leftAngle),
-      x2: anchorX + rightD * Math.cos(rightAngle),
-      y2: anchorY + eclipticViewDirection * rightD * Math.sin(rightAngle),
+      x1: left.x,
+      y1: left.y,
+      x2: right.x,
+      y2: right.y,
     })
   );
 
-  // Zenith line — from anchor skyward only (no nadir segment)
-  const zenithD =
-    rayCircleDistance(
-      anchorX,
-      anchorY,
-      Math.cos(displayObserverAngle),
-      eclipticViewDirection * Math.sin(displayObserverAngle),
-      CENTER,
-      CENTER,
-      CLIP_R
-    ) + EXTRA;
+  // Zenith line — skyward only, no nadir segment, so the sky side of the horizon reads at a
+  // glance. Starts at Earth's edge rather than its centre purely so the Earth marker does not
+  // swallow it; it is on the same ray either way.
+  const zenith = armEnd(displayObserverAngle);
+  const foot = polarOffset(
+    earthOrbital.x,
+    earthOrbital.y,
+    EARTH.size,
+    displayObserverAngle,
+    eclipticViewDirection
+  );
   svg.appendChild(
     createSvgElement("line", {
       ...lineStyle,
-      x1: anchorX,
-      y1: anchorY,
-      x2: anchorX + zenithD * Math.cos(displayObserverAngle),
-      y2: anchorY + eclipticViewDirection * zenithD * Math.sin(displayObserverAngle),
+      x1: foot.x,
+      y1: foot.y,
+      x2: zenith.x,
+      y2: zenith.y,
     })
   );
+
+  return displayObserverAngle;
 }
 
 export function renderObserverNeedle(
@@ -316,17 +315,16 @@ export function renderObserverNeedle(
   earthY: number,
   observerAngle: number,
   earthSize: number,
-  eclipticViewDirection = -1
+  eclipticViewDirection: EclipticViewDirection = -1
 ): void {
-  const tipX = earthX + earthSize * Math.cos(observerAngle);
-  const tipY = earthY + eclipticViewDirection * earthSize * Math.sin(observerAngle);
+  const tip = polarOffset(earthX, earthY, earthSize, observerAngle, eclipticViewDirection);
 
   svg.appendChild(
     createSvgElement("line", {
       x1: earthX,
       y1: earthY,
-      x2: tipX,
-      y2: tipY,
+      x2: tip.x,
+      y2: tip.y,
       style: `stroke: ${NEEDLE_COLOR}`,
       "stroke-width": 2,
       "stroke-linecap": "round",
@@ -336,8 +334,8 @@ export function renderObserverNeedle(
   // Small dot at the tip for directionality
   svg.appendChild(
     createSvgElement("circle", {
-      cx: tipX,
-      cy: tipY,
+      cx: tip.x,
+      cy: tip.y,
       r: 2,
       style: `fill: ${NEEDLE_COLOR}`,
     })

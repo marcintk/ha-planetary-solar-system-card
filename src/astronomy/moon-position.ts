@@ -2,11 +2,9 @@
  * The Moon's equatorial coordinates *of date* (Meeus, *Astronomical Algorithms*, ch. 47),
  * plus Greenwich mean sidereal time.
  *
- * Separate from moon-phase.ts on purpose. That module answers "how lit is it", which the
- * three largest periodic terms settle to well inside a phase-name segment. This one answers
- * "where is it on the sky", which feeds a parallactic angle — and there the same three terms
- * leave up to 6.07° of orientation error, against 0.62° for the series below. The phase
- * module keeps its cheaper approximation; nothing here replaces it.
+ * The series is truncated where the remaining rows stop moving a parallactic angle by more
+ * than a few arc-seconds: the three largest terms alone leave up to 6.07° of orientation
+ * error, against 0.62° for the rows kept below.
  *
  * Coordinates are *of date*, not J2000. A local hour angle is measured against the true
  * equinox of the moment, so precessing back to J2000 would introduce the ~0.4° error it
@@ -25,6 +23,13 @@ export interface MoonEquatorial {
   raDeg: number;
   /** Declination of date, degrees in [-90, 90]. */
   decDeg: number;
+  /**
+   * Geocentric ecliptic longitude of date, degrees in [0, 360) — the same frame
+   * `calculatePlanetPosition` reports the planets in, which is what lets the solar view place
+   * the Moon marker against Earth's orbital angle. Free here: the series below computes it on
+   * the way to the equatorial pair.
+   */
+  eclipticLonDeg: number;
 }
 
 // Meeus 47.A / 47.B, leading terms: [D, M, M', F, coefficient in 1e-6 degrees]. Truncated
@@ -111,6 +116,7 @@ export function getMoonEquatorial(date: Date): MoonEquatorial {
   const obliquity = 23.4393 - 3.563e-7 * d;
 
   return {
+    eclipticLonDeg: norm360(eclipticLon),
     raDeg: norm360(
       Math.atan2(
         sin(eclipticLon) * cos(obliquity) - tan(eclipticLat) * sin(obliquity),

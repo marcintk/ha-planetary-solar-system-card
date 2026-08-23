@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { IMAGE_SOURCES } from "../../../src/card/card-template.js";
 import { GalleryController } from "../../../src/card/gallery/gallery-controller.js";
 import { EARTH_CACHE_TTL_MS } from "../../../src/card/gallery/source-resolver-dscovr-earth.js";
+import { IMAGE_SOURCES } from "../../../src/card/gallery/sources.js";
 import { urlCache } from "../../../src/card/gallery/url-cache.js";
 
 // Every fetch path preloads a candidate off-DOM via `new Image()` before ever assigning it,

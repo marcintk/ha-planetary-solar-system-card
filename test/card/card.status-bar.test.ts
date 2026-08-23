@@ -13,7 +13,14 @@ describe("SolarViewCard status bar", () => {
       date = new Date("2026-03-05T12:00:00Z")
     ) {
       const card = document.createElement("ha-planetary-solar-system-card-test");
-      card._hassLocation = { lat, lon, timezone: "Europe/London", name: "London" };
+      card.hass = {
+        config: {
+          latitude: lat,
+          longitude: lon,
+          time_zone: "Europe/London",
+          location_name: "London",
+        },
+      };
       card._dateNav.currentDate = date;
       document.body.appendChild(card);
       return card;

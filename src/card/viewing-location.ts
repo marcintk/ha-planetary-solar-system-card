@@ -1,20 +1,52 @@
 import { getMoonSkyAngles } from "../astronomy/parallactic.js";
-import { computeSolarElevationDeg, getSkyMode } from "../astronomy/solar-position.js";
+import { computeSolarElevationDeg, SUNSET_ELEVATION_DEG } from "../astronomy/solar-position.js";
 import type { HASSConfig, Hemisphere, LocationData } from "../types.js";
 
-// The sky tile's backdrop, by getSkyMode()'s own band names. Solid colors, not the visibility
-// cone's translucent tints (CONE_DAY etc., see renderer/observer.ts) — the cone is designed to
-// sit as a faint wash over the SVG view, but a tile-sized backdrop needs to read as "day" or
-// "night" at a glance rather than disappear against the card background. Day and night are the
-// two ends of the range (light vs. black); the three twilight steps carry the same warm-cool-
-// violet hue progression as the cone's own bands, just fully opaque instead of near-invisible.
-const MOON_SKY_BACKGROUND: Record<string, string> = {
-  Day: "#d0d0d0",
-  "Civil Twilight": "#8a6142",
-  "Nautical Twilight": "#3a4a6b",
-  "Astronomical Twilight": "#2a1f42",
-  Night: "#000000",
-};
+// The sky tile's backdrop, anchored at the same elevation boundaries as getSkyMode()'s bands.
+// Solid colors, not the visibility cone's translucent tints (CONE_DAY etc., see
+// renderer/observer.ts) — the cone is designed to sit as a faint wash over the SVG view, but a
+// tile-sized backdrop needs to read as "day" or "night" at a glance rather than disappear
+// against the card background. Interpolated linearly between neighbors (skyBackgroundForElevation)
+// rather than snapped by band name — a real sky doesn't jump hue the instant the Sun crosses
+// -6 deg, so a hard lookup read as a visible seam at each boundary.
+const SKY_ANCHORS: { elevDeg: number; rgb: readonly [number, number, number] }[] = [
+  { elevDeg: SUNSET_ELEVATION_DEG, rgb: [0xd0, 0xd0, 0xd0] }, // Day
+  { elevDeg: -6, rgb: [0x8a, 0x61, 0x42] }, // Civil Twilight
+  { elevDeg: -12, rgb: [0x3a, 0x4a, 0x6b] }, // Nautical Twilight
+  { elevDeg: -18, rgb: [0x2a, 0x1f, 0x42] }, // Astronomical Twilight
+];
+
+function toHex(channel: number): string {
+  return Math.round(channel).toString(16).padStart(2, "0");
+}
+
+// Below -18 deg the Sun is far enough down that astronomical twilight has already given way to
+// true night — a real, physically-defined boundary (unlike the twilight steps above it), so it
+// stays a flat plateau rather than another interpolation zone.
+export function skyBackgroundForElevation(elevDeg: number): string {
+  const first = SKY_ANCHORS[0];
+  const last = SKY_ANCHORS[SKY_ANCHORS.length - 1];
+  if (elevDeg >= first.elevDeg) return rgbToHex(first.rgb);
+  if (elevDeg < last.elevDeg) return "#000000";
+
+  for (let i = 0; i < SKY_ANCHORS.length - 1; i++) {
+    const hi = SKY_ANCHORS[i];
+    const lo = SKY_ANCHORS[i + 1];
+    if (elevDeg <= hi.elevDeg && elevDeg >= lo.elevDeg) {
+      const t = (hi.elevDeg - elevDeg) / (hi.elevDeg - lo.elevDeg);
+      const rgb: [number, number, number] = [0, 1, 2].map(
+        (c) => hi.rgb[c] + t * (lo.rgb[c] - hi.rgb[c])
+      ) as [number, number, number];
+      return rgbToHex(rgb);
+    }
+  }
+  /* v8 ignore next */
+  return "#000000";
+}
+
+function rgbToHex(rgb: readonly [number, number, number]): string {
+  return `#${toHex(rgb[0])}${toHex(rgb[1])}${toHex(rgb[2])}`;
+}
 
 // HASS and config.location update independently (hass setter vs. setConfig), so each source
 // is kept as one grouped field rather than losing either one to an eager merge — `data` and
@@ -148,7 +180,7 @@ export class ViewingLocation {
     return {
       rotation: parallacticDeg,
       belowHorizon: altitudeDeg <= 0,
-      background: MOON_SKY_BACKGROUND[getSkyMode(sunElevDeg)],
+      background: skyBackgroundForElevation(sunElevDeg),
     };
   }
 }

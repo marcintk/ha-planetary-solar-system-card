@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ViewingLocation } from "../../src/card/viewing-location.js";
+import { skyBackgroundForElevation, ViewingLocation } from "../../src/card/viewing-location.js";
 
 const LONDON = {
   config: { latitude: 51.5, longitude: -0.1, time_zone: "Europe/London", location_name: "London" },
@@ -113,6 +113,22 @@ describe("ViewingLocation", () => {
       location.update(LONDON);
       expect(location.skyFrame(new Date("2026-06-21T12:00:00Z")).background).toBe("#d0d0d0");
       expect(location.skyFrame(new Date("2026-12-21T00:00:00Z")).background).toBe("#000000");
+    });
+
+    it("interpolates continuously across a twilight band rather than snapping", () => {
+      // -3deg sits midway inside Civil Twilight (-0.8333 to -6): must land strictly between the
+      // Day and Civil Twilight anchors, not equal either one as a hard-cutoff lookup would.
+      const mid = skyBackgroundForElevation(-3);
+      expect(mid).not.toBe("#d0d0d0");
+      expect(mid).not.toBe("#8a6142");
+    });
+
+    it("reaches each anchor color exactly at its own boundary elevation", () => {
+      expect(skyBackgroundForElevation(10)).toBe("#d0d0d0");
+      expect(skyBackgroundForElevation(-6)).toBe("#8a6142");
+      expect(skyBackgroundForElevation(-12)).toBe("#3a4a6b");
+      expect(skyBackgroundForElevation(-18)).toBe("#2a1f42");
+      expect(skyBackgroundForElevation(-30)).toBe("#000000");
     });
 
     it("reports the Moon below the horizon without treating it as a failure", () => {

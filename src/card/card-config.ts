@@ -1,9 +1,9 @@
 import type { CardConfig, Colors, ZoomLevel } from "../types.js";
-import type { GallerySource, ImageSource } from "./card-template.js";
-import { IMAGE_SOURCES } from "./card-template.js";
-import { DEFAULT_ZOOM_LEVEL, MAX_ZOOM, MIN_ZOOM } from "./card-view-state.js";
 import type { GalleryMode, GalleryPosition, GalleryShape } from "./gallery/gallery-controller.js";
 import { DEFAULT_GALLERY_INTERVAL_MS } from "./gallery/gallery-controller.js";
+import type { ImageSource } from "./gallery/sources.js";
+import { IMAGE_SOURCES, SOURCES } from "./gallery/sources.js";
+import { DEFAULT_ZOOM_LEVEL, MAX_ZOOM, MIN_ZOOM } from "./zoom-levels.js";
 
 export interface ParsedCardConfig {
   zoomLevel: ZoomLevel;
@@ -20,7 +20,7 @@ export interface ParsedCardConfig {
   galleryMode: GalleryMode;
   galleryPosition: GalleryPosition;
   galleryShape: GalleryShape;
-  gallerySources: GallerySource[];
+  gallerySources: ImageSource[];
   galleryIntervalMs: number;
 }
 
@@ -74,21 +74,14 @@ function resolveOverrideTimezone(timezone: string | undefined, lon: number): str
 // range-check rule lives. card.ts's setConfig hands the result straight to _zoom.configure()/
 // _gallery.configure() and its own remaining fields, instead of parsing inline.
 
-// Each source's own on/off default — mymoon is the one tile that costs nothing extra to
-// answer (no observer-independent equivalent already on screen the way moon/earth/sun's NASA
-// photographs are optional extras), so it alone ships enabled.
-const SOURCE_DEFAULTS: Record<ImageSource, boolean> = {
-  mymoon: true,
-  moon: false,
-  earth: false,
-  sun: false,
-};
-
 // Which sources are enabled, in the fixed mymoon/moon/earth/sun order — that order is no
 // longer configurable now that each source is its own boolean rather than a position in a
-// list, so IMAGE_SOURCES' own order is the only order there is.
-function resolveGallerySources(gallery: CardConfig["gallery"]): GallerySource[] {
-  return IMAGE_SOURCES.filter((source) => (gallery?.[source] ?? SOURCE_DEFAULTS[source]) === true);
+// list, so IMAGE_SOURCES' own order is the only order there is. Each source's own on/off
+// default is its `onByDefault` in the catalog (see sources.ts).
+function resolveGallerySources(gallery: CardConfig["gallery"]): ImageSource[] {
+  return IMAGE_SOURCES.filter(
+    (source) => (gallery?.[source] ?? SOURCES[source].onByDefault) === true
+  );
 }
 
 // "slide" is the only legacy spelling that still means what it always did. Every other legacy

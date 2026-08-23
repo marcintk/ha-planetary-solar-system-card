@@ -7,16 +7,9 @@ import {
 } from "../astronomy/solar-position.js";
 import type { LocationData } from "../types.js";
 import type { GalleryShape, GalleryViewModel } from "./gallery/gallery-controller.js";
-import { formatRelativeWhen } from "./relative-time.js";
-
-export function formatDate(date: Date): string {
-  const y = String(date.getFullYear()).slice(-2);
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  const hh = String(date.getHours()).padStart(2, "0");
-  const mm = String(date.getMinutes()).padStart(2, "0");
-  return `${y}-${m}-${d} ${hh}:${mm}`;
-}
+import type { ImageSource } from "./gallery/sources.js";
+import { SOURCES } from "./gallery/sources.js";
+import { formatDate, formatRelativeWhen } from "./relative-time.js";
 
 export function buildStatusBar(
   locationData: LocationData | null,
@@ -50,81 +43,6 @@ export function buildStatusBar(
   </div>`;
 }
 
-// Every source in the gallery: a fetched NASA image with a URL, a capture date, a
-// cache/backoff cycle, and a full-screen view.
-//
-// "moon" and "mymoon" are the same NASA render at the same instant: the object tile shows it
-// geocentric, celestial-north-up; the sky tile rotates it into the observer's own orientation.
-export type ImageSource = "mymoon" | "moon" | "earth" | "sun";
-
-// Everything that can occupy a slot in the strip. Same set as ImageSource now that the
-// locally drawn disc is gone — kept as its own alias since the strip is the concept these
-// call sites care about, not the fetch mechanics.
-export type GallerySource = ImageSource;
-
-export const IMAGE_SOURCE_LABELS: Record<ImageSource, string> = {
-  mymoon: "NASA SVS Moon",
-  moon: "NASA SVS Moon",
-  earth: "DSCOVR Earth",
-  sun: "SDO HMI Continuum",
-};
-
-// Labels for the gallery thumbnail strip — the top line of every tile's caption.
-export const GALLERY_SOURCE_LABELS: Record<GallerySource, string> = {
-  mymoon: "MYMOON",
-  moon: "MOON",
-  earth: "EARTH",
-  sun: "SUN",
-};
-
-/**
- * The fraction of its own frame each source's disc spans **at its largest**.
- *
- * Every source ships a disc centred on black, but each leaves a different margin, and the
- * margin is not constant: apparent size changes as the geometry does. Measured from the
- * imagery — Moon 96.3% at perigee (from SVS's own `diameter` arcsec, anchored on a measured
- * full-moon frame), Sun 94.3% at perihelion, Earth 74.4-82.2% across DSCOVR's Lissajous orbit
- * around L1, which is much the widest swing of the three.
- *
- * Earth is pinned to exactly its largest sampled measurement rather than padded above it: this
- * value is also what every source gets rescaled against to reach a shared on-screen size (see
- * `TARGET_FRACTION`), so slack here no longer just leaves a thin black ring — it stays visible
- * as Earth reading smaller than Sun and Moon on every day but its widest. Four sampled dates
- * are not the whole orbit, so a day beyond all of them could still slice the limb — accepted
- * deliberately, since DSCOVR's orbit repeats roughly every six months and is unlikely to clear
- * the sampled ceiling by much.
- */
-const DISC_FRACTION: Record<ImageSource, number> = {
-  mymoon: 0.95,
-  moon: 0.95,
-  earth: 0.82,
-  sun: 0.945,
-};
-
-/**
- * Every body renders at this same fraction of its tile, whichever source it is — and whichever
- * shape: square and circle share this table, so the object is the same on-screen size in both,
- * only the crop around it (inset square vs round) changes. Without a shared target each
- * source's own frame margin bleeds through at a different size — Earth's loose DSCOVR crop
- * noticeably smaller than the Moon's tight SVS one — which reads as inconsistency rather than
- * as the bodies' real relative sizes. A fixed target and a uniform margin instead put every
- * tile on equal footing, and staying under 1.0 everywhere leaves a safety margin against
- * DISC_FRACTION being a sampled ceiling rather than a proven one (see its own comment).
- *
- * Sun gets its own, smaller target rather than sharing the rest's 0.90: Moon and Earth are
- * pinned to their largest measurement (see DISC_FRACTION), so most days show them well under
- * that — genuinely smaller, not just cropped differently, since their distance really varies.
- * The Sun's distance barely does (~3% over a year, against the Moon's ~14%), so it renders at
- * its full target on nearly every frame, and matching Moon/Earth's on-screen size means giving
- * it a lower one of its own instead of counting on real-world variance to shrink it for free.
- */
-const TARGET_FRACTION: Record<ImageSource, number> = {
-  mymoon: 0.89,
-  moon: 0.89,
-  earth: 0.87,
-  sun: 0.8,
-};
-
 /**
  * Crops a thumbnail down to the body itself, then rescales it so every source ends up the same
  * size with the same margin — rather than each source's own, unequal frame margin.
@@ -137,16 +55,16 @@ const TARGET_FRACTION: Record<ImageSource, number> = {
  * exists to prevent.
  */
 export function discStyle(source: ImageSource, shape: GalleryShape, rotationDeg = 0): string {
-  const fraction = DISC_FRACTION[source];
-  const scale = `scale(${(TARGET_FRACTION[source] / fraction).toFixed(3)})`;
+  const { disc: fraction, target, skyFrame } = SOURCES[source];
+  const scale = `scale(${(target / fraction).toFixed(3)})`;
   const transform = rotationDeg ? `rotate(${rotationDeg.toFixed(1)}deg) ${scale}` : scale;
-  // mymoon ignores gallery.shape and always circle-crops to the exact disc: it's the one
-  // source whose crop rotates with it, and a rotated inset() square still shows the source
+  // A sky-frame tile ignores gallery.shape and always circle-crops to the exact disc: it's the
+  // one kind whose crop rotates with it, and a rotated inset() square still shows the source
   // JPEG's own black square canvas inside that rotated shape at every angle but 0/90/180/270 —
   // there's no square clip that avoids it. A circle is rotation-invariant, so it's the only
   // shape that gives an exact Moon crop with nothing but the tile's own backdrop around it,
   // whatever angle the observer's sky happens to be at.
-  const effectiveShape = source === "mymoon" ? "circle" : shape;
+  const effectiveShape = skyFrame ? "circle" : shape;
   const clip =
     effectiveShape === "circle"
       ? `circle(${(fraction * 50).toFixed(1)}%)`
@@ -170,34 +88,6 @@ export function buildGalleryCaption(label: string, detail: string): TemplateResu
   </div>`;
 }
 
-// The fixed render order — no longer configurable now that each source is its own
-// `gallery.<source>` boolean rather than a position in a list.
-export const IMAGE_SOURCES: ImageSource[] = ["mymoon", "moon", "earth", "sun"];
-
-// Full-screen status bar leads with the target body, the probe name follows (e.g.
-// "EARTH · DSCOVR · captured ..."). Kept separate from IMAGE_SOURCE_LABELS, which stays
-// fuller for the error banner ("SDO HMI Continuum image unavailable").
-const IMAGE_STATUS_TARGET: Record<ImageSource, string> = {
-  mymoon: "MOON",
-  moon: "MOON",
-  earth: "EARTH",
-  sun: "SUN",
-};
-// Earth and Sun tiles show photographs; the Moon tiles show renders. "captured … 3h ago" is
-// wrong for a render.
-const IMAGE_STATUS_VERB: Record<ImageSource, string> = {
-  mymoon: "rendered",
-  moon: "rendered",
-  earth: "captured",
-  sun: "captured",
-};
-const IMAGE_STATUS_INSTRUMENT: Record<ImageSource, string> = {
-  mymoon: "NASA SVS",
-  moon: "NASA SVS",
-  earth: "NASA DSCOVR",
-  sun: "NASA SDO HMI",
-};
-
 export function buildImageStatusBar(
   mode: ImageSource,
   dateText: string,
@@ -205,11 +95,12 @@ export function buildImageStatusBar(
   now: Date,
   loaded: boolean
 ): TemplateResult {
+  const spec = SOURCES[mode];
   const status = loaded
-    ? `${IMAGE_STATUS_VERB[mode]} ${dateText} · ${formatRelativeWhen(imageDate, now)}`
+    ? `${spec.verb} ${dateText} · ${formatRelativeWhen(imageDate, now)}`
     : "loading…";
   return html`<div class="status-bar">
-    <span>${IMAGE_STATUS_TARGET[mode]} · ${IMAGE_STATUS_INSTRUMENT[mode]} · ${status}</span>
+    <span>${spec.body} · ${spec.instrument} · ${status}</span>
   </div>`;
 }
 

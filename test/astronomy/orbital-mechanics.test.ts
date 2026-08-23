@@ -7,7 +7,7 @@ import {
   calculatePlanetPosition,
   solveKeplerEquation,
 } from "../../src/astronomy/orbital-mechanics.js";
-import { MOON, PLANETS } from "../../src/astronomy/planet-data.js";
+import { PLANETS } from "../../src/astronomy/planet-data.js";
 
 describe("calculatePlanetPosition", () => {
   const earth = PLANETS.find((p) => p.name === "Earth");
@@ -110,12 +110,14 @@ describe("calculateMoonPosition", () => {
     expect(angle).toBeLessThan(2 * Math.PI);
   });
 
-  it("returns similar position after one lunar month", () => {
+  it("returns similar position after one sidereal month", () => {
+    // Only similar, not equal: the real Moon does not come back to the same longitude after
+    // exactly 27.321661 d. Evection and the equation of centre leave it a few degrees out,
+    // which is precisely what the uniform-circular model this replaced could not express.
     const d1 = new Date("2024-01-01");
-    const d2 = new Date(d1.getTime() + MOON.periodDays * 86400000);
-    const a1 = calculateMoonPosition(d1);
-    const a2 = calculateMoonPosition(d2);
-    expect(a1).toBeCloseTo(a2, 1);
+    const d2 = new Date(d1.getTime() + 27.321661 * 86400000);
+    const gap = Math.abs(calculateMoonPosition(d1) - calculateMoonPosition(d2));
+    expect(Math.min(gap, 2 * Math.PI - gap)).toBeLessThan(0.1);
   });
 
   it("returns different positions for dates 2 weeks apart", () => {

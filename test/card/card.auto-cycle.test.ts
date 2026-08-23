@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { formatDate } from "../../src/card/card-template.js";
+import { formatDate } from "../../src/card/relative-time.js";
 import { createAndMount, setupCardTest } from "./helpers.js";
 
 setupCardTest();

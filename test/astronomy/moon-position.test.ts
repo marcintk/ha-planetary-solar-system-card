@@ -31,6 +31,23 @@ describe("getMoonEquatorial", () => {
     expect(moon.decDeg).toBeCloseTo(-27.5167, 3);
   });
 
+  // Meeus, *Astronomical Algorithms*, worked example 47.a: 1992 April 12.0 TD gives
+  // λ = 133.162655°. An independent published value, so it catches a coefficient typo the
+  // NASA RA/Dec checks above could absorb. The gap is the truncated series plus ~59 s of
+  // TD-UT for 1992, which the Moon covers in about 0.009°.
+  it("matches Meeus's own worked example for ecliptic longitude", () => {
+    const { eclipticLonDeg } = getMoonEquatorial(new Date("1992-04-12T00:00:00Z"));
+    expect(eclipticLonDeg).toBeCloseTo(133.1627, 1);
+  });
+
+  it("keeps ecliptic longitude in [0, 360)", () => {
+    for (let h = 0; h < 720; h++) {
+      const { eclipticLonDeg } = getMoonEquatorial(new Date(Date.UTC(2026, 0, 1) + h * 3600000));
+      expect(eclipticLonDeg).toBeGreaterThanOrEqual(0);
+      expect(eclipticLonDeg).toBeLessThan(360);
+    }
+  });
+
   it("keeps right ascension in [0, 360)", () => {
     for (let h = 0; h < 720; h++) {
       const { raDeg } = getMoonEquatorial(new Date(Date.UTC(2026, 0, 1) + h * 3600000));

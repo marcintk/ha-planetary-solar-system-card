@@ -202,12 +202,13 @@ describe("SolarViewCard", () => {
           location_name: "London",
         },
       };
-      expect(card._hassLocation).toEqual({
+      expect(card._location.data).toEqual({
         lat: 51.5,
         lon: -0.1,
         timezone: "Europe/London",
-        name: "London",
+        zoneOverride: false,
       });
+      expect(card._location.name).toBe("London");
       const bar = card.shadowRoot.querySelector(".status-bar");
       expect(bar).not.toBeNull();
       card.remove();
@@ -241,9 +242,10 @@ describe("SolarViewCard", () => {
           location_name: "London",
         },
       };
-      expect(card._hassLocation.lat).toBe(51.5);
+      expect(card._location.data?.lat).toBe(51.5);
       card.hass = { config: {} };
-      expect(card._hassLocation).toEqual({ lat: null, lon: null, timezone: null, name: null });
+      expect(card._location.data).toBeNull();
+      expect(card._location.name).toBeNull();
       card.remove();
     });
   });
@@ -261,10 +263,10 @@ describe("SolarViewCard", () => {
       };
       card.setConfig({ location: { latitude: -34.9, longitude: -56.2, name: "Montevideo" } });
       card._render();
-      expect(card._locationData?.lat).toBe(-34.9);
-      expect(card._locationData?.lon).toBe(-56.2);
-      expect(card._hemisphere).toBe("south");
-      expect(card._effectiveLocationName).toBe("Montevideo");
+      expect(card._location.data?.lat).toBe(-34.9);
+      expect(card._location.data?.lon).toBe(-56.2);
+      expect(card._location.hemisphere).toBe("south");
+      expect(card._location.name).toBe("Montevideo");
       card.remove();
     });
 
@@ -273,9 +275,9 @@ describe("SolarViewCard", () => {
       card.hass = { config: { latitude: 51.5, longitude: -0.1 } };
       card.setConfig({ location: { latitude: -34.9 } });
       card._render();
-      expect(card._locationData?.lat).toBe(51.5);
-      expect(card._locationData?.lon).toBe(-0.1);
-      expect(card._hemisphere).toBe("north");
+      expect(card._location.data?.lat).toBe(51.5);
+      expect(card._location.data?.lon).toBe(-0.1);
+      expect(card._location.hemisphere).toBe("north");
       card.remove();
     });
 
@@ -284,8 +286,8 @@ describe("SolarViewCard", () => {
       card.hass = { config: { latitude: 51.5, longitude: -0.1 } };
       card.setConfig({ location: { latitude: 200, longitude: -56.2 } });
       card._render();
-      expect(card._locationData?.lat).toBe(51.5);
-      expect(card._locationData?.lon).toBe(-0.1);
+      expect(card._location.data?.lat).toBe(51.5);
+      expect(card._location.data?.lon).toBe(-0.1);
       card.remove();
     });
 
@@ -294,8 +296,8 @@ describe("SolarViewCard", () => {
       card.hass = { config: { latitude: 51.5, longitude: -0.1 } };
       card.setConfig({ location: { latitude: -34.9, longitude: -200 } });
       card._render();
-      expect(card._locationData?.lat).toBe(51.5);
-      expect(card._locationData?.lon).toBe(-0.1);
+      expect(card._location.data?.lat).toBe(51.5);
+      expect(card._location.data?.lon).toBe(-0.1);
       card.remove();
     });
 
@@ -304,8 +306,8 @@ describe("SolarViewCard", () => {
       card.hass = { config: { latitude: 41.9, longitude: -87.6, time_zone: "America/Chicago" } };
       card.setConfig({ location: { latitude: 51.5, longitude: -0.1278, name: "London" } });
       card._render();
-      expect(card._locationData?.timezone).toBe("Etc/GMT+0");
-      expect(card._locationData?.zoneOverride).toBe(true);
+      expect(card._location.data?.timezone).toBe("Etc/GMT+0");
+      expect(card._location.data?.zoneOverride).toBe(true);
       card.remove();
     });
 
@@ -314,8 +316,8 @@ describe("SolarViewCard", () => {
       card.hass = { config: { latitude: 41.9, longitude: -87.6, time_zone: "America/Chicago" } };
       card.setConfig({});
       card._render();
-      expect(card._locationData?.timezone).toBe("America/Chicago");
-      expect(card._locationData?.zoneOverride).toBe(false);
+      expect(card._location.data?.timezone).toBe("America/Chicago");
+      expect(card._location.data?.zoneOverride).toBe(false);
       card.remove();
     });
 
@@ -323,9 +325,9 @@ describe("SolarViewCard", () => {
       const card = createAndMount();
       card.hass = { config: { latitude: 51.5, longitude: -0.1, location_name: "London" } };
       card.setConfig({});
-      expect(card._locationData?.lat).toBe(51.5);
-      expect(card._locationData?.lon).toBe(-0.1);
-      expect(card._effectiveLocationName).toBe("London");
+      expect(card._location.data?.lat).toBe(51.5);
+      expect(card._location.data?.lon).toBe(-0.1);
+      expect(card._location.name).toBe("London");
       card.remove();
     });
   });
@@ -363,9 +365,8 @@ describe("SolarViewCard", () => {
   describe("southern hemisphere", () => {
     it("sets hemisphere to south when lat is negative", () => {
       const card = createAndMount();
-      card._hassLocation = { lat: -33.9, lon: 151.2, timezone: null, name: null }; // Sydney
-      card._render();
-      expect(card._hemisphere).toBe("south");
+      card.hass = { config: { latitude: -33.9, longitude: 151.2 } }; // Sydney
+      expect(card._location.hemisphere).toBe("south");
       card.remove();
     });
   });

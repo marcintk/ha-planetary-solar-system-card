@@ -1,5 +1,5 @@
-import type { ImageSource } from "../card-template.js";
-import type { DebugAccumulator } from "./debug.js";
+import type { DebugAccumulator } from "./debug-stats.js";
+import type { ImageSource } from "./sources.js";
 import type { SourcedImage, UrlCache } from "./url-cache.js";
 import { urlCache } from "./url-cache.js";
 

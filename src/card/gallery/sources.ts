@@ -89,6 +89,13 @@ export interface SourceSpec {
    * screen the way moon/earth/sun's NASA photographs are optional extras), so it alone ships on.
    */
   onByDefault: boolean;
+  /**
+   * Hover text on the tile's button. One shape for all four — `<body> from <vantage> · <who>` —
+   * because the set is read as a row, and a shared shape is what makes the vantage the thing
+   * that stands out rather than the phrasing. "render" against "spacecraft" is doing work too:
+   * the Moon tiles are computed from LRO topography, the other two are photographs.
+   */
+  tooltip: string;
   /** Which debug row(s) this source's resolve() call reports into — see DebugRowId. */
   debugRow: { url: DebugRowId; img: DebugRowId };
   /**
@@ -103,7 +110,8 @@ export interface SourceSpec {
 export const SOURCES: Record<ImageSource, SourceSpec> = {
   mymoon: {
     label: "NASA SVS Moon",
-    tile: "MY-MOON",
+    tile: "MY MOON",
+    tooltip: "Moon from your sky · NASA SVS render",
     body: "MOON",
     verb: "rendered",
     instrument: "NASA SVS",
@@ -116,6 +124,7 @@ export const SOURCES: Record<ImageSource, SourceSpec> = {
   moon: {
     label: "NASA SVS Moon",
     tile: "MOON",
+    tooltip: "Moon from Earth's centre · NASA SVS render",
     body: "MOON",
     verb: "rendered",
     instrument: "NASA SVS",
@@ -128,6 +137,7 @@ export const SOURCES: Record<ImageSource, SourceSpec> = {
   earth: {
     label: "DSCOVR Earth",
     tile: "EARTH",
+    tooltip: "Earth from Sun–Earth L1 · DSCOVR spacecraft",
     body: "EARTH",
     verb: "captured",
     instrument: "NASA DSCOVR",
@@ -140,6 +150,7 @@ export const SOURCES: Record<ImageSource, SourceSpec> = {
   sun: {
     label: "SDO HMI Continuum",
     tile: "SUN",
+    tooltip: "Sun from Earth geosync orbit · SDO spacecraft",
     body: "SUN",
     verb: "captured",
     instrument: "NASA SDO HMI",

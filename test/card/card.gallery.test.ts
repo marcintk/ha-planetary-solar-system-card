@@ -142,7 +142,8 @@ describe("SolarViewCard gallery", () => {
         const card = mountAt(DOWN);
         await vi.advanceTimersByTimeAsync(0);
         const tile = card.shadowRoot.querySelector('[data-source="mymoon"]');
-        expect(tile.querySelector(".gallery-label").textContent).toBe("MY-MOON");
+        expect(tile.querySelector(".gallery-label").textContent).toBe("MY MOON");
+        expect(tile.getAttribute("title")).toBe("Moon from your sky · NASA SVS render");
         expect(tile.querySelector(".gallery-age").textContent).toBe("15m ago");
         card.remove();
         vi.useRealTimers();
@@ -439,7 +440,7 @@ describe("SolarViewCard gallery", () => {
       const labelOf = (source) =>
         card.shadowRoot.querySelector(`[data-source="${source}"] .gallery-label`).textContent;
       expect(labelOf("moon")).toBe("MOON");
-      expect(labelOf("mymoon")).toBe("MY-MOON");
+      expect(labelOf("mymoon")).toBe("MY MOON");
       card.remove();
     });
 
@@ -474,7 +475,7 @@ describe("SolarViewCard gallery", () => {
       const thumbs = [...card.shadowRoot.querySelectorAll(".gallery-thumb")];
       expect(thumbs.map((t) => t.dataset.source)).toEqual(["mymoon", "moon", "earth", "sun"]);
       const labels = thumbs.map((t) => t.querySelector(".gallery-label").textContent);
-      expect(labels).toEqual(["MY-MOON", "MOON", "EARTH", "SUN"]);
+      expect(labels).toEqual(["MY MOON", "MOON", "EARTH", "SUN"]);
 
       // Each candidate is preloaded off-DOM before it's ever assigned to the thumbnail, so
       // by the time the fetch/preload chain settles the age is already known — no separate

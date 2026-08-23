@@ -52,6 +52,7 @@ colors:
 type: custom:ha-planetary-solar-system-card
 gallery:
   mode: slide
+  mymoon: false
   moon: true
   earth: true
   sun: true

@@ -1,0 +1,43 @@
+{
+  "_what_this_is": "Documents the working recipe behind scripts/demo/record-demo.mjs, which regenerates docs/demo.gif. Run `npm run demo:record` (after `npm run build:prod`) to reshoot it.",
+
+  "hard_constraints": [
+    "Never write to docs/index.html, docs/card.js (other than via `npm run build:prod`), or any src/ file. The recorder only navigates and clicks real buttons on its own standalone rig, scripts/demo/record-harness.html — it never touches the committed interactive demo page.",
+    "scripts/demo/record-harness.html is committed so the recipe is reproducible without reconstructing it from scratch."
+  ],
+
+  "the_landscape_aspect_trick": "The card's natural rendered shape (with the gallery strip enabled) is close to square — the orbit view alone is roughly as tall as wide, plus a nav bar. Recording at width:1000px with `setConfig({ height: 560 })` caps #solar-view's max-height at 560 — the square view shrinks to fit that height, leaving open background on both sides at the 1000px width. The gallery strip is `position: overlay` (the default), which floats over the view instead of adding to the card's height, so the box stays landscape whether the strip is open or closed. Recorded clip: 1000x598 (ratio 1.67), scaled down to 640x382 in the final encode.",
+
+  "harness_config": {
+    "file": "scripts/demo/record-harness.html",
+    "card_setConfig": {
+      "default_zoom": 3,
+      "height": 560,
+      "theme": "dark",
+      "gallery": { "mymoon": true, "moon": true, "earth": true, "sun": true }
+    },
+    "note": "setConfig is called before the card element is appended to the DOM (createElement, setConfig, then appendChild) — calling it after connecting risks default_zoom being ignored on first render."
+  },
+
+  "recorder": {
+    "tool": "Playwright (headless Chromium), scripts/demo/record-demo.mjs",
+    "capture_method": "Real screenshots (page.screenshot with a fixed clip) sampled at fixed points in a click/sleep/hold loop — NOT a synthetic cursor, NOT locator.click() teleporting. Motion in the gif comes from the card's own CSS/JS transitions (zoom-animator, twilight sweep) being sampled continuously, the same way the original recipe worked.",
+    "clip": "measured once from #wrap's bounding box after the rig reports window.__ready, then reused for every frame",
+    "encode": "ffmpeg two-pass palette (palettegen max_colors=48, paletteuse dither=bayer) scaled to 640px wide. 48 not 96/64: this scenario's clip lands under 1MB at 48 with no visible banding (swept 32/48/64/96 x width 560/640 x bayer/sierra2_4a against real captured frames).",
+    "output_path": "docs/demo.gif"
+  },
+
+  "scenario_beats": [
+    "wait off-camera for at least 2 gallery thumbnails to finish loading (no 'loading…' frames in the gif) — the strip is already open on load since gallery mode defaults to 'show'",
+    "hold ~1.5s on camera with the strip open, all 4 tiles visible (mymoon/moon/earth/sun) — the opening beat",
+    "close the strip, brief settle",
+    "hour-forward x14 (2 frames dwell each) — the twilight cone sweeps through a full day",
+    "day-forward x12 (3 frames dwell each) — the Moon swings through its orbit, planets creep",
+    "click 'today', settle",
+    "zoom-out x2 (5 frames dwell each) — pulls back to the outer planets",
+    "zoom-in x2 (5 frames dwell each) — back to default",
+    "hold ~1s resting frame before the loop point — ends on the orbit view, no gallery"
+  ],
+
+  "known_risk": "mymoon is sky-relative (skyFrame) and would render a 'No Moon Sky' placeholder instead of a photo whenever the Moon is below Chicago's horizon at the real recording time — not used as the demonstrated full-screen source for that reason. The opening beat only shows it as a small thumbnail (caption still reads, placeholder art is fine at that size), never full-screen."
+}

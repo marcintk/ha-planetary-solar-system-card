@@ -175,10 +175,10 @@ a pipeline stall doesn't break the feed.
 | `gallery.position`            | string  | `"overlay"` | `"overlay"` floats the strip over the solar view, `"below"` puts it underneath and grows the card by its height      |
 | `gallery.shape`               | string  | `"square"`  | `"square"` shows the frame as its source publishes it, `"circle"` crops each tile to the body itself                 |
 | `gallery.slide_interval_secs` | number  | `60`        | How often `slide` mode advances to the next enabled source                                                           |
-| `gallery.mymoon`              | boolean | `true`      | Show the MY MOON tile                                                                                                |
-| `gallery.moon`                | boolean | `false`     | Show the MOON tile                                                                                                   |
-| `gallery.earth`               | boolean | `false`     | Show the EARTH tile                                                                                                  |
-| `gallery.sun`                 | boolean | `false`     | Show the SUN tile                                                                                                    |
+| `gallery.mymoon`              | boolean | `true`      | Show the MY MOON tile — Moon from your sky, NASA SVS render                                                          |
+| `gallery.moon`                | boolean | `false`     | Show the MOON tile — Moon from Earth's centre, NASA SVS render                                                       |
+| `gallery.earth`               | boolean | `false`     | Show the EARTH tile — Earth from Sun–Earth L1, DSCOVR spacecraft                                                     |
+| `gallery.sun`                 | boolean | `false`     | Show the SUN tile — Sun from Earth geosync orbit, SDO spacecraft                                                     |
 
 ### Location
 

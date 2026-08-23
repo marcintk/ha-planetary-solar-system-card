@@ -45,7 +45,14 @@ export interface SourceSpec {
   body: string;
   /** Earth and Sun tiles show photographs; the Moon tiles show renders. */
   verb: "captured" | "rendered";
-  /** The instrument credited in the full-screen status bar. */
+  /**
+   * The instrument credited in the full-screen status bar: agency, mission, instrument.
+   *
+   * DSCOVR is NOAA's, not NASA's — NASA built and launched it, then handed operations to
+   * NOAA's Space Weather Prediction Center in October 2015. The pictures still come from EPIC,
+   * a NASA instrument aboard it, which is why the mission and the instrument need naming
+   * separately rather than crediting one agency for both.
+   */
   instrument: string;
   /**
    * The fraction of its own frame this source's disc spans **at its largest**.
@@ -140,7 +147,7 @@ export const SOURCES: Record<ImageSource, SourceSpec> = {
     tooltip: "Earth from Sun–Earth L1 · DSCOVR spacecraft",
     body: "EARTH",
     verb: "captured",
-    instrument: "NASA DSCOVR",
+    instrument: "NOAA DSCOVR EPIC",
     disc: 0.82,
     target: 0.87,
     onByDefault: false,

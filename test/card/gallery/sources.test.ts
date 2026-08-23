@@ -33,7 +33,9 @@ describe("SOURCES catalog", () => {
     expect(SOURCES.earth.verb).toBe("captured");
     expect(SOURCES.sun.verb).toBe("captured");
     expect(SOURCES.mymoon.instrument).toBe("NASA SVS");
-    expect(SOURCES.earth.instrument).toBe("NASA DSCOVR");
+    // NOAA, not NASA: NASA built and launched DSCOVR, then handed operations to NOAA in 2015.
+    // EPIC is the NASA instrument aboard it, so both get named.
+    expect(SOURCES.earth.instrument).toBe("NOAA DSCOVR EPIC");
     expect(SOURCES.sun.instrument).toBe("NASA SDO HMI");
   });
 

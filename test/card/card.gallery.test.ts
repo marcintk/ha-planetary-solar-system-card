@@ -602,7 +602,7 @@ describe("SolarViewCard gallery", () => {
         `${EPIC_BASE_URL}/archive/natural/2026/08/10/jpg/epic_1b_20260810234950.jpg`
       );
       expect(card.shadowRoot.querySelector(".status-bar").textContent).toContain(
-        "EARTH · NASA DSCOVR"
+        "EARTH · NOAA DSCOVR EPIC"
       );
       card.remove();
     });

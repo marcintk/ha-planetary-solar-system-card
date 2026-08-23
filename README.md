@@ -52,6 +52,7 @@ colors:
 type: custom:ha-planetary-solar-system-card
 gallery:
   mode: slide
+  mymoon: false
   moon: true
   earth: true
   sun: true
@@ -70,25 +71,12 @@ location:
 ## Horizon Twilight Zones
 
 The visibility cone at Earth's orbit shades by how far the Sun is below your local horizon, using
-the standard astronomical twilight definitions.
-
-Both bodies are checked against the [US Naval Observatory][usno] almanac for Denton (US), Montevideo
-(UY) and Kraków (PL), across both solstices and an equinox. Altitude lands within **0.02°** for the
-Moon and **0.01°** for the Sun, over 62 sampled positions from -7° to +80°; rise and set times land
-within **1 minute** for both. The Moon marker and the drawn horizon line agree except within 5° of
-the horizon, where the Moon's 5.1° of ecliptic latitude has nowhere to go in a top-down view of the
-ecliptic plane.
-
-Day ends at the almanac's sunset — the Sun's centre at **-0.8333°**, where 34' of refraction plus
-the Sun's own 16' radius put the upper limb on the horizon. The -6°/-12°/-18° boundaries below are
-measured to the Sun's centre with no correction, so a civil-twilight interval has a refracted start
-and a geometric end. That asymmetry is the published convention, and it is what makes these
-transition times line up with any almanac you check them against.
+the standard astronomical twilight definitions:
 
 | Zone                  | Sun elevation | Meaning                                                          |
 | --------------------- | ------------- | ---------------------------------------------------------------- |
-| Day                   | ≥ 0°          | Sun is up                                                        |
-| Civil twilight        | 0° to -6°     | Bright enough for outdoor activity without lights                |
+| Day                   | ≥ -0.83°      | Sun is up — its upper limb still on the horizon                  |
+| Civil twilight        | -0.83° to -6° | Bright enough for outdoor activity without lights                |
 | Nautical twilight     | -6° to -12°   | Horizon still visible at sea; too dark for most outdoor activity |
 | Astronomical twilight | -12° to -18°  | Sky background glow, faint stars washed out                      |
 | Night                 | < -18°        | Full dark; the Sun no longer lights the sky                      |
@@ -100,7 +88,7 @@ the date you were already viewing:
 
 | Last navigation     | Replay covers        | Each frame advances | Press                      |
 | ------------------- | -------------------- | ------------------- | -------------------------- |
-| hour steps, or none | last 12 hours        | 20 minutes          | **<** or **>**, then **↺** |
+| hour steps, or none | last 12 hours        | 20 minutes          | **↺** alone — the default  |
 | day steps           | last 36 days         | 1 day               | **≪** or **≫**, then **↺** |
 | month steps         | last 180 days (~6mo) | 5 days              | **⋘** or **⋙**, then **↺** |
 
@@ -112,12 +100,12 @@ full-screen. Which tiles appear is `gallery.mymoon` / `gallery.moon` / `gallery.
 
 | Thumbnail | Source            | Shows                                                   | We fetch | Age of what you see |
 | --------- | ----------------- | ------------------------------------------------------- | -------- | ------------------- |
-| MY-MOON   | [NASA SVS][svs]   | The Moon in my sky — hidden when it's below the horizon | Hourly   | Under an hour       |
+| MY MOON   | [NASA SVS][svs]   | The Moon in my sky — hidden when it's below the horizon | Hourly   | Under an hour       |
 | MOON      | [NASA SVS][svs]   | The Moon from Earth's centre — no Earth in frame        | Hourly   | Under an hour       |
 | DSCOVR/E  | [NASA EPIC][epic] | Earth's sunlit side, from L1                            | Hourly   | 1-2 days            |
 | SDO/S     | [NASA SDO][sdo]   | The Sun, from geosync orbit                             | 15 min   | 25-55 min           |
 
-> **MY-MOON is beta.** Its rotation (matching what you'd see looking up, right now, from your
+> **MY MOON is beta.** Its rotation (matching what you'd see looking up, right now, from your
 > location) is still being verified against real skies over time. If it looks off, please
 > [open a GitHub issue](https://github.com/marcintk/ha-planetary-solar-system-card/issues/new) with
 > your location and the time you checked.
@@ -187,7 +175,7 @@ a pipeline stall doesn't break the feed.
 | `gallery.position`            | string  | `"overlay"` | `"overlay"` floats the strip over the solar view, `"below"` puts it underneath and grows the card by its height      |
 | `gallery.shape`               | string  | `"square"`  | `"square"` shows the frame as its source publishes it, `"circle"` crops each tile to the body itself                 |
 | `gallery.slide_interval_secs` | number  | `60`        | How often `slide` mode advances to the next enabled source                                                           |
-| `gallery.mymoon`              | boolean | `true`      | Show the MY-MOON tile                                                                                                |
+| `gallery.mymoon`              | boolean | `true`      | Show the MY MOON tile                                                                                                |
 | `gallery.moon`                | boolean | `false`     | Show the MOON tile                                                                                                   |
 | `gallery.earth`               | boolean | `false`     | Show the EARTH tile                                                                                                  |
 | `gallery.sun`                 | boolean | `false`     | Show the SUN tile                                                                                                    |
@@ -210,7 +198,6 @@ a pipeline stall doesn't break the feed.
 [my-hacs-shield]: https://my.home-assistant.io/badges/hacs_repository.svg
 [epic]: https://epic.gsfc.nasa.gov/
 [sdo]: https://sdo.gsfc.nasa.gov/
-[usno]: https://aa.usno.navy.mil/data/RS_OneDay
 [svs]: https://svs.gsfc.nasa.gov/5587/
 [repo]: https://github.com/marcintk/ha-planetary-solar-system-card
 [license]: https://github.com/marcintk/ha-planetary-solar-system-card/blob/main/LICENSE

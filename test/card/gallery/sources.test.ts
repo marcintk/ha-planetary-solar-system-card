@@ -12,8 +12,19 @@ describe("SOURCES catalog", () => {
     expect(SOURCES.earth.label).toBe("DSCOVR Earth");
     expect(SOURCES.sun.label).toBe("SDO HMI Continuum");
 
-    expect(IMAGE_SOURCES.map((s) => SOURCES[s].tile)).toEqual(["MY-MOON", "MOON", "EARTH", "SUN"]);
+    expect(IMAGE_SOURCES.map((s) => SOURCES[s].tile)).toEqual(["MY MOON", "MOON", "EARTH", "SUN"]);
     expect(IMAGE_SOURCES.map((s) => SOURCES[s].body)).toEqual(["MOON", "MOON", "EARTH", "SUN"]);
+  });
+
+  it("tells each tile apart by where it is looking from", () => {
+    // Four tiles, two of which show the same body, so the vantage is the only thing that
+    // distinguishes them — it has to be the part that varies, in the same slot every time.
+    expect(IMAGE_SOURCES.map((s) => SOURCES[s].tooltip)).toEqual([
+      "Moon from your sky · NASA SVS render",
+      "Moon from Earth's centre · NASA SVS render",
+      "Earth from Sun–Earth L1 · DSCOVR spacecraft",
+      "Sun from Earth geosync orbit · SDO spacecraft",
+    ]);
   });
 
   it("calls the moon frames renders and the photographs captures", () => {
@@ -22,7 +33,9 @@ describe("SOURCES catalog", () => {
     expect(SOURCES.earth.verb).toBe("captured");
     expect(SOURCES.sun.verb).toBe("captured");
     expect(SOURCES.mymoon.instrument).toBe("NASA SVS");
-    expect(SOURCES.earth.instrument).toBe("NASA DSCOVR");
+    // NOAA, not NASA: NASA built and launched DSCOVR, then handed operations to NOAA in 2015.
+    // EPIC is the NASA instrument aboard it, so both get named.
+    expect(SOURCES.earth.instrument).toBe("NOAA DSCOVR EPIC");
     expect(SOURCES.sun.instrument).toBe("NASA SDO HMI");
   });
 

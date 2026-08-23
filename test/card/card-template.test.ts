@@ -231,11 +231,13 @@ describe("discStyle", () => {
 describe("buildImageStatusBar", () => {
   const now = new Date("2026-08-12T12:00:00Z");
 
-  it("labels the earth source with EARTH · NASA DSCOVR, target body first, probe name after", () => {
+  it("labels the earth source with EARTH · NOAA DSCOVR EPIC, target body first, probe name after", () => {
     const root = renderToDOM(
       buildImageStatusBar("earth", "26-08-10 18:49", new Date("2026-08-10T18:49:00Z"), now, true)
     );
-    expect(root.querySelector(".status-bar span").textContent).toContain("EARTH · NASA DSCOVR");
+    expect(root.querySelector(".status-bar span").textContent).toContain(
+      "EARTH · NOAA DSCOVR EPIC"
+    );
   });
 
   it("labels the sun source with SUN · NASA SDO HMI, target body first, probe name after", () => {
@@ -250,7 +252,7 @@ describe("buildImageStatusBar", () => {
       buildImageStatusBar("earth", "26-08-11 06:00", new Date("2026-08-11T06:00:00Z"), now, true)
     );
     expect(root.querySelector(".status-bar span").textContent).toBe(
-      "EARTH · NASA DSCOVR · captured 26-08-11 06:00 · 30h ago"
+      "EARTH · NOAA DSCOVR EPIC · captured 26-08-11 06:00 · 30h ago"
     );
   });
 

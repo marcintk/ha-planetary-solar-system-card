@@ -305,7 +305,7 @@ export class SolarViewCard extends LitElement {
     return html`<button
       class="gallery-thumb ${this._galleryShape === "circle" ? "gallery-thumb-circle" : ""}"
       data-source=${source}
-      title=${`Show ${SOURCES[source].tile}`}
+      title=${SOURCES[source].tooltip}
       @click=${this._onGalleryClick}
     >
       ${

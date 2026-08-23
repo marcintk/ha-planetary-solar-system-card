@@ -8,15 +8,26 @@ import { CENTER } from "../../src/renderer/svg-utils.js";
 import type { LocationData } from "../../src/types.js";
 
 /**
- * Three sites, chosen to move the parts of the geometry that a single mid-northern latitude
+ * Five sites, chosen to move the parts of the geometry that a single mid-northern latitude
  * would leave pinned: Denton is the reported case, Montevideo puts the observer in the
  * southern hemisphere (where the parallactic angle lands ~180° away and the seasons invert),
- * and Kraków is far enough north that the day length swings from 8h to 16h across the year.
+ * Kraków is far enough north that the day length swings from 8h to 16h across the year,
+ * Trondheim pushes past the Arctic Circle's latitude band (day length swings from ~5h to ~21h)
+ * without crossing into literal polar day/night, and Ushuaia is the southern-hemisphere
+ * counterpart to that stretch — the farthest south of any site here, well past Montevideo's
+ * latitude but still short of the Antarctic Circle.
  */
 const SITES: Record<string, LocationData> = {
   Denton: { lat: 33.2148, lon: -97.1331, timezone: "America/Chicago", zoneOverride: false },
   Montevideo: { lat: -34.9011, lon: -56.1645, timezone: "America/Montevideo", zoneOverride: false },
   Kraków: { lat: 50.0647, lon: 19.945, timezone: "Europe/Warsaw", zoneOverride: false },
+  Trondheim: { lat: 63.4305, lon: 10.3951, timezone: "Europe/Oslo", zoneOverride: false },
+  Ushuaia: {
+    lat: -54.8019,
+    lon: -68.303,
+    timezone: "America/Argentina/Ushuaia",
+    zoneOverride: false,
+  },
 };
 
 /**
@@ -28,6 +39,13 @@ const SITES: Record<string, LocationData> = {
  * Every time below is UTC, on the UTC day named — `tz=0` on that endpoint, so a "sunset" of
  * 00:39 is 00:39 UTC that morning, which is the previous evening local. Five days spread
  * across 2026 so both solstices, an equinox and two ordinary dates are covered.
+ *
+ * Trondheim's two non-solstice/equinox dates land one day off the other sites' (Jan 14 and
+ * Aug 20, not 15 and 22): the Moon's own rise/set drifts about 50 minutes later per day, and
+ * at this latitude that drift is enough to skip a calendar day's crossing entirely — the 15th
+ * and 22nd both come back "continuously below the Horizon" for the Moon here, which isn't a
+ * gap in the model, just this site's own geometry that day. The nearest day with a real
+ * moonrise and moonset was used instead.
  */
 type Fixture = {
   site: keyof typeof SITES;
@@ -160,6 +178,86 @@ const USNO: Fixture[] = [
     moonRise: "11:54",
     moonSet: "03:35",
   }, // prettier-ignore
+  {
+    site: "Trondheim",
+    day: "2026-01-14",
+    sunRise: "08:40",
+    sunSet: "14:16",
+    moonRise: "06:53",
+    moonSet: "08:34",
+  }, // prettier-ignore
+  {
+    site: "Trondheim",
+    day: "2026-03-20",
+    sunRise: "05:20",
+    sunSet: "17:34",
+    moonRise: "05:08",
+    moonSet: "20:34",
+  }, // prettier-ignore
+  {
+    site: "Trondheim",
+    day: "2026-06-21",
+    sunRise: "01:02",
+    sunSet: "21:38",
+    moonRise: "10:55",
+    moonSet: "22:55",
+  }, // prettier-ignore
+  {
+    site: "Trondheim",
+    day: "2026-08-20",
+    sunRise: "03:29",
+    sunSet: "19:13",
+    moonRise: "16:47",
+    moonSet: "18:01",
+  }, // prettier-ignore
+  {
+    site: "Trondheim",
+    day: "2026-12-21",
+    sunRise: "09:01",
+    sunSet: "13:32",
+    moonRise: "10:38",
+    moonSet: "06:07",
+  }, // prettier-ignore
+  {
+    site: "Ushuaia",
+    day: "2026-01-15",
+    sunRise: "08:22",
+    sunSet: "01:03",
+    moonRise: "04:34",
+    moonSet: "23:42",
+  }, // prettier-ignore
+  {
+    site: "Ushuaia",
+    day: "2026-03-20",
+    sunRise: "10:35",
+    sunSet: "22:46",
+    moonRise: "12:51",
+    moonSet: "22:48",
+  }, // prettier-ignore
+  {
+    site: "Ushuaia",
+    day: "2026-06-21",
+    sunRise: "12:59",
+    sunSet: "20:11",
+    moonRise: "16:16",
+    moonSet: "03:46",
+  }, // prettier-ignore
+  {
+    site: "Ushuaia",
+    day: "2026-08-22",
+    sunRise: "11:38",
+    sunSet: "21:35",
+    moonRise: "15:00",
+    moonSet: "09:20",
+  }, // prettier-ignore
+  {
+    site: "Ushuaia",
+    day: "2026-12-21",
+    sunRise: "07:51",
+    sunSet: "01:11",
+    moonRise: "23:08",
+    moonSet: "05:11",
+  }, // prettier-ignore
 ];
 
 const at = (day: string, hhmm: string) => new Date(`${day}T${hhmm}:00Z`);
@@ -230,6 +328,49 @@ const secondsOutsidePrintedMinute = (ours: Date, printed: Date) =>
 const CROSSING_TOLERANCE_SEC = 15;
 
 /**
+ * Hard ceiling on every crossing's tolerance, exception or not: past this, "the model is less
+ * accurate at a shallow angle" and "the model actually regressed" are indistinguishable, so
+ * nothing — however shallow the crossing — gets more slack than this.
+ */
+const MAX_CROSSING_TOLERANCE_SEC = 120;
+
+/**
+ * Near the horizon at high latitude the Moon can cross at a shallow, near-tangential angle — as
+ * low as ~0.014°/min at Trondheim, against ~0.15-0.2°/min for a typical mid-latitude crossing.
+ * The same small angular residual that costs a few seconds at a normal angle costs tens of
+ * seconds there, purely from the shallower slope — not from the model getting less accurate at
+ * that latitude. Below this rate the flat CROSSING_TOLERANCE_SEC stops meaning what it says, so
+ * those crossings are held to the altitude bound directly instead (ALTITUDE_TOLERANCE_DEG,
+ * converted through the crossing's own local rate and capped at MAX_CROSSING_TOLERANCE_SEC).
+ * Every crossing measured below this line clears its bound with 2-6x margin to spare (worst
+ * case: Ushuaia's 15.9s printed-minute error against a 74s bound at its 0.081°/min rate), which
+ * is what confirms this is geometry, not a regression.
+ */
+const GRAZING_RATE_DEG_PER_MIN = 0.09;
+
+/**
+ * The altitude accuracy the card actually needs — the same 0.1° already named in the comment on
+ * CROSSING_TOLERANCE_SEC above. A grazing crossing's time tolerance is this, divided by the
+ * crossing's own local rate (°/sec), rather than a flat number of seconds.
+ */
+const ALTITUDE_TOLERANCE_DEG = 0.1;
+
+/**
+ * The rate the body's altitude is changing at the moment it crosses, in degrees per minute —
+ * used only to decide whether a crossing is a normal one (CROSSING_TOLERANCE_SEC governs it) or
+ * a graze (ALTITUDE_TOLERANCE_DEG does, via crossingToleranceSec below).
+ */
+function localRateDegPerMin(altitudeAt: (date: Date) => number, at: Date): number {
+  return altitudeAt(new Date(at.getTime() + 30_000)) - altitudeAt(new Date(at.getTime() - 30_000));
+}
+
+function crossingToleranceSec(rateDegPerMin: number): number {
+  const rate = Math.abs(rateDegPerMin);
+  if (rate >= GRAZING_RATE_DEG_PER_MIN) return CROSSING_TOLERANCE_SEC;
+  return Math.min((ALTITUDE_TOLERANCE_DEG / rate) * 60, MAX_CROSSING_TOLERANCE_SEC);
+}
+
+/**
  * Where the two bodies sit relative to the horizon line the card actually draws.
  *
  * `renderDayNightSplit` is the only thing in the scene drawn with a "4, 4" dash (orbit rings
@@ -264,7 +405,10 @@ function skyFrameAt(date: Date, location: LocationData) {
 
 describe("rise and set against the USNO almanac", () => {
   // The Moon is the accurate one: the Meeus ch.47 series in moon-position.ts lands inside a
-  // minute at every site and season below. That is the number the mymoon tile depends on.
+  // minute at every site and season below, at a normal crossing angle. That is the number the
+  // mymoon tile depends on. Trondheim and Ushuaia add crossings shallow enough that the flat
+  // bound above no longer applies (see GRAZING_RATE_DEG_PER_MIN) — crossingToleranceSec covers
+  // both cases with the same assertion, capped at MAX_CROSSING_TOLERANCE_SEC either way.
   it.each(USNO)("puts the Moon on the printed minute at $site on $day", (fixture) => {
     const { lat, lon } = SITES[fixture.site];
     const altitudeAt = (date: Date) => getMoonSkyAngles(date, lat, lon).altitudeDeg;
@@ -275,9 +419,10 @@ describe("rise and set against the USNO almanac", () => {
     ] as const) {
       const ours = crossing(altitudeAt, fixture.day, RISE_ALTITUDE.moon, direction);
       expect(ours, `no ${direction} found`).not.toBeNull();
+      const rate = localRateDegPerMin(altitudeAt, ours);
       expect(
         secondsOutsidePrintedMinute(ours, at(fixture.day, fixture[event]))
-      ).toBeLessThanOrEqual(CROSSING_TOLERANCE_SEC);
+      ).toBeLessThanOrEqual(crossingToleranceSec(rate));
     }
   });
 

@@ -6,6 +6,7 @@
  * @returns {{ hours: number, minutes: number }}
  */
 import type { NextTransition } from "../types.js";
+import { greenwichSiderealDeg } from "./moon-position.js";
 
 export function getLocalTimeInZone(
   date: Date,
@@ -93,26 +94,54 @@ export function getLocalHourInstant(date: Date, timezone: string, hour: number):
   }
 }
 
-const OBLIQUITY_DEG = 23.45;
-const OBLIQUITY_RAD = (OBLIQUITY_DEG * Math.PI) / 180;
+const DEG = Math.PI / 180;
 
 /**
- * Day-of-year and local solar hour angle shared by computeSolarElevationDeg and
- * computeZenithAngleFromSun. localSolarHour uses UTC + longitude offset (1 hour per
- * 15° longitude), independent of civil timezone — true solar time.
+ * The Sun's apparent position, Meeus *Astronomical Algorithms* ch. 25 ("low accuracy"), whose
+ * stated bound is 0.01° in longitude — a hundredth of what this replaced.
+ *
+ * The model here used to be a circle: declination as `-23.45 * cos(2pi/365 * (doy + 10))`, and
+ * mean solar time (`utcHour + lon / 15`) used directly as the hour angle. Both errors are the
+ * same physical omission from two directions — Earth's orbit is an ellipse, so the Sun neither
+ * moves along the ecliptic at a constant rate nor crosses the meridian at clock noon. The gap
+ * between the two is the equation of time, ±16 minutes across the year, and dropping it put
+ * sunset up to 11 minutes out.
+ *
+ * The equation of centre `C` below is what carries it: adding it to the mean longitude gives
+ * the true longitude, and the difference it makes to right ascension *is* the equation of
+ * time. Nothing here needs that number by name — taking the hour angle from real right
+ * ascension against sidereal time absorbs it.
  */
-function computeSolarTimeParams(
-  lon: number,
-  date: Date
-): { dayOfYear: number; hourAngleRad: number } {
-  const startOfYear = Date.UTC(date.getUTCFullYear(), 0, 0);
-  const dayOfYear = Math.floor((date.getTime() - startOfYear) / 86400000);
+function getSunPosition(date: Date): { eclipticLonDeg: number; raDeg: number; decDeg: number } {
+  const T = (date.getTime() / 86400000 + 2440587.5 - 2451545) / 36525;
 
-  const utcHour = date.getUTCHours() + date.getUTCMinutes() / 60 + date.getUTCSeconds() / 3600;
-  const localSolarHour = (((utcHour + lon / 15) % 24) + 24) % 24;
-  const hourAngleRad = ((localSolarHour - 12) * 15 * Math.PI) / 180;
+  const meanLongitude = 280.46646 + 36000.76983 * T;
+  const meanAnomaly = (357.52911 + 35999.05029 * T) * DEG;
+  const equationOfCentre =
+    (1.914602 - 0.004817 * T) * Math.sin(meanAnomaly) +
+    0.019993 * Math.sin(2 * meanAnomaly) +
+    0.000289 * Math.sin(3 * meanAnomaly);
 
-  return { dayOfYear, hourAngleRad };
+  const trueLongitude = (meanLongitude + equationOfCentre) * DEG;
+  const obliquity = (23.439291 - 0.0130042 * T) * DEG;
+
+  return {
+    eclipticLonDeg: (((trueLongitude / DEG) % 360) + 360) % 360,
+    raDeg: Math.atan2(Math.cos(obliquity) * Math.sin(trueLongitude), Math.cos(trueLongitude)) / DEG,
+    decDeg: Math.asin(Math.sin(obliquity) * Math.sin(trueLongitude)) / DEG,
+  };
+}
+
+/**
+ * The Sun's local hour angle in degrees, plus the position it came from.
+ *
+ * Measured against sidereal time exactly the way `getMoonSkyAngles` measures the Moon's — the
+ * two bodies now share one definition of "where is the observer pointing", instead of the Sun
+ * having its own clock-based approximation of it.
+ */
+function solarHourAngle(lon: number, date: Date) {
+  const sun = getSunPosition(date);
+  return { sun, hourAngleRad: (greenwichSiderealDeg(date) + lon - sun.raDeg) * DEG };
 }
 
 /**
@@ -130,18 +159,15 @@ function computeSolarTimeParams(
  * @returns {number} solar altitude in degrees
  */
 export function computeSolarElevationDeg(lat: number, lon: number, date: Date): number {
-  const { dayOfYear, hourAngleRad } = computeSolarTimeParams(lon, date);
+  const { sun, hourAngleRad } = solarHourAngle(lon, date);
 
-  // Solar declination in radians
-  const declRad =
-    (-OBLIQUITY_DEG * Math.cos(((2 * Math.PI) / 365) * (dayOfYear + 10)) * Math.PI) / 180;
-
-  const latRad = (lat * Math.PI) / 180;
+  const latRad = lat * DEG;
+  const declRad = sun.decDeg * DEG;
   const sinAlt =
     Math.sin(latRad) * Math.sin(declRad) +
     Math.cos(latRad) * Math.cos(declRad) * Math.cos(hourAngleRad);
 
-  return (Math.asin(Math.max(-1, Math.min(1, sinAlt))) * 180) / Math.PI;
+  return Math.asin(Math.max(-1, Math.min(1, sinAlt))) / DEG;
 }
 
 /**
@@ -175,15 +201,12 @@ export function computeSolarElevationDeg(lat: number, lon: number, date: Date): 
  * @returns {number} angle in radians, (-π, π], relative to the Earth→Sun direction
  */
 export function computeZenithAngleFromSun(lat: number, lon: number, date: Date): number {
-  const { dayOfYear, hourAngleRad } = computeSolarTimeParams(lon, date);
+  const { sun, hourAngleRad } = solarHourAngle(lon, date);
+  const lambdaSun = sun.eclipticLonDeg * DEG;
+  const raSun = sun.raDeg * DEG;
+  const OBLIQUITY_RAD = 23.439291 * DEG;
 
-  // Ecliptic longitude of the Sun, calendar-approximate, phase-matched to the declination
-  // formula above (theta=0 -> winter solstice, theta=π -> summer solstice).
-  const theta = ((2 * Math.PI) / 365) * (dayOfYear + 10);
-  const lambdaSun = theta - Math.PI / 2;
-  const raSun = Math.atan2(Math.cos(OBLIQUITY_RAD) * Math.sin(lambdaSun), Math.cos(lambdaSun));
-
-  const latRad = (lat * Math.PI) / 180;
+  const latRad = lat * DEG;
 
   // Zenith in an equatorial frame whose X-axis points at the Sun's current meridian.
   const zxCustom = Math.cos(latRad) * Math.cos(hourAngleRad);

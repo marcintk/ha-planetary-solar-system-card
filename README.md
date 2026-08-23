@@ -72,11 +72,17 @@ location:
 The visibility cone at Earth's orbit shades by how far the Sun is below your local horizon, using
 the standard astronomical twilight definitions.
 
-Rise and set times are checked against the [US Naval Observatory][usno] almanac for Denton (US),
-Montevideo (UY) and Kraków (PL), across both solstices and an equinox: the Moon lands within **1
-minute**, the Sun within **11** (its declination model skips the equation of time). The Moon marker
-and the drawn horizon line agree except within 5° of the horizon, where the Moon's 5.1° of ecliptic
-latitude has nowhere to go in a top-down view of the ecliptic plane.
+Both bodies are checked against the [US Naval Observatory][usno] almanac for Denton (US), Montevideo
+(UY) and Kraków (PL), across both solstices and an equinox. Altitude lands within **0.02°** for the
+Moon and **0.01°** for the Sun, over 62 sampled positions from -7° to +80°; rise and set times land
+within **1 minute** for both. The Moon marker and the drawn horizon line agree except within 5° of
+the horizon, where the Moon's 5.1° of ecliptic latitude has nowhere to go in a top-down view of the
+ecliptic plane.
+
+Note that a band edge is not a clock sunset. Twilight bands are defined by geometric solar
+elevation, centre of disc; an almanac's sunset is the moment the disc _appears_ to touch the
+horizon, 0.8333° lower once you count refraction and the Sun's own radius. At mid-latitudes that is
+a real four-minute gap, and both numbers are right.
 
 | Zone                  | Sun elevation | Meaning                                                          |
 | --------------------- | ------------- | ---------------------------------------------------------------- |

@@ -544,16 +544,29 @@ describe("renderDayNightSplit horizon and zenith lines", () => {
 describe("computeZenithAngleFromSun", () => {
   const earth = PLANETS.find((p) => p.name === "Earth");
 
-  it("at local solar noon (equator), zenith points almost exactly at the Sun", () => {
-    const date = new Date("2025-03-20T12:00:00Z"); // equinox, equator, lon=0 → local noon
+  // 12:00 UTC at longitude 0 is *mean* noon, which is not when the Sun actually crosses the
+  // meridian — on the March equinox it is 7.5 minutes early. These two use true solar noon and
+  // midnight instead, and land 1600x closer than the 0.02 rad this test used to allow.
+  it("at true solar noon (equator), zenith points almost exactly at the Sun", () => {
+    const date = new Date("2025-03-20T12:07:30Z");
     const angle = computeZenithAngleFromSun(0, 0, date);
-    expect(Math.abs(angle)).toBeLessThan(0.02);
+    expect(Math.abs(angle)).toBeLessThan(1e-3);
   });
 
-  it("at local solar midnight (equator), zenith points almost exactly away from the Sun", () => {
-    const date = new Date("2025-03-20T00:00:00Z");
+  it("at true solar midnight (equator), zenith points almost exactly away from the Sun", () => {
+    const date = new Date("2025-03-20T00:07:18Z");
     const angle = computeZenithAngleFromSun(0, 0, date);
-    expect(angleDiff(angle, Math.PI)).toBeLessThan(0.02);
+    expect(angleDiff(angle, Math.PI)).toBeLessThan(1e-3);
+  });
+
+  // And the gap itself, which the old circular model reported as flat zero: at mean noon the
+  // zenith is already past the Sun by the equation of time. Roughly -7.5 min on this date, a
+  // little under that here because the returned angle is an ecliptic-plane projection.
+  it("puts mean noon off true noon by the equation of time", () => {
+    const angle = computeZenithAngleFromSun(0, 0, new Date("2025-03-20T12:00:00Z"));
+    const minutes = (Math.abs(angle) / (2 * Math.PI)) * 1440;
+    expect(minutes).toBeGreaterThan(5);
+    expect(minutes).toBeLessThan(9);
   });
 
   it("with lat/lon at high latitude summer, angle stays within 90° of Sun (day), unlike raw 2D angle", () => {

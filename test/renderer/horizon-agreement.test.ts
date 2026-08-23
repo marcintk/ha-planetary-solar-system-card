@@ -245,14 +245,12 @@ describe("rise and set against the USNO almanac", () => {
     }
   });
 
-  // The Sun is the loose one. computeSolarElevationDeg models the year as a circle — a cosine
-  // declination and no equation of time — so it runs up to 11 minutes off, worst near the
-  // equinox where the equation of time is itself swinging hardest. Good enough for a twilight
-  // wash and a day/night split; nothing here reads it for a clock.
-  //
-  // ponytail: the equation of time is a three-term sine series away if this ever needs to be
-  // minute-accurate. It would move the twilight cone, so it is its own change, not a tweak.
-  it.each(USNO)("puts the Sun within 12 minutes at $site on $day", (fixture) => {
+  // Two minutes for the Sun as well. It used to be twelve, and that number was fitted to the
+  // circular model's own error rather than to any requirement — which meant it could only ever
+  // catch a regression, never the inaccuracy already sitting there. Two minutes is where the
+  // requirement lands: the card renders these to the minute, so one minute of model error plus
+  // one of rounding is the whole budget.
+  it.each(USNO)("puts the Sun within 2 minutes at $site on $day", (fixture) => {
     const { lat, lon } = SITES[fixture.site];
     const altitudeAt = (date: Date) => computeSolarElevationDeg(lat, lon, date);
 
@@ -262,7 +260,7 @@ describe("rise and set against the USNO almanac", () => {
     ] as const) {
       const ours = crossing(altitudeAt, fixture.day, RISE_ALTITUDE.sun, direction);
       expect(ours, `no ${direction} found`).not.toBeNull();
-      expect(minutesApart(ours, at(fixture.day, fixture[event]))).toBeLessThanOrEqual(12);
+      expect(minutesApart(ours, at(fixture.day, fixture[event]))).toBeLessThanOrEqual(2);
     }
   });
 });

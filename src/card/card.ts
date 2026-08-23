@@ -41,7 +41,9 @@ const SUSPENDS_AUTO_ZOOM = new Set([
  * way back out, and has to carry that click itself.
  */
 function noMoonSky(onClick?: (e: Event) => void): TemplateResult {
-  return html`<div class="no-sky" @click=${onClick}>No Moon Sky</div>`;
+  // Broken across two lines rather than left to wrap: the thumbnail is 104 px and its copy is
+  // sized in cqw, so where the break lands would otherwise change with the card's width.
+  return html`<div class="no-sky" @click=${onClick}>No Moon<br />Sky</div>`;
 }
 
 export class SolarViewCard extends LitElement {

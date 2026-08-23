@@ -206,15 +206,14 @@ describe("renderObserverNeedle", () => {
 
 describe("renderDayNightSplit flip_view", () => {
   it("eclipticViewDirection=1 mirrors anchor Y around CENTER compared to eclipticViewDirection=-1", () => {
-    const earth = PLANETS.find((p) => p.name === "Earth");
     const date = new Date("2025-06-15T06:00:00Z");
 
     const svgNormal = createSvg();
-    renderDayNightSplit(svgNormal, 200, date, earth.size, null, -1);
+    renderDayNightSplit(svgNormal, 200, date, null, -1);
     const pathNormal = svgNormal.querySelector("clipPath path");
 
     const svgFlipped = createSvg();
-    renderDayNightSplit(svgFlipped, 200, date, earth.size, null, 1);
+    renderDayNightSplit(svgFlipped, 200, date, null, 1);
     const pathFlipped = svgFlipped.querySelector("clipPath path");
 
     // Anchor Y is the first pair of numbers in the path "M anchorX anchorY ..."
@@ -284,7 +283,7 @@ describe("renderDayNightSplit cone bisector geometry", () => {
     const sunDir = earthAngle + Math.PI;
 
     const svg = createSvg();
-    renderDayNightSplit(svg, 200, date, earth.size, locationData);
+    renderDayNightSplit(svg, 200, date, locationData);
 
     const bisector = coneBisectorAngle(svg);
     const diffFromSun = Math.abs(
@@ -302,7 +301,7 @@ describe("renderDayNightSplit cone bisector geometry", () => {
       earthAngle + Math.PI + computeZenithAngleFromSun(locationData.lat, locationData.lon, date);
 
     const svg = createSvg();
-    renderDayNightSplit(svg, 200, date, earth.size, locationData);
+    renderDayNightSplit(svg, 200, date, locationData);
 
     const bisector = coneBisectorAngle(svg);
     expect(angleDiff(bisector, expectedBisector)).toBeLessThan(0.05); // within ~3°
@@ -317,9 +316,9 @@ describe("renderDayNightSplit cone bisector geometry", () => {
     const locationData = { lat: 55, lon: 0, timezone: "Europe/London" };
 
     const svgNorth = createSvg();
-    renderDayNightSplit(svgNorth, 200, date, earth.size, locationData, -1);
+    renderDayNightSplit(svgNorth, 200, date, locationData, -1);
     const svgSouth = createSvg();
-    renderDayNightSplit(svgSouth, 200, date, earth.size, locationData, 1);
+    renderDayNightSplit(svgSouth, 200, date, locationData, 1);
 
     const sweepFlagOf = (svg: SVGElement) =>
       svg
@@ -390,7 +389,7 @@ describe("renderDayNightSplit twilight cone/line edges drift from the Sun", () =
     const sunDir = earthAngle + Math.PI;
 
     const svg = createSvg();
-    renderDayNightSplit(svg, 200, date, earth.size, { lat, lon });
+    renderDayNightSplit(svg, 200, date, { lat, lon });
 
     const { left, right } = coneEdgeAngles(svg);
     const nearSunDiff = Math.min(angleDiff(left, sunDir), angleDiff(right, sunDir));
@@ -460,8 +459,7 @@ describe("renderDayNightSplit horizon and zenith lines", () => {
 
   it("renders two dashed lines (horizon + zenith)", () => {
     const svg = document.createElementNS(SVG_NS, "svg");
-    const earth = PLANETS.find((p) => p.name === "Earth");
-    renderDayNightSplit(svg, 200, new Date("2025-06-15T12:00:00Z"), earth.size, null);
+    renderDayNightSplit(svg, 200, new Date("2025-06-15T12:00:00Z"), null);
 
     const lines = svg.querySelectorAll('line[stroke-dasharray="4, 4"]');
     expect(lines.length).toBe(2);
@@ -469,8 +467,7 @@ describe("renderDayNightSplit horizon and zenith lines", () => {
 
   it("horizon line arms terminate at clip circle edge + 8px margin", () => {
     const svg = document.createElementNS(SVG_NS, "svg");
-    const earth = PLANETS.find((p) => p.name === "Earth");
-    renderDayNightSplit(svg, 200, new Date("2025-06-15T12:00:00Z"), earth.size, null);
+    renderDayNightSplit(svg, 200, new Date("2025-06-15T12:00:00Z"), null);
 
     const lines = svg.querySelectorAll('line[stroke-dasharray="4, 4"]');
     const horizon = lines[0];
@@ -490,8 +487,7 @@ describe("renderDayNightSplit horizon and zenith lines", () => {
 
   it("zenith line is perpendicular to the horizon line", () => {
     const svg = document.createElementNS(SVG_NS, "svg");
-    const earth = PLANETS.find((p) => p.name === "Earth");
-    renderDayNightSplit(svg, 200, new Date("2025-06-15T12:00:00Z"), earth.size, null);
+    renderDayNightSplit(svg, 200, new Date("2025-06-15T12:00:00Z"), null);
 
     const lines = svg.querySelectorAll('line[stroke-dasharray="4, 4"]');
     const horizon = lines[0];
@@ -510,8 +506,7 @@ describe("renderDayNightSplit horizon and zenith lines", () => {
 
   it("zenith line starts at the anchor point (no nadir arm)", () => {
     const svg = document.createElementNS(SVG_NS, "svg");
-    const earth = PLANETS.find((p) => p.name === "Earth");
-    renderDayNightSplit(svg, 200, new Date("2025-06-15T12:00:00Z"), earth.size, null);
+    renderDayNightSplit(svg, 200, new Date("2025-06-15T12:00:00Z"), null);
 
     const lines = svg.querySelectorAll('line[stroke-dasharray="4, 4"]');
     const zenith = lines[1];
@@ -534,8 +529,7 @@ describe("renderDayNightSplit horizon and zenith lines", () => {
 
   it("both lines use same stroke style", () => {
     const svg = document.createElementNS(SVG_NS, "svg");
-    const earth = PLANETS.find((p) => p.name === "Earth");
-    renderDayNightSplit(svg, 200, new Date("2025-06-15T12:00:00Z"), earth.size, null);
+    renderDayNightSplit(svg, 200, new Date("2025-06-15T12:00:00Z"), null);
 
     const lines = svg.querySelectorAll('line[stroke-dasharray="4, 4"]');
     for (const line of lines) {
@@ -586,7 +580,7 @@ describe("computeZenithAngleFromSun", () => {
     // When locationData is null, no correction → same as before
     const svg = document.createElementNS(SVG_NS, "svg");
     const date = new Date("2025-07-15T19:00:00Z");
-    renderDayNightSplit(svg, 200, date, earth.size, null);
+    renderDayNightSplit(svg, 200, date, null);
     // Just verifies no crash and still renders 2 dashed lines
     const lines = svg.querySelectorAll('line[stroke-dasharray="4, 4"]');
     expect(lines.length).toBe(2);

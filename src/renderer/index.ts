@@ -71,15 +71,7 @@ export function renderSolarSystem(
 
   // Day/night split (rendered first, behind everything)
   const earthRadius = orbitRadii[EARTH_INDEX];
-  renderDayNightSplit(
-    svg,
-    earthRadius,
-    date,
-    EARTH.size,
-    locationData,
-    eclipticViewDirection,
-    colors
-  );
+  renderDayNightSplit(svg, earthRadius, date, locationData, eclipticViewDirection, colors);
 
   // Season quadrant overlay (after day/night, before orbits)
   renderSeasonOverlay(svg, hemisphere, colors, eclipticViewDirection);

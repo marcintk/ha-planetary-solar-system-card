@@ -97,10 +97,8 @@ export const EARTH: Planet = PLANETS[2];
 
 export const MOON: MoonData = {
   name: "Moon",
-  periodDays: 27.32,
   color: "#cccccc",
   size: 5,
-  meanLongitudeJ2000: 218.32,
 };
 
 export const MOON_PIXEL_OFFSET = 22; // pixels from Earth

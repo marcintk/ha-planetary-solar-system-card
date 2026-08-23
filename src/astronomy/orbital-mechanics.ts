@@ -1,5 +1,5 @@
 import type { Comet, CometPosition, Planet } from "../types.js";
-import { MOON } from "./planet-data.js";
+import { getMoonEquatorial } from "./moon-position.js";
 
 // J2000 epoch: January 1, 2000 12:00 TT
 const J2000 = Date.UTC(2000, 0, 1, 12, 0, 0);
@@ -68,14 +68,19 @@ export function calculatePlanetPosition(planet: Planet, date: Date): number {
 }
 
 /**
- * Calculate the Moon's angular position relative to Earth for a given date.
- * Returns absolute angle (not relative to Earth).
+ * The Moon's geocentric ecliptic longitude for a given date, radians in [0, 2π) — an absolute
+ * angle in the same frame as `calculatePlanetPosition`, not one relative to Earth.
+ *
+ * Borrowed from moon-position.ts rather than modelled here. The uniform circular version this
+ * replaced (218.32° + 2π/27.32 d) ran 13° off by 2026: ~8.7° of periodic terms it had no rows
+ * for (equation of centre 6.29°, evection 1.27°, variation 0.66°) plus ~7.8° of drift, because
+ * 27.32 is a truncation of 27.321661 and a 6e-5 rate error compounds. The card renders that
+ * marker against a horizon line, so the error showed up as the Moon sitting on the wrong side
+ * of it for ~80 minutes around every moonrise and moonset, disagreeing with the "No Moon Sky"
+ * tile — which was already reading the accurate series (#166).
  */
 export function calculateMoonPosition(date: Date): number {
-  const days = daysSinceJ2000(date);
-  const meanMotion = (2 * Math.PI) / MOON.periodDays;
-  const angle = degreesToRadians(MOON.meanLongitudeJ2000) + meanMotion * days;
-  return ((angle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+  return degreesToRadians(getMoonEquatorial(date).eclipticLonDeg);
 }
 
 /**

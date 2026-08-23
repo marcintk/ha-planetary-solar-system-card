@@ -180,7 +180,6 @@ export function renderDayNightSplit(
   svg: SVGElement,
   earthRadius: number,
   date: Date,
-  earthBodySize: number,
   locationData: LocationData | null,
   eclipticViewDirection: EclipticViewDirection = -1,
   colors: Colors = {}
@@ -193,16 +192,7 @@ export function renderDayNightSplit(
     locationData?.lon
   );
 
-  // Anchor point at Earth's surface: out to Earth's orbit, then out again by the body's own
-  // radius in the direction the observer faces.
   const earthOrbital = polarOffset(CENTER, CENTER, earthRadius, earthAngle, eclipticViewDirection);
-  const { x: anchorX, y: anchorY } = polarOffset(
-    earthOrbital.x,
-    earthOrbital.y,
-    earthBodySize,
-    observerAngle,
-    eclipticViewDirection
-  );
 
   // Filled cone — colour determined by which twilight phase the solar elevation falls in.
   // Half-angle = 90° − elevationDeg expands the cone below the horizon during twilight.
@@ -232,10 +222,18 @@ export function renderDayNightSplit(
     zenithAngleFromSun,
     colors
   );
+  // Everything below hangs off Earth's centre — cone apex, horizon line, zenith line alike.
+  //
+  // The apex used to sit a body radius out, on Earth's drawn surface. That looks like the
+  // observer standing on the planet, but the planet is drawn ~10 px wide against a 22 px Moon
+  // orbit: an offset by that radius is a parallax of ~27° at the Moon's distance, against the
+  // 0.95° the real geometry has. It put the Moon marker on the wrong side of the horizon for
+  // ~14% of the day (#166), and it left the cone's own 90° edge sitting 10 px off the horizon
+  // line that is supposed to *be* that edge. One pivot, and the two coincide by construction.
   renderVisibilityCone(
     svg,
-    anchorX,
-    anchorY,
+    earthOrbital.x,
+    earthOrbital.y,
     displayObserverAngle,
     halfAngle,
     "sky-clip",
@@ -252,13 +250,15 @@ export function renderDayNightSplit(
     "stroke-dasharray": "4, 4",
   };
 
-  // Where an arm cast from the anchor at `angle` meets the cone's clip circle, plus a margin.
-  // The unit direction handed to rayCircleDistance carries the same mirror as the endpoint it
-  // ends up producing, so both go through polarOffset rather than spelling the sine out twice.
+  // Where an arm cast from Earth's centre at `angle` meets the cone's clip circle, plus a
+  // margin. The unit direction handed to rayCircleDistance carries the same mirror as the
+  // endpoint it ends up producing, so both go through polarOffset rather than spelling the
+  // sine out twice.
   const armEnd = (angle: number) => {
+    const { x, y } = earthOrbital;
     const dir = polarOffset(0, 0, 1, angle, eclipticViewDirection);
-    const dist = rayCircleDistance(anchorX, anchorY, dir.x, dir.y, CENTER, CENTER, CLIP_R) + EXTRA;
-    return polarOffset(anchorX, anchorY, dist, angle, eclipticViewDirection);
+    const dist = rayCircleDistance(x, y, dir.x, dir.y, CENTER, CENTER, CLIP_R) + EXTRA;
+    return polarOffset(x, y, dist, angle, eclipticViewDirection);
   };
 
   // Horizon line — each arm extends to the cone clip circle edge + margin
@@ -274,13 +274,22 @@ export function renderDayNightSplit(
     })
   );
 
-  // Zenith line — from anchor skyward only (no nadir segment)
+  // Zenith line — skyward only, no nadir segment, so the sky side of the horizon reads at a
+  // glance. Starts at Earth's edge rather than its centre purely so the Earth marker does not
+  // swallow it; it is on the same ray either way.
   const zenith = armEnd(displayObserverAngle);
+  const foot = polarOffset(
+    earthOrbital.x,
+    earthOrbital.y,
+    EARTH.size,
+    displayObserverAngle,
+    eclipticViewDirection
+  );
   svg.appendChild(
     createSvgElement("line", {
       ...lineStyle,
-      x1: anchorX,
-      y1: anchorY,
+      x1: foot.x,
+      y1: foot.y,
       x2: zenith.x,
       y2: zenith.y,
     })

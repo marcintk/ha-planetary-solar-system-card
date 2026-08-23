@@ -70,25 +70,12 @@ location:
 ## Horizon Twilight Zones
 
 The visibility cone at Earth's orbit shades by how far the Sun is below your local horizon, using
-the standard astronomical twilight definitions.
-
-Both bodies are checked against the [US Naval Observatory][usno] almanac for Denton (US), Montevideo
-(UY) and Kraków (PL), across both solstices and an equinox. Altitude lands within **0.02°** for the
-Moon and **0.01°** for the Sun, over 62 sampled positions from -7° to +80°; rise and set times land
-within **1 minute** for both. The Moon marker and the drawn horizon line agree except within 5° of
-the horizon, where the Moon's 5.1° of ecliptic latitude has nowhere to go in a top-down view of the
-ecliptic plane.
-
-Day ends at the almanac's sunset — the Sun's centre at **-0.8333°**, where 34' of refraction plus
-the Sun's own 16' radius put the upper limb on the horizon. The -6°/-12°/-18° boundaries below are
-measured to the Sun's centre with no correction, so a civil-twilight interval has a refracted start
-and a geometric end. That asymmetry is the published convention, and it is what makes these
-transition times line up with any almanac you check them against.
+the standard astronomical twilight definitions:
 
 | Zone                  | Sun elevation | Meaning                                                          |
 | --------------------- | ------------- | ---------------------------------------------------------------- |
-| Day                   | ≥ 0°          | Sun is up                                                        |
-| Civil twilight        | 0° to -6°     | Bright enough for outdoor activity without lights                |
+| Day                   | ≥ -0.83°      | Sun is up — its upper limb still on the horizon                  |
+| Civil twilight        | -0.83° to -6° | Bright enough for outdoor activity without lights                |
 | Nautical twilight     | -6° to -12°   | Horizon still visible at sea; too dark for most outdoor activity |
 | Astronomical twilight | -12° to -18°  | Sky background glow, faint stars washed out                      |
 | Night                 | < -18°        | Full dark; the Sun no longer lights the sky                      |
@@ -210,7 +197,6 @@ a pipeline stall doesn't break the feed.
 [my-hacs-shield]: https://my.home-assistant.io/badges/hacs_repository.svg
 [epic]: https://epic.gsfc.nasa.gov/
 [sdo]: https://sdo.gsfc.nasa.gov/
-[usno]: https://aa.usno.navy.mil/data/RS_OneDay
 [svs]: https://svs.gsfc.nasa.gov/5587/
 [repo]: https://github.com/marcintk/ha-planetary-solar-system-card
 [license]: https://github.com/marcintk/ha-planetary-solar-system-card/blob/main/LICENSE

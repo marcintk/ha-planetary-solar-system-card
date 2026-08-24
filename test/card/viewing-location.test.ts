@@ -112,7 +112,7 @@ describe("ViewingLocation", () => {
       const location = new ViewingLocation();
       location.update(LONDON);
       expect(location.skyFrame(new Date("2026-06-21T12:00:00Z")).background).toBe("#d0d0d0");
-      expect(location.skyFrame(new Date("2026-12-21T00:00:00Z")).background).toBe("#000000");
+      expect(location.skyFrame(new Date("2026-12-21T00:00:00Z")).background).toBe("#06050a");
     });
 
     it("interpolates continuously across a twilight band rather than snapping", () => {
@@ -128,7 +128,18 @@ describe("ViewingLocation", () => {
       expect(skyBackgroundForElevation(-6)).toBe("#8a6142");
       expect(skyBackgroundForElevation(-12)).toBe("#3a4a6b");
       expect(skyBackgroundForElevation(-18)).toBe("#2a1f42");
-      expect(skyBackgroundForElevation(-30)).toBe("#000000");
+      expect(skyBackgroundForElevation(-30)).toBe("#06050a");
+    });
+
+    // #177: mix-blend-mode: color takes hue/saturation from the tint layer and no-ops on an
+    // achromatic (R === G === B) top layer, so a pure-black night anchor silently disabled the
+    // night tint. The plateau color below -18deg must carry some hue to actually blend.
+    it("keeps the night plateau chromatic so mix-blend-mode: color can still tint it", () => {
+      const night = skyBackgroundForElevation(-30);
+      const r = Number.parseInt(night.slice(1, 3), 16);
+      const g = Number.parseInt(night.slice(3, 5), 16);
+      const b = Number.parseInt(night.slice(5, 7), 16);
+      expect(new Set([r, g, b]).size).toBeGreaterThan(1);
     });
 
     it("reports the Moon below the horizon without treating it as a failure", () => {

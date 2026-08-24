@@ -1,11 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { emptyDebugAccumulator } from "../../../src/card/gallery/debug-stats.js";
-import { FETCH_TIMEOUT_MS } from "../../../src/card/gallery/source-resolver.js";
+import {
+  FETCH_TIMEOUT_MS,
+  IMAGE_TIMEOUT_MESSAGE,
+} from "../../../src/card/gallery/source-resolver.js";
 import {
   getSunImageUrl,
   SDO_BROWSE_BASE_URL,
   SdoSunResolver,
   SUN_CACHE_TTL_MS,
+  sunSlotProbe,
 } from "../../../src/card/gallery/source-resolver-sdo-sun.js";
 import { UrlCache } from "../../../src/card/gallery/url-cache.js";
 
@@ -31,10 +35,10 @@ function stubImageDecode(...results: boolean[]) {
 }
 
 // Models the real browse archive rather than a fixed pass/fail sequence: a slot loads if and
-// only if NASA had actually published it. Needed for the stall fixture below, where "which
-// URLs exist" is the whole point and the resolver's request order is what's under test.
-function stubArchivePublishedUpTo(newestSlotIso: string) {
-  const newest = Date.parse(newestSlotIso);
+// only if `isPublished` says it exists yet. Shared engine behind stubArchivePublishedUpTo (a
+// flat cutoff) and stubArchiveWithRealPublishLag (the real 25/30-min rule) below — both just
+// supply a different one-line predicate over the same parse/probe/decide machinery.
+function stubArchive(isPublished: (slotMs: number) => boolean) {
   const state = { calls: 0, probes: [] as { slot: number; ok: boolean }[] };
   vi.stubGlobal(
     "Image",
@@ -46,13 +50,20 @@ function stubArchivePublishedUpTo(newestSlotIso: string) {
         if (!match) return Promise.reject(new Error("unparseable slot URL"));
         const [, y, mo, d, h, mi, sec] = match.map(Number);
         const slot = Date.UTC(y, mo - 1, d, h, mi, sec);
-        const ok = slot <= newest;
+        const ok = isPublished(slot);
         state.probes.push({ slot, ok });
         return ok ? Promise.resolve() : Promise.reject(new Error("404"));
       }
     }
   );
   return state;
+}
+
+// Needed for the stall fixture below, where "which URLs exist" is the whole point and the
+// resolver's request order is what's under test.
+function stubArchivePublishedUpTo(newestSlotIso: string) {
+  const newest = Date.parse(newestSlotIso);
+  return stubArchive((slot) => slot <= newest);
 }
 
 // This one test reports rather than merely asserts: its probe-by-probe trace is what a human
@@ -66,24 +77,7 @@ const print = (line: string) => console.log(line);
 // capture and a :00/:30 slot 30 minutes after (measured in #148, zero jitter). Existence is
 // therefore a function of the mocked clock, so the same stub serves a whole run of ticks.
 function stubArchiveWithRealPublishLag() {
-  const state = { calls: 0, probes: [] as { slot: number; ok: boolean }[] };
-  vi.stubGlobal(
-    "Image",
-    class {
-      src = "";
-      decode() {
-        state.calls++;
-        const match = /\/(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})_/.exec(this.src);
-        if (!match) return Promise.reject(new Error("unparseable slot URL"));
-        const [, y, mo, d, h, mi, sec] = match.map(Number);
-        const slot = Date.UTC(y, mo - 1, d, h, mi, sec);
-        const ok = Date.now() >= slot + publishLagMs(slot);
-        state.probes.push({ slot, ok });
-        return ok ? Promise.resolve() : Promise.reject(new Error("404"));
-      }
-    }
-  );
-  return state;
+  return stubArchive((slot) => Date.now() >= slot + publishLagMs(slot));
 }
 
 function publishLagMs(slot: number): number {
@@ -97,6 +91,54 @@ function newestPublishedAt(now: number): number {
   while (now < slot + publishLagMs(slot)) slot -= SUN_CACHE_TTL_MS;
   return slot;
 }
+
+describe("sunSlotProbe", () => {
+  // Drives the SlotProbe contract with a synchronous fake `preload` — no global.Image/decode()
+  // stubbing needed, the same split slot-search.ts's own search strategy already gets from its
+  // fake `probe` in slot-search.test.ts.
+  it("reports a hit and counts the attempt when preload succeeds", async () => {
+    const debug = emptyDebugAccumulator();
+    const probe = sunSlotProbe(debug, () => Promise.resolve());
+
+    const result = await probe(Date.UTC(2026, 7, 15, 22, 0, 0));
+
+    expect(result).toEqual({ hit: true });
+    expect(debug.retries).toBe(1);
+  });
+
+  it("reports a miss without abort when preload fails with a non-timeout error", async () => {
+    const debug = emptyDebugAccumulator();
+    const err = new Error("404");
+    const probe = sunSlotProbe(debug, () => Promise.reject(err));
+
+    const result = await probe(Date.UTC(2026, 7, 15, 22, 0, 0));
+
+    expect(result).toEqual({ hit: false, abort: false, error: err });
+  });
+
+  it("reports a miss with abort when preload fails with a timeout, so the search stops", async () => {
+    const debug = emptyDebugAccumulator();
+    const err = new Error(IMAGE_TIMEOUT_MESSAGE);
+    const probe = sunSlotProbe(debug, () => Promise.reject(err));
+
+    const result = await probe(Date.UTC(2026, 7, 15, 22, 0, 0));
+
+    expect(result).toEqual({ hit: false, abort: true, error: err });
+  });
+
+  it("preloads the SDO browse-archive URL for the given slot", async () => {
+    const debug = emptyDebugAccumulator();
+    const seen: string[] = [];
+    const probe = sunSlotProbe(debug, (url) => {
+      seen.push(url);
+      return Promise.resolve();
+    });
+
+    await probe(Date.UTC(2026, 7, 15, 22, 0, 0));
+
+    expect(seen).toEqual([`${SDO_BROWSE_BASE_URL}/2026/08/15/20260815_220000_1024_HMIIC.jpg`]);
+  });
+});
 
 describe("source-resolver-sdo-sun", () => {
   // Each test gets its own UrlCache — SdoSunResolver/getSunImageUrl accept one explicitly, so

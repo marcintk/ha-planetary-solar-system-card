@@ -1,3 +1,4 @@
+import { padLeft } from "./pad.js";
 import { SourceResolver } from "./source-resolver.js";
 import type { ImageSource } from "./sources.js";
 import type { SourcedImage, UrlCache } from "./url-cache.js";
@@ -83,10 +84,6 @@ export class SvsMoonResolver extends SourceResolver {
   // frame fixes. Fall through to the shared cooldown like any other source.
 }
 
-function pad(value: number, width: number): string {
-  return String(value).padStart(width, "0");
-}
-
 /**
  * The frame for one instant, at one of the published resolutions.
  *
@@ -104,7 +101,7 @@ export function moonFrameUrl(at: Date, size: string): string {
   // Products are filed in hundreds: 5587 lives under a005500/a005587.
   const group = Math.floor(product / 100) * 100;
   const frame = Math.floor((at.getTime() - Date.UTC(year, 0, 1)) / MOON_FRAME_MS) + 1;
-  return `${SVS_BASE_URL}/a${pad(group, 6)}/a${pad(product, 6)}/frames/${size}/moon.${pad(frame, 4)}.jpg`;
+  return `${SVS_BASE_URL}/a${padLeft(group, 6)}/a${padLeft(product, 6)}/frames/${size}/moon.${padLeft(frame, 4)}.jpg`;
 }
 
 /**

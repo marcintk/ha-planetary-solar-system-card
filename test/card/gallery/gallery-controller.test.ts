@@ -379,7 +379,8 @@ describe("GalleryController.viewModel", () => {
     const gallery = new GalleryController(() => {});
     gallery.configure("show", IMAGE_SOURCES, 60000);
     gallery.openPanel("earth");
-    (gallery as unknown as { _error: string | null })._error = "Earth image unavailable";
+    (gallery as unknown as { _panel: { error: string | null } })._panel.error =
+      "Earth image unavailable";
     expect(gallery.viewModel().error).toBe("Earth image unavailable");
   });
 
@@ -445,8 +446,9 @@ describe("GalleryController.viewModel", () => {
 
 describe("GalleryController.debugStats", () => {
   const zeroStats = {
-    refreshes: 0,
+    gets: 0,
     cacheHits: 0,
+    backoffs: 0,
     fetches: 0,
     failures: 0,
     retries: 0,
@@ -465,7 +467,7 @@ describe("GalleryController.debugStats", () => {
     });
   });
 
-  it("skips a source entirely on the next tick while its own cache is still current", async () => {
+  it("still resolves a source on the next tick while its own cache is current, but hits cache instead of the network", async () => {
     const gallery = new GalleryController(() => {});
     gallery.configure("show", IMAGE_SOURCES, 60000);
     gallery.start();
@@ -481,10 +483,19 @@ describe("GalleryController.debugStats", () => {
     await Promise.resolve();
 
     // Both sources are still within their own TTL/publish window and already confirmed to
-    // decode, so resolveAll() never even calls resolve() for them this tick — every counter
-    // is untouched, not just the network-facing ones. This is the whole point of isFresh():
-    // a tick with nothing new to do should leave no trace, not just skip the real fetch.
-    expect(gallery.debugStats).toEqual(afterFirstTick);
+    // decode — `gets` still climbs every tick regardless (that's the whole point: it counts
+    // ticks, not fetch attempts), but resolve()'s own cache-hit phase answers it without ever
+    // reaching the network, so `fetches` stays put and `cacheHits` climbs instead.
+    const afterSecondTick = gallery.debugStats;
+    expect(afterSecondTick["earth-url"].gets).toBe(afterFirstTick["earth-url"].gets + 1);
+    expect(afterSecondTick["earth-url"].cacheHits).toBe(1);
+    expect(afterSecondTick["earth-url"].fetches).toBe(afterFirstTick["earth-url"].fetches);
+    expect(afterSecondTick.sun.gets).toBe(afterFirstTick.sun.gets + 1);
+    expect(afterSecondTick.sun.cacheHits).toBe(1);
+    expect(afterSecondTick.sun.fetches).toBe(afterFirstTick.sun.fetches);
+    // earth-img's own `gets` only moves when a real image fetch was actually attempted — a
+    // cache hit on the URL commits before that branch is ever reached, so it stays put.
+    expect(afterSecondTick["earth-img"].gets).toBe(afterFirstTick["earth-img"].gets);
   });
 
   it("skips a source still mid-fetch instead of stacking a second overlapping request", async () => {
@@ -500,26 +511,35 @@ describe("GalleryController.debugStats", () => {
     const gallery = new GalleryController(() => {});
     gallery.configure("show", IMAGE_SOURCES, 60000);
     gallery.start();
-    await vi.waitFor(() => expect(gallery.debugStats["earth-url"].refreshes).toBe(1));
+    await vi.waitFor(() => expect(gallery.debugStats["earth-url"].gets).toBe(1));
 
     // First fetch is still in flight (unresolved) — a second tick must not start another.
     gallery.tick();
     await Promise.resolve();
-    expect(gallery.debugStats["earth-url"].refreshes).toBe(1);
+    expect(gallery.debugStats["earth-url"].gets).toBe(1);
 
     resolveFetch({ ok: true, json: () => Promise.resolve([{ identifier: "20260810234950" }]) });
     await vi.waitFor(() => expect(gallery.images.earth).toBeDefined());
 
-    // Now that it settled, earth is confirmed and within its own 1-hour TTL — isFresh() skips
-    // it, same as any other still-current source, regardless of the in-flight guard clearing.
+    // Now that it settled, the in-flight guard clears — the very next tick calls resolve()
+    // again even though earth is still well within its own 1-hour TTL: `gets` climbs, but the
+    // cache-hit phase answers it with no new network call.
     gallery.tick();
-    await Promise.resolve();
-    expect(gallery.debugStats["earth-url"].refreshes).toBe(1);
+    await vi.waitFor(() => expect(gallery.debugStats["earth-url"].cacheHits).toBe(1));
+    expect(gallery.debugStats["earth-url"].gets).toBe(2);
+    expect(gallery.debugStats["earth-url"].fetches).toBe(1);
 
-    // Only once its TTL has actually elapsed does a tick attempt it again.
+    // Only once its TTL has actually elapsed does a tick reach a real second fetch.
     vi.spyOn(Date, "now").mockReturnValue(Date.now() + EARTH_CACHE_TTL_MS + 1);
-    gallery.tick();
-    await vi.waitFor(() => expect(gallery.debugStats["earth-url"].refreshes).toBe(2));
+    // `gets`/`cacheHits` above bump synchronously at the top of resolve(), before that
+    // source's own promise (and the in-flight clear that follows it inside resolveAll()) has
+    // actually settled — a single tick() right after can still find earth marked in-flight
+    // and skip it. Retrying the tick alongside the assertion rides that out instead of
+    // guessing at a fixed delay.
+    await vi.waitFor(() => {
+      gallery.tick();
+      expect(gallery.debugStats["earth-url"].fetches).toBe(2);
+    });
   });
 
   it("counts a failed image preload as a fetch distinct from the EPIC API call", async () => {
@@ -530,13 +550,13 @@ describe("GalleryController.debugStats", () => {
     await vi.waitFor(() => expect(gallery.debugStats["earth-img"].failures).toBe(1));
 
     // Each phase is its own row now: 1 fetch on the url row (EPIC API lookup, succeeded),
-    // 1 fetch on the img row (image preload, failed) — and the img row's own refreshes
+    // 1 fetch on the img row (image preload, failed) — and the img row's own gets
     // still moved, since a new URL genuinely needed a preload attempt regardless of outcome.
     expect(gallery.debugStats["earth-url"].fetches).toBe(1);
     expect(gallery.debugStats["earth-url"].failures).toBe(0);
     expect(gallery.debugStats["earth-url"].elapsed).not.toBeNull();
     expect(gallery.debugStats["earth-img"].fetches).toBe(1);
-    expect(gallery.debugStats["earth-img"].refreshes).toBe(1);
+    expect(gallery.debugStats["earth-img"].gets).toBe(1);
   });
 
   it("counts a retry when sun's primary slot guess fails and falls back", async () => {
@@ -560,8 +580,8 @@ describe("GalleryController.debugStats", () => {
     const gallery = new GalleryController(() => {});
     gallery.configure("slide", IMAGE_SOURCES, 60000);
     gallery.start();
-    await vi.waitFor(() => expect(gallery.debugStats["earth-url"].refreshes).toBe(1));
-    expect(gallery.debugStats.sun.refreshes).toBe(1);
-    expect(gallery.debugStats.moon.refreshes).toBe(2);
+    await vi.waitFor(() => expect(gallery.debugStats["earth-url"].gets).toBe(1));
+    expect(gallery.debugStats.sun.gets).toBe(1);
+    expect(gallery.debugStats.moon.gets).toBe(2);
   });
 });

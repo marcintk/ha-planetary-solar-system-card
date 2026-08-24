@@ -178,7 +178,7 @@ describe("SolarViewCard status bar", () => {
       expect(rowText[2]).toContain("SDO/S");
       expect(rowText[3]).toContain("DSCOVR/E");
       expect(overlay.textContent).toContain("source");
-      expect(overlay.textContent).toContain("refresh");
+      expect(overlay.textContent).toContain("get");
       expect(overlay.textContent).toContain("fetch");
       expect(overlay.textContent).toContain("expire");
       expect(overlay.textContent).toMatch(/\d+ms/);

@@ -19,9 +19,34 @@ export const IMAGE_SOURCES: ImageSource[] = ["mymoon", "moon", "earth", "sun"];
 // two: they share a cache key (SvsMoonResolver's cacheKey, see source-resolver-svs-moon.ts) and
 // resolve to the same frame, so separate rows would show one real fetch as two — mymoon's own
 // row always at 0 fetches (permanent cache hit), reading as broken rather than shared. Both
-// still bump `refreshes` independently into the shared row, since each tile really does ask
+// still bump `gets` independently into the shared row, since each tile really does ask
 // once a tick; only the network-facing counters (fetches, cacheHits, ...) tell the merged story.
 export type DebugRowId = "moon" | "sun" | "earth-url" | "earth-img";
+
+// The canonical row set, in the overlay's own display order — the one place this list is
+// written out; every other consumer (GalleryController's debug bookkeeping, debug-view.ts's
+// overlay) iterates this instead of re-listing the same four keys.
+export const DEBUG_ROWS: DebugRowId[] = ["moon", "sun", "earth-url", "earth-img"];
+
+/**
+ * Which overlay columns a debug row's own resolve() can actually produce a real value for —
+ * see debug-view.ts's own use of these. Row-level, not source-level: unlike SourceSpec above,
+ * these apply to DebugRowId (a row can be an earth split-half, or a moon pair collapsed into
+ * one), so they live beside DEBUG_ROWS rather than inside SOURCES.
+ */
+export interface DebugRowSpec {
+  /** False for earth-img: the image-byte fetch has no cache/URL-identity step of its own — see earth-url. */
+  hasCacheStep: boolean;
+  /** True only for sun: recover()'s one-slot-back fallback is the only resolver that ever retries. */
+  canRetry: boolean;
+}
+
+export const DEBUG_ROW_SPECS: Record<DebugRowId, DebugRowSpec> = {
+  moon: { hasCacheStep: true, canRetry: false },
+  sun: { hasCacheStep: true, canRetry: true },
+  "earth-url": { hasCacheStep: true, canRetry: false },
+  "earth-img": { hasCacheStep: false, canRetry: false },
+};
 
 /**
  * Everything the rest of the card needs to know about one source, in one place.

@@ -2,7 +2,7 @@ import type { TemplateResult } from "lit";
 import { html } from "lit";
 import type { SourceDebugStats } from "./gallery/debug-stats.js";
 import type { DebugRowId } from "./gallery/sources.js";
-import { DEBUG_ROWS } from "./gallery/sources.js";
+import { DEBUG_ROW_SPECS, DEBUG_ROWS } from "./gallery/sources.js";
 import { formatDate, formatDuration } from "./relative-time.js";
 
 export const DEBUG_ROW_LABELS: Record<DebugRowId, string> = {
@@ -68,15 +68,10 @@ export function buildDebugOverlay(
       </tr>
       ${DEBUG_ROWS.map((rowId) => {
         const s = stats[rowId];
-        // The img row has no cache/URL-identity step of its own (that's the url row's job —
-        // see the DebugRowId comment) — showing 0 there would misleadingly imply "checked
-        // and found nothing", when really the question never applies to this row at all.
-        const hasCacheStep = rowId !== "earth-img";
-        // Only sun's resolver ever retries (recover()'s one-slot-back fallback — see
-        // source-resolver-sdo-sun.ts) — earth's and moon's default recover() just rethrows, so 0 there
-        // would misleadingly suggest "checked, never needed one" rather than "not a thing
-        // that can happen on this row".
-        const canRetry = rowId === "sun";
+        // Which columns this row can produce a real value for — see DEBUG_ROW_SPECS's own
+        // comment for why 0 would misleadingly read as "checked, found nothing" instead of
+        // "not a thing that can happen on this row".
+        const { hasCacheStep, canRetry } = DEBUG_ROW_SPECS[rowId];
         return html`<tr>
           <td>${DEBUG_ROW_LABELS[rowId]}</td>
           <td>${s.gets}</td>

@@ -1,5 +1,6 @@
 import type { DebugAccumulator } from "./debug-stats.js";
 import { padLeft } from "./pad.js";
+import type { SlotProbe } from "./slot-search.js";
 import { findPublishedSlot } from "./slot-search.js";
 import { IMAGE_TIMEOUT_MESSAGE, SourceResolver, timedPreload } from "./source-resolver.js";
 import type { SourcedImage, UrlCache } from "./url-cache.js";
@@ -66,27 +67,12 @@ export class SdoSunResolver extends SourceResolver {
     // known-good. Backoff only records a success after a real decode.
     const confirmed = this.cache.getStale(this.source);
 
-    // The search strategy itself (reach-doubling cold start, bisection narrowing) lives in
-    // slot-search.ts, pure and network-agnostic. This probe is the only place that knows what
-    // "does this slot exist" actually costs: one preload+decode, counted, with a timed-out
-    // attempt reported as `abort` so the search stops instead of treating a dead host as one
-    // more missing slot.
-    const probe = async (slotMs: number) => {
-      debug.retries++;
-      try {
-        await timedPreload(buildSunSlotImage(new Date(slotMs)).url, debug);
-        return { hit: true };
-      } catch (retryErr) {
-        return { hit: false, abort: isTimeout(retryErr), error: retryErr };
-      }
-    };
-
     const result = await findPublishedSlot({
       confirmedMs: confirmed ? confirmed.date.getTime() : null,
       missedMs: candidate.date.getTime(),
       slotMs: SUN_CACHE_TTL_MS,
       maxReachMs: SUN_MAX_REACH_MS,
-      probe,
+      probe: sunSlotProbe(debug),
     });
 
     // foundMs is only ever null when a confirmed frame was supplied and the one probe past it
@@ -115,6 +101,27 @@ export class SdoSunResolver extends SourceResolver {
 
 function isTimeout(err: unknown): boolean {
   return err instanceof Error && err.message === IMAGE_TIMEOUT_MESSAGE;
+}
+
+// The only place that knows what "does this slot exist" actually costs: one preload+decode,
+// counted, with a timed-out attempt reported as `abort` so slot-search's caller (recover(),
+// above) stops the whole search instead of treating a dead host as one more missing slot. Split
+// out from recover() so this NASA-specific hit/abort/error mapping is unit-testable with a fake
+// `preload` — a synchronous resolve/reject — instead of needing global.Image/decode() stubbing to
+// exercise it, the same split slot-search.ts's own search strategy already gets.
+export function sunSlotProbe(
+  debug: DebugAccumulator,
+  preload: (url: string, debug: DebugAccumulator) => Promise<void> = timedPreload
+): SlotProbe {
+  return async (slotMs: number) => {
+    debug.retries++;
+    try {
+      await preload(buildSunSlotImage(new Date(slotMs)).url, debug);
+      return { hit: true };
+    } catch (err) {
+      return { hit: false, abort: isTimeout(err), error: err };
+    }
+  };
 }
 
 // Anchored to the slot's own timestamp rather than a sliding "time since this call last ran"

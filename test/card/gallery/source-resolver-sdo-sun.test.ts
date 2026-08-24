@@ -1,11 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { emptyDebugAccumulator } from "../../../src/card/gallery/debug-stats.js";
-import { FETCH_TIMEOUT_MS } from "../../../src/card/gallery/source-resolver.js";
+import {
+  FETCH_TIMEOUT_MS,
+  IMAGE_TIMEOUT_MESSAGE,
+} from "../../../src/card/gallery/source-resolver.js";
 import {
   getSunImageUrl,
   SDO_BROWSE_BASE_URL,
   SdoSunResolver,
   SUN_CACHE_TTL_MS,
+  sunSlotProbe,
 } from "../../../src/card/gallery/source-resolver-sdo-sun.js";
 import { UrlCache } from "../../../src/card/gallery/url-cache.js";
 
@@ -87,6 +91,54 @@ function newestPublishedAt(now: number): number {
   while (now < slot + publishLagMs(slot)) slot -= SUN_CACHE_TTL_MS;
   return slot;
 }
+
+describe("sunSlotProbe", () => {
+  // Drives the SlotProbe contract with a synchronous fake `preload` — no global.Image/decode()
+  // stubbing needed, the same split slot-search.ts's own search strategy already gets from its
+  // fake `probe` in slot-search.test.ts.
+  it("reports a hit and counts the attempt when preload succeeds", async () => {
+    const debug = emptyDebugAccumulator();
+    const probe = sunSlotProbe(debug, () => Promise.resolve());
+
+    const result = await probe(Date.UTC(2026, 7, 15, 22, 0, 0));
+
+    expect(result).toEqual({ hit: true });
+    expect(debug.retries).toBe(1);
+  });
+
+  it("reports a miss without abort when preload fails with a non-timeout error", async () => {
+    const debug = emptyDebugAccumulator();
+    const err = new Error("404");
+    const probe = sunSlotProbe(debug, () => Promise.reject(err));
+
+    const result = await probe(Date.UTC(2026, 7, 15, 22, 0, 0));
+
+    expect(result).toEqual({ hit: false, abort: false, error: err });
+  });
+
+  it("reports a miss with abort when preload fails with a timeout, so the search stops", async () => {
+    const debug = emptyDebugAccumulator();
+    const err = new Error(IMAGE_TIMEOUT_MESSAGE);
+    const probe = sunSlotProbe(debug, () => Promise.reject(err));
+
+    const result = await probe(Date.UTC(2026, 7, 15, 22, 0, 0));
+
+    expect(result).toEqual({ hit: false, abort: true, error: err });
+  });
+
+  it("preloads the SDO browse-archive URL for the given slot", async () => {
+    const debug = emptyDebugAccumulator();
+    const seen: string[] = [];
+    const probe = sunSlotProbe(debug, (url) => {
+      seen.push(url);
+      return Promise.resolve();
+    });
+
+    await probe(Date.UTC(2026, 7, 15, 22, 0, 0));
+
+    expect(seen).toEqual([`${SDO_BROWSE_BASE_URL}/2026/08/15/20260815_220000_1024_HMIIC.jpg`]);
+  });
+});
 
 describe("source-resolver-sdo-sun", () => {
   // Each test gets its own UrlCache — SdoSunResolver/getSunImageUrl accept one explicitly, so

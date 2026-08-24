@@ -29,6 +29,26 @@ export type DebugRowId = "moon" | "sun" | "earth-url" | "earth-img";
 export const DEBUG_ROWS: DebugRowId[] = ["moon", "sun", "earth-url", "earth-img"];
 
 /**
+ * Which overlay columns a debug row's own resolve() can actually produce a real value for —
+ * see debug-view.ts's own use of these. Row-level, not source-level: unlike SourceSpec above,
+ * these apply to DebugRowId (a row can be an earth split-half, or a moon pair collapsed into
+ * one), so they live beside DEBUG_ROWS rather than inside SOURCES.
+ */
+export interface DebugRowSpec {
+  /** False for earth-img: the image-byte fetch has no cache/URL-identity step of its own — see earth-url. */
+  hasCacheStep: boolean;
+  /** True only for sun: recover()'s one-slot-back fallback is the only resolver that ever retries. */
+  canRetry: boolean;
+}
+
+export const DEBUG_ROW_SPECS: Record<DebugRowId, DebugRowSpec> = {
+  moon: { hasCacheStep: true, canRetry: false },
+  sun: { hasCacheStep: true, canRetry: true },
+  "earth-url": { hasCacheStep: true, canRetry: false },
+  "earth-img": { hasCacheStep: false, canRetry: false },
+};
+
+/**
  * Everything the rest of the card needs to know about one source, in one place.
  *
  * These facts used to live in eight tables across five modules (labels and disc geometry in

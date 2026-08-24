@@ -257,7 +257,7 @@ describe("SolarViewCard gallery", () => {
       const nightCard = document.createElement("ha-planetary-solar-system-card-test");
       nightCard.setConfig(config);
       document.body.appendChild(nightCard);
-      expect(tintOf(nightCard)).toContain("background: #000000");
+      expect(tintOf(nightCard)).toContain("background: #06050a");
       nightCard.remove();
       vi.useRealTimers();
     });

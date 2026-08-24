@@ -16,6 +16,12 @@ const SKY_ANCHORS: { elevDeg: number; rgb: readonly [number, number, number] }[]
   { elevDeg: -18, rgb: [0x2a, 0x1f, 0x42] }, // Astronomical Twilight
 ];
 
+// #177: mix-blend-mode: color (.gallery-thumb-tint) takes hue/saturation from this backdrop and
+// luminosity from the photo underneath — an achromatic (R===G===B) backdrop has no hue/saturation
+// to give, so it silently no-ops instead of darkening. Astronomical Twilight's own hue, scaled
+// near-black, keeps the plateau reading as "night" while staying chromatic enough to blend.
+const NIGHT_RGB: readonly [number, number, number] = [0x06, 0x05, 0x0a];
+
 function toHex(channel: number): string {
   return Math.round(channel).toString(16).padStart(2, "0");
 }
@@ -27,7 +33,7 @@ export function skyBackgroundForElevation(elevDeg: number): string {
   const first = SKY_ANCHORS[0];
   const last = SKY_ANCHORS[SKY_ANCHORS.length - 1];
   if (elevDeg >= first.elevDeg) return rgbToHex(first.rgb);
-  if (elevDeg < last.elevDeg) return "#000000";
+  if (elevDeg < last.elevDeg) return rgbToHex(NIGHT_RGB);
 
   for (let i = 0; i < SKY_ANCHORS.length - 1; i++) {
     const hi = SKY_ANCHORS[i];
@@ -41,7 +47,7 @@ export function skyBackgroundForElevation(elevDeg: number): string {
     }
   }
   /* v8 ignore next */
-  return "#000000";
+  return rgbToHex(NIGHT_RGB);
 }
 
 function rgbToHex(rgb: readonly [number, number, number]): string {

@@ -31,10 +31,10 @@ function stubImageDecode(...results: boolean[]) {
 }
 
 // Models the real browse archive rather than a fixed pass/fail sequence: a slot loads if and
-// only if NASA had actually published it. Needed for the stall fixture below, where "which
-// URLs exist" is the whole point and the resolver's request order is what's under test.
-function stubArchivePublishedUpTo(newestSlotIso: string) {
-  const newest = Date.parse(newestSlotIso);
+// only if `isPublished` says it exists yet. Shared engine behind stubArchivePublishedUpTo (a
+// flat cutoff) and stubArchiveWithRealPublishLag (the real 25/30-min rule) below — both just
+// supply a different one-line predicate over the same parse/probe/decide machinery.
+function stubArchive(isPublished: (slotMs: number) => boolean) {
   const state = { calls: 0, probes: [] as { slot: number; ok: boolean }[] };
   vi.stubGlobal(
     "Image",
@@ -46,13 +46,20 @@ function stubArchivePublishedUpTo(newestSlotIso: string) {
         if (!match) return Promise.reject(new Error("unparseable slot URL"));
         const [, y, mo, d, h, mi, sec] = match.map(Number);
         const slot = Date.UTC(y, mo - 1, d, h, mi, sec);
-        const ok = slot <= newest;
+        const ok = isPublished(slot);
         state.probes.push({ slot, ok });
         return ok ? Promise.resolve() : Promise.reject(new Error("404"));
       }
     }
   );
   return state;
+}
+
+// Needed for the stall fixture below, where "which URLs exist" is the whole point and the
+// resolver's request order is what's under test.
+function stubArchivePublishedUpTo(newestSlotIso: string) {
+  const newest = Date.parse(newestSlotIso);
+  return stubArchive((slot) => slot <= newest);
 }
 
 // This one test reports rather than merely asserts: its probe-by-probe trace is what a human
@@ -66,24 +73,7 @@ const print = (line: string) => console.log(line);
 // capture and a :00/:30 slot 30 minutes after (measured in #148, zero jitter). Existence is
 // therefore a function of the mocked clock, so the same stub serves a whole run of ticks.
 function stubArchiveWithRealPublishLag() {
-  const state = { calls: 0, probes: [] as { slot: number; ok: boolean }[] };
-  vi.stubGlobal(
-    "Image",
-    class {
-      src = "";
-      decode() {
-        state.calls++;
-        const match = /\/(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})_/.exec(this.src);
-        if (!match) return Promise.reject(new Error("unparseable slot URL"));
-        const [, y, mo, d, h, mi, sec] = match.map(Number);
-        const slot = Date.UTC(y, mo - 1, d, h, mi, sec);
-        const ok = Date.now() >= slot + publishLagMs(slot);
-        state.probes.push({ slot, ok });
-        return ok ? Promise.resolve() : Promise.reject(new Error("404"));
-      }
-    }
-  );
-  return state;
+  return stubArchive((slot) => Date.now() >= slot + publishLagMs(slot));
 }
 
 function publishLagMs(slot: number): number {

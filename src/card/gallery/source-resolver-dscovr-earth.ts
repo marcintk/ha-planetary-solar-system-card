@@ -66,14 +66,22 @@ export async function fetchLatestEarthImageUrl(
   if (!latest) {
     throw new Error("EPIC API returned no images");
   }
-  const { identifier } = latest;
+  const image = buildEpicImage(latest.identifier);
+  cache.set("earth", image);
+  return image;
+}
+
+// Pure identifier → URL/date math, split from the fetch/cache shell above so the format itself
+// (14-digit UTC timestamp, archive path shape) is testable with plain strings — no fetch mock
+// needed to prove a date parses correctly.
+export function buildEpicImage(identifier: string): SourcedImage {
   const year = identifier.slice(0, 4);
   const month = identifier.slice(4, 6);
   const day = identifier.slice(6, 8);
   const hour = identifier.slice(8, 10);
   const minute = identifier.slice(10, 12);
   const second = identifier.slice(12, 14);
-  const image = {
+  return {
     url: `${EPIC_BASE_URL}/archive/natural/${year}/${month}/${day}/jpg/epic_1b_${identifier}.jpg`,
     date: new Date(
       Date.UTC(
@@ -86,6 +94,4 @@ export async function fetchLatestEarthImageUrl(
       )
     ),
   };
-  cache.set("earth", image);
-  return image;
 }

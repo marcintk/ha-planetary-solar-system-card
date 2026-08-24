@@ -45,29 +45,30 @@ export abstract class SourceResolver {
     return this.source;
   }
 
+  // Required hook #1. Answers "do we already have a still-valid candidate?" without touching
+  // the network — null means "go compute one". Each source picks its own definition of valid:
+  // sun anchors to its 15-min slot's own timestamp, earth is a plain elapsed-time TTL, moon is
+  // URL-string identity with no clock at all. May return a URL nothing has confirmed decodes
+  // yet (see fetchCandidateUrl's own contract below) — resolve() re-checks that separately via
+  // isDecoded() before ever trusting this as a finished answer.
   protected abstract getCached(): SourcedImage | null;
+
+  // Required hook #2. Called only when getCached() returned null — computes this tick's best
+  // guess at the current image and, conventionally, writes it to `this.cache` optimistically
+  // (before anything has proven it loads), the same pattern sun and moon both use. Wrap any
+  // real network call in `timedAttempt`/`timedPreload` from this module so it's counted the
+  // same way the shared preload step below is; a pure-math guess (sun, moon) needs no such
+  // wrapping and costs no `fetches` counter.
   protected abstract fetchCandidateUrl(debug: DebugAccumulator): Promise<SourcedImage>;
 
-  // Lets a caller skip calling resolve() at all while this source's own cache is still
-  // current — image-resolver.ts's resolveAll() uses this the same way it already skips a
-  // source still mid-fetch, so a tick that has nothing new to do leaves no trace (no debug
-  // counters move, no resolve() call happens) instead of running the whole cache-check
-  // protocol just to immediately return the same cached image.
-  //
-  // Deliberately checks isDecoded() too, not just getCached() alone: getCached() can be
-  // non-null for a URL a resolver wrote optimistically before anything confirmed it loads
-  // (see getSunImageUrl() / fetchLatestEarthImageUrl()'s own comments). Skipping on that
-  // alone would mean a failed fetch "poisons" every following tick into silently doing
-  // nothing instead of retrying — this mirrors exactly what resolve() itself treats as an
-  // instant-success shortcut, so isFresh() is true only when resolve() would be a no-op.
-  isFresh(): boolean {
-    const cached = this.getCached();
-    return cached != null && this.cache.isDecoded(this.cacheKey, cached.url);
-  }
-
-  // Only sun overrides this: one-step fallback to the previous 15-min slot when the computed
-  // one 404s. Earth's URL is already confirmed by a real API lookup, so the default (rethrow)
-  // is correct for it.
+  // Optional hook. Called with the preload/decode error, the candidate that failed, and the
+  // image-side debug accumulator, only after a real decode attempt has failed. Return a
+  // replacement SourcedImage to recover the tick (it gets committed exactly like a normal
+  // success); rethrow (the default, below) to give up — the caller's outer catch takes it from
+  // there and arms backoff. Earth and moon never override this: their engine-default rethrow
+  // is this exact function, unmodified. Only sun overrides it, walking backward through 15-min
+  // slots (source-resolver-sdo-sun.ts) — the only source where an older candidate is ever a
+  // better guess than giving up.
   protected recover(
     err: unknown,
     _candidate: SourcedImage,
@@ -99,56 +100,91 @@ export abstract class SourceResolver {
   // EPIC API call, separate from the image byte fetch); sun's caller passes the same one
   // twice, since its candidate URL is pure math with nothing to separate out.
   //
-  // Owns `refreshes` itself (bumped unconditionally below) rather than leaving it to the
+  // Owns `gets` itself (bumped unconditionally below) rather than leaving it to the
   // caller — every call here is one refresh attempt for this source, so the counter and the
   // attempt it counts live in the same place instead of two files staying in sync by
   // convention (ImageResolver used to bump this before ever calling resolve()).
   async resolve(urlDebug: DebugAccumulator, imgDebug: DebugAccumulator): Promise<SourcedImage> {
-    urlDebug.refreshes++;
-    // A source that just failed repeatedly skips the network entirely for a backoff window
-    // (see UrlCache.recordFailure) — serving the last known-good image instead of hammering
-    // NASA every refresh_mins tick during an outage or rate-limit.
-    if (this.cache.inCooldown(this.cacheKey)) {
-      const stale = this.cache.getStale(this.cacheKey);
-      if (stale) return stale;
-      throw new Error(`${this.source} is in cooldown after repeated failures`);
-    }
+    urlDebug.gets++;
+    // Checked — and left — outside the try/catch below on purpose: cooldown itself is not a
+    // failure to record (Backoff already recorded the failures that armed it), so this must
+    // never reach the catch's own recordFailure() call.
+    const stale = this.checkCooldown(urlDebug);
+    if (stale) return stale;
     try {
-      // Checked before any fetch is attempted, so `cacheHits` climbs on every refresh that's
-      // served straight from cache — the direct answer to "is this source's TTL actually
-      // skipping the network" that `refreshes` vs. `fetches` alone only implies.
-      const cached = this.getCached();
-      if (cached) urlDebug.cacheHits++;
-      const candidate = cached ?? (await this.fetchCandidateUrl(urlDebug));
+      const { image: candidate, fromCache } = await this.resolveCandidate(urlDebug);
       // URL identity is already the cache — skip re-decoding an image already confirmed to
-      // load (bytes that would've been re-fetched and re-decoded for nothing). Only counted
-      // when the TTL cache had just expired (`expired`): a real fetchCandidateUrl() call that
-      // ended up confirming nothing changed. The cache-still-fresh case needs no counter of its
-      // own — `cacheHits` already answers that question.
+      // load (bytes that would've been re-fetched and re-decoded for nothing). `expired` counts
+      // only the case where the TTL cache had just expired and a real fetchCandidateUrl() call
+      // confirmed nothing changed — the cache-still-fresh case needs no counter of its own,
+      // `cacheHits` already answers that question.
       if (this.cache.isDecoded(this.cacheKey, candidate.url)) {
-        if (!cached) urlDebug.expired++;
-        this.cache.recordSuccess(this.cacheKey, candidate);
-        return candidate;
+        if (!fromCache) urlDebug.expired++;
+        return this.commit(candidate);
       }
       // sun's imgDebug is the same object as urlDebug (see the accumulator comment above), so
-      // it's already been bumped by the unconditional refreshes++ above — only earth's
+      // it's already been bumped by the unconditional gets++ above — only earth's
       // split-off img row needs its own count of "an image refresh was actually needed" here.
-      if (imgDebug !== urlDebug) imgDebug.refreshes++;
-      try {
-        await timedPreload(candidate.url, imgDebug);
-        this.cache.markDecoded(this.cacheKey, candidate.url);
-        this.cache.recordSuccess(this.cacheKey, candidate);
-        return candidate;
-      } catch (err) {
-        const recovered = await this.recover(err, candidate, imgDebug);
-        this.cache.markDecoded(this.cacheKey, recovered.url);
-        this.cache.recordSuccess(this.cacheKey, recovered);
-        return recovered;
-      }
+      if (imgDebug !== urlDebug) imgDebug.gets++;
+      return await this.fetchAndDecode(candidate, imgDebug);
     } catch (err) {
       this.cache.recordFailure(this.cacheKey, retryAfterMsFrom(err));
       throw err;
     }
+  }
+
+  // Phase 1: is this source sitting out a backoff window from prior failures? A source that
+  // just failed repeatedly skips the network entirely (see UrlCache.recordFailure) — serving
+  // the last known-good image instead of hammering NASA every tick during an outage or
+  // rate-limit. Returns the stale image to short-circuit resolve() entirely, or null to
+  // continue on to the cache/fetch phases below.
+  private checkCooldown(debug: DebugAccumulator): SourcedImage | null {
+    if (!this.cache.inCooldown(this.cacheKey)) return null;
+    debug.backoffs++;
+    const stale = this.cache.getStale(this.cacheKey);
+    if (stale) return stale;
+    throw new Error(`${this.source} is in cooldown after repeated failures`);
+  }
+
+  // Phase 2: this source's own getCached()/fetchCandidateUrl() hooks, wrapped with the one
+  // counter (`cacheHits`) and the fromCache flag every source shares regardless of what those
+  // hooks actually do. Checked before any fetch is attempted, so `cacheHits` climbs on every
+  // refresh that's served straight from cache — the direct answer to "is this source's TTL
+  // actually skipping the network" that `refreshes` vs. `fetches` alone only implies.
+  private async resolveCandidate(
+    debug: DebugAccumulator
+  ): Promise<{ image: SourcedImage; fromCache: boolean }> {
+    const cached = this.getCached();
+    if (cached) debug.cacheHits++;
+    const image = cached ?? (await this.fetchCandidateUrl(debug));
+    return { image, fromCache: cached != null };
+  }
+
+  // Phase 3: the real network cost every source pays the same way — preload, decode, and on
+  // failure the recover() hook (default: rethrow; only sun overrides it). Both outcomes commit
+  // through the same phase 4 below, so a recovered image is indistinguishable from a normal
+  // success by the time it's cached.
+  private async fetchAndDecode(
+    candidate: SourcedImage,
+    imgDebug: DebugAccumulator
+  ): Promise<SourcedImage> {
+    try {
+      await timedPreload(candidate.url, imgDebug);
+      return this.commit(candidate);
+    } catch (err) {
+      const recovered = await this.recover(err, candidate, imgDebug);
+      return this.commit(recovered);
+    }
+  }
+
+  // Phase 4: the one place every successful path ends, dup or freshly decoded — confirms this
+  // exact URL decodes (markDecoded) and tells Backoff this is the new stale-fallback
+  // (recordSuccess), clearing any cooldown. Reached from the dup check above, hits the same
+  // markDecoded() write it already implies — cheap and idempotent, not a second decode.
+  private commit(image: SourcedImage): SourcedImage {
+    this.cache.markDecoded(this.cacheKey, image.url);
+    this.cache.recordSuccess(this.cacheKey, image);
+    return image;
   }
 }
 

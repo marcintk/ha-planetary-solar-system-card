@@ -11,7 +11,7 @@ import type { GalleryViewModel } from "../../src/card/gallery/gallery-controller
 import { formatDate } from "../../src/card/relative-time.js";
 
 const zeroDebugStats: SourceDebugStats = {
-  refreshes: 0,
+  gets: 0,
   fetches: 0,
   failures: 0,
   retries: 0,

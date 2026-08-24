@@ -1,5 +1,4 @@
-import type { DebugAccumulator, SourceDebugStats } from "./debug-stats.js";
-import { emptyDebugAccumulator, toDebugStats } from "./debug-stats.js";
+import type { SourceDebugStats } from "./debug-stats.js";
 import { ImageResolver } from "./image-resolver.js";
 import type { DebugRowId, ImageSource } from "./sources.js";
 import { IMAGE_SOURCES, SOURCES } from "./sources.js";
@@ -44,6 +43,44 @@ export interface GalleryViewModel {
   debugStartedAt: number;
 }
 
+// The full-screen panel's own state: which source (if any) it's showing, the image it has
+// settled on, and any error banner. Pulled out of GalleryController because every invariant
+// here is local to "what does the panel show" — closing always clears the same four fields
+// together, applying an image always clears `loaded` first — and a caller (GalleryController)
+// never needs to touch these one at a time.
+class PanelState {
+  mode: ImagePanelMode = "none";
+  url: string | null = null;
+  date: Date | null = null;
+  loaded = false;
+  error: string | null = null;
+
+  // Every caller preloads (via ImageResolver.resolve()) before this runs, so the pixels are
+  // already sitting in the browser's cache — `loaded` is set true right after, letting the
+  // visible <img> paint from that cache instead of a live fetch.
+  applyImage(url: string, date: Date): void {
+    this.loaded = false;
+    this.url = url;
+    this.date = date;
+  }
+
+  close(): void {
+    this.mode = "none";
+    this.url = null;
+    this.date = null;
+    this.error = null;
+  }
+
+  // Callers only ever invoke this once they've confirmed the failing source is the one
+  // currently shown, so it always closes — there is no "fail a source that isn't open" case.
+  fail(message: string): void {
+    this.error = message;
+    this.mode = "none";
+    this.url = null;
+    this.date = null;
+  }
+}
+
 /**
  * Owns the gallery strip and full-screen image panel: which sources are fetched, which one
  * is displayed, and the retry protocol against each source's own cache. Previously this was
@@ -53,11 +90,7 @@ export interface GalleryViewModel {
  * callback pattern as DateNavigation/ZoomAnimator).
  */
 export class GalleryController {
-  private _panelMode: ImagePanelMode;
-  private _imageUrl: string | null;
-  private _imageDate: Date | null;
-  private _imageLoaded: boolean;
-  private _error: string | null;
+  private _panel: PanelState;
   private _open: boolean;
   private _images: Partial<Record<ImageSource, SourcedImage>>;
   private _mode: GalleryMode;
@@ -65,17 +98,16 @@ export class GalleryController {
   private _slideIndex: number;
   private _autoSwitchTimer: number | null;
   private _onChange: () => void;
-  private _debug: Record<DebugRowId, DebugAccumulator>;
   private _debugStartedAt: number;
   private _resolver: ImageResolver;
   private _sources: ImageSource[];
 
-  constructor(onChange: () => void) {
-    this._panelMode = "none";
-    this._imageUrl = null;
-    this._imageDate = null;
-    this._imageLoaded = false;
-    this._error = null;
+  // resolver defaults to a real, network-backed ImageResolver for production callers — tests
+  // that only exercise panel/strip/slide state can pass a fake instead (matching the pattern
+  // SourceResolver already uses for its own `cache` constructor param) and skip stubbing
+  // global Image/fetch entirely.
+  constructor(onChange: () => void, resolver: ImageResolver = new ImageResolver()) {
+    this._panel = new PanelState();
     this._open = false;
     this._mode = "off";
     this._sources = DEFAULT_GALLERY_SOURCES;
@@ -83,14 +115,8 @@ export class GalleryController {
     this._slideIndex = 0;
     this._autoSwitchTimer = null;
     this._onChange = onChange;
-    this._debug = {
-      moon: emptyDebugAccumulator(),
-      sun: emptyDebugAccumulator(),
-      "earth-url": emptyDebugAccumulator(),
-      "earth-img": emptyDebugAccumulator(),
-    };
     this._debugStartedAt = Date.now();
-    this._resolver = new ImageResolver();
+    this._resolver = resolver;
     // Recovers each source's still-fresh cache into this instance's own known-URL
     // state — without this, a remount (this._images always starts empty) would otherwise
     // force a redundant preload of bytes the module cache already confirmed are current.
@@ -98,19 +124,19 @@ export class GalleryController {
   }
 
   get panelMode(): ImagePanelMode {
-    return this._panelMode;
+    return this._panel.mode;
   }
   get imageUrl(): string | null {
-    return this._imageUrl;
+    return this._panel.url;
   }
   get imageDate(): Date | null {
-    return this._imageDate;
+    return this._panel.date;
   }
   get imageLoaded(): boolean {
-    return this._imageLoaded;
+    return this._panel.loaded;
   }
   get error(): string | null {
-    return this._error;
+    return this._panel.error;
   }
   get isOpen(): boolean {
     return this._open;
@@ -122,12 +148,7 @@ export class GalleryController {
     return this._images;
   }
   get debugStats(): Record<DebugRowId, SourceDebugStats> {
-    return {
-      moon: toDebugStats(this._debug.moon),
-      sun: toDebugStats(this._debug.sun),
-      "earth-url": toDebugStats(this._debug["earth-url"]),
-      "earth-img": toDebugStats(this._debug["earth-img"]),
-    };
+    return this._resolver.debugStats();
   }
 
   // Sources rendered as thumbnails right now — the configured list verbatim, except in
@@ -141,12 +162,12 @@ export class GalleryController {
   // that view instead, so it has no need to hide just because a panel opened.
   viewModel(position: GalleryPosition = "overlay"): GalleryViewModel {
     return {
-      error: this._error,
-      panelSource: this._panelMode,
-      imageUrl: this._imageUrl,
-      imageDate: this._imageDate,
-      imageLoaded: this._imageLoaded,
-      showStrip: this._open && (position === "below" || this._panelMode === "none"),
+      error: this._panel.error,
+      panelSource: this._panel.mode,
+      imageUrl: this._panel.url,
+      imageDate: this._panel.date,
+      imageLoaded: this._panel.loaded,
+      showStrip: this._open && (position === "below" || this._panel.mode === "none"),
       thumbnails: this.displaySources.map((source) => {
         const image = this._images[source];
         return { source, url: image?.url ?? null, date: image?.date ?? null };
@@ -199,7 +220,7 @@ export class GalleryController {
     if (!this._open) {
       this.closePanel();
     } else {
-      this._error = null;
+      this._panel.error = null;
       this._onChange();
       void this.refresh();
     }
@@ -217,35 +238,32 @@ export class GalleryController {
     // panelMode: in "overlay" position the strip is hidden while a panel is open, so its tiles
     // aren't there to re-click; in "below" they stay visible, and clicking the open one again
     // reads as "close it", not "open it again".
-    if (this._panelMode === mode) {
+    if (this._panel.mode === mode) {
       this.closePanel();
       return;
     }
-    this._panelMode = mode;
-    this._error = null;
+    this._panel.mode = mode;
+    this._panel.error = null;
     const known = this._images[mode];
     if (known) {
-      this._applyImage(known.url, known.date);
-      this._imageLoaded = true;
+      this._panel.applyImage(known.url, known.date);
+      this._panel.loaded = true;
     } else {
-      this._imageUrl = null;
-      this._imageDate = null;
-      this._imageLoaded = false;
+      this._panel.url = null;
+      this._panel.date = null;
+      this._panel.loaded = false;
       void this.refresh();
     }
     this._onChange();
   }
 
   closePanel(): void {
-    this._panelMode = "none";
-    this._imageUrl = null;
-    this._imageDate = null;
-    this._error = null;
+    this._panel.close();
     this._onChange();
   }
 
   onImageLoad(): void {
-    this._imageLoaded = true;
+    this._panel.loaded = true;
     this._onChange();
   }
 
@@ -254,11 +272,8 @@ export class GalleryController {
   // failure after the fact (e.g. the browser evicting its cache between preload and paint) —
   // no retry left to try, just surface the error banner.
   onImageLoadError(): void {
-    if (this._panelMode === "none") return;
-    this._error = `${SOURCES[this._panelMode].label} image unavailable`;
-    this._panelMode = "none";
-    this._imageUrl = null;
-    this._imageDate = null;
+    if (this._panel.mode === "none") return;
+    this._panel.fail(`${SOURCES[this._panel.mode].label} image unavailable`);
     this._onChange();
   }
 
@@ -292,15 +307,6 @@ export class GalleryController {
     this._onChange();
   }
 
-  // Every caller preloads (via ImageResolver.resolve()) before calling this, so the pixels are
-  // already sitting in the browser's cache — _imageLoaded is set true right after, letting
-  // the visible <img> paint from that cache instead of a live fetch.
-  private _applyImage(url: string, date: Date): void {
-    this._imageLoaded = false;
-    this._imageUrl = url;
-    this._imageDate = date;
-  }
-
   // Fetches every configured source — called on open (start/configure), on click for a
   // source that isn't known yet (openPanel), and on each auto-update tick while the strip or
   // a panel stays open. Each source is cache-guarded (earth hourly, sun every 15min —
@@ -310,21 +316,20 @@ export class GalleryController {
   // fetch/dedupe/retry mechanics live in ImageResolver — this only applies its settled
   // results to view state (which image is shown, which error banner, when to re-render).
   private async refresh(): Promise<void> {
-    const results = await this._resolver.resolveAll(this._sources, this._debug);
+    const results = await this._resolver.resolveAll(this._sources);
     for (const { source, result } of results) {
       if (result.status === "fulfilled") {
         this._images[source] = result.value;
-        if (this._panelMode === source) {
-          this._applyImage(result.value.url, result.value.date);
-          this._imageLoaded = true;
+        if (this._panel.mode === source) {
+          this._panel.applyImage(result.value.url, result.value.date);
+          this._panel.loaded = true;
         }
-      } else if (this._panelMode === source && !this._images[source]) {
+      } else if (this._panel.mode === source && !this._images[source]) {
         // The open panel is waiting on this exact source's first-ever fetch and it just
         // failed — nothing to fall back to, so surface the error instead of "loading…"
         // forever. A source that already has a known image just keeps showing it (matches
         // the old behavior: never swap to something that might not load).
-        this._panelMode = "none";
-        this._error = `${SOURCES[source].label} image unavailable`;
+        this._panel.fail(`${SOURCES[source].label} image unavailable`);
       }
     }
     this._onChange();

@@ -5,8 +5,9 @@ import type { SourceDebugStats } from "../../src/card/gallery/debug-stats.js";
 import { formatDate } from "../../src/card/relative-time.js";
 
 const zeroDebugStats: SourceDebugStats = {
-  refreshes: 0,
+  gets: 0,
   cacheHits: 0,
+  backoffs: 0,
   fetches: 0,
   failures: 0,
   retries: 0,
@@ -27,8 +28,9 @@ describe("buildDebugOverlay", () => {
     "earth-url": zeroDebugStats,
     "earth-img": zeroDebugStats,
     sun: {
-      refreshes: 4,
+      gets: 4,
       cacheHits: 2,
+      backoffs: 2,
       fetches: 3,
       failures: 1,
       retries: 2,
@@ -85,16 +87,19 @@ describe("buildDebugOverlay", () => {
     expect(cells).toEqual([
       // The moon row can't retry either: every frame of the year is pre-published, so an
       // earlier one is never a better guess (see source-resolver-svs-moon.ts).
-      ["SVS/M", "0", "0", "0", "0", "0", "—", "—", "—"],
-      ["SDO/S", "4", "2", "5", "3", "1", "2", "123ms", "5m"],
+      ["SVS/M", "0", "0", "0", "0", "0", "0", "—", "—", "—"],
+      // backoffs isn't gated by hasCacheStep — it's the same "did resolve() even get past the
+      // top gate" question as gets, so it lands right after cache like sun's non-zero 2.
+      ["SDO/S", "4", "2", "2", "5", "3", "1", "2", "123ms", "5m"],
       // Neither earth row can retry (only sun's resolver ever does) — retry shows "—".
-      ["DSCOVR/E url", "0", "0", "0", "0", "0", "—", "—", "—"],
-      // earth-img also has no cache/URL-identity step of its own — those columns show "—" too.
-      ["DSCOVR/E img", "0", "—", "—", "0", "0", "—", "—", "—"],
-      // total: refreshes max()s (4 vs. 0 vs. 0) rather than summing, cacheHits/others sum
-      // the raw underlying values (not the dashed display), elapsed avg()s the non-null
+      ["DSCOVR/E url", "0", "0", "0", "0", "0", "0", "—", "—", "—"],
+      // earth-img also has no cache/URL-identity step of its own — those columns show "—" too,
+      // but backoffs still shows a real 0 since it applies before the cache step ever runs.
+      ["DSCOVR/E img", "0", "—", "0", "—", "0", "0", "—", "—", "—"],
+      // total: gets max()s (4 vs. 0 vs. 0) rather than summing, cacheHits/backoffs/others
+      // sum the raw underlying values (not the dashed display), elapsed avg()s the non-null
       // values (just sun's 123.4 here), last is always "—" — see summarizeDebugStats.
-      ["total", "4", "2", "5", "3", "1", "2", "123ms", "—"],
+      ["total", "4", "2", "2", "5", "3", "1", "2", "123ms", "—"],
     ]);
   });
 
@@ -110,11 +115,11 @@ describe("buildDebugOverlay", () => {
     expect(sunRow[sunRow.length - 1]).toBe("45s");
   });
 
-  it("sums the total row's refreshes with max() instead of add(), for lockstep both/slide modes", () => {
+  it("sums the total row's gets with max() instead of add(), for lockstep both/slide modes", () => {
     const lockstep = {
       moon: zeroDebugStats,
-      sun: { ...zeroDebugStats, refreshes: 5, elapsed: 100 },
-      "earth-url": { ...zeroDebugStats, refreshes: 5, elapsed: 200 },
+      sun: { ...zeroDebugStats, gets: 5, elapsed: 100 },
+      "earth-url": { ...zeroDebugStats, gets: 5, elapsed: 200 },
       "earth-img": zeroDebugStats,
     };
     const root = renderToDOM(buildDebugOverlay(lockstep, Date.now()));
@@ -122,6 +127,6 @@ describe("buildDebugOverlay", () => {
     const totalRow = [...rows[rows.length - 1].children].map((td) => td.textContent);
     // max(5, 5, 0) = 5, not 10 — and elapsed averages the two non-null values,
     // (100 + 200) / 2 = 150ms.
-    expect(totalRow).toEqual(["total", "5", "0", "0", "0", "0", "0", "150ms", "—"]);
+    expect(totalRow).toEqual(["total", "5", "0", "0", "0", "0", "0", "0", "150ms", "—"]);
   });
 });

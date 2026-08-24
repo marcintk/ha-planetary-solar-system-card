@@ -1,4 +1,6 @@
 import type { DebugAccumulator } from "./debug-stats.js";
+import { padLeft } from "./pad.js";
+import { findPublishedSlot } from "./slot-search.js";
 import { IMAGE_TIMEOUT_MESSAGE, SourceResolver, timedPreload } from "./source-resolver.js";
 import type { SourcedImage, UrlCache } from "./url-cache.js";
 import { urlCache } from "./url-cache.js";
@@ -59,67 +61,44 @@ export class SdoSunResolver extends SourceResolver {
     // Backoff's cooldown decide when to look again.
     if (isTimeout(err)) throw err;
 
-    let lastErr = err;
-    let missed = candidate.date.getTime(); // newest slot known not to be published
-    let found: SourcedImage | null = null;
-
-    // Returns the slot when it loads, null when it 404s; a timeout aborts the search entirely
-    // for the reason above.
-    const trySlot = async (slotMs: number): Promise<SourcedImage | null> => {
-      debug.retries++;
-      const slot = buildSunSlotImage(new Date(slotMs));
-      try {
-        await timedPreload(slot.url, debug);
-        return slot;
-      } catch (retryErr) {
-        if (isTimeout(retryErr)) throw retryErr;
-        lastErr = retryErr;
-        return null;
-      }
-    };
-
     // `lastConfirmed`, not the TTL entry — getSunImageUrl() writes its guess there before
     // anything has verified it loads, so the TTL entry is exactly the wrong thing to treat as
     // known-good. Backoff only records a success after a real decode.
     const confirmed = this.cache.getStale(this.source);
-    if (confirmed) {
-      // `next >= missed` covers both "the guess was only one slot ahead" and a backwards
-      // clock jump leaving the confirmed frame newer than the guess: either way there is no
-      // gap to search, and the frame we already have is the answer.
-      const next = confirmed.date.getTime() + SUN_CACHE_TTL_MS;
-      found = next < missed ? await trySlot(next) : null;
-      if (!found) {
-        // Nothing newer than the frame we already hold, so the gap below is known-empty and
-        // there is nothing to search. Re-commit it so the TTL entry stops advertising the
-        // guess that just 404'd, and stamp the check so freshCachedSlot() holds off re-probing
-        // for a full TTL instead of retrying on every tick (#152).
-        this.cache.set(this.source, confirmed);
-        this.cache.recordChecked(this.source);
-        return confirmed;
-      }
-    } else {
-      const origin = missed;
-      for (let reach = SUN_CACHE_TTL_MS; ; reach = Math.min(reach * 2, SUN_MAX_REACH_MS)) {
-        found = await trySlot(origin - reach);
-        if (found) break;
-        missed = origin - reach;
-        if (reach === SUN_MAX_REACH_MS) break;
-      }
-      if (!found) throw lastErr;
-    }
 
-    // Narrow to the newest slot that loads. Each step halves what is left between a slot known
-    // to load and one known not to, so the whole search stays logarithmic in the gap.
-    let loaded = found.date.getTime();
-    while (missed - loaded > SUN_CACHE_TTL_MS) {
-      const mid = floorToSlot(loaded + (missed - loaded) / 2);
-      const image = await trySlot(mid);
-      if (image) {
-        found = image;
-        loaded = mid;
-      } else {
-        missed = mid;
+    // The search strategy itself (reach-doubling cold start, bisection narrowing) lives in
+    // slot-search.ts, pure and network-agnostic. This probe is the only place that knows what
+    // "does this slot exist" actually costs: one preload+decode, counted, with a timed-out
+    // attempt reported as `abort` so the search stops instead of treating a dead host as one
+    // more missing slot.
+    const probe = async (slotMs: number) => {
+      debug.retries++;
+      try {
+        await timedPreload(buildSunSlotImage(new Date(slotMs)).url, debug);
+        return { hit: true };
+      } catch (retryErr) {
+        return { hit: false, abort: isTimeout(retryErr), error: retryErr };
       }
+    };
+
+    const result = await findPublishedSlot({
+      confirmedMs: confirmed ? confirmed.date.getTime() : null,
+      missedMs: candidate.date.getTime(),
+      slotMs: SUN_CACHE_TTL_MS,
+      maxReachMs: SUN_MAX_REACH_MS,
+      probe,
+    });
+
+    // foundMs is only ever null when a confirmed frame was supplied and the one probe past it
+    // missed — cold-start exhaustion rethrows lastError inside findPublishedSlot instead of
+    // returning here. Nothing newer than the frame we already hold, so the gap below is
+    // known-empty and there is nothing to search. Re-commit it so the TTL entry stops
+    // advertising the guess that just 404'd, and stamp the check so freshCachedSlot() holds off
+    // re-probing for a full TTL instead of retrying on every tick (#152).
+    if (result.foundMs == null) {
+      this.cache.set(this.source, confirmed as SourcedImage);
+      this.cache.recordChecked(this.source);
+      return confirmed as SourcedImage;
     }
 
     // Committed once, for the slot that won — an attempt that 404s never touches the shared
@@ -127,6 +106,7 @@ export class SdoSunResolver extends SourceResolver {
     // observe a still-unconfirmed guess. Also the cold-start search's only exit, so it needs
     // its own stamp here too (#152) — without it, a cold start that lands on an old/stalled
     // frame settles with no throttle behind it, and the very next tick re-probes from scratch.
+    const found = buildSunSlotImage(new Date(result.foundMs));
     this.cache.set(this.source, found);
     this.cache.recordChecked(this.source);
     return found;
@@ -171,15 +151,11 @@ function floorToSlot(ms: number): number {
   return Math.floor(ms / SUN_CACHE_TTL_MS) * SUN_CACHE_TTL_MS;
 }
 
-function pad(n: number): string {
-  return String(n).padStart(2, "0");
-}
-
 function buildSunSlotImage(slot: Date): SourcedImage {
   const year = slot.getUTCFullYear();
-  const month = pad(slot.getUTCMonth() + 1);
-  const day = pad(slot.getUTCDate());
-  const hhmmss = `${pad(slot.getUTCHours())}${pad(slot.getUTCMinutes())}00`;
+  const month = padLeft(slot.getUTCMonth() + 1);
+  const day = padLeft(slot.getUTCDate());
+  const hhmmss = `${padLeft(slot.getUTCHours())}${padLeft(slot.getUTCMinutes())}00`;
   return {
     url: `${SDO_BROWSE_BASE_URL}/${year}/${month}/${day}/${year}${month}${day}_${hhmmss}_1024_HMIIC.jpg`,
     date: slot,

@@ -19,9 +19,14 @@ export const IMAGE_SOURCES: ImageSource[] = ["mymoon", "moon", "earth", "sun"];
 // two: they share a cache key (SvsMoonResolver's cacheKey, see source-resolver-svs-moon.ts) and
 // resolve to the same frame, so separate rows would show one real fetch as two — mymoon's own
 // row always at 0 fetches (permanent cache hit), reading as broken rather than shared. Both
-// still bump `refreshes` independently into the shared row, since each tile really does ask
+// still bump `gets` independently into the shared row, since each tile really does ask
 // once a tick; only the network-facing counters (fetches, cacheHits, ...) tell the merged story.
 export type DebugRowId = "moon" | "sun" | "earth-url" | "earth-img";
+
+// The canonical row set, in the overlay's own display order — the one place this list is
+// written out; every other consumer (GalleryController's debug bookkeeping, debug-view.ts's
+// overlay) iterates this instead of re-listing the same four keys.
+export const DEBUG_ROWS: DebugRowId[] = ["moon", "sun", "earth-url", "earth-img"];
 
 /**
  * Everything the rest of the card needs to know about one source, in one place.

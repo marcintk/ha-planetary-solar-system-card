@@ -466,30 +466,33 @@
   <section>
     <h2>Why the falloff is steep, not linear</h2>
     <div class="falloff">
-      <svg viewBox="0 0 320 160" role="img" aria-label="Extinction strength drops sharply as altitude rises past about 10 degrees, and is nearly zero above 40 degrees">
+      <svg viewBox="0 0 320 160" role="img" aria-label="Extinction strength is strong only within the last few degrees above the horizon and is nearly zero above 15 degrees">
         <line class="axis-line" x1="20" y1="140" x2="300" y2="140"></line>
         <line class="axis-line" x1="20" y1="20" x2="20" y2="140"></line>
         <text class="axis-label" x="20" y="152">0°</text>
         <text class="axis-label" x="292" y="152">90°</text>
         <text class="axis-label" x="4" y="24">1.0</text>
         <text class="axis-label" x="4" y="144">0</text>
-        <polygon class="fill" points="23.1,22.7 35.6,49.7 51.1,80.3 66.7,98.7 82.2,110.2 113.3,123.4 144.4,130.4 175.6,134.6 206.7,137.3 237.8,138.9 268.9,139.7 300,140 300,140 20,140"></polygon>
-        <polyline class="curve" points="23.1,22.7 35.6,49.7 51.1,80.3 66.7,98.7 82.2,110.2 113.3,123.4 144.4,130.4 175.6,134.6 206.7,137.3 237.8,138.9 268.9,139.7 300,140"></polyline>
+        <polygon class="fill" points="23.1,29.3 35.6,104.9 51.1,130.3 66.7,136.3 82.2,138.3 113.3,139.5 144.4,139.9 175.6,140.0 206.7,140.0 237.8,140.0 268.9,140.0 300,140 300,140 20,140"></polygon>
+        <polyline class="curve" points="23.1,29.3 35.6,104.9 51.1,130.3 66.7,136.3 82.2,138.3 113.3,139.5 144.4,139.9 175.6,140.0 206.7,140.0 237.8,140.0 268.9,140.0 300,140"></polyline>
       </svg>
       <div class="falloff-text">
         <div class="formula">
           <span class="fx">airmass</span> <span class="op">=</span> 1 / (sin(alt) + 0.50572·(alt+6.08)<span class="op">^</span>−1.6364)<br>
-          <span class="fx">strength</span> <span class="op">=</span> 1 − e<span class="op">^</span>(−0.15·(airmass − 1))
+          <span class="fx">strength</span> <span class="op">=</span> 1 − e<span class="op">^</span>(−0.004·(airmass − 1)<span class="op">^</span>2)
         </div>
         <p>
-          Kasten &amp; Young's airmass formula (1989) — steep near the horizon, flat above roughly 20°,
-          and finite even at the horizon itself (unlike the naive <code>1/sin(altitude)</code>, which
-          diverges to infinity there). 0.15 is a representative differential-extinction coefficient
-          (mag/airmass, standard photometric tables) — the gap between how much the atmosphere dims
-          blue versus red light, which is what actually produces the reddening. An earlier version of
-          this page used a bare <code>(1 − sin(altitude))^1.5</code> power law calibrated by eye; it
-          gave a real, well-up Moon at 22° an alpha of 0.49 — roughly half strength, when a Moon that
-          high actually looks close to white. This curve fixes that.
+          Kasten &amp; Young's airmass formula (1989) is finite even at the horizon (unlike the naive
+          <code>1/sin(altitude)</code>, which diverges to infinity there) — that part is a cited
+          constant. The rest isn't: a first attempt fed airmass straight into
+          <code>1 − e^(−k·(airmass−1))</code> with <code>k</code> from a real published
+          differential-extinction coefficient (~0.15 mag/airmass), and it still overstated things — a
+          Moon at 22° (airmass 2.6) came out at 0.22 strength, a visible cast on a Moon real observers
+          report as reading white. Squaring the airmass excess before the exponential is what fixes
+          it: "magnitudes of physical extinction" and "how much a UI overlay should visibly recolor a
+          photo" aren't the same scale, and the squared term pushes the moderate-altitude range down
+          much harder while keeping the same near-total saturation right at the horizon. The exponent
+          is a perceptual calibration knob, not a cited constant the way the airmass formula is.
         </p>
       </div>
     </div>
@@ -615,12 +618,13 @@
       var a = Math.max(altitudeDeg, 0);
       return 1 / (Math.sin(a * DEG) + 0.50572 * Math.pow(a + 6.07995, -1.6364));
     }
-    var DIFFERENTIAL_EXTINCTION_COEFFICIENT = 0.15; // representative mag/airmass, standard tables
+    var EXTINCTION_RAMP_COEFFICIENT = 0.004; // perceptual calibration, not a cited constant
 
     function moonExtinctionTint(altitudeDeg) {
+      var excess = airmass(altitudeDeg) - 1;
       var strength = Math.max(
         0,
-        Math.min(1, 1 - Math.exp(-DIFFERENTIAL_EXTINCTION_COEFFICIENT * (airmass(altitudeDeg) - 1)))
+        Math.min(1, 1 - Math.exp(-EXTINCTION_RAMP_COEFFICIENT * excess * excess))
       );
       var rgb = MOON_EXTINCTION_RGB;
       return "rgba(" + rgb[0] + ", " + rgb[1] + ", " + rgb[2] + ", " + strength.toFixed(2) + ")";
@@ -782,11 +786,11 @@
 
   (function () {
     var cols = [
-      { alt: 2,  s: 0.937 },
-      { alt: 8,  s: 0.585 },
-      { alt: 18, s: 0.282 },
-      { alt: 35, s: 0.105 },
-      { alt: 60, s: 0.023 },
+      { alt: 2,  s: 0.743 },
+      { alt: 8,  s: 0.128 },
+      { alt: 18, s: 0.019 },
+      { alt: 35, s: 0.002 },
+      { alt: 60, s: 0.000 },
       { alt: 85, s: 0.001 }
     ];
     var extinction = "#b6602f";

@@ -1,3 +1,5 @@
+import { floorToGrid } from "./pad.js";
+
 // Pure "which slot to try next" engine for a source published on a fixed time grid with
 // unknown publish lag (sun's 15-min SDO slots — see source-resolver-sdo-sun.ts). Knows nothing
 // about network, decoding, or images: the caller supplies a `probe` that answers "does this slot
@@ -35,10 +37,6 @@ export interface SlotSearchOptions {
   // Cold-start reach ceiling — past this, the feed is treated as dead rather than lagging.
   maxReachMs: number;
   probe: SlotProbe;
-}
-
-function floorToGrid(ms: number, slotMs: number): number {
-  return Math.floor(ms / slotMs) * slotMs;
 }
 
 export async function findPublishedSlot(opts: SlotSearchOptions): Promise<SlotSearchResult> {

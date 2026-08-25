@@ -1,4 +1,4 @@
-import { padLeft } from "./pad.js";
+import { floorToGrid, padLeft } from "./pad.js";
 import { SourceResolver } from "./source-resolver.js";
 import type { ImageSource } from "./sources.js";
 import type { SourcedImage, UrlCache } from "./url-cache.js";
@@ -110,7 +110,7 @@ export function moonFrameUrl(at: Date, size: string): string {
  * shown beneath it.
  */
 export function getMoonFrameImage(at: Date, size: string = MOON_THUMB_SIZE): SourcedImage {
-  const hour = new Date(Math.floor(at.getTime() / MOON_FRAME_MS) * MOON_FRAME_MS);
+  const hour = new Date(floorToGrid(at.getTime(), MOON_FRAME_MS));
   return { url: moonFrameUrl(hour, size), date: hour };
 }
 

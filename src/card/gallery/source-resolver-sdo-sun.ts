@@ -1,5 +1,6 @@
 import type { DebugAccumulator } from "./debug-stats.js";
-import { padLeft } from "./pad.js";
+import { recordRetry } from "./debug-stats.js";
+import { floorToGrid, padLeft } from "./pad.js";
 import type { SlotProbe } from "./slot-search.js";
 import { findPublishedSlot } from "./slot-search.js";
 import { IMAGE_TIMEOUT_MESSAGE, SourceResolver, timedPreload } from "./source-resolver.js";
@@ -114,7 +115,7 @@ export function sunSlotProbe(
   preload: (url: string, debug: DebugAccumulator) => Promise<void> = timedPreload
 ): SlotProbe {
   return async (slotMs: number) => {
-    debug.retries++;
+    recordRetry(debug);
     try {
       await preload(buildSunSlotImage(new Date(slotMs)).url, debug);
       return { hit: true };
@@ -149,13 +150,11 @@ export function getSunImageUrl(cache: UrlCache = urlCache): SourcedImage {
   const cached = freshCachedSlot(cache);
   if (cached) return cached;
 
-  const image = buildSunSlotImage(new Date(floorToSlot(Date.now() - SUN_PUBLISH_BUFFER_MS)));
+  const image = buildSunSlotImage(
+    new Date(floorToGrid(Date.now() - SUN_PUBLISH_BUFFER_MS, SUN_CACHE_TTL_MS))
+  );
   cache.set("sun", image);
   return image;
-}
-
-function floorToSlot(ms: number): number {
-  return Math.floor(ms / SUN_CACHE_TTL_MS) * SUN_CACHE_TTL_MS;
 }
 
 function buildSunSlotImage(slot: Date): SourcedImage {

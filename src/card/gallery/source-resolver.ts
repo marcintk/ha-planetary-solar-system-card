@@ -1,4 +1,5 @@
 import type { DebugAccumulator } from "./debug-stats.js";
+import { recordBackoff, recordCacheHit, recordExpired, recordGet } from "./debug-stats.js";
 import type { ImageSource } from "./sources.js";
 import type { SourcedImage, UrlCache } from "./url-cache.js";
 import { urlCache } from "./url-cache.js";
@@ -105,7 +106,7 @@ export abstract class SourceResolver {
   // attempt it counts live in the same place instead of two files staying in sync by
   // convention (ImageResolver used to bump this before ever calling resolve()).
   async resolve(urlDebug: DebugAccumulator, imgDebug: DebugAccumulator): Promise<SourcedImage> {
-    urlDebug.gets++;
+    recordGet(urlDebug);
     // Checked — and left — outside the try/catch below on purpose: cooldown itself is not a
     // failure to record (Backoff already recorded the failures that armed it), so this must
     // never reach the catch's own recordFailure() call.
@@ -119,13 +120,13 @@ export abstract class SourceResolver {
       // confirmed nothing changed — the cache-still-fresh case needs no counter of its own,
       // `cacheHits` already answers that question.
       if (this.cache.isDecoded(this.cacheKey, candidate.url)) {
-        if (!fromCache) urlDebug.expired++;
+        if (!fromCache) recordExpired(urlDebug);
         return this.commit(candidate);
       }
       // sun's imgDebug is the same object as urlDebug (see the accumulator comment above), so
-      // it's already been bumped by the unconditional gets++ above — only earth's
+      // it's already been bumped by the unconditional recordGet() above — only earth's
       // split-off img row needs its own count of "an image refresh was actually needed" here.
-      if (imgDebug !== urlDebug) imgDebug.gets++;
+      if (imgDebug !== urlDebug) recordGet(imgDebug);
       return await this.fetchAndDecode(candidate, imgDebug);
     } catch (err) {
       this.cache.recordFailure(this.cacheKey, retryAfterMsFrom(err));
@@ -140,7 +141,7 @@ export abstract class SourceResolver {
   // continue on to the cache/fetch phases below.
   private checkCooldown(debug: DebugAccumulator): SourcedImage | null {
     if (!this.cache.inCooldown(this.cacheKey)) return null;
-    debug.backoffs++;
+    recordBackoff(debug);
     const stale = this.cache.getStale(this.cacheKey);
     if (stale) return stale;
     throw new Error(`${this.source} is in cooldown after repeated failures`);
@@ -155,7 +156,7 @@ export abstract class SourceResolver {
     debug: DebugAccumulator
   ): Promise<{ image: SourcedImage; fromCache: boolean }> {
     const cached = this.getCached();
-    if (cached) debug.cacheHits++;
+    if (cached) recordCacheHit(debug);
     const image = cached ?? (await this.fetchCandidateUrl(debug));
     return { image, fromCache: cached != null };
   }

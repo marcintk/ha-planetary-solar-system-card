@@ -14,7 +14,7 @@
       "default_zoom": 3,
       "height": 560,
       "theme": "dark",
-      "gallery": { "mymoon": true, "moon": true, "earth": true, "sun": true }
+      "gallery": { "mode": "off", "mymoon": true, "moon": true, "earth": true, "sun": true }
     },
     "note": "setConfig is called before the card element is appended to the DOM (createElement, setConfig, then appendChild) — calling it after connecting risks default_zoom being ignored on first render."
   },
@@ -28,8 +28,10 @@
   },
 
   "scenario_beats": [
-    "wait off-camera for at least 2 gallery thumbnails to finish loading (no 'loading…' frames in the gif) — the strip is already open on load since gallery mode defaults to 'show'",
-    "hold ~1.5s on camera with the strip open, all 4 tiles visible (mymoon/moon/earth/sun) — the opening beat",
+    "gallery.mode is 'off' so the strip starts closed; open it off-camera, wait for at least 2 thumbnails to finish loading (no 'loading…' frames in the gif), then close it again before recording starts",
+    "hold ~0.6s on camera with the strip closed",
+    "click the gallery button — the real, on-camera opening click",
+    "hold ~2.5s on camera with the strip open, all 4 tiles visible (mymoon/moon/earth/sun) — the opening beat",
     "close the strip, brief settle",
     "hour-forward x14 (2 frames dwell each) — the twilight cone sweeps through a full day",
     "day-forward x12 (3 frames dwell each) — the Moon swings through its orbit, planets creep",

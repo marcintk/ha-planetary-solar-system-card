@@ -105,11 +105,6 @@ full-screen. Which tiles appear is `gallery.mymoon` / `gallery.moon` / `gallery.
 | DSCOVR/E  | [NASA EPIC][epic] | Earth's sunlit side, from L1                            | Hourly   | 1-2 days            |
 | SDO/S     | [NASA SDO][sdo]   | The Sun, from geosync orbit                             | 15 min   | 25-55 min           |
 
-> **MY MOON is beta.** Its rotation (matching what you'd see looking up, right now, from your
-> location) is still being verified against real skies over time. If it looks off, please
-> [open a GitHub issue](https://github.com/marcintk/ha-planetary-solar-system-card/issues/new) with
-> your location and the time you checked.
-
 Both Moon tiles are renders (LOLA + LROC + JPL DE421), not photographs, so there's no publish delay
 — but the product ships a year at a time under an id that changes each December, so both go blank on
 1 January until a release adds the new one.
@@ -179,6 +174,7 @@ a pipeline stall doesn't break the feed.
 | `gallery.moon`                | boolean | `false`     | Show the MOON tile — Moon from Earth's centre, NASA SVS render                                                                           |
 | `gallery.earth`               | boolean | `false`     | Show the EARTH tile — Earth from Sun–Earth L1, DSCOVR spacecraft                                                                         |
 | `gallery.sun`                 | boolean | `false`     | Show the SUN tile — Sun from Earth geosync orbit, SDO spacecraft                                                                         |
+| `gallery.mymoon_tint`         | boolean | `false`     | **Beta.** Tint the MY MOON tile and its full-screen view by the Moon's own altitude (extinction) — stronger near the horizon             |
 
 ### Location
 

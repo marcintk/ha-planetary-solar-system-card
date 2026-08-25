@@ -93,7 +93,7 @@
     max-width: 18ch;
   }
 
-  .lede { max-width: 62ch; color: var(--ink-soft); font-size: 1.1rem; margin: 0 0 3.5rem; }
+  .lede { max-width: 100%; color: var(--ink-soft); font-size: 1.1rem; margin: 0 0 3.5rem; }
   .lede strong { color: var(--ink); font-weight: 600; }
   .lede code { font-size: 0.85em; }
 
@@ -108,7 +108,7 @@
 
   section { margin-bottom: 4rem; }
 
-  .section-intro { color: var(--ink-soft); max-width: 60ch; margin: 0 0 1.75rem; }
+  .section-intro { color: var(--ink-soft); max-width: 100%; margin: 0 0 1.75rem; }
 
   code {
     font-family: "JetBrains Mono", monospace;
@@ -309,6 +309,40 @@
     width: 100%;
   }
   .control-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+  .toggle-control {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin-top: 1.2rem;
+    padding: 0.9rem 1rem;
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+  }
+  .toggle-control label {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.82rem;
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .toggle-control input[type="checkbox"] { accent-color: var(--accent); width: 1rem; height: 1rem; }
+  .toggle-control .control-hint {
+    font-family: "Source Serif 4", serif;
+    font-size: 0.86rem;
+    color: var(--ink-soft);
+    line-height: 1.5;
+  }
+  .matrix-toggles {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-top: 1.5rem;
+  }
+  .matrix-toggles .toggle-control { margin-top: 0; }
+  @media (max-width: 640px) { .matrix-toggles { grid-template-columns: 1fr; } }
   .presets { display: flex; flex-wrap: wrap; gap: 0.4rem; }
   .presets button {
     font-family: "JetBrains Mono", monospace;
@@ -344,7 +378,7 @@
     color: var(--accent);
     margin: 0 0 0.5rem;
   }
-  .callout p { margin: 0; color: var(--ink); font-size: 0.95rem; max-width: 64ch; }
+  .callout p { margin: 0; color: var(--ink); font-size: 0.95rem; max-width: 100%; }
   .callout p + p { margin-top: 0.7rem; }
   .callout code { background: var(--paper-raised); }
 
@@ -368,7 +402,7 @@
     white-space: nowrap;
     padding-top: 0.2rem;
   }
-  .pointer p { margin: 0 0 0.75rem; color: var(--ink-soft); font-size: 0.95rem; max-width: 62ch; }
+  .pointer p { margin: 0 0 0.75rem; color: var(--ink-soft); font-size: 0.95rem; max-width: 100%; }
   .pointer p:last-child { margin-bottom: 0; }
   .pointer strong { color: var(--ink); }
 </style>
@@ -452,13 +486,36 @@
     <h2>The matrix, rendered live</h2>
     <p class="section-intro">
       Rows are the sky wash (<code>skyBackgroundForElevation()</code>, <code>viewing-location.ts</code>).
-      Columns are the extinction wash (<code>moonExtinctionTint()</code>, same file), strongest near the
-      horizon. Each disc below is the real blend — an actual grayscale photo texture with both
-      <code>mix-blend-mode: color</code> layers stacked on it, not a flat approximated swatch.
+      Columns are the Moon's altitude, strongest near the horizon — but the extinction wash
+      (<code>moonExtinctionTint()</code>, same file) is no longer purely column-driven: with contrast
+      fade on, the same column washes weaker in the brighter rows near the top than the darker rows
+      near the bottom (hover a disc for its exact strength). Each disc below is the real blend — an
+      actual grayscale photo texture with both <code>mix-blend-mode: color</code> layers stacked on
+      it, not a flat approximated swatch.
     </p>
     <div class="matrix-wrap">
       <div class="matrix" id="matrix">
         <div class="corner"></div>
+      </div>
+    </div>
+    <div class="matrix-toggles">
+      <div class="toggle-control">
+        <label for="moon-altitude-toggle">
+          <input type="checkbox" id="moon-altitude-toggle" checked>
+          Apply Moon-altitude extinction
+        </label>
+        <span class="control-hint">The airmass curve above — uncheck to remove the extinction
+          overlay entirely, leaving only the sky-wash layer (pure sun-elevation color, no Moon
+          input at all). Contrast fade has nothing left to fade once this is off.</span>
+      </div>
+      <div class="toggle-control">
+        <label for="contrast-fade-toggle">
+          <input type="checkbox" id="contrast-fade-toggle" checked>
+          Apply sky-brightness contrast fade
+        </label>
+        <span class="control-hint">See "Why a bright sky fades the tint too" below —
+          uncheck to see the Moon's tint as pure altitude-only extinction, ignoring how bright
+          the sky behind it is.</span>
       </div>
     </div>
   </section>
@@ -494,8 +551,42 @@
           much harder while keeping the same near-total saturation right at the horizon. The exponent
           is a perceptual calibration knob, not a cited constant the way the airmass formula is.
         </p>
+        <p>
+          "Apply Moon-altitude extinction" below the matrix toggles this whole curve off — the
+          extinction overlay disappears, leaving only the sky-wash layer's own sun-elevation
+          color, so the Moon still visibly differs across sun elevations even with no altitude
+          term at all.
+        </p>
       </div>
     </div>
+  </section>
+
+  <section>
+    <h2>Why a bright sky fades the tint too</h2>
+    <p class="section-intro">
+      The formula above gives the Moon's <em>true</em> extinction color — unaffected by the Sun,
+      since the reddening happens along the sightline to the Moon, not to the Sun. But how strongly
+      that true tint <em>reads</em> to an observer isn't independent of the Sun: a bright sky floods
+      the same sightline with scattered light (veiling luminance), and simultaneous contrast further
+      desaturates a tinted disc seen against a bright field — the same reason a red filter looks
+      vivid held against a dark wall and washed-out against a white one. Neither effect changes the
+      Moon's true color, both just fade how much of it survives to the eye — which is why this
+      multiplies the strength computed above rather than feeding into the airmass curve itself.
+    </p>
+    <div class="formula">
+      <span class="fx">brightness</span> <span class="op">=</span> (luma(sky) − luma(night)) / (luma(day) − luma(night)), clamped 0–1<br>
+      <span class="fx">visible strength</span> <span class="op">=</span> strength · (1 − brightness)
+    </div>
+    <p>
+      Reuses the same day/night luma extremes the sky wash itself renders, rather than a second
+      calibrated curve — the two washes should agree on what "day" and "night" brightness mean.
+      Linear in luma is a deliberately simple choice, a calibration knob like the exponent above, not
+      a photometrically derived one.
+    </p>
+    <p class="section-intro">
+      Toggle it live below the matrix — it's wired into every live demo on this page, so flip it
+      there and watch the playground, matrix, and real-date lookup all update together.
+    </p>
   </section>
 
   <section>
@@ -620,12 +711,40 @@
     }
     var EXTINCTION_RAMP_COEFFICIENT = 0.004; // perceptual calibration, not a cited constant
 
-    function moonExtinctionTint(altitudeDeg) {
+    // Both toggled from the controls below the matrix; every live demo on the page reads them
+    // through these two flags.
+    var moonAltitudeEnabled = true;
+    var contrastFadeEnabled = true;
+
+    function luma(rgb) { return 0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]; }
+    function hexToRgb(hex) {
+      return [
+        parseInt(hex.slice(1, 3), 16),
+        parseInt(hex.slice(3, 5), 16),
+        parseInt(hex.slice(5, 7), 16),
+      ];
+    }
+    var DAY_LUMA = luma(SKY_ANCHORS[0].rgb);
+    var NIGHT_LUMA = luma(NIGHT_RGB);
+    function skyBrightnessFraction(sunElevDeg) {
+      var currentLuma = luma(hexToRgb(skyBackgroundForElevation(sunElevDeg)));
+      return Math.max(0, Math.min(1, (currentLuma - NIGHT_LUMA) / (DAY_LUMA - NIGHT_LUMA)));
+    }
+
+    function extinctionStrength(altitudeDeg, sunElevDeg) {
+      // Off means no altitude-driven extinction at all (0), not "assume the worst" (1) — the
+      // extinction tint-layer sits on top of the sky-wash layer in mix-blend-mode: color, so a
+      // fully opaque top layer masks the sky wash's own hue completely. Defaulting to 1 here
+      // painted every disc the same opaque orange regardless of sun elevation, hiding the very
+      // sun-driven variation "just sun altitude" is supposed to show.
+      if (!moonAltitudeEnabled) return 0;
       var excess = airmass(altitudeDeg) - 1;
-      var strength = Math.max(
-        0,
-        Math.min(1, 1 - Math.exp(-EXTINCTION_RAMP_COEFFICIENT * excess * excess))
-      );
+      var raw = Math.max(0, Math.min(1, 1 - Math.exp(-EXTINCTION_RAMP_COEFFICIENT * excess * excess)));
+      return contrastFadeEnabled ? raw * (1 - skyBrightnessFraction(sunElevDeg)) : raw;
+    }
+
+    function moonExtinctionTint(altitudeDeg, sunElevDeg) {
+      var strength = extinctionStrength(altitudeDeg, sunElevDeg);
       var rgb = MOON_EXTINCTION_RGB;
       return "rgba(" + rgb[0] + ", " + rgb[1] + ", " + rgb[2] + ", " + strength.toFixed(2) + ")";
     }
@@ -723,7 +842,7 @@
     // ---- wire the two live disc previews ----
     function paint(swatchPrefix, sunElevDeg, moonAltDeg) {
       var sky = skyBackgroundForElevation(sunElevDeg);
-      var ext = moonExtinctionTint(moonAltDeg);
+      var ext = moonExtinctionTint(moonAltDeg, sunElevDeg);
       document.getElementById(swatchPrefix + "-sky-tint").style.background = sky;
       document.getElementById(swatchPrefix + "-ext-tint").style.background = ext;
       return { sky: sky, ext: ext };
@@ -780,66 +899,88 @@
       });
     });
 
+    // ---- the matrix: cols are Moon altitude, rows are Sun elevation (as the same anchors the
+    // sky wash uses), each cell's extinction wash computed live — not a hardcoded strength per
+    // column, since contrast fade means the same Moon altitude no longer washes the same across
+    // every row. ----
+    var MATRIX_COLS = [2, 8, 18, 35, 60, 85];
+    var MATRIX_ROWS = [
+      { label: "Day", deg: "0°", elevDeg: 0 },
+      { label: "Civil twilight", deg: "−6°", elevDeg: -6 },
+      { label: "Nautical twilight", deg: "−12°", elevDeg: -12 },
+      { label: "Astronomical twilight", deg: "−18°", elevDeg: -18 },
+      { label: "Night", deg: "−25°", elevDeg: -25 },
+    ];
+    var matrixEl = document.getElementById("matrix");
+
+    function buildMatrix() {
+      matrixEl.innerHTML = "";
+      var corner = document.createElement("div");
+      corner.className = "corner";
+      matrixEl.appendChild(corner);
+
+      MATRIX_COLS.forEach(function (altDeg) {
+        var head = document.createElement("div");
+        head.className = "col-head";
+        head.innerHTML = '<span class="deg">' + altDeg + '°</span><span class="lbl">moon alt</span>';
+        matrixEl.appendChild(head);
+      });
+
+      MATRIX_ROWS.forEach(function (row) {
+        var rowHead = document.createElement("div");
+        rowHead.className = "row-head";
+        rowHead.innerHTML = '<span class="lbl">' + row.label + '</span><span class="deg">' + row.deg + ' sun</span>';
+        matrixEl.appendChild(rowHead);
+
+        var sky = skyBackgroundForElevation(row.elevDeg);
+
+        MATRIX_COLS.forEach(function (altDeg) {
+          var s = extinctionStrength(altDeg, row.elevDeg);
+          var cell = document.createElement("div");
+          cell.className = "cell";
+          cell.title = row.label + " sky, Moon at " + altDeg + "° altitude — extinction strength " + s.toFixed(2);
+
+          var photo = document.createElement("div");
+          photo.className = "moon-photo";
+          cell.appendChild(photo);
+
+          var skyTint = document.createElement("div");
+          skyTint.className = "tint-layer";
+          skyTint.style.background = sky;
+          cell.appendChild(skyTint);
+
+          var extTint = document.createElement("div");
+          extTint.className = "tint-layer";
+          extTint.style.background = rgbToHex(MOON_EXTINCTION_RGB);
+          extTint.style.opacity = String(s);
+          cell.appendChild(extTint);
+
+          matrixEl.appendChild(cell);
+        });
+      });
+    }
+
+    function refreshAllDemos() {
+      updatePlayground();
+      updateRealTime();
+      buildMatrix();
+    }
+
+    var moonAltitudeToggle = document.getElementById("moon-altitude-toggle");
+    moonAltitudeToggle.addEventListener("change", function () {
+      moonAltitudeEnabled = moonAltitudeToggle.checked;
+      refreshAllDemos();
+    });
+
+    var contrastFadeToggle = document.getElementById("contrast-fade-toggle");
+    contrastFadeToggle.addEventListener("change", function () {
+      contrastFadeEnabled = contrastFadeToggle.checked;
+      refreshAllDemos();
+    });
+
     setWhenToNowUTC();
     updateRealTime();
-  })();
-
-  (function () {
-    var cols = [
-      { alt: 2,  s: 0.743 },
-      { alt: 8,  s: 0.128 },
-      { alt: 18, s: 0.019 },
-      { alt: 35, s: 0.002 },
-      { alt: 60, s: 0.000 },
-      { alt: 85, s: 0.001 }
-    ];
-    var extinction = "#b6602f";
-    var rows = [
-      { label: "Day", deg: "0°", sky: "#d0d0d0" },
-      { label: "Civil twilight", deg: "−6°", sky: "#8a6142" },
-      { label: "Nautical twilight", deg: "−12°", sky: "#3a4a6b" },
-      { label: "Astronomical twilight", deg: "−18°", sky: "#2a1f42" },
-      { label: "Night", deg: "−25°", sky: "#06050a" }
-    ];
-
-    var matrix = document.getElementById("matrix");
-
-    cols.forEach(function (col) {
-      var head = document.createElement("div");
-      head.className = "col-head";
-      head.innerHTML = '<span class="deg">' + col.alt + '°</span><span class="lbl">moon alt</span><span class="strength">s=' + col.s.toFixed(2) + '</span>';
-      matrix.appendChild(head);
-    });
-
-    rows.forEach(function (row) {
-      var rowHead = document.createElement("div");
-      rowHead.className = "row-head";
-      rowHead.innerHTML = '<span class="lbl">' + row.label + '</span><span class="deg">' + row.deg + ' sun</span>';
-      matrix.appendChild(rowHead);
-
-      cols.forEach(function (col) {
-        var cell = document.createElement("div");
-        cell.className = "cell";
-        cell.title = row.label + " sky, Moon at " + col.alt + "° altitude — extinction strength " + col.s.toFixed(2);
-
-        var photo = document.createElement("div");
-        photo.className = "moon-photo";
-        cell.appendChild(photo);
-
-        var skyTint = document.createElement("div");
-        skyTint.className = "tint-layer";
-        skyTint.style.background = row.sky;
-        cell.appendChild(skyTint);
-
-        var extTint = document.createElement("div");
-        extTint.className = "tint-layer";
-        extTint.style.background = extinction;
-        extTint.style.opacity = String(col.s);
-        cell.appendChild(extTint);
-
-        matrix.appendChild(cell);
-      });
-    });
+    buildMatrix();
   })();
 </script>
 

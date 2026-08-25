@@ -421,7 +421,10 @@
     <p class="section-intro">
       Drag either slider — the disc blends live using the exact same formulas as the matrix below
       and the shipped card: <code>skyBackgroundForElevation()</code> for the sun-elevation layer,
-      <code>moonExtinctionTint()</code> for the moon-altitude layer.
+      <code>moonExtinctionTint()</code> for the moon-altitude layer. Moon altitude starts high on
+      purpose, so the extinction layer starts near-zero and the sun-elevation slider's own effect
+      is visible on its own — drag moon altitude down toward the horizon and watch it start to
+      dominate the blend instead, exactly the masking the matrix's bottom-left corner shows.
     </p>
     <div class="playground">
       <div class="preview">
@@ -439,7 +442,7 @@
         </div>
         <div class="control">
           <label for="pg-alt">Moon altitude <b id="pg-alt-val"></b></label>
-          <input type="range" id="pg-alt" min="0" max="90" step="0.5" value="15">
+          <input type="range" id="pg-alt" min="0" max="90" step="0.5" value="75">
         </div>
       </div>
     </div>

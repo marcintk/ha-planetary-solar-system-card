@@ -42,6 +42,14 @@ describe("SolarViewCard status bar", () => {
       card.remove();
     });
 
+    it("left span contains the Moon's altitude alongside the Sun's", () => {
+      const card = createCardWithLocation();
+      const bar = card.shadowRoot.querySelector(".status-bar");
+      const leftSpan = bar.querySelector("span:first-child");
+      expect(leftSpan.textContent).toMatch(/London \| .+ \(-?\d+°\) \| Moon \(-?\d+°\)/);
+      card.remove();
+    });
+
     it("right span contains Next: <mode-name> (<HH:MM>)", () => {
       const card = createCardWithLocation();
       const bar = card.shadowRoot.querySelector(".status-bar");

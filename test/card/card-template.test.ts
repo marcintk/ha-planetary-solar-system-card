@@ -79,6 +79,18 @@ describe("buildStatusBar", () => {
     expect(leftSpan.textContent).toMatch(/London \| .+ \(-?\d+°\)/);
   });
 
+  it("left span includes the Moon's altitude alongside the Sun's", () => {
+    const root = renderToDOM(
+      buildStatusBar(
+        { lat: 51.5, lon: -0.1, timezone: "Europe/London", zoneOverride: false },
+        "London",
+        new Date("2026-03-05T12:00:00Z")
+      )
+    );
+    const leftSpan = root.querySelector(".status-bar span:first-child");
+    expect(leftSpan.textContent).toMatch(/London \| .+ \(-?\d+°\) \| Moon \(-?\d+°\)/);
+  });
+
   it("includes Next: span when a transition exists within 24h", () => {
     const root = renderToDOM(
       buildStatusBar(

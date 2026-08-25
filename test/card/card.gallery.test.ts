@@ -262,15 +262,32 @@ describe("SolarViewCard gallery", () => {
       vi.useRealTimers();
     });
 
-    // #178: a second, independent tint layer stacked on the sky-elevation one — the Moon's own
-    // altitude (extinction), not just what the sky looks like. High altitude, low horizon
-    // strength: rgba alpha should be near 0 rather than the near-full-strength it'd be low down.
-    it("stacks a second tint layer for the Moon's own altitude extinction", () => {
+    // gallery.mymoon_tint defaults to false (beta flag) — the altitude-extinction layer stays
+    // off unless a user opts in, so the sky-elevation wash is the only tint layer by default.
+    it("omits the altitude extinction tint layer by default", () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date("2026-08-22T03:00:00Z")); // 22:00 CDT: Moon up at this site
       const card = document.createElement("ha-planetary-solar-system-card-test");
       card.setConfig({
         gallery: { mode: "open" },
+        location: { latitude: 33.2148, longitude: -97.1331, timezone: "America/Chicago" },
+      });
+      document.body.appendChild(card);
+      const tints = card.shadowRoot.querySelectorAll('[data-source="mymoon"] .gallery-thumb-tint');
+      expect(tints.length).toBe(1);
+      card.remove();
+      vi.useRealTimers();
+    });
+
+    // #178: a second, independent tint layer stacked on the sky-elevation one — the Moon's own
+    // altitude (extinction), not just what the sky looks like. High altitude, low horizon
+    // strength: rgba alpha should be near 0 rather than the near-full-strength it'd be low down.
+    it("stacks a second tint layer for the Moon's own altitude extinction when gallery.mymoon_tint is enabled", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-08-22T03:00:00Z")); // 22:00 CDT: Moon up at this site
+      const card = document.createElement("ha-planetary-solar-system-card-test");
+      card.setConfig({
+        gallery: { mode: "open", mymoon_tint: true },
         location: { latitude: 33.2148, longitude: -97.1331, timezone: "America/Chicago" },
       });
       document.body.appendChild(card);
@@ -324,14 +341,31 @@ describe("SolarViewCard gallery", () => {
       vi.useRealTimers();
     });
 
-    // #178: unlike the elevation wash above, the Moon's own altitude-extinction tint does extend
-    // to the full-screen panel — it's usually near-zero strength, so it doesn't carry the same
-    // "wash over the whole view" risk the elevation color does.
-    it("tints the full-screen panel by the Moon's own altitude extinction", async () => {
+    // gallery.mymoon_tint defaults to false — the full-screen panel gets the same gating as the
+    // thumbnail, so no extinction layer appears until a user opts in.
+    it("omits the full-screen panel's altitude extinction tint by default", async () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date("2026-08-22T03:00:00Z")); // 22:00 CDT: Moon up at this site
       const card = createAndMount({
         gallery: { mode: "open" },
+        location: { latitude: 33.2148, longitude: -97.1331, timezone: "America/Chicago" },
+      });
+      await vi.advanceTimersByTimeAsync(0);
+      card.shadowRoot.querySelector('[data-source="mymoon"]').click();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(card.shadowRoot.querySelector(".image-view-tint")).toBeNull();
+      card.remove();
+      vi.useRealTimers();
+    });
+
+    // #178: unlike the elevation wash above, the Moon's own altitude-extinction tint does extend
+    // to the full-screen panel — it's usually near-zero strength, so it doesn't carry the same
+    // "wash over the whole view" risk the elevation color does.
+    it("tints the full-screen panel by the Moon's own altitude extinction when gallery.mymoon_tint is enabled", async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-08-22T03:00:00Z")); // 22:00 CDT: Moon up at this site
+      const card = createAndMount({
+        gallery: { mode: "open", mymoon_tint: true },
         location: { latitude: 33.2148, longitude: -97.1331, timezone: "America/Chicago" },
       });
       await vi.advanceTimersByTimeAsync(0);

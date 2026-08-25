@@ -122,6 +122,7 @@ export interface CardConfig {
     moon?: boolean;
     earth?: boolean;
     sun?: boolean;
+    mymoon_tint?: boolean;
   };
   location?: { latitude?: number; longitude?: number; name?: string; timezone?: string };
 }

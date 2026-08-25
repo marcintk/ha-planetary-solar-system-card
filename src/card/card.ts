@@ -56,6 +56,7 @@ export class SolarViewCard extends LitElement {
   private _debugTimer: number | null;
   private _galleryPosition: GalleryPosition;
   private _galleryShape: GalleryShape;
+  private _mymoonTint: boolean;
   private _colors: Colors;
   private _refreshMs: number;
   private _eclipticView: boolean;
@@ -78,6 +79,7 @@ export class SolarViewCard extends LitElement {
     this._debugTimer = null;
     this._galleryPosition = "overlay";
     this._galleryShape = "square";
+    this._mymoonTint = false;
     this._colors = {};
     this._refreshMs = 60000;
     this._eclipticView = false;
@@ -110,6 +112,7 @@ export class SolarViewCard extends LitElement {
     this._heightStyle = parsed.heightStyle;
     this._galleryPosition = parsed.galleryPosition;
     this._galleryShape = parsed.galleryShape;
+    this._mymoonTint = parsed.mymoonTint;
     this._gallery.configure(parsed.galleryMode, parsed.gallerySources, parsed.galleryIntervalMs);
 
     if (this._autoUpdateTimer != null) {
@@ -202,7 +205,7 @@ export class SolarViewCard extends LitElement {
                       @error=${this._onImageLoadError}
                     />
                     ${
-                      panelSky
+                      panelSky && this._mymoonTint
                         ? html`<div
                             class="image-view-tint"
                             style=${`background: ${panelSky.extinction}`}
@@ -331,10 +334,14 @@ export class SolarViewCard extends LitElement {
                     class="gallery-thumb-tint"
                     style=${`${discStyleValue}; background: ${sky.background}`}
                   ></div>
-                  <div
-                    class="gallery-thumb-tint"
-                    style=${`${discStyleValue}; background: ${sky.extinction}`}
-                  ></div>`
+                  ${
+                    this._mymoonTint
+                      ? html`<div
+                          class="gallery-thumb-tint"
+                          style=${`${discStyleValue}; background: ${sky.extinction}`}
+                        ></div>`
+                      : nothing
+                  }`
                 : nothing
             }`
       }

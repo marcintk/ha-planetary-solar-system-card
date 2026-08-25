@@ -21,6 +21,7 @@ describe("parseCardConfig", () => {
       galleryShape: "square",
       gallerySources: ["mymoon"],
       galleryIntervalMs: 60000,
+      mymoonTint: false,
     });
   });
 
@@ -242,6 +243,16 @@ describe("parseCardConfig", () => {
       expect(parseCardConfig({ gallery: { slide_interval_secs: 0 } }).galleryIntervalMs).toBe(
         60000
       );
+    });
+
+    describe("mymoon_tint", () => {
+      it("defaults to false", () => {
+        expect(parseCardConfig({}).mymoonTint).toBe(false);
+        expect(parseCardConfig({ gallery: {} }).mymoonTint).toBe(false);
+      });
+      it("enables when set true", () => {
+        expect(parseCardConfig({ gallery: { mymoon_tint: true } }).mymoonTint).toBe(true);
+      });
     });
   });
 });

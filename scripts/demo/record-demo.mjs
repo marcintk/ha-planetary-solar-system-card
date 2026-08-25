@@ -80,8 +80,11 @@ function makeDriver(page, framesDir, clip) {
 }
 
 async function runScenario(page, d) {
-  // configure() opens the strip when mode !== "off", so it's already up on load: let the NASA
-  // thumbnails finish loading off-camera first, no "loading…" frames in the gif.
+  // gallery.mode is "off" in the harness so the strip starts closed and the click below is a
+  // real, on-camera open — not just an already-open strip from load. Warm it up off-camera
+  // first (open, wait for the NASA thumbnails to load, close) so the recorded open beat never
+  // shows a "loading…" tile.
+  await d.clickSel('[data-action="gallery"]');
   for (let i = 0; i < 60; i++) {
     const loaded = await page.evaluate(() =>
       [...document.getElementById("demo-card").shadowRoot.querySelectorAll(".gallery-thumb img")].filter(
@@ -91,8 +94,12 @@ async function runScenario(page, d) {
     if (loaded >= 2) break;
     await sleep(500);
   }
+  await d.clickSel('[data-action="gallery"]');
+  await sleep(300);
 
-  await d.hold(15); // opening beat: all 4 tiles on camera for ~1.5s
+  await d.hold(6); // closed beat
+  await d.clickSel('[data-action="gallery"]'); // the on-camera open
+  await d.hold(25); // opening beat: all 4 tiles on camera for ~2.5s
   await d.clickSel('[data-action="gallery"]'); // close, then continue into the nav demo
   await sleep(500);
 

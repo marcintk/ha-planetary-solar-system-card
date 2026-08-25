@@ -192,15 +192,23 @@ export class SolarViewCard extends LitElement {
               panelSky?.belowHorizon
                 ? noMoonSky(this._onImageClick)
                 : html`<img
-                    id="image-view"
-                    class="image-view"
-                    style=${this._panelImageStyle(panelSky)}
-                    src=${gallery.imageUrl ? fullSizeMoonUrl(gallery.imageUrl) : nothing}
-                    alt=""
-                    @click=${this._onImageClick}
-                    @load=${this._onImageLoad}
-                    @error=${this._onImageLoadError}
-                  />`
+                      id="image-view"
+                      class="image-view"
+                      style=${this._panelImageStyle(panelSky)}
+                      src=${gallery.imageUrl ? fullSizeMoonUrl(gallery.imageUrl) : nothing}
+                      alt=""
+                      @click=${this._onImageClick}
+                      @load=${this._onImageLoad}
+                      @error=${this._onImageLoadError}
+                    />
+                    ${
+                      panelSky
+                        ? html`<div
+                            class="image-view-tint"
+                            style=${`background: ${panelSky.extinction}`}
+                          ></div>`
+                        : nothing
+                    }`
             }
           </div>
           ${
@@ -320,9 +328,13 @@ export class SolarViewCard extends LitElement {
             ${
               sky
                 ? html`<div
-                  class="gallery-thumb-tint"
-                  style=${`${discStyleValue}; background: ${sky.background}`}
-                ></div>`
+                    class="gallery-thumb-tint"
+                    style=${`${discStyleValue}; background: ${sky.background}`}
+                  ></div>
+                  <div
+                    class="gallery-thumb-tint"
+                    style=${`${discStyleValue}; background: ${sky.extinction}`}
+                  ></div>`
                 : nothing
             }`
       }
@@ -339,10 +351,12 @@ export class SolarViewCard extends LitElement {
    * square like every other source's, unlike the thumbnail (which always circle-crops, see
    * discStyle()); only the rotated image inside it, not the frame's own shape, follows the
    * observer's orientation. Its own background is plain black (card-styles.ts), same as every
-   * other panel — unlike the thumbnail, the sky tint doesn't extend here: the corners a rotated
-   * square swings away from are a much larger share of a full-screen frame than of a 104px
-   * tile, and a colored fill across that much of the screen reads as a wash over the view
-   * rather than a detail on a photo.
+   * other panel — unlike the thumbnail, the day/twilight/night sky wash doesn't extend here: the
+   * corners a rotated square swings away from are a much larger share of a full-screen frame than
+   * of a 104px tile, and a colored fill across that much of the screen reads as a wash over the
+   * view rather than a detail on a photo. The Moon's own altitude-extinction tint (#178,
+   * .image-view-tint) is added anyway despite that: it's usually near-zero strength and only
+   * strong close to the horizon, so it doesn't carry the same "wash over the whole view" risk.
    */
   private _panelFrameStyle(): string | typeof nothing {
     return this._heightStyle || nothing;

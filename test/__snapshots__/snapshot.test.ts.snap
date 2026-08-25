@@ -129,6 +129,19 @@ exports[`cardStyles > matches snapshot 1`] = `
     cursor: pointer;
     display: block;
   }
+  /* #178: the Moon's own altitude-extinction tint, mirroring .gallery-thumb-tint's mix-blend-mode
+     trick but sized to the whole square frame rather than clipped to a disc — the panel image has
+     no circle crop to match (see discStyle()). Usually near-zero strength (see
+     moonExtinctionTint()), so covering the full square doesn't read as a wash the way the
+     day/twilight/night sky color would. */
+  .image-view-tint {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    mix-blend-mode: color;
+    pointer-events: none;
+  }
   /* Stands in for the image, in the tile and in the full-screen panel alike: fills whichever
      box it lands in and centres on both axes, so one rule serves a 104px thumbnail and a
      full-width panel without either needing to know about the other. */

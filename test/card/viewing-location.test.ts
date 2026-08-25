@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { skyBackgroundForElevation, ViewingLocation } from "../../src/card/viewing-location.js";
+import {
+  moonExtinctionTint,
+  skyBackgroundForElevation,
+  ViewingLocation,
+} from "../../src/card/viewing-location.js";
 
 const LONDON = {
   config: { latitude: 51.5, longitude: -0.1, time_zone: "Europe/London", location_name: "London" },
@@ -97,6 +101,7 @@ describe("ViewingLocation", () => {
         rotation: 0,
         belowHorizon: false,
         background: "#000",
+        extinction: "rgba(0, 0, 0, 0)",
       });
     });
 
@@ -153,6 +158,63 @@ describe("ViewingLocation", () => {
       );
       expect(states).toContain(true);
       expect(states).toContain(false);
+    });
+  });
+
+  // #178: real moonlight reddens/dims near the horizon from crossing more atmosphere
+  // (extinction) — the tint's *hue* is driven by the Moon's own altitude, not the Sun's, so it's
+  // a second overlay rather than a replacement for skyBackgroundForElevation. But its visible
+  // *strength* isn't fully independent of the Sun: a bright sky washes the same tint out
+  // (contrast fade, tested below), so a night-sky sunElevDeg is used here to isolate the
+  // altitude-only behavior these tests are about.
+  const NIGHT_SUN_DEG = -20;
+  const strengthOf = (rgba: string) => Number.parseFloat(rgba.split(",")[3]);
+
+  describe("moonExtinctionTint", () => {
+    it("has no strength at the zenith", () => {
+      expect(moonExtinctionTint(90, NIGHT_SUN_DEG)).toBe("rgba(255, 102, 26, 0.00)");
+    });
+
+    it("is at full strength right at the horizon, against a night sky", () => {
+      expect(moonExtinctionTint(0, NIGHT_SUN_DEG)).toBe("rgba(255, 102, 26, 1.00)");
+    });
+
+    it("weakens monotonically as altitude climbs, steeply near the horizon", () => {
+      const low = moonExtinctionTint(2, NIGHT_SUN_DEG);
+      const mid = moonExtinctionTint(10, NIGHT_SUN_DEG);
+      const high = moonExtinctionTint(30, NIGHT_SUN_DEG);
+      expect(strengthOf(low)).toBeGreaterThan(strengthOf(mid));
+      expect(strengthOf(mid)).toBeGreaterThan(strengthOf(high));
+      // A well-up Moon reads as essentially white: negligible strength by 30deg.
+      expect(strengthOf(high)).toBeLessThan(0.1);
+    });
+
+    it("stays essentially white for a Moon at typical viewing altitude", () => {
+      // #178 originally shipped a curve that gave a real, well-up 22deg Moon roughly half
+      // strength — visibly red when real observers report it reading white. This is the
+      // regression test for that: a well-up Moon must stay close to colorless.
+      expect(strengthOf(moonExtinctionTint(22, NIGHT_SUN_DEG))).toBeLessThan(0.05);
+    });
+
+    it("clamps rather than going negative below the horizon", () => {
+      expect(moonExtinctionTint(-10, NIGHT_SUN_DEG)).toBe("rgba(255, 102, 26, 1.00)");
+    });
+
+    // Contrast fade: the same low Moon reads weaker against a brighter sky, because the sky's
+    // own scattered light veils the tint (simultaneous contrast) rather than the Moon's true
+    // color actually changing.
+    it("fades a low Moon's tint toward zero as the sky brightens", () => {
+      const night = strengthOf(moonExtinctionTint(2, NIGHT_SUN_DEG));
+      const civilTwilight = strengthOf(moonExtinctionTint(2, -6));
+      const day = strengthOf(moonExtinctionTint(2, 10));
+      expect(night).toBeGreaterThan(civilTwilight);
+      expect(civilTwilight).toBeGreaterThan(day);
+      expect(day).toBe(0);
+    });
+
+    it("leaves the tint untouched at true night regardless of exact sun angle", () => {
+      // Below the -18deg anchor the sky wash is already a flat plateau, so the fade must be too.
+      expect(moonExtinctionTint(2, -19)).toBe(moonExtinctionTint(2, -25));
     });
   });
 });

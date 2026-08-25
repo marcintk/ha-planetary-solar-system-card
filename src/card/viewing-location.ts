@@ -54,6 +54,96 @@ function rgbToHex(rgb: readonly [number, number, number]): string {
   return `#${toHex(rgb[0])}${toHex(rgb[1])}${toHex(rgb[2])}`;
 }
 
+// #178: a rising/setting Moon looks orange/red from crossing more atmosphere near the horizon
+// (extinction) — a different phenomenon from twilight color: the tint itself is driven by the
+// Moon's own altitude, not the Sun's, and composes with skyBackgroundForElevation as a second
+// overlay rather than replacing it. Its visible *strength* isn't fully independent of the Sun
+// though — see the contrast-fade comment below moonExtinctionTint's ramp coefficient.
+const MOON_EXTINCTION_RGB: readonly [number, number, number] = [0xff, 0x66, 0x1a];
+
+// A first version of this used `(1 - sin(altitude))^1.5`, calibrated only by eye against two
+// sample altitudes — it gave a real, well-up Moon at 22deg an alpha of 0.49, roughly half
+// strength, when a Moon that high actually reads as close to white. Replaced with a curve
+// grounded in the real physics of why a low Moon reddens at all.
+//
+// airmass(): Kasten & Young 1989 — how many atmospheres-worth of air a sightline crosses,
+// stated to stay accurate all the way to the horizon (unlike the naive secant `1/sin(altitude)`,
+// which diverges to infinity there instead of the true, refraction-limited ~38).
+function airmass(altitudeDeg: number): number {
+  const altDeg = Math.max(altitudeDeg, 0);
+  const altRad = (altDeg * Math.PI) / 180;
+  return 1 / (Math.sin(altRad) + 0.50572 * (altDeg + 6.07995) ** -1.6364);
+}
+
+// A second version used `1 - exp(-k * (airmass - 1))` directly, k picked from a real published
+// differential-extinction coefficient (~0.15 mag/airmass) — physically grounded, but it still
+// overstated things: a Moon at 22deg (airmass 2.6) came out at 0.22 strength, a visible cast on
+// a Moon real observers report as reading white. The gap is that "magnitudes of physical
+// extinction" and "how much a UI overlay should visibly recolor a photo" aren't the same scale
+// — human color perception needs the airmass excess to build up well past the zenith baseline
+// before it reads as anything at all, then catches up fast right near the horizon. Squaring the
+// excess before the exponential is what buys that: it pushes the early/moderate range down much
+// harder than the plain linear version while keeping the same near-total saturation at the
+// horizon. The exponent is a perceptual calibration knob, not a cited constant the way the
+// airmass formula above is.
+const EXTINCTION_RAMP_COEFFICIENT = 0.004;
+
+// The extinction color above is the Moon's true tint — unaffected by the Sun's position, since
+// the reddening happens along the sightline to the Moon, not to the Sun. But how strongly that
+// true tint actually *reads* to an observer does depend on the Sun: a bright sky floods the same
+// sightline with scattered light (veiling luminance) and simultaneous-contrast perception further
+// desaturates a tinted object seen against a bright field — the same reason a red filter looks
+// vivid on a dark background and washed-out on a white one. Both effects fade the *visible*
+// strength of the true tint toward the sky's own brightness, they don't change the tint itself —
+// which is why this multiplies the strength computed above rather than feeding into it.
+//
+// Reuses the same day/night luma extremes as the sky wash rather than a second calibrated curve:
+// the two washes already agree on what "day" and "night" brightness mean, so the fade should too.
+const DAY_LUMA = luma(SKY_ANCHORS[0].rgb);
+const NIGHT_LUMA = luma(NIGHT_RGB);
+
+function luma(rgb: readonly [number, number, number]): number {
+  return 0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2];
+}
+
+// 0 at night (no veiling, full contrast against a dark sky) to 1 in full daylight (sky luminance
+// swamps the Moon's own tint). Linear in luma rather than sun elevation directly, so it tracks
+// the same brightness the sky wash itself already renders instead of re-deriving twilight bands.
+function skyBrightnessFraction(sunElevDeg: number): number {
+  const currentLuma = luma(hexToRgb(skyBackgroundForElevation(sunElevDeg)));
+  return Math.max(0, Math.min(1, (currentLuma - NIGHT_LUMA) / (DAY_LUMA - NIGHT_LUMA)));
+}
+
+function hexToRgb(hex: string): [number, number, number] {
+  return [
+    Number.parseInt(hex.slice(1, 3), 16),
+    Number.parseInt(hex.slice(3, 5), 16),
+    Number.parseInt(hex.slice(5, 7), 16),
+  ];
+}
+
+/**
+ * How strongly the Moon's own altitude should redden/dim it right now, as an rgba() string
+ * whose alpha carries the strength — mix-blend-mode: color reads alpha as how much of the
+ * backdrop's own hue survives, so a fading alpha is a fading tint rather than a second color
+ * to mix by hand.
+ *
+ * `sunElevDeg` fades that strength toward zero as the sky brightens — see the contrast-fade
+ * comment above. It does not gate the tint on its own: even a bright sky still shows *some*
+ * extinction on a Moon right at the horizon, it just reads weaker than the same Moon would
+ * against a dark one.
+ */
+export function moonExtinctionTint(altitudeDeg: number, sunElevDeg: number): string {
+  const airmassExcess = airmass(altitudeDeg) - 1;
+  const rawStrength = Math.max(
+    0,
+    Math.min(1, 1 - Math.exp(-EXTINCTION_RAMP_COEFFICIENT * airmassExcess ** 2))
+  );
+  const strength = rawStrength * (1 - skyBrightnessFraction(sunElevDeg));
+  const [r, g, b] = MOON_EXTINCTION_RGB;
+  return `rgba(${r}, ${g}, ${b}, ${strength.toFixed(2)})`;
+}
+
 // HASS and config.location update independently (hass setter vs. setConfig), so each source
 // is kept as one grouped field rather than losing either one to an eager merge — `data` and
 // `name` below resolve them on read, override winning per-field.
@@ -78,6 +168,8 @@ export interface SkyFrame {
   belowHorizon: boolean;
   /** What the sky itself looks like right now, whether or not the Moon is up. */
   background: string;
+  /** How much the Moon's own altitude should redden/dim it right now — see moonExtinctionTint(). */
+  extinction: string;
 }
 
 /**
@@ -179,7 +271,14 @@ export class ViewingLocation {
    */
   skyFrame(now: Date): SkyFrame {
     const location = this.data;
-    if (!location) return { rotation: 0, belowHorizon: false, background: "#000" };
+    if (!location) {
+      return {
+        rotation: 0,
+        belowHorizon: false,
+        background: "#000",
+        extinction: "rgba(0, 0, 0, 0)",
+      };
+    }
 
     const { parallacticDeg, altitudeDeg } = getMoonSkyAngles(now, location.lat, location.lon);
     const sunElevDeg = computeSolarElevationDeg(location.lat, location.lon, now);
@@ -187,6 +286,7 @@ export class ViewingLocation {
       rotation: parallacticDeg,
       belowHorizon: altitudeDeg <= 0,
       background: skyBackgroundForElevation(sunElevDeg),
+      extinction: moonExtinctionTint(altitudeDeg, sunElevDeg),
     };
   }
 }

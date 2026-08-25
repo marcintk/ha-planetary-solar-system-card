@@ -1,5 +1,6 @@
 import type { TemplateResult } from "lit";
 import { html, nothing } from "lit";
+import { getMoonSkyAngles } from "../astronomy/parallactic.js";
 import {
   computeNextTransitionTime,
   computeSolarElevationDeg,
@@ -21,6 +22,9 @@ export function buildStatusBar(
   const elevDeg = computeSolarElevationDeg(locationData.lat, locationData.lon, currentDate);
   const mode = getSkyMode(elevDeg);
   const elevRounded = Math.round(elevDeg);
+  const moonElevRounded = Math.round(
+    getMoonSkyAngles(currentDate, locationData.lat, locationData.lon).altitudeDeg
+  );
   const next = computeNextTransitionTime(locationData.lat, locationData.lon, currentDate);
   const formatter = next
     ? new Intl.DateTimeFormat("en-US", {
@@ -38,7 +42,7 @@ export function buildStatusBar(
 
   const name = locationName || "";
   return html`<div class="status-bar">
-    <span>${name} | ${mode} (${elevRounded}°)</span>
+    <span>${name} | ${mode} (${elevRounded}°) | Moon (${moonElevRounded}°)</span>
     ${next && formatter ? html`<span>Next: ${next.toMode} (${formatter.format(next.time)})</span>` : nothing}
   </div>`;
 }

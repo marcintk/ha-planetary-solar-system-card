@@ -253,6 +253,81 @@
   .falloff-text .formula .op { color: var(--accent); }
   .falloff-text p { color: var(--ink-soft); font-size: 0.92rem; margin: 0; }
 
+  /* ---- interactive playground ---- */
+
+  .playground {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 2rem;
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 1.75rem;
+    box-shadow: var(--shadow);
+  }
+  @media (max-width: 640px) { .playground { grid-template-columns: 1fr; } }
+
+  .playground .preview { display: flex; flex-direction: column; align-items: center; gap: 0.6rem; }
+  .playground .preview .swatch {
+    width: 100%;
+    max-width: 160px;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.35);
+  }
+  .playground .readout {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.72rem;
+    color: var(--ink-soft);
+    text-align: center;
+    line-height: 1.6;
+  }
+  .playground .readout b { color: var(--ink); font-weight: 600; }
+
+  .controls { display: flex; flex-direction: column; gap: 1.1rem; }
+  .control label {
+    display: flex;
+    justify-content: space-between;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.76rem;
+    color: var(--ink-soft);
+    margin-bottom: 0.3rem;
+  }
+  .control label b { color: var(--ink); font-weight: 500; }
+  .control input[type="range"] { width: 100%; accent-color: var(--accent); }
+  .control input[type="datetime-local"],
+  .control input[type="number"] {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.82rem;
+    background: var(--paper);
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 0.4rem 0.5rem;
+    width: 100%;
+  }
+  .control-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+  .presets { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+  .presets button {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.7rem;
+    background: var(--paper);
+    color: var(--ink-soft);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 0.3rem 0.7rem;
+    cursor: pointer;
+  }
+  .presets button:hover { color: var(--ink); border-color: var(--accent); }
+  .below-horizon-note {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.72rem;
+    color: var(--accent);
+    text-align: center;
+  }
+
   /* ---- callout ---- */
 
   .callout {
@@ -342,6 +417,35 @@
   </section>
 
   <section>
+    <h2>Play with it</h2>
+    <p class="section-intro">
+      Drag either slider — the disc blends live using the exact same formulas as the matrix below
+      and the shipped card: <code>skyBackgroundForElevation()</code> for the sun-elevation layer,
+      <code>moonExtinctionTint()</code> for the moon-altitude layer.
+    </p>
+    <div class="playground">
+      <div class="preview">
+        <div class="swatch" id="pg-swatch">
+          <div class="moon-photo"></div>
+          <div class="tint-layer" id="pg-sky-tint"></div>
+          <div class="tint-layer" id="pg-ext-tint"></div>
+        </div>
+        <div class="readout" id="pg-readout"></div>
+      </div>
+      <div class="controls">
+        <div class="control">
+          <label for="pg-sun">Sun elevation <b id="pg-sun-val"></b></label>
+          <input type="range" id="pg-sun" min="-30" max="15" step="0.5" value="-6">
+        </div>
+        <div class="control">
+          <label for="pg-alt">Moon altitude <b id="pg-alt-val"></b></label>
+          <input type="range" id="pg-alt" min="0" max="90" step="0.5" value="15">
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
     <h2>The matrix, rendered live</h2>
     <p class="section-intro">
       Rows are the sky wash (<code>skyBackgroundForElevation()</code>, <code>viewing-location.ts</code>).
@@ -379,6 +483,49 @@
           roughly 30°. A linear fade reads as "a bit orange everywhere"; this curve keeps the wash
           concentrated where extinction actually happens and leaves anything above ~60° essentially bare.
         </p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>See it for a real date and place</h2>
+    <p class="section-intro">
+      Pick a moment (UTC) and a location — sun elevation and Moon altitude are computed with the
+      same low-order series the card itself uses (<code>solar-position.ts</code>,
+      <code>moon-position.ts</code>, <code>parallactic.ts</code>), then fed into the same two tint
+      functions above.
+    </p>
+    <div class="playground">
+      <div class="preview">
+        <div class="swatch" id="rt-swatch">
+          <div class="moon-photo"></div>
+          <div class="tint-layer" id="rt-sky-tint"></div>
+          <div class="tint-layer" id="rt-ext-tint"></div>
+        </div>
+        <div class="readout" id="rt-readout"></div>
+        <div class="below-horizon-note" id="rt-below-horizon"></div>
+      </div>
+      <div class="controls">
+        <div class="control">
+          <label for="rt-when">When <b>(UTC)</b></label>
+          <input type="datetime-local" id="rt-when" step="60">
+        </div>
+        <div class="control-row">
+          <div class="control">
+            <label for="rt-lat">Latitude</label>
+            <input type="number" id="rt-lat" step="0.0001" value="33.2148">
+          </div>
+          <div class="control">
+            <label for="rt-lon">Longitude</label>
+            <input type="number" id="rt-lon" step="0.0001" value="-97.1331">
+          </div>
+        </div>
+        <div class="presets">
+          <button type="button" data-lat="33.2148" data-lon="-97.1331">Denton, TX</button>
+          <button type="button" data-lat="51.5" data-lon="-0.1">London</button>
+          <button type="button" data-lat="-33.9" data-lon="151.2">Sydney</button>
+          <button type="button" data-lat="35.6762" data-lon="139.6503">Tokyo</button>
+        </div>
       </div>
     </div>
   </section>
@@ -423,6 +570,198 @@
 </div>
 
 <script>
+  // ---- ported from src/card/viewing-location.ts — kept in lockstep with the shipped constants,
+  // not re-derived, so this page can't quietly drift from what the card actually renders. ----
+  (function () {
+    var DEG = Math.PI / 180;
+    var SKY_ANCHORS = [
+      { elevDeg: -0.8333, rgb: [0xd0, 0xd0, 0xd0] }, // Day (SUNSET_ELEVATION_DEG)
+      { elevDeg: -6, rgb: [0x8a, 0x61, 0x42] }, // Civil Twilight
+      { elevDeg: -12, rgb: [0x3a, 0x4a, 0x6b] }, // Nautical Twilight
+      { elevDeg: -18, rgb: [0x2a, 0x1f, 0x42] }, // Astronomical Twilight
+    ];
+    var NIGHT_RGB = [0x06, 0x05, 0x0a];
+    var MOON_EXTINCTION_RGB = [0xff, 0x66, 0x1a];
+
+    function toHex(c) { return Math.round(c).toString(16).padStart(2, "0"); }
+    function rgbToHex(rgb) { return "#" + toHex(rgb[0]) + toHex(rgb[1]) + toHex(rgb[2]); }
+
+    function skyBackgroundForElevation(elevDeg) {
+      var first = SKY_ANCHORS[0], last = SKY_ANCHORS[SKY_ANCHORS.length - 1];
+      if (elevDeg >= first.elevDeg) return rgbToHex(first.rgb);
+      if (elevDeg < last.elevDeg) return rgbToHex(NIGHT_RGB);
+      for (var i = 0; i < SKY_ANCHORS.length - 1; i++) {
+        var hi = SKY_ANCHORS[i], lo = SKY_ANCHORS[i + 1];
+        if (elevDeg <= hi.elevDeg && elevDeg >= lo.elevDeg) {
+          var t = (hi.elevDeg - elevDeg) / (hi.elevDeg - lo.elevDeg);
+          var rgb = [0, 1, 2].map(function (c) { return hi.rgb[c] + t * (lo.rgb[c] - hi.rgb[c]); });
+          return rgbToHex(rgb);
+        }
+      }
+      return rgbToHex(NIGHT_RGB);
+    }
+
+    function moonExtinctionTint(altitudeDeg) {
+      var strength = Math.max(0, Math.min(1, 1 - Math.sin(altitudeDeg * DEG)));
+      strength = Math.pow(strength, 1.5);
+      var rgb = MOON_EXTINCTION_RGB;
+      return "rgba(" + rgb[0] + ", " + rgb[1] + ", " + rgb[2] + ", " + strength.toFixed(2) + ")";
+    }
+
+    // ---- ported from src/astronomy/solar-position.ts + moon-position.ts + parallactic.ts —
+    // same low-order Meeus series the card itself runs, so "See it for a real date and place"
+    // computes the real thing rather than approximating it a second, looser way. ----
+    function daysSinceJ2000(date) { return date.getTime() / 86400000 + 2440587.5 - 2451545; }
+    function norm360(d) { return ((d % 360) + 360) % 360; }
+    function greenwichSiderealDeg(date) {
+      return norm360(280.46061837 + 360.98564736629 * daysSinceJ2000(date));
+    }
+
+    function getSunPosition(date) {
+      var T = daysSinceJ2000(date) / 36525;
+      var meanLongitude = 280.46646 + 36000.76983 * T;
+      var meanAnomaly = (357.52911 + 35999.05029 * T) * DEG;
+      var eqCentre =
+        (1.914602 - 0.004817 * T) * Math.sin(meanAnomaly) +
+        0.019993 * Math.sin(2 * meanAnomaly) +
+        0.000289 * Math.sin(3 * meanAnomaly);
+      var trueLongitude = (meanLongitude + eqCentre) * DEG;
+      var obliquity = (23.439291 - 0.0130042 * T) * DEG;
+      return {
+        raDeg: Math.atan2(Math.cos(obliquity) * Math.sin(trueLongitude), Math.cos(trueLongitude)) / DEG,
+        decDeg: Math.asin(Math.sin(obliquity) * Math.sin(trueLongitude)) / DEG,
+      };
+    }
+
+    function computeSolarElevationDeg(lat, lon, date) {
+      var sun = getSunPosition(date);
+      var hourAngleRad = (greenwichSiderealDeg(date) + lon - sun.raDeg) * DEG;
+      var latRad = lat * DEG, declRad = sun.decDeg * DEG;
+      var sinAlt =
+        Math.sin(latRad) * Math.sin(declRad) +
+        Math.cos(latRad) * Math.cos(declRad) * Math.cos(hourAngleRad);
+      return Math.asin(Math.max(-1, Math.min(1, sinAlt))) / DEG;
+    }
+
+    var LONGITUDE_TERMS = [
+      [0, 0, 1, 0, 6288774], [2, 0, -1, 0, 1274027], [2, 0, 0, 0, 658314],
+      [0, 0, 2, 0, 213618], [0, 1, 0, 0, -185116], [0, 0, 0, 2, -114332],
+      [2, 0, -2, 0, 58793], [2, -1, -1, 0, 57066], [2, 0, 1, 0, 53322],
+      [2, -1, 0, 0, 45758], [0, 1, -1, 0, -40923], [1, 0, 0, 0, -34720],
+      [0, 1, 1, 0, -30383], [2, 0, 0, -2, 15327], [0, 0, 1, 2, -12528],
+      [0, 0, 1, -2, 10980], [4, 0, -1, 0, 10675], [0, 0, 3, 0, 10034],
+      [4, 0, -2, 0, 8548],
+    ];
+    var LATITUDE_TERMS = [
+      [0, 0, 0, 1, 5128122], [0, 0, 1, 1, 280602], [0, 0, 1, -1, 277693],
+      [2, 0, 0, -1, 173237], [2, 0, -1, 1, 55413], [2, 0, -1, -1, 46271],
+      [2, 0, 0, 1, 32573], [0, 0, 2, 1, 17198], [2, 0, 1, -1, 9266],
+      [0, 0, 2, -1, 8822], [2, -1, 0, -1, 8216],
+    ];
+
+    function getMoonEquatorial(date) {
+      var d = daysSinceJ2000(date), T = d / 36525;
+      var meanLongitude = 218.3164477 + 481267.88123421 * T;
+      var elongation = 297.8501921 + 445267.1114034 * T;
+      var sunAnomaly = 357.5291092 + 35999.0502909 * T;
+      var moonAnomaly = 134.9633964 + 477198.8675055 * T;
+      var argOfLat = 93.272095 + 483202.0175233 * T;
+
+      function sumTerms(terms) {
+        return terms.reduce(function (total, term) {
+          var dD = term[0], dM = term[1], dMp = term[2], dF = term[3], coeff = term[4];
+          return total + coeff * 1e-6 * Math.sin(
+            (dD * elongation + dM * sunAnomaly + dMp * moonAnomaly + dF * argOfLat) * DEG
+          );
+        }, 0);
+      }
+
+      var eclipticLon = meanLongitude + sumTerms(LONGITUDE_TERMS);
+      var eclipticLat = sumTerms(LATITUDE_TERMS);
+      var obliquity = (23.4393 - 3.563e-7 * d) * DEG;
+      var lonRad = eclipticLon * DEG, latRad = eclipticLat * DEG;
+      return {
+        raDeg: norm360(Math.atan2(
+          Math.sin(lonRad) * Math.cos(obliquity) - Math.tan(latRad) * Math.sin(obliquity),
+          Math.cos(lonRad)
+        ) / DEG),
+        decDeg: Math.asin(
+          Math.sin(latRad) * Math.cos(obliquity) + Math.cos(latRad) * Math.sin(obliquity) * Math.sin(lonRad)
+        ) / DEG,
+      };
+    }
+
+    function getMoonAltitudeDeg(date, latDeg, lonDeg) {
+      var moon = getMoonEquatorial(date);
+      var hourAngle = greenwichSiderealDeg(date) + lonDeg - moon.raDeg;
+      var lat = latDeg * DEG, dec = moon.decDeg * DEG, ha = hourAngle * DEG;
+      return Math.asin(Math.sin(lat) * Math.sin(dec) + Math.cos(lat) * Math.cos(dec) * Math.cos(ha)) / DEG;
+    }
+
+    // ---- wire the two live disc previews ----
+    function paint(swatchPrefix, sunElevDeg, moonAltDeg) {
+      var sky = skyBackgroundForElevation(sunElevDeg);
+      var ext = moonExtinctionTint(moonAltDeg);
+      document.getElementById(swatchPrefix + "-sky-tint").style.background = sky;
+      document.getElementById(swatchPrefix + "-ext-tint").style.background = ext;
+      return { sky: sky, ext: ext };
+    }
+
+    var pgSun = document.getElementById("pg-sun");
+    var pgAlt = document.getElementById("pg-alt");
+    function updatePlayground() {
+      var sunElevDeg = Number(pgSun.value), moonAltDeg = Number(pgAlt.value);
+      document.getElementById("pg-sun-val").textContent = sunElevDeg.toFixed(1) + "°";
+      document.getElementById("pg-alt-val").textContent = moonAltDeg.toFixed(1) + "°";
+      var colors = paint("pg", sunElevDeg, moonAltDeg);
+      document.getElementById("pg-readout").innerHTML =
+        "sky <b>" + colors.sky + "</b> · extinction <b>" + colors.ext + "</b>";
+    }
+    pgSun.addEventListener("input", updatePlayground);
+    pgAlt.addEventListener("input", updatePlayground);
+    updatePlayground();
+
+    var rtWhen = document.getElementById("rt-when");
+    var rtLat = document.getElementById("rt-lat");
+    var rtLon = document.getElementById("rt-lon");
+
+    function setWhenToNowUTC() {
+      var now = new Date();
+      var pad = function (n) { return String(n).padStart(2, "0"); };
+      rtWhen.value =
+        now.getUTCFullYear() + "-" + pad(now.getUTCMonth() + 1) + "-" + pad(now.getUTCDate()) +
+        "T" + pad(now.getUTCHours()) + ":" + pad(now.getUTCMinutes());
+    }
+
+    function updateRealTime() {
+      if (!rtWhen.value) return;
+      var date = new Date(rtWhen.value + "Z"); // datetime-local has no zone; treat as UTC
+      var lat = Number(rtLat.value), lon = Number(rtLon.value);
+      var sunElevDeg = computeSolarElevationDeg(lat, lon, date);
+      var moonAltDeg = getMoonAltitudeDeg(date, lat, lon);
+      var colors = paint("rt", sunElevDeg, moonAltDeg);
+      document.getElementById("rt-readout").innerHTML =
+        "sun <b>" + sunElevDeg.toFixed(1) + "°</b> · moon <b>" + moonAltDeg.toFixed(1) + "°</b><br>" +
+        "sky <b>" + colors.sky + "</b> · extinction <b>" + colors.ext + "</b>";
+      document.getElementById("rt-below-horizon").textContent =
+        moonAltDeg <= 0 ? "Moon is below the horizon here — card would show no image" : "";
+    }
+
+    rtWhen.addEventListener("input", updateRealTime);
+    rtLat.addEventListener("input", updateRealTime);
+    rtLon.addEventListener("input", updateRealTime);
+    document.querySelectorAll(".presets button").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        rtLat.value = btn.dataset.lat;
+        rtLon.value = btn.dataset.lon;
+        updateRealTime();
+      });
+    });
+
+    setWhenToNowUTC();
+    updateRealTime();
+  })();
+
   (function () {
     var cols = [
       { alt: 2,  s: 0.948 },

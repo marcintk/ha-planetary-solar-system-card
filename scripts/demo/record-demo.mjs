@@ -112,8 +112,9 @@ async function runScenario(page, d) {
   await sleep(400);
   await d.hold(6);
 
-  await d.step("zoom-out", 1, 3); // one brief pull-back
-  await d.step("zoom-in", 1, 3);
+  await d.step("zoom-out", 2, 2); // pull back to the outer planets
+  await d.hold(6);
+  await d.step("zoom-in", 2, 2);
   await d.hold(10); // resting frame before loop
 }
 
@@ -187,7 +188,7 @@ async function main() {
     "-y", "-loglevel", "error",
     "-framerate", String(FPS),
     "-i", join(framesDir, "f%04d.png"),
-    "-vf", `scale=${OUT_WIDTH}:-2:flags=lanczos,palettegen=max_colors=96:stats_mode=diff`,
+    "-vf", `scale=${OUT_WIDTH}:-2:flags=lanczos,palettegen=max_colors=80:stats_mode=diff`,
     palettePath,
   ]);
   execFileSync("ffmpeg", [

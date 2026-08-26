@@ -1,4 +1,4 @@
-import { floorToGrid, padLeft } from "./pad.js";
+import { padLeft } from "./pad.js";
 import { SourceResolver } from "./source-resolver.js";
 import type { ImageSource } from "./sources.js";
 import type { SourcedImage, UrlCache } from "./url-cache.js";
@@ -105,12 +105,14 @@ export function moonFrameUrl(at: Date, size: string): string {
 }
 
 /**
- * The frame covering `at`, dated by the frame's own hour rather than the query instant — so
- * two cards asking at different minutes of the same hour agree on both the URL and the date
- * shown beneath it.
+ * The frame covering `at`, dated by the nearest hour rather than the query instant — so two
+ * cards asking at different minutes of the same hour agree on both the URL and the date shown
+ * beneath it. Nearest rather than floor caps the displayed staleness at 30 minutes instead of
+ * 59: every hour of the year is already published, so rounding up to an hour that hasn't
+ * happened yet is as valid as rounding down to one that has.
  */
 export function getMoonFrameImage(at: Date, size: string = MOON_THUMB_SIZE): SourcedImage {
-  const hour = new Date(floorToGrid(at.getTime(), MOON_FRAME_MS));
+  const hour = new Date(Math.round(at.getTime() / MOON_FRAME_MS) * MOON_FRAME_MS);
   return { url: moonFrameUrl(hour, size), date: hour };
 }
 

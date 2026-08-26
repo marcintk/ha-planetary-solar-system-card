@@ -322,10 +322,8 @@ describe("SolarViewCard gallery", () => {
       card.remove();
     });
 
-    // Unlike the thumbnail, the full-screen panel never washes its backdrop by Sun elevation —
-    // the corners a rotated square swings away from are a much bigger share of a full-screen
-    // frame than of a 104px tile, and a colored fill across that much of the screen reads as a
-    // wash over the view rather than a detail on a photo. Plain black, same as every other panel.
+    // The frame itself (not the tint overlay) stays plain black, same as every other panel —
+    // the wash below paints as its own layer over the photo, not the frame's own background.
     it("keeps the full-screen panel's own background plain black, even for the sky tile", async () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date("2026-08-22T18:00:00Z")); // Sun well up (irrelevant to the panel)
@@ -341,11 +339,12 @@ describe("SolarViewCard gallery", () => {
       vi.useRealTimers();
     });
 
-    // gallery.mymoon_tint defaults to false — the full-screen panel gets the same gating as the
-    // thumbnail, so no extinction layer appears until a user opts in.
-    it("omits the full-screen panel's altitude extinction tint by default", async () => {
+    // The full-screen panel now matches the thumbnail: the day/twilight/night wash is always on
+    // for the sky tile, independent of gallery.mymoon_tint (that flag only gates the second,
+    // altitude-extinction layer below).
+    it("tints the full-screen panel by the observer's own day/night, same as the thumbnail", async () => {
       vi.useFakeTimers();
-      vi.setSystemTime(new Date("2026-08-22T03:00:00Z")); // 22:00 CDT: Moon up at this site
+      vi.setSystemTime(new Date("2026-08-22T22:00:00Z")); // 17:00 CDT: Sun up, Moon just risen
       const card = createAndMount({
         gallery: { mode: "open" },
         location: { latitude: 33.2148, longitude: -97.1331, timezone: "America/Chicago" },
@@ -353,15 +352,16 @@ describe("SolarViewCard gallery", () => {
       await vi.advanceTimersByTimeAsync(0);
       card.shadowRoot.querySelector('[data-source="mymoon"]').click();
       await vi.advanceTimersByTimeAsync(0);
-      expect(card.shadowRoot.querySelector(".image-view-tint")).toBeNull();
+      const tints = card.shadowRoot.querySelectorAll(".image-view-tint");
+      expect(tints.length).toBe(1);
+      expect(tints[0].getAttribute("style")).toContain("background: #d0d0d0");
       card.remove();
       vi.useRealTimers();
     });
 
-    // #178: unlike the elevation wash above, the Moon's own altitude-extinction tint does extend
-    // to the full-screen panel — it's usually near-zero strength, so it doesn't carry the same
-    // "wash over the whole view" risk the elevation color does.
-    it("tints the full-screen panel by the Moon's own altitude extinction when gallery.mymoon_tint is enabled", async () => {
+    // #178: a second, independent tint layer stacked on the sky-elevation one, gated behind
+    // gallery.mymoon_tint — same two-layer shape as the thumbnail's .gallery-thumb-tint pair.
+    it("stacks the altitude extinction tint on top of the wash when gallery.mymoon_tint is enabled", async () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date("2026-08-22T03:00:00Z")); // 22:00 CDT: Moon up at this site
       const card = createAndMount({
@@ -371,9 +371,9 @@ describe("SolarViewCard gallery", () => {
       await vi.advanceTimersByTimeAsync(0);
       card.shadowRoot.querySelector('[data-source="mymoon"]').click();
       await vi.advanceTimersByTimeAsync(0);
-      expect(card.shadowRoot.querySelector(".image-view-tint").getAttribute("style")).toMatch(
-        /background: rgba\(255, 102, 26, 0\.\d\d\)/
-      );
+      const tints = card.shadowRoot.querySelectorAll(".image-view-tint");
+      expect(tints.length).toBe(2);
+      expect(tints[1].getAttribute("style")).toMatch(/background: rgba\(255, 102, 26, 0\.\d\d\)/);
       card.remove();
       vi.useRealTimers();
     });

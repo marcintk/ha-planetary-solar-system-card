@@ -106,7 +106,7 @@ export function parseCardConfig(config: CardConfig): ParsedCardConfig {
   const rawRefresh = Number(config.refresh_mins);
   const refreshMs = Number.isFinite(rawRefresh) && rawRefresh >= 0.1 ? rawRefresh * 60000 : 60000;
 
-  const periodicZoomChange = config.periodic_zoom_change === true;
+  const periodicZoomChange = config.periodic_zoom_change !== false;
   const rawMax = Number(config.periodic_zoom_max);
   const periodicZoomMax =
     Number.isInteger(rawMax) && rawMax >= 2 && rawMax <= MAX_ZOOM ? rawMax : MAX_ZOOM;

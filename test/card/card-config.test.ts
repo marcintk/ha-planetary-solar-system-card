@@ -7,7 +7,7 @@ describe("parseCardConfig", () => {
     expect(parsed).toEqual({
       zoomLevel: 1,
       refreshMs: 60000,
-      periodicZoomChange: false,
+      periodicZoomChange: true,
       periodicZoomMax: 4,
       zoomAnimate: true,
       colors: {},
@@ -57,11 +57,9 @@ describe("parseCardConfig", () => {
   });
 
   describe("periodicZoomChange / zoomAnimate", () => {
-    it("periodic_zoom_change defaults false, true only when === true", () => {
-      expect(
-        parseCardConfig({ periodic_zoom_change: "yes" as unknown as boolean }).periodicZoomChange
-      ).toBe(false);
-      expect(parseCardConfig({ periodic_zoom_change: true }).periodicZoomChange).toBe(true);
+    it("periodic_zoom_change defaults true, false only when === false", () => {
+      expect(parseCardConfig({ periodic_zoom_change: false }).periodicZoomChange).toBe(false);
+      expect(parseCardConfig({}).periodicZoomChange).toBe(true);
     });
     it("zoom_animate defaults true, false only when === false", () => {
       expect(parseCardConfig({ zoom_animate: false }).zoomAnimate).toBe(false);

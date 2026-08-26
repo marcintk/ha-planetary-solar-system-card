@@ -31,10 +31,6 @@ describe("gallery backoff integration", () => {
     return card;
   }
 
-  // Explicit timeout: this drives 360 simulated timer ticks through the real card, which
-  // reliably finishes in ~1.5s alone but can cross vitest's 5s default under full-suite
-  // parallel load (many other test files' workers competing for CPU) — even 15s proved
-  // too tight under heavy contention, so this is set well above the observed worst case.
   it("a sustained sun-source outage backs off instead of retrying every refresh_mins tick", async () => {
     // Real network attempts only, not decode-gate hits: every Image() construction is one
     // real probe of a candidate URL (the primary guess plus, on failure, every probe the
@@ -54,26 +50,31 @@ describe("gallery backoff integration", () => {
       }
     );
     vi.useFakeTimers();
-    const card = createAndMount({ refresh_mins: 1 });
+    // 30-minute ticks, not the card's likelier 1-minute default: Backoff's cooldown is
+    // Date.now()-based (backoff.ts), not tick-count-based, so a coarser tick reaches the
+    // same 6h MAX_BACKOFF_MS ceiling in 12 real timer firings instead of 360 — 30x less
+    // real Image()/decode work for an identical assertion. The doubling/cap math itself is
+    // exhaustively unit-tested in backoff.test.ts; this only has to prove the wiring holds.
+    const card = createAndMount({ refresh_mins: 30 });
     await vi.advanceTimersByTimeAsync(0); // mount's own background fetch fails
 
     const attemptsAfterMount = imageAttempts;
     expect(attemptsAfterMount).toBeGreaterThan(0);
 
-    // 6 hours of 1-minute ticks (360 of them). Without backoff, each tick re-attempts
-    // (primary + retries) — hundreds of probes. With it, cooldown skips ticks that land
-    // inside the current backoff window, so this stays a small, capped number.
+    // 6 hours of 30-minute ticks (12 of them). Without backoff, each tick re-attempts
+    // (primary + retries). With it, cooldown skips ticks that land inside the current
+    // backoff window, so this stays a small, capped number.
     await vi.advanceTimersByTimeAsync(6 * 3600000);
 
     expect(imageAttempts).toBeGreaterThan(attemptsAfterMount); // it did keep trying...
-    expect(imageAttempts).toBeLessThan(200); // ...but nowhere near the ~7000 a naive per-tick
-    // retry would have produced: four sources probing on every one of the 360 ticks, sun
-    // costing 12 probes each time to double from its floor out to the 30-day ceiling. Each
-    // source backs off on its own cooldown, so the ceiling scales with source count and
-    // per-attempt search depth, not tick count.
+    expect(imageAttempts).toBeLessThan(200); // ...but nowhere near the naive per-tick retry
+    // count: four sources probing on every tick, sun costing up to 12 probes each time to
+    // double from its floor out to the 30-day ceiling. Each source backs off on its own
+    // cooldown, so the ceiling scales with source count and per-attempt search depth, not
+    // tick count — which is exactly why fewer, coarser ticks still exercise it faithfully.
     expect(urlCache.inCooldown("sun")).toBe(true); // still backed off at the end of the outage
 
     card.remove();
     vi.useRealTimers();
-  }, 30000);
+  });
 });

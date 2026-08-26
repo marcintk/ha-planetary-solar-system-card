@@ -23,7 +23,7 @@
     "tool": "Playwright (headless Chromium), scripts/demo/record-demo.mjs",
     "capture_method": "Real screenshots (page.screenshot with a fixed clip) sampled at fixed points in a click/sleep/hold loop — NOT a synthetic cursor, NOT locator.click() teleporting. Motion in the gif comes from the card's own CSS/JS transitions (zoom-animator, twilight sweep) being sampled continuously, the same way the original recipe worked.",
     "clip": "measured once from #wrap's bounding box after the rig reports window.__ready, then reused for every frame",
-    "encode": "ffmpeg two-pass palette (palettegen max_colors=48, paletteuse dither=bayer) scaled to 640px wide. 48 not 96/64: this scenario's clip lands under 1MB at 48 with no visible banding (swept 32/48/64/96 x width 560/640 x bayer/sierra2_4a against real captured frames).",
+    "encode": "ffmpeg two-pass palette (palettegen max_colors=96, paletteuse dither=bayer) scaled to 640px wide. Was 48 (swept 32/48/64/96 x width 560/640 x bayer/sierra2_4a against real captured frames) — 48 visibly banded the Sun tile's bright gradient into two hard rings. Raised to 96 for a real gradient there. The zoom beat below paid for it, and then some: pull-back/push-in frames reveal much more of the star field per frame than any other beat, so palettegen — which fits one shared palette across every sampled frame — was spending a disproportionate share of its budget on them. Trimming the full zoom (2x/5-frame each way) down to one brief pulse (1x/3-frame each way) cut the file far more than the frame-count drop alone would suggest, which is what funded the jump to 96 colors and still landed under 1MB with real margin.",
     "output_path": "docs/demo.gif"
   },
 
@@ -36,8 +36,8 @@
     "hour-forward x14 (2 frames dwell each) — the twilight cone sweeps through a full day",
     "day-forward x12 (3 frames dwell each) — the Moon swings through its orbit, planets creep",
     "click 'today', settle",
-    "zoom-out x2 (5 frames dwell each) — pulls back to the outer planets",
-    "zoom-in x2 (5 frames dwell each) — back to default",
+    "zoom-out x1 (3 frames dwell) — one brief pull-back to the outer planets",
+    "zoom-in x1 (3 frames dwell) — back to default",
     "hold ~1s resting frame before the loop point — ends on the orbit view, no gallery"
   ],
 

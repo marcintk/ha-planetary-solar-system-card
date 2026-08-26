@@ -38,35 +38,15 @@ Add the card to your dashboard:
 
 ```yaml
 type: custom:ha-planetary-solar-system-card
-default_zoom: 2
-```
-
-```yaml
-type: custom:ha-planetary-solar-system-card
-colors:
-  background: "#0d1117"
-  season_line: "rgba(100, 200, 255, 0.2)"
-  season_label: "#e0e0ff"
 ```
 
 ```yaml
 type: custom:ha-planetary-solar-system-card
 gallery:
-  mode: slide
-  mymoon: false
+  mymoon: true
   moon: true
   earth: true
   sun: true
-  slide_interval_secs: 30
-```
-
-```yaml
-type: custom:ha-planetary-solar-system-card
-location:
-  latitude: 51.5074
-  longitude: -0.1278
-  name: London
-  timezone: Europe/London
 ```
 
 ## Horizon Twilight Zones
@@ -137,7 +117,7 @@ a pipeline stall doesn't break the feed.
 | ---------------------- | ------- | ------- | ----------------------------------------------------------------------- |
 | `default_zoom`         | number  | `1`     | Starting zoom level, and the level the **Now** button returns to        |
 | `zoom_animate`         | boolean | `true`  | Animate zoom transitions                                                |
-| `periodic_zoom_change` | boolean | `false` | Cycle zoom levels on each refresh tick, until you aim the view yourself |
+| `periodic_zoom_change` | boolean | `true`  | Cycle zoom levels on each refresh tick, until you aim the view yourself |
 | `periodic_zoom_max`    | number  | `4`     | Maximum zoom level for auto-cycle (2–4)                                 |
 
 ### Appearance

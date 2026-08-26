@@ -182,7 +182,7 @@ describe("SolarViewCard", () => {
   it("getStubConfig returns default config with all options", () => {
     expect(SolarViewCard.getStubConfig()).toEqual({
       default_zoom: 2,
-      periodic_zoom_change: false,
+      periodic_zoom_change: true,
       periodic_zoom_max: 4,
       refresh_mins: 1,
       zoom_animate: true,

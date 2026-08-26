@@ -8,16 +8,16 @@ setupCardTest();
 // contract between the two in card.auto-behaviour.test.ts.
 describe("SolarViewCard auto_zoom", () => {
   describe("periodic_zoom_change configuration", () => {
-    it("defaults to false when not set", () => {
+    it("defaults to true when not set", () => {
       const card = document.createElement("ha-planetary-solar-system-card-test");
       card.setConfig({});
-      expect(card._zoom.periodicZoomChange).toBe(false);
+      expect(card._zoom.periodicZoomChange).toBe(true);
     });
 
-    it("is true when configured as true", () => {
+    it("is false when configured as false", () => {
       const card = document.createElement("ha-planetary-solar-system-card-test");
-      card.setConfig({ periodic_zoom_change: true });
-      expect(card._zoom.periodicZoomChange).toBe(true);
+      card.setConfig({ periodic_zoom_change: false });
+      expect(card._zoom.periodicZoomChange).toBe(false);
     });
   });
 

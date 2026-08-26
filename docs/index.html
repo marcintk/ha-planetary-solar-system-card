@@ -83,7 +83,14 @@
     import "./card.js";
 
     const card = document.getElementById("demo-card");
-    card.setConfig({ default_zoom: 2 });
+    // mymoon is sky-relative and follows the real clock here (no fixed --at like the demo
+    // gif has), so it shows "No Moon Sky" for roughly half of any given visitor's session —
+    // off by default so the live demo doesn't look broken on a coin flip. moon/earth/sun
+    // have no such below-horizon gap, so they're on in its place.
+    card.setConfig({
+      default_zoom: 2,
+      gallery: { mymoon: false, moon: true, earth: true, sun: true },
+    });
     card.hass = {
       config: {
         latitude: 41.8781,

@@ -182,12 +182,12 @@ a pipeline stall doesn't break the feed.
 
 `location` (object, unset by default) — overrides HA's configured location:
 
-| Key                  | Type                 | Default   | Description                                                                                                                                                                                          |
-| -------------------- | -------------------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `location.name`      | string               | HA config | Overrides the location label shown in the status bar                                                                                                                                                 |
-| `location.latitude`  | number (-90 to 90)   | HA config | Overrides HA's latitude for hemisphere/season/twilight math. Requires `location.longitude` too, else ignored                                                                                         |
-| `location.longitude` | number (-180 to 180) | HA config | Overrides HA's longitude. Requires `location.latitude` too, else ignored                                                                                                                             |
-| `location.timezone`  | string (IANA)        | estimated | Timezone for the clock times in the status bar — [find the name here][iana], e.g. `Europe/Warsaw`. Unset or unrecognised, it is estimated from the longitude: no daylight saving, no half-hour zones |
+| Key                  | Type                 | Default   | Description                                                                                                                                                                                                                                           |
+| -------------------- | -------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `location.name`      | string               | HA config | Overrides the location label shown in the status bar                                                                                                                                                                                                  |
+| `location.latitude`  | number (-90 to 90)   | HA config | Overrides HA's latitude for hemisphere/season/twilight math. Requires `location.longitude` too, else ignored                                                                                                                                          |
+| `location.longitude` | number (-180 to 180) | HA config | Overrides HA's longitude. Requires `location.latitude` too, else ignored                                                                                                                                                                              |
+| `location.timezone`  | string (IANA)        | HA config | Only read when `location.latitude`/`location.longitude` override HA's own location — [find the name here][iana], e.g. `Europe/Warsaw`. Unset or unrecognised there, it's estimated from the longitude instead: no daylight saving, no half-hour zones |
 
 <!-- Reference links -->
 

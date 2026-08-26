@@ -98,16 +98,18 @@ A thumbnail strip beside the solar view. ☷ toggles it; clicking a NASA thumbna
 full-screen. Which tiles appear is `gallery.mymoon` / `gallery.moon` / `gallery.earth` /
 `gallery.sun`; left-to-right order is fixed (see [Gallery](#gallery)).
 
-| Thumbnail | Source            | Shows                                                   | We fetch | Age of what you see |
-| --------- | ----------------- | ------------------------------------------------------- | -------- | ------------------- |
-| MY MOON   | [NASA SVS][svs]   | The Moon in my sky — hidden when it's below the horizon | Hourly   | Under an hour       |
-| MOON      | [NASA SVS][svs]   | The Moon from Earth's centre — no Earth in frame        | Hourly   | Under an hour       |
-| DSCOVR/E  | [NASA EPIC][epic] | Earth's sunlit side, from L1                            | Hourly   | 1-2 days            |
-| SDO/S     | [NASA SDO][sdo]   | The Sun, from geosync orbit                             | 15 min   | 25-55 min           |
+| Thumbnail | Source            | Shows                                                   | We fetch     | Age of what you see |
+| --------- | ----------------- | ------------------------------------------------------- | ------------ | ------------------- |
+| MY MOON   | [NASA SVS][svs]   | The Moon in my sky — hidden when it's below the horizon | Nearest hour | ≤30 min             |
+| MOON      | [NASA SVS][svs]   | The Moon from Earth's centre — no Earth in frame        | Nearest hour | ≤30 min             |
+| DSCOVR/E  | [NASA EPIC][epic] | Earth's sunlit side, from L1                            | Hourly       | 1-2 days            |
+| SDO/S     | [NASA SDO][sdo]   | The Sun, from geosync orbit                             | 15 min       | 25-55 min           |
 
-Both Moon tiles are renders (LOLA + LROC + JPL DE421), not photographs, so there's no publish delay
-— but the product ships a year at a time under an id that changes each December, so both go blank on
-1 January until a release adds the new one.
+Both Moon tiles are renders (LOLA + LROC + JPL DE421), not photographs — every hour of the year is
+already published, so there's no delay to wait out. The card just picks whichever hour is closest to
+now, which is why it's "nearest hour" rather than a fetch cadence like the other rows: there's no
+new data arriving to poll for. The product still ships a year at a time under an id that changes
+each December, so both tiles go blank on 1 January until a release adds the new one.
 
 Earth's and Sun's lags are NASA's own publish pipeline: EPIC runs a day or two behind, and SDO posts
 each frame 25-30 minutes after capture. The card learns SDO's actual lag rather than assuming it, so
@@ -171,10 +173,10 @@ a pipeline stall doesn't break the feed.
 | `gallery.shape`               | string  | `"square"`  | `"square"` shows the frame as its source publishes it, `"circle"` clips it to a circle sized to the body's disc (not a pixel-exact crop) |
 | `gallery.slide_interval_secs` | number  | `60`        | How often `slide` mode advances to the next enabled source                                                                               |
 | `gallery.mymoon`              | boolean | `true`      | Show the MY MOON tile — Moon from your sky, NASA SVS render                                                                              |
+| `gallery.mymoon_tint`         | boolean | `false`     | **Beta.** Tint the MY MOON tile and its full-screen view by the Moon's own altitude (extinction) — stronger near the horizon             |
 | `gallery.moon`                | boolean | `false`     | Show the MOON tile — Moon from Earth's centre, NASA SVS render                                                                           |
 | `gallery.earth`               | boolean | `false`     | Show the EARTH tile — Earth from Sun–Earth L1, DSCOVR spacecraft                                                                         |
 | `gallery.sun`                 | boolean | `false`     | Show the SUN tile — Sun from Earth geosync orbit, SDO spacecraft                                                                         |
-| `gallery.mymoon_tint`         | boolean | `false`     | **Beta.** Tint the MY MOON tile and its full-screen view by the Moon's own altitude (extinction) — stronger near the horizon             |
 
 ### Location
 

@@ -107,8 +107,13 @@ describe("source-resolver-svs-moon", () => {
   });
 
   describe("getMoonFrameImage", () => {
-    it("dates the image by the frame's own hour, not the query instant", () => {
+    it("dates the image by the nearest hour, not the query instant", () => {
       const { date } = getMoonFrameImage(new Date("2026-08-21T12:42:30Z"));
+      expect(date.toISOString()).toBe("2026-08-21T13:00:00.000Z");
+    });
+
+    it("rounds down when the instant is before the half hour", () => {
+      const { date } = getMoonFrameImage(new Date("2026-08-21T12:17:30Z"));
       expect(date.toISOString()).toBe("2026-08-21T12:00:00.000Z");
     });
   });
@@ -116,12 +121,12 @@ describe("source-resolver-svs-moon", () => {
   describe("SvsMoonResolver", () => {
     const NOW = Date.UTC(2026, 7, 21, 12, 42, 30);
 
-    it("resolves the current hour's frame", async () => {
+    it("resolves the nearest hour's frame", async () => {
       vi.spyOn(Date, "now").mockReturnValue(NOW);
       stubImageDecode();
       const resolver = new SvsMoonResolver("moon", () => new Date(Date.now()), cache);
       const image = await resolver.resolve(emptyDebugAccumulator(), emptyDebugAccumulator());
-      expect(image.url).toContain("moon.5581.jpg");
+      expect(image.url).toContain("moon.5582.jpg");
     });
 
     // Both tiles ask for the same instant now (image-resolver.ts wires them to the same
@@ -140,7 +145,7 @@ describe("source-resolver-svs-moon", () => {
       const skyImage = await sky.resolve(skyDebug, skyDebug);
 
       expect(skyImage).toEqual(objectImage);
-      expect(cache.getStale("moon")?.url).toContain("moon.5581.jpg");
+      expect(cache.getStale("moon")?.url).toContain("moon.5582.jpg");
       // sky's resolve() found the entry object already wrote and decoded — a cache hit, no
       // fresh network attempt of its own.
       expect(skyDebug.cacheHits).toBe(1);
@@ -171,7 +176,7 @@ describe("source-resolver-svs-moon", () => {
 
       vi.spyOn(Date, "now").mockReturnValue(NOW + MOON_FRAME_MS);
       const next = await resolver.resolve(emptyDebugAccumulator(), emptyDebugAccumulator());
-      expect(next.url).toContain("moon.5582.jpg");
+      expect(next.url).toContain("moon.5583.jpg");
     });
 
     // No recover() override: every frame is pre-published, so a failure is not publish lag and
@@ -192,7 +197,7 @@ describe("source-resolver-svs-moon", () => {
       await first.resolve(emptyDebugAccumulator(), emptyDebugAccumulator());
 
       const remounted = new SvsMoonResolver("moon", () => new Date(Date.now()), cache);
-      expect(remounted.hydrate()?.url).toContain("moon.5581.jpg");
+      expect(remounted.hydrate()?.url).toContain("moon.5582.jpg");
     });
   });
 });

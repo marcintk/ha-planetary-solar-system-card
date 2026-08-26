@@ -7,7 +7,8 @@
 
 Home Assistant custom Lovelace card showing all 8 planets, Moon and comet Halley aligned around the
 Sun, with live NASA imagery of the Moon, Earth and the Sun — including the Moon turned to match your
-own sky. Navigate time, zoom, and pan interactively.
+own sky. Navigate time, zoom, and pan interactively. Orbit distances use a log scale and planet
+sizes are stylized for readability, not real astronomical scale.
 
 [![Try the interactive demo](https://img.shields.io/badge/▶%20Try%20the%20interactive%20demo-CD5C5C?style=for-the-badge)](https://marcintk.github.io/ha-planetary-solar-system-card/)
 

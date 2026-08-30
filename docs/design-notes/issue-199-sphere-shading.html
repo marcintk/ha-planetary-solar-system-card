@@ -282,9 +282,10 @@
   <p class="eyebrow">Design note &middot; Issue #199</p>
   <h1>Body shading, Sun halo &amp; a palette nudge</h1>
   <p class="lede">
-    Give every orbiting body a hard-edged lit and unlit half, put a soft halo behind the Sun,
-    and shift the planet colours a step toward how they actually look &mdash; without losing
-    legibility at 5&ndash;21&nbsp;px on a dark card.
+    Light every orbiting body from the central Sun with one translucent shadow layer &mdash;
+    the same for a planet, the Moon, a comet head or Saturn with its rings &mdash; put a
+    zoom-aware ambient halo behind the Sun, and nudge the planet palette toward how the planets
+    actually look.
   </p>
   <div class="meta">
     <span class="badge">approved</span>
@@ -297,246 +298,258 @@
   <p>
     Bodies render as flat discs today: <code>renderBody()</code> in
     <code>src/renderer/bodies.ts</code> appends a single <code>&lt;circle fill={body.color}&gt;</code>.
-    The scene already carries enough information to light them &mdash; the Sun is drawn at
-    <code>(CENTER, CENTER)</code> every frame, so the direction to the light for any body at
-    screen position <code>(x, y)</code> is just the vector <code>(CENTER&nbsp;&minus;&nbsp;x,
-    CENTER&nbsp;&minus;&nbsp;y)</code>. Issue #199 asks for three things that build on that:
-  </p>
-  <ol>
-    <li>A visible day/night split on each body, <em>lit half</em> vs <em>unlit half</em>,
-      divided by the diameter perpendicular to the Sun direction.</li>
-    <li>An &ldquo;energy flow&rdquo; effect around the Sun &mdash; resolved here as a static
-      radial glow, no animation.</li>
-    <li>A palette revisit: the current hexes in <code>planet-data.ts</code> were picked purely
-      for contrast on the dark slate theme, not for resemblance to the real planets.</li>
-  </ol>
-  <p>
-    The intended outcome is a scene that reads as lit by a central star rather than as a
-    diagram of coloured dots, while every body stays identifiable at its real pixel size.
-    <strong>No <code>LESSONS.md</code> exists in this repo yet</strong>, so there is no prior
-    root cause or guardrail for this problem class to check against.
+    The Sun is drawn at <code>(CENTER, CENTER)</code> every frame, so the direction to the light
+    for any body at screen position <code>(x, y)</code> is just the vector
+    <code>(CENTER&nbsp;&minus;&nbsp;x, CENTER&nbsp;&minus;&nbsp;y)</code> &mdash; no extra state
+    needed. Issue #199 asks for three things built on that: a day/night shadow on every body,
+    a static &ldquo;energy&rdquo; halo around the Sun, and a palette revisit
+    (<code>planet-data.ts</code> hexes were picked for contrast on dark slate, not resemblance).
   </p>
 
-  <h2>Decisions locked in the grill</h2>
+  <h2>Decisions</h2>
   <table>
     <thead><tr><th>Question</th><th>Decision</th></tr></thead>
     <tbody>
-      <tr><td>Scope</td><td>All four sub-ideas stay in #199, as four slices &mdash; not split into separate issues.</td></tr>
-      <tr><td>Lit-side treatment</td><td>Hard half-disc. <strong>No radial gradient.</strong> Lit half = <code>body.color</code>; unlit half = <code>color-mix(in srgb, body.color 35%, black)</code>.</td></tr>
-      <tr><td>Terminator</td><td>Just the boundary where the two half-discs meet. No separately drawn diameter line.</td></tr>
-      <tr><td>Body set</td><td>All 8 planets, the Moon, <em>and</em> comet heads. The Sun gets the halo instead of a split.</td></tr>
-      <tr><td>Saturn's rings</td><td>Own slice: rings drawn lit, minus an approximate dark arc on the anti-sunward side.</td></tr>
-      <tr><td>Sun effect</td><td>Static radial-gradient halo. No animation, no SVG filter, no <code>prefers-reduced-motion</code> concern.</td></tr>
-      <tr><td>Palette</td><td>Subtle nudge toward realism, keeping current brightness/saturation. Final hexes signed off against a standalone preview.</td></tr>
+      <tr><td>Shadow mechanism</td><td><strong>One translucent dark overlay</strong> on the
+        anti-sunward half of a plain disc &mdash; same idea as the gallery&rsquo;s
+        <code>mix-blend-mode</code> tint layer, in SVG. Not an opaque hard half-disc, not a
+        gradient, not stroked arcs.</td></tr>
+      <tr><td>Applies to</td><td>Every body through one primitive: the 8 planets, the Moon,
+        comet heads, and Saturn (body + rings + the gap, as one strip). The Sun gets the halo
+        instead.</td></tr>
+      <tr><td>Shadow width</td><td>The core planet&rsquo;s own diameter &mdash; a band
+        <code>2&nbsp;&times;&nbsp;coreR</code> from the terminator, running anti-sunward. For a
+        lone body that is exactly its anti-sunward half; for Saturn it is a strip the width of
+        the shrunk body cast across the rings.</td></tr>
+      <tr><td>Tone</td><td><code>SHADOW_FILL = "#05070c"</code> at
+        <code>SHADOW_OPACITY = 0.45</code>. The dark side is <code>body.color</code> under a
+        wash, not an opaque re-fill.</td></tr>
+      <tr><td>Sun effect</td><td>Static radial-gradient halo. No animation, no SVG filter, no
+        <code>prefers-reduced-motion</code> concern.</td></tr>
+      <tr><td>Palette</td><td>Subtle nudge toward realism, brightness/saturation kept. Final
+        hexes signed off against the Preview below.</td></tr>
     </tbody>
   </table>
 
   <h2>Preview</h2>
   <p>
-    Bodies at their real render radii, orbiting a central Sun. Drag the light angle to move
-    every terminator at once; toggle back to flat fills to compare. This is the check on the
-    &ldquo;hard line at 5&ndash;6&nbsp;px&rdquo; worry.
+    Bodies at their real render radii around a central Sun, plus Saturn with rings. Drag the
+    light angle: every terminator <em>and</em> Saturn&rsquo;s ring strip move together, because
+    all of it is derived from the one Sun&ndash;body vector. Toggle flat fills to compare, and
+    the halo on/off.
   </p>
   <div class="demo">
-    <svg id="stage" viewBox="0 0 640 360" role="img" aria-label="Preview of hard half-disc body shading with a static Sun halo"></svg>
+    <svg id="stage" viewBox="0 0 640 360" role="img" aria-label="Preview: translucent day/night shadow on every body, Saturn's rings included, driven by the light angle"></svg>
   </div>
   <div class="controls">
     <label>Light angle
       <input id="ang" type="range" min="0" max="360" value="215" step="1">
       <span class="val mono" id="angv">215&deg;</span>
     </label>
-    <button class="toggle" id="flat" type="button" aria-pressed="false">Show flat fills</button>
+    <button class="toggle" id="flat" type="button" aria-pressed="false">Flat fills</button>
     <button class="toggle" id="halo" type="button" aria-pressed="true">Sun halo</button>
   </div>
   <p class="caption">
-    Illustrative only &mdash; positions are arbitrary, radii and the proposed palette are real.
-    In the card the light angle is not a control; it is fixed by each body being on the far
-    side of the diameter from screen centre.
+    Illustrative &mdash; positions are arbitrary, radii and the proposed palette are real. In
+    the card the light angle isn&rsquo;t a control; it is fixed by each body&rsquo;s position
+    relative to screen centre.
   </p>
 
-  <h2>Design it twice: the half-disc mechanism</h2>
-  <p>
-    All three options produce the same picture. The question is where the geometry lives and
-    how the Sun&rsquo;s &ldquo;no split&rdquo; case is expressed.
-  </p>
-
+  <h2>The shadow primitive</h2>
   <div class="box">
-    <h3>A &mdash; two <code>&lt;path&gt;</code> half-discs, inline in <code>renderBody</code></h3>
-    <p>
-      Compute <code>theta = atan2(CENTER&minus;y, CENTER&minus;x)</code>, take the diameter
-      endpoints at <code>theta&nbsp;&plusmn;&nbsp;&pi;/2</code>, append two arc paths &mdash; one
-      bulging sunward in <code>body.color</code>, one opposite in the darkened tone. The Sun
-      falls back to a plain circle behind an <code>if (dx === 0 &amp;&amp; dy === 0)</code>.
-    </p>
-    <p><strong>Trade:</strong> best locality, zero new seam &mdash; but scene geometry now lives
-      inside the drawing function, and &ldquo;don&rsquo;t split&rdquo; is a coordinate check.</p>
+    <pre><code>// bodies.ts
+export function renderBodyShadow(
+  svg: SVGElement,
+  x: number, y: number,
+  coreR: number,          // radius of the plain disc already drawn at (x, y)
+  reach = coreR,          // how far out the shadow reaches (Saturn: SATURN_RING_OUTER_RADIUS)
+): void;                  // no-op when (x, y) === (CENTER, CENTER)  -- the Sun</code></pre>
+    <ul>
+      <li>Caller draws the body as a plain <code>&lt;circle fill={color}&gt;</code> first, then
+        calls this.</li>
+      <li><code>phi = atan2(y &minus; CENTER, x &minus; CENTER)</code> &mdash; anti-sunward,
+        measured in screen space between two already-placed points, so it takes
+        <strong>no <code>eclipticViewDirection</code></strong> (see callout).</li>
+      <li><strong><code>reach === coreR</code> &mdash; every lone body.</strong> The core-width
+        band already covers the whole disc, so the overlay is simply
+        <code>&lt;path d={sunwardHalfDiscPaths(x, y, coreR).darkD} fill={SHADOW_FILL}
+        fill-opacity={SHADOW_OPACITY}&gt;</code>: the anti-sunward half-disc, washed dark. No
+        <code>&lt;clipPath&gt;</code>, no <code>&lt;defs&gt;</code>, no id.
+        <code>sunwardHalfDiscPaths</code> stays as the geometry source; only its
+        <code>darkD</code> is used now.</li>
+      <li><strong><code>reach &gt; coreR</code> &mdash; Saturn only.</strong> A
+        <code>&lt;clipPath id="saturn-shadow"&gt;</code> holding one <code>&lt;rect&gt;</code>
+        (<code>2&nbsp;&times;&nbsp;coreR</code> tall, <code>reach</code> long,
+        <code>transform="translate(x y) rotate(phiDeg)"</code>), plus a translucent
+        <code>&lt;circle r={reach}&gt;</code> clipped to it &mdash; one strip darkening body +
+        both rings + the gap. One fixed id; one Saturn; the SVG is rebuilt every frame.</li>
+    </ul>
   </div>
-
-  <div class="box">
-    <h3>B &mdash; keep the circle, overlay a clipped dark circle via <code>&lt;clipPath&gt;</code></h3>
-    <p>
-      Leave the existing <code>&lt;circle fill={body.color}&gt;</code> untouched. Add a
-      half-plane <code>&lt;clipPath&gt;</code> to <code>&lt;defs&gt;</code> and append a second
-      circle in the dark tone clipped to it. Mirrors the
-      <code>renderVisibilityCone()</code> idiom in <code>observer.ts</code> exactly, and keeps
-      the &ldquo;appends a circle with fill&rdquo; tests almost unchanged.
-    </p>
-    <p><strong>Trade:</strong> drags <code>&lt;defs&gt;</code> lifecycle and per-body id
-      bookkeeping into <code>renderBody</code>, which is <code>&lt;defs&gt;</code>-free today.
-      A &ldquo;caller knows internals&rdquo; leak bought to avoid some test churn.</p>
-  </div>
-
-  <div class="box">
-    <h3>C &mdash; A&rsquo;s geometry, extracted to <code>svg-utils.ts</code> with an explicit light source <span style="color:var(--accent)">&larr; recommended</span></h3>
-    <pre><code>// svg-utils.ts, next to polarOffset / polarFromFocus
-export function sunwardHalfDiscPaths(
-  x: number, y: number, r: number,
-  lightFrom: { x: number; y: number } = { x: CENTER, y: CENTER },
-): { litD: string; darkD: string } | null;
-// returns null when (x, y) === lightFrom  -> caller draws a plain circle</code></pre>
-    <p>
-      Same two path strings as A, but the geometry sits with the rest of the screen-space
-      geometry &mdash; the file whose docstrings already explain the <code>eclipticViewDirection</code>
-      mirror. That is exactly where the note &ldquo;this split is a screen-space delta, so it is
-      <em>exempt</em> from the mirror&rdquo; belongs. Pure, DOM-free, unit-testable. The Sun is
-      handled as <em>data</em> (<code>lightFrom</code> equals its own centre &rarr;
-      <code>null</code>), not a special-cased name. <code>renderBody</code> and
-      <code>renderCometBody</code> both become thin callers; the Saturn slice reuses it for the
-      shrunk body.
-    </p>
-  </div>
-
-  <p class="verdict">
-    <strong>Verdict: C.</strong> A and C draw the identical result; C puts the geometry where
-    the project already keeps screen-space math and turns &ldquo;no split&rdquo; into a value
-    rather than a branch on the Sun&rsquo;s name. B is rejected: the <code>&lt;defs&gt;</code>/id
-    leak into <code>renderBody</code> costs more than the test edits it saves.
-  </p>
-
   <div class="callout">
-    <strong>Why no <code>eclipticViewDirection</code>.</strong> Every point in the renderer that
-    comes from an <em>orbital angle</em> must pass through <code>polarOffset()</code> so the
-    &plusmn;1 ecliptic mirror is applied once and consistently (CLAUDE.md, #94). The half-disc
-    diameter is not derived from an orbital angle &mdash; it comes from the screen-space vector
-    between two already-placed points, <code>(x, y)</code> and <code>(CENTER, CENTER)</code>.
-    The Sun stays at <code>CENTER</code> in both views and the body is already mirror-placed, so
-    the vector between them is correct in either view with no extra handling. The helper takes no
-    direction enum by design.
+    <strong>Why not a clip for every body.</strong> A per-body <code>&lt;clipPath&gt;</code>
+    needs a unique id and a <code>&lt;defs&gt;</code> round-trip &mdash; ~12&times; a frame. For a
+    lone body the band is never narrower than the disc, so the clipped result is identical to
+    the plain <code>darkD</code> half-disc path. Take the cheap path there; keep the clip only
+    where it changes the outcome (Saturn&rsquo;s rings).
+  </div>
+  <div class="callout">
+    <strong>Why no <code>eclipticViewDirection</code>.</strong> Every point derived from an
+    <em>orbital angle</em> must pass through <code>polarOffset()</code> so the &plusmn;1 ecliptic
+    mirror is applied once (CLAUDE.md, #94). <code>phi</code> here is not an orbital angle
+    &mdash; it is the screen-space vector between <code>(x, y)</code> and
+    <code>(CENTER, CENTER)</code>, both already placed. The Sun stays at <code>CENTER</code> in
+    both views and the body is already mirror-placed, so <code>phi</code> is correct either way.
+    <code>renderBodyShadow</code> and <code>sunwardHalfDiscPaths</code> take no direction enum.
   </div>
 
   <h2>Slices</h2>
 
   <div class="box">
-    <h3>Slice 1 &mdash; hard half-disc for planets &amp; Moon <span style="color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:0.7rem;letter-spacing:0.1em">&nbsp;ACCEPTED</span></h3>
+    <h3>Slice 1 &mdash; <code>renderBodyShadow</code>, planets, Moon &amp; comet heads <span style="color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:0.7rem;letter-spacing:0.1em">&nbsp;ACCEPTED</span></h3>
     <ul>
-      <li>Add <code>sunwardHalfDiscPaths()</code> to <code>svg-utils.ts</code> + unit tests
-        (endpoints on the circle, diameter &perp; light vector, <code>null</code> when
-        coincident).</li>
-      <li><code>renderBody()</code>: when the helper returns paths, append the dark path then
-        the lit path (lit on top); when it returns <code>null</code>, keep today&rsquo;s single
-        circle. Unlit tone via <code>color-mix(in srgb, ${'{body.color}'} 35%, black)</code>.</li>
-      <li><strong>Red test:</strong> <code>bodies.test.ts</code> &mdash; &ldquo;appends a circle
-        with fill <code>body.color</code>&rdquo; becomes &ldquo;appends a lit <code>path</code>
-        in <code>body.color</code> and a dark <code>path</code>&rdquo; for an off-centre body;
-        the Sun-at-centre case still asserts a plain circle.</li>
-      <li>Untouched: <code>positions[].color</code>, offscreen markers, dynamic labels and the
-        Saturn ring stroke keep reading flat <code>body.color</code>.</li>
+      <li>Add <code>renderBodyShadow(svg, x, y, coreR)</code> and the module consts
+        <code>SHADOW_FILL</code> / <code>SHADOW_OPACITY</code> to <code>bodies.ts</code>. Keep
+        <code>sunwardHalfDiscPaths</code>; callers consume only <code>darkD</code>. (<code>reach</code>
+        param deferred to slice 2 &mdash; adding it as a trailing optional leaves this body
+        verbatim as the else branch, no churn.)</li>
+      <li><code>renderBody</code>: plain <code>&lt;circle fill={body.color}&gt;</code>, then
+        <code>renderBodyShadow(svg, x, y, body.size)</code>. Drop <code>renderShadedDisc</code>.
+        The Sun (at CENTER) &rarr; helper no-ops &rarr; plain disc, unchanged. Label unchanged.</li>
+      <li><code>renderCometBody</code>: plain head <code>&lt;circle&gt;</code>, then
+        <code>renderBodyShadow(svg, x, y, comet.size)</code>. Tail and label untouched; DOM
+        order tail &rarr; head &rarr; overlay &rarr; label.</li>
+      <li><strong>Red tests:</strong> <code>bodies.test.ts</code> / <code>comets.test.ts</code>
+        &mdash; off-centre body = plain <code>&lt;circle&gt;</code> + one translucent
+        <code>&lt;path&gt;</code> (<code>fill-opacity</code> &lt; 1) over the anti-sunward half;
+        Sun-at-CENTRE = plain circle only. <code>index.test.ts</code> body locators go back to
+        <code>circle[fill=&hellip;]</code>.</li>
     </ul>
     <p style="font-size:0.9rem;color:var(--ink-soft);margin:0.6rem 0 0">
-      <strong>Shipped:</strong> helper returns <code>{ litD, darkD } | null</code>;
-      <code>litD = arc(0)</code> bulges sunward, <code>darkD = arc(1)</code> away; `d` form
-      <code>M x1 y1 A r r 0 0 {sweep} x2 y2 Z</code>. <code>renderBody</code> draws dark then
-      lit. Contract change (off-centre body: <code>&lt;circle&gt;</code> &rarr; two
-      <code>&lt;path&gt;</code>) rippled to 6 pre-existing tests that located bodies by
-      <code>circle[fill=&hellip;]</code>; fixed with a type-agnostic <code>bodyPos()</code>
-      locator in <code>index.test.ts</code> and a snapshot regen. Reviewer: no correctness
-      findings; <code>/simplify</code> hoisted the delta vector. 1210 tests green.
+      <strong>Shipped:</strong> <code>renderShadedDisc</code> deleted (net &minus;20 lines);
+      <code>renderBodyShadow</code> appends one <code>&lt;path d={darkD} fill="#05070c"
+      fill-opacity="0.45"&gt;</code>, no-op at CENTER. <code>renderBody</code> /
+      <code>renderCometBody</code> draw a plain circle then call it. <code>litD</code> kept in
+      <code>sunwardHalfDiscPaths</code> &mdash; its relational tests (opposite sweeps, shared
+      endpoints, <code>litMid</code> at the light) are the strongest check that the shipped
+      <code>darkD</code> is right. Reviewer: no findings. 1213 tests, 100% coverage.
+    </p>
+    <p style="font-size:0.88rem;color:var(--ink-faint);margin:0.4rem 0 0">
+      <em>Carried to later slices:</em> Saturn&rsquo;s body-only shadow currently draws
+      <em>under</em> its rings (transient &mdash; slice 2 replaces it with the clipped band on
+      top). <code>renderCometBody</code>&rsquo;s <code>sunX/sunY</code> params feed the tail but
+      not the head wash (fine while the Sun is fixed at CENTER).
     </p>
   </div>
 
   <div class="box">
-    <h3>Slice 2 &mdash; same split on comet heads <span style="color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:0.7rem;letter-spacing:0.1em">&nbsp;ACCEPTED</span></h3>
+    <h3>Slice 2 &mdash; Saturn <span style="color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:0.7rem;letter-spacing:0.1em">&nbsp;ACCEPTED</span></h3>
     <ul>
-      <li><code>renderCometBody()</code> in <code>comets.ts</code> already computes the sunward
-        unit vector for the tail; feed <code>{ sunX, sunY }</code> as <code>lightFrom</code> to
-        the same helper and replace the head <code>&lt;circle&gt;</code> with the two paths.</li>
-      <li>Tail rendering unchanged.</li>
-      <li><strong>Red test:</strong> <code>comets.test.ts</code> &mdash; head is now a lit/dark
-        path pair oriented away from the Sun.</li>
+      <li>Rename <code>renderSaturnRings</code> &rarr; <code>renderSaturn</code>; it now owns the
+        whole Saturn draw. Move the plain body <code>&lt;circle r={round(planet.size/2)}&gt;</code>
+        into it (out of the <code>index.ts</code> branch) so <code>coreR</code> is computed in
+        one place.</li>
+      <li>Draw: plain body circle &rarr; two plain lit ring circles (r=23 sw=2, r=18 sw=6,
+        <code>stroke={body.color} opacity="0.6"</code>) &rarr;
+        <code>renderBodyShadow(svg, x, y, round(body.size/2), SATURN_RING_OUTER_RADIUS)</code>.
+        The <code>reach &gt; coreR</code> branch does the clipped band across body + rings + gap.</li>
+      <li><strong>Red tests:</strong> <code>bodies.test.ts</code> / <code>index.test.ts</code>
+        &mdash; plain body circle (r=13), two plain ring circles, one
+        <code>&lt;clipPath id="saturn-shadow"&gt;</code> band <code>&lt;rect&gt;</code>
+        (<code>width=SATURN_RING_OUTER_RADIUS</code>, <code>height=2&times;13</code>,
+        <code>transform</code> with <code>translate</code> + <code>rotate(phiDeg)</code>), one
+        clipped translucent overlay <code>&lt;circle r=24 fill-opacity&lt;1&gt;</code> after
+        body + rings and before the Saturn label.</li>
     </ul>
     <p style="font-size:0.9rem;color:var(--ink-soft);margin:0.6rem 0 0">
-      <strong>Shipped:</strong> the dark-then-lit block from slice 1&rsquo;s <code>renderBody</code>
-      and this slice&rsquo;s comet head was pulled up into one exported
-      <code>renderShadedDisc(svg, x, y, r, color, lightFrom?)</code> in <code>bodies.ts</code>
-      (<code>/simplify</code> during review) &mdash; <code>renderBody</code> and the comet head
-      are now one call each. <code>comets.ts</code> imports it from <code>bodies.js</code> (no
-      cycle; the dependency already existed for <code>ORBIT_COLOR</code>). Slice 3&rsquo;s
-      ring arcs are a different shape and deliberately do <em>not</em> use it. 1211 tests, 100%
-      coverage.
+      <strong>Shipped:</strong> <code>renderBodyShadow</code> gained <code>reach = coreR</code>;
+      the <code>reach &gt; coreR</code> branch is the <code>&lt;clipPath&gt;</code> band +
+      clipped translucent <code>&lt;circle r={reach}&gt;</code>. <code>renderSaturn</code> draws
+      body &rarr; 2 rings &rarr; <code>renderBodyShadow(&hellip;, SATURN_RING_OUTER_RADIUS)</code>;
+      <code>index.ts</code> Saturn branch is now one call, <code>coreR</code> single-source.
+      Reviewer: no findings. 1213 tests, 100% coverage.
+    </p>
+    <p style="font-size:0.88rem;color:var(--ink-faint);margin:0.4rem 0 0">
+      <em>Follow-up chores (separate issues):</em> <code>sunwardHalfDiscPaths</code>&rsquo;s
+      <code>lightFrom</code> param is now dead (no caller overrides it); the
+      <code>querySelector("defs") || insertBefore(&hellip;)</code> one-liner is copied across
+      <code>observer.ts</code>, <code>seasons.ts</code>, <code>bodies.ts</code> (&rarr; a
+      <code>getOrCreateDefs(svg)</code> helper). Slice 3&rsquo;s halo adds a fourth copy.
     </p>
   </div>
 
   <div class="box">
-    <h3>Slice 3 &mdash; Saturn ring shadow arc</h3>
+    <h3>Slice 3 &mdash; palette nudge <span style="color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:0.7rem;letter-spacing:0.1em">&nbsp;ACCEPTED</span></h3>
     <ul>
-      <li><code>renderSaturnRings()</code>: each ring is currently a full stroked
-        <code>&lt;circle&gt;</code>. Split each into a lit arc <code>&lt;path&gt;</code> plus a
-        darkened arc <code>&lt;path&gt;</code> on the anti-sunward side.</li>
-      <li>Shadow arc is <em>approximate</em>: centred on the anti-sunward direction, angular
-        half-width <code>atan2(bodyRadius, ringRadius)</code> &mdash; the planet&rsquo;s
-        shadow cylinder as seen from ring distance. Not a true projected-ellipse shadow.</li>
-      <li>An <code>arcPath(cx, cy, r, a0, a1)</code> helper falls out here and is shared with
-        Slice 1&rsquo;s path building.</li>
-      <li><strong>Red test:</strong> <code>bodies.test.ts</code> <code>renderSaturnRings</code>
-        &mdash; two arcs per ring; the dark arc spans the anti-sunward sector.</li>
+      <li>Edit the eight planet hexes + <code>MOON.color</code> in <code>planet-data.ts</code>
+        (<code>SUN.color</code> stays <code>#ffd700</code>). Values flow to offscreen markers,
+        labels and Saturn&rsquo;s ring stroke for free.</li>
+      <li><strong>Shipped:</strong> nine <code>color</code> fields swapped to the Preview&rsquo;s
+        proposed tones; ~14 hard-coded test hexes updated + a <code>planet-data.test.ts</code>
+        pin. Reviewer: clean, no old hex left in <code>src/</code>.</li>
     </ul>
   </div>
 
   <div class="box">
-    <h3>Slice 4 &mdash; static Sun halo + palette nudge</h3>
+    <h3>Slice 4 &mdash; zoom-aware Sun halo <span style="color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:0.7rem;letter-spacing:0.1em">&nbsp;ACCEPTED</span></h3>
+    <p style="font-size:0.92rem;color:var(--ink-soft)">
+      A fixed-radius halo disc read wrong: it wants to be an ambient wash that fills whatever is
+      on screen &mdash; the whole system at zoom&nbsp;1, a tight glow at zoom&nbsp;4. Zoom is a
+      <code>viewBox</code> swap applied <em>after</em> render (<code>solar-view.ts</code>), so the
+      halo can&rsquo;t be sized once.
+    </p>
     <ul>
-      <li>Halo: a <code>&lt;radialGradient id="sun-halo"&gt;</code> in <code>&lt;defs&gt;</code>
-        (gold at ~0.5 alpha &rarr; transparent) backing a <code>&lt;circle&gt;</code> of
-        ~2.5&ndash;3&times; the Sun&rsquo;s radius, drawn behind the Sun body. Reuses the
-        <code>&lt;defs&gt;</code> insert pattern from <code>observer.ts</code>. No filter.</li>
-      <li>Palette: edit the eight hexes in <code>planet-data.ts</code> only. Values flow to
-        markers, labels and rings for free.</li>
-      <li><strong>Sign-off artefact:</strong> this note&rsquo;s Preview doubles as the palette
-        check &mdash; adjust the proposed values here until approved, then copy them into
-        <code>planet-data.ts</code>.</li>
-      <li><strong>Red test:</strong> <code>index.test.ts</code> &mdash; a halo circle is
-        appended once, larger than and behind the Sun; palette values assert against the new
-        constants.</li>
+      <li><code>renderSolarSystem()</code> gains a fourth return, <code>updateHalo(viewState:
+        PanZoomState)</code> &mdash; same pattern as <code>updateMarkers</code>. It sets the halo
+        circle&rsquo;s <code>r</code> to <code>viewState.width &times; HALO_VIEW_FRACTION</code>
+        (~0.7 &rarr; r 560&hellip;224 across the zoom ladder 800/640/480/320). Centred on the Sun
+        at <code>(CENTER, CENTER)</code> always &mdash; the glow emanates from the light source,
+        pan doesn&rsquo;t move it. The <code>objectBoundingBox</code> gradient rescales with the
+        circle for free, so only <code>r</code> changes.</li>
+      <li><code>renderSunHalo(svg)</code> draws the <code>&lt;radialGradient id="sun-halo"&gt;</code>
+        + <code>&lt;circle id="sun-halo-glow"&gt;</code> once, at the zoom-1 radius
+        (<code>VIEW_SIZE &times; HALO_VIEW_FRACTION</code>), before the Sun body.</li>
+      <li><code>solar-view.ts</code> <code>applyViewState()</code>: call <code>updateHalo(panZoomState)</code>
+        next to <code>updateMarkers</code>, right after the <code>viewBox</code> set.</li>
+      <li><strong>Red tests:</strong> <code>index.test.ts</code> &mdash; <code>renderSolarSystem</code>
+        returns <code>updateHalo</code>; default halo <code>r = 800&times;fraction</code>;
+        <code>updateHalo({&hellip;, width: 320})</code> sets <code>r = 320&times;fraction</code>;
+        halo still first (behind the Sun disc). <code>solar-view</code> test &mdash;
+        <code>applyViewState</code> calls it.</li>
     </ul>
+    <p style="font-size:0.9rem;color:var(--ink-soft);margin:0.6rem 0 0">
+      <strong>Shipped:</strong> <code>HALO_VIEW_FRACTION = 0.7</code>; halo <code>&lt;circle
+      id="sun-halo-glow" r="560"&gt;</code>; <code>updateHalo</code> is the 4th
+      <code>renderSolarSystem</code> return, wired in <code>solar-view.applyViewState()</code>
+      next to <code>updateMarkers</code>. <code>r</code> tracks the live zoom width (smoothly,
+      through the zoom animation). Reviewer: no findings. 1224 tests, 100% coverage.
+    </p>
   </div>
 
-  <h2>Adjacent opportunities &mdash; filed separately, not folded in</h2>
+  <h2>Adjacent opportunities &mdash; separate issues, not folded in</h2>
   <ul>
-    <li><strong>Extract <code>arcPath()</code> and move <code>renderVisibilityCone()</code>
-      onto it.</strong> Slices 1 and 3 both build arc path strings; the cone in
-      <code>observer.ts</code> hand-assembles a similar path today. Worth a dedicated refactor
-      once this lands. &rarr; new issue.</li>
     <li><strong>Bootstrap <code>LESSONS.md</code>.</strong> The shared harness expects a
-      by-symptom lessons log at the repo root; this repo never created one. &rarr; chore issue.</li>
-    <li><strong>Not pursued:</strong> the <code>&lt;radialGradient&gt;</code> + <code>&lt;defs&gt;</code>
-      helper introduced for the halo could later back a comet-head glow or Moon earthshine.
-      Noted, not built &mdash; #199 chose the hard half-disc, no soft light anywhere.</li>
+      by-symptom log at the repo root; this repo never created one. &rarr; chore issue.</li>
+    <li><strong>Move <code>renderVisibilityCone</code> onto a shared arc-path primitive.</strong>
+      <code>observer.ts</code> hand-builds an arc <code>d</code> string; a small
+      <code>arcPath()</code> would tidy it. Not needed by this issue any more. &rarr; refactor
+      issue.</li>
+    <li><strong>Not pursued:</strong> the halo <code>&lt;radialGradient&gt;</code> could later
+      back a comet-head glow or Moon earthshine. Noted, not built.</li>
   </ul>
 
   <h2>Verification</h2>
   <ul>
-    <li><code>npm test</code> &mdash; new unit tests for <code>sunwardHalfDiscPaths()</code> and
-      <code>arcPath()</code>; updated <code>bodies</code>, <code>comets</code>, <code>index</code>
-      renderer suites. Coverage stays at 100%.</li>
+    <li><code>npm test</code> &mdash; reworked <code>bodies</code> / <code>comets</code> /
+      <code>index</code> renderer suites; coverage stays at 100%.</li>
     <li><code>npm run typecheck</code> and <code>npm run check</code> green.</li>
-    <li><code>test/renderer/collision.test.ts</code> still passes unchanged &mdash; body
-      <em>positions</em> are untouched, only their fill.</li>
-    <li>Build <code>dist/</code> fresh, load the card in Home Assistant dark <em>and</em> light
-      theme: every body shows a lit/unlit split pointing at the Sun; the Sun has a soft halo;
-      no body is unidentifiable on its dark side; offscreen edge markers still use the flat
-      palette tone.</li>
-    <li>This note&rsquo;s Preview approved for the final eight palette hexes before Slice 4
-      edits <code>planet-data.ts</code>.</li>
+    <li><code>test/renderer/collision.test.ts</code> unchanged &mdash; body <em>positions</em>
+      are untouched, only their fill.</li>
+    <li>Fresh <code>dist/</code>, load the card in HA dark <em>and</em> light theme: every body
+      shows an anti-sunward wash toward the Sun; Saturn&rsquo;s strip crosses its rings; the halo
+      fills the view and tightens as you zoom in (1&rarr;4); offscreen edge markers still use the
+      flat palette tone.</li>
+    <li><code>test/card/solar-view.test.ts</code> &mdash; <code>applyViewState</code> drives
+      <code>updateHalo</code> on every <code>viewBox</code> change.</li>
   </ul>
 
 </main>
@@ -550,42 +563,33 @@ export function sunwardHalfDiscPaths(
   const flatBtn = document.getElementById("flat");
   const haloBtn = document.getElementById("halo");
 
-  // Proposed palette nudge (subtle move toward real tone, brightness kept).
-  // name, render radius (real), current hex, proposed hex, demo position.
+  const SHADOW_FILL = "#05070c";
+  const SHADOW_OPACITY = 0.45;
+
   const SUN = { x: 320, y: 180, r: 16 };
   const BODIES = [
-    { name: "Mercury", r: 6,  cur: "#b0b0b0", next: "#a9a29b", x: 250, y: 128 },
-    { name: "Venus",   r: 9,  cur: "#e8cda0", next: "#e6ca97", x: 132, y: 232 },
-    { name: "Earth",   r: 10, cur: "#4a90d9", next: "#3f7fc4", x: 452, y: 96  },
-    { name: "Mars",    r: 7,  cur: "#c1440e", next: "#c04a1f", x: 520, y: 252 },
-    { name: "Jupiter", r: 21, cur: "#c88b3a", next: "#cf9b5f", x: 96,  y: 96  },
-    { name: "Saturn",  r: 12, cur: "#e0c080", next: "#e2c58c", x: 560, y: 150, ring: true },
-    { name: "Uranus",  r: 13, cur: "#7ec8e3", next: "#9ad3df", x: 214, y: 300 },
-    { name: "Neptune", r: 13, cur: "#3f54ba", next: "#3a53b0", x: 392, y: 300 },
-    { name: "Moon",    r: 5,  cur: "#cccccc", next: "#c8c6c0", x: 300, y: 60  },
+    { name: "Mercury", r: 6,  next: "#a9a29b", x: 250, y: 120 },
+    { name: "Venus",   r: 9,  next: "#e6ca97", x: 120, y: 232 },
+    { name: "Earth",   r: 10, next: "#3f7fc4", x: 452, y: 92  },
+    { name: "Mars",    r: 7,  next: "#c04a1f", x: 520, y: 250 },
+    { name: "Jupiter", r: 21, next: "#cf9b5f", x: 96,  y: 92  },
+    { name: "Saturn",  r: 13, next: "#e2c58c", x: 566, y: 150, rings: [23, 18], ringOuter: 24 },
+    { name: "Uranus",  r: 13, next: "#9ad3df", x: 210, y: 300 },
+    { name: "Neptune", r: 13, next: "#3a53b0", x: 392, y: 306 },
+    { name: "Moon",    r: 5,  next: "#c8c6c0", x: 300, y: 56  },
   ];
 
-  function darken(hex) {
-    return `color-mix(in srgb, ${hex} 35%, black)`;
-  }
-
-  function halfDiscPaths(x, y, r, lx, ly) {
-    const dx = lx - x, dy = ly - y;
-    const len = Math.hypot(dx, dy);
-    if (len < 1e-6) return null;
-    const theta = Math.atan2(dy, dx);
-    const p1 = [x + r * Math.cos(theta + Math.PI / 2), y + r * Math.sin(theta + Math.PI / 2)];
-    const p2 = [x + r * Math.cos(theta - Math.PI / 2), y + r * Math.sin(theta - Math.PI / 2)];
-    // lit half bulges toward (lx, ly): sweep 1 from p1 to p2
-    const lit = `M ${p1[0]} ${p1[1]} A ${r} ${r} 0 0 1 ${p2[0]} ${p2[1]} Z`;
-    const dark = `M ${p1[0]} ${p1[1]} A ${r} ${r} 0 0 0 ${p2[0]} ${p2[1]} Z`;
-    return { lit, dark };
-  }
-
-  function el(tag, attrs) {
+  const el = (tag, attrs) => {
     const n = document.createElementNS(NS, tag);
     for (const k in attrs) n.setAttribute(k, attrs[k]);
     return n;
+  };
+
+  function darkD(x, y, r, L) {
+    const phi = Math.atan2(L.y - y, L.x - x);
+    const p1 = [x + r * Math.cos(phi + Math.PI / 2), y + r * Math.sin(phi + Math.PI / 2)];
+    const p2 = [x + r * Math.cos(phi - Math.PI / 2), y + r * Math.sin(phi - Math.PI / 2)];
+    return `M ${p1[0]} ${p1[1]} A ${r} ${r} 0 0 0 ${p2[0]} ${p2[1]} Z`;
   }
 
   function render() {
@@ -593,12 +597,10 @@ export function sunwardHalfDiscPaths(
     angv.textContent = angleDeg + "°";
     const flat = flatBtn.getAttribute("aria-pressed") === "true";
     const showHalo = haloBtn.getAttribute("aria-pressed") === "true";
-    // light source: a point far away in the chosen direction from the Sun
     const a = (angleDeg * Math.PI) / 180;
-    const lightPt = { x: SUN.x + Math.cos(a) * 4000, y: SUN.y + Math.sin(a) * 4000 };
+    const L = { x: SUN.x + Math.cos(a) * 4000, y: SUN.y + Math.sin(a) * 4000 };
 
-    while (stage.firstChild) stage.removeChild(stage.firstChild);
-
+    stage.replaceChildren();
     const defs = el("defs", {});
     const grad = el("radialGradient", { id: "halo", cx: "50%", cy: "50%", r: "50%" });
     grad.appendChild(el("stop", { offset: "0%", "stop-color": "#ffd479", "stop-opacity": "0.55" }));
@@ -607,46 +609,46 @@ export function sunwardHalfDiscPaths(
     defs.appendChild(grad);
     stage.appendChild(defs);
 
-    if (showHalo) {
-      stage.appendChild(el("circle", { cx: SUN.x, cy: SUN.y, r: SUN.r * 3.1, fill: "url(#halo)" }));
-    }
+    if (showHalo) stage.appendChild(el("circle", { cx: SUN.x, cy: SUN.y, r: SUN.r * 3.1, fill: "url(#halo)" }));
     stage.appendChild(el("circle", { cx: SUN.x, cy: SUN.y, r: SUN.r, fill: "#ffd451" }));
 
-    for (const b of BODIES) {
+    BODIES.forEach((b, i) => {
       const fill = b.next;
-      if (b.ring) {
-        const rr = [b.r * 1.9, b.r * 1.55];
-        for (const ringR of rr) {
-          if (flat) {
-            stage.appendChild(el("circle", { cx: b.x, cy: b.y, r: ringR, fill: "none", stroke: fill, "stroke-width": ringR === rr[0] ? 2 : 5, opacity: 0.6 }));
-          } else {
-            // lit arc + dark anti-sunward arc
-            const dir = Math.atan2(b.y - SUN.y, b.x - SUN.x); // anti-sunward
-            const half = Math.atan2(b.r, ringR);
-            const a0 = dir - half, a1 = dir + half;
-            const p = (ang) => [b.x + ringR * Math.cos(ang), b.y + ringR * Math.sin(ang)];
-            const litArc = `M ${p(a1)[0]} ${p(a1)[1]} A ${ringR} ${ringR} 0 1 1 ${p(a0)[0]} ${p(a0)[1]}`;
-            const darkArc = `M ${p(a0)[0]} ${p(a0)[1]} A ${ringR} ${ringR} 0 0 1 ${p(a1)[0]} ${p(a1)[1]}`;
-            const sw = ringR === rr[0] ? 2 : 5;
-            stage.appendChild(el("path", { d: litArc, fill: "none", stroke: fill, "stroke-width": sw, opacity: 0.6 }));
-            stage.appendChild(el("path", { d: darkArc, fill: "none", stroke: darken(fill), "stroke-width": sw, opacity: 0.7 }));
-          }
+      stage.appendChild(el("circle", { cx: b.x, cy: b.y, r: b.r, fill }));
+      if (b.rings) {
+        for (const rr of b.rings) {
+          stage.appendChild(el("circle", {
+            cx: b.x, cy: b.y, r: rr, fill: "none", stroke: fill,
+            "stroke-width": rr === b.rings[0] ? 2 : 6, opacity: 0.6,
+          }));
         }
       }
-      if (flat) {
-        stage.appendChild(el("circle", { cx: b.x, cy: b.y, r: b.r, fill }));
-      } else {
-        const paths = halfDiscPaths(b.x, b.y, b.r, lightPt.x, lightPt.y);
-        stage.appendChild(el("path", { d: paths.dark, fill: darken(fill) }));
-        stage.appendChild(el("path", { d: paths.lit, fill }));
+      if (!flat) {
+        const phi = Math.atan2(b.y - L.y, b.x - L.x);
+        if (b.rings) {
+          const id = "band" + i;
+          const clip = el("clipPath", {
+            id, transform: `translate(${b.x} ${b.y}) rotate(${(phi * 180) / Math.PI})`,
+          });
+          clip.appendChild(el("rect", { x: 0, y: -b.r, width: b.ringOuter, height: 2 * b.r }));
+          defs.appendChild(clip);
+          stage.appendChild(el("circle", {
+            cx: b.x, cy: b.y, r: b.ringOuter,
+            fill: SHADOW_FILL, "fill-opacity": SHADOW_OPACITY, "clip-path": `url(#${id})`,
+          }));
+        } else {
+          stage.appendChild(el("path", {
+            d: darkD(b.x, b.y, b.r, L), fill: SHADOW_FILL, "fill-opacity": SHADOW_OPACITY,
+          }));
+        }
       }
       const label = el("text", {
-        x: b.x, y: b.y - b.r - 6, "text-anchor": "middle",
+        x: b.x, y: b.y - (b.rings ? b.ringOuter : b.r) - 6, "text-anchor": "middle",
         "font-family": "JetBrains Mono, monospace", "font-size": "9", fill: "#9aa0b4",
       });
       label.textContent = b.name;
       stage.appendChild(label);
-    }
+    });
   }
 
   angEl.addEventListener("input", render);

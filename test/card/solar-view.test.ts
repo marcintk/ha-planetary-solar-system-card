@@ -89,6 +89,22 @@ describe("SolarView.applyViewState", () => {
     view.applyViewState();
     expect(svg.getAttribute("viewBox")).toBe(zoom.viewBox);
   });
+
+  it("resizes the Sun halo to the zoom width (#199 slice 4)", () => {
+    const { view, zoom, container } = mountedView();
+    const svg = container.querySelector("svg") as SVGSVGElement;
+    const haloR = () => Number(svg.querySelector("#sun-halo-glow")?.getAttribute("r"));
+
+    view.applyViewState();
+    expect(haloR()).toBeCloseTo((zoom.panZoomState?.width as number) * 0.7, 6);
+
+    // Step in one zoom rung: level 2 (width 640) -> level 3 (width 480).
+    zoom.zoomIn();
+    view.applyViewState();
+    expect(haloR()).toBeCloseTo((zoom.panZoomState?.width as number) * 0.7, 6);
+    // 480 * 0.7 = 336.
+    expect(haloR()).toBe(336);
+  });
 });
 
 describe("SolarView pointer drag", () => {

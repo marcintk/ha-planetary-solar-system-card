@@ -14,8 +14,8 @@ has a rendered URL — link to that, since GitHub shows `.html` as source, not r
   achromatic-blend pitfall found while researching
   [#177](https://github.com/marcintk/ha-planetary-solar-system-card/issues/177)/[#178](https://github.com/marcintk/ha-planetary-solar-system-card/issues/178).
 - [Body shading & Sun halo](https://marcintk.github.io/ha-planetary-solar-system-card/design-notes/issue-199-sphere-shading.html)
-  — _approved_ ([#199](https://github.com/marcintk/ha-planetary-solar-system-card/issues/199)) —
-  hard lit/unlit half-disc for every planet, Moon and comet head (no gradient), the screen-space
-  reason it needs no `eclipticViewDirection`, an approximate anti-sunward shadow arc on Saturn's
-  rings, a static radial Sun halo, and a subtle palette nudge toward real planet tones.
-  Explain-diff: —.
+  — _approved_ ([#199](https://github.com/marcintk/ha-planetary-solar-system-card/issues/199)) — one
+  translucent anti-sunward shadow layer (`renderBodyShadow`), applied the same way to every planet,
+  the Moon, comet heads and Saturn's rings; the screen-space reason it needs no
+  `eclipticViewDirection`; a static radial Sun halo; and a subtle palette nudge toward real planet
+  tones. Explain-diff: —.

@@ -7,10 +7,12 @@ import {
 import { EARTH, MOON, MOON_PIXEL_OFFSET, PLANETS, SUN } from "../astronomy/planet-data.js";
 import type { Colors, Hemisphere, LocationData, PanZoomState, ViewPosition } from "../types.js";
 import {
+  HALO_VIEW_FRACTION,
   ORBIT_COLOR,
   renderBody,
   renderOrbit,
-  renderSaturnRings,
+  renderSaturn,
+  renderSunHalo,
   SATURN_RING_OUTER_RADIUS,
 } from "./bodies.js";
 import { computeCometVisualEllipse, renderCometBody, renderCometOrbit } from "./comets.js";
@@ -39,6 +41,7 @@ export function renderSolarSystem(
   svg: SVGSVGElement;
   positions: ViewPosition[];
   updateMarkers: (viewState: PanZoomState, aspect?: number) => void;
+  updateHalo: (viewState: PanZoomState) => void;
 } {
   const eclipticViewDirection = eclipticView ? 1 : -1;
 
@@ -92,6 +95,7 @@ export function renderSolarSystem(
   }
 
   // Sun at center
+  renderSunHalo(svg);
   renderBody(svg, CENTER, CENTER, SUN, false);
 
   // Draw planets (labels rendered in a separate dynamic-placement pass below,
@@ -109,11 +113,7 @@ export function renderSolarSystem(
     }
     positions.push({ name: planet.name, x, y, color: planet.color });
     if (planet.name === "Saturn") {
-      // Shrink Saturn's body to make room for top-down circular ring
-      const saturnRenderSize = Math.round(planet.size / 2);
-      const saturnOverride = { ...planet, size: saturnRenderSize };
-      renderBody(svg, x, y, saturnOverride, false);
-      renderSaturnRings(svg, x, y, planet);
+      renderSaturn(svg, x, y, planet);
       planetLabels.push({ name: planet.name, x, y, radius: SATURN_RING_OUTER_RADIUS });
     } else {
       renderBody(svg, x, y, planet, false);
@@ -194,9 +194,16 @@ export function renderSolarSystem(
     svg.appendChild(renderOffscreenMarkers(positions, viewState, aspect));
   }
 
+  // Rescales the Sun's halo glow to the current zoom width so it keeps covering the same
+  // fraction of the visible view as the caller zooms in and out.
+  function updateHalo(viewState: PanZoomState): void {
+    const glow = svg.getElementById("sun-halo-glow");
+    if (glow) glow.setAttribute("r", String(viewState.width * HALO_VIEW_FRACTION));
+  }
+
   // `positions` feeds updateMarkers above, and is returned so tests can measure real
   // separation between bodies at conjunction (test/renderer/collision.test.ts, #62) from the
   // same numbers the scene was drawn with, rather than reading coordinates back out of the
   // SVG. No src/ caller reads it.
-  return { svg, positions, updateMarkers };
+  return { svg, positions, updateMarkers, updateHalo };
 }

@@ -4,6 +4,7 @@ import {
   calculatePlanetPosition,
 } from "../../src/astronomy/orbital-mechanics.js";
 import { PLANETS } from "../../src/astronomy/planet-data.js";
+import { HALO_VIEW_FRACTION } from "../../src/renderer/bodies.js";
 import { renderSolarSystem } from "../../src/renderer/index.js";
 import {
   CONE_ASTRONOMICAL,
@@ -94,6 +95,24 @@ describe("renderSolarSystem", () => {
     expect(sunCircle).not.toBeNull();
     expect(sunCircle.getAttribute("cx")).toBe("400");
     expect(sunCircle.getAttribute("cy")).toBe("400");
+  });
+
+  it("renders a single Sun halo behind (before) the Sun body in DOM order", () => {
+    const container = document.createElement("div");
+    renderInto(container, new Date("2026-02-14"));
+
+    const svg = container.querySelector("svg");
+    const halo = svg.querySelector('circle[fill="url(#sun-halo)"]');
+    const sun = svg.querySelector('circle[fill="#ffd700"]');
+    expect(halo).not.toBeNull();
+    expect(sun).not.toBeNull();
+
+    // Exactly one halo in the whole scene
+    expect(svg.querySelectorAll('circle[fill="url(#sun-halo)"]').length).toBe(1);
+
+    // Halo paints behind the Sun disc: it appears earlier in document order
+    const following = halo.compareDocumentPosition(sun) & Node.DOCUMENT_POSITION_FOLLOWING;
+    expect(following).toBeTruthy();
   });
 
   it("renders planet and Moon labels", () => {
@@ -452,7 +471,7 @@ describe("renderSolarSystem", () => {
 
     const svg = container.querySelector("svg");
     // Saturn's rings are two stroke-only circles with Saturn's ring color (no dasharray)
-    const ringCircles = svg.querySelectorAll('circle[stroke="#e0c080"][opacity="0.6"]');
+    const ringCircles = svg.querySelectorAll('circle[stroke="#e2c58c"][opacity="0.6"]');
     expect(ringCircles.length).toBe(2);
 
     const outerRing = ringCircles[0];
@@ -482,11 +501,25 @@ describe("renderSolarSystem", () => {
       planetOrbitEllipses.length + cometEllipses.length
     );
 
-    // Saturn's body should be rendered at half its data size (13px). Off-center,
-    // so it's a lit half-disc <path> whose arc carries radii "13 13".
-    const saturnBody = svg.querySelector('path[fill="#e0c080"]');
+    // Saturn's body should be rendered at half its data size (13px) as a plain circle.
+    const saturnBody = svg.querySelector('circle[fill="#e2c58c"]');
     expect(saturnBody).not.toBeNull();
-    expect(saturnBody.getAttribute("d")).toContain("A 13 13");
+    expect(saturnBody.getAttribute("r")).toBe("13");
+
+    // Slice 2 (#199): Saturn's body-shadow is a band clipped to a rotated rect that
+    // reaches from the body centre out to the ring edge — a <clipPath id="saturn-shadow">
+    // holding one <rect>, plus a translucent clipped overlay circle at the ring radius.
+    const shadowClip = svg.querySelector("clipPath#saturn-shadow");
+    expect(shadowClip).not.toBeNull();
+    expect(shadowClip.querySelectorAll("rect").length).toBe(1);
+
+    const shadowOverlay = svg.querySelector('circle[clip-path="url(#saturn-shadow)"]');
+    expect(shadowOverlay).not.toBeNull();
+    expect(shadowOverlay.getAttribute("r")).toBe("24");
+    expect(shadowOverlay.getAttribute("fill")).toBe("#05070c");
+    const shadowOpacity = Number(shadowOverlay.getAttribute("fill-opacity"));
+    expect(shadowOpacity).toBeGreaterThan(0);
+    expect(shadowOpacity).toBeLessThan(1);
   });
 
   it("Saturn label renders above (after) both rings in SVG DOM order", () => {
@@ -497,7 +530,7 @@ describe("renderSolarSystem", () => {
     const allElements = Array.from(svg.children);
 
     // Find Saturn's ring circles by ring color
-    const rings = svg.querySelectorAll('circle[stroke="#e0c080"][opacity="0.6"]');
+    const rings = svg.querySelectorAll('circle[stroke="#e2c58c"][opacity="0.6"]');
     expect(rings.length).toBe(2);
 
     // Find Saturn's label text
@@ -512,6 +545,20 @@ describe("renderSolarSystem", () => {
     const labelIdx = allElements.indexOf(saturnLabel);
     expect(labelIdx).toBeGreaterThan(outerRingIdx);
     expect(labelIdx).toBeGreaterThan(innerRingIdx);
+
+    // Slice 2 (#199): the clipped body-shadow overlay sits between Saturn's rings
+    // and its label — after the plain body circle and both ring circles, before the text.
+    const saturnBody = svg.querySelector('circle[fill="#e2c58c"][r="13"]');
+    expect(saturnBody).not.toBeNull();
+    const shadowOverlay = svg.querySelector('circle[clip-path="url(#saturn-shadow)"]');
+    expect(shadowOverlay).not.toBeNull();
+
+    const bodyIdx = allElements.indexOf(saturnBody);
+    const overlayIdx = allElements.indexOf(shadowOverlay);
+    expect(overlayIdx).toBeGreaterThan(bodyIdx);
+    expect(overlayIdx).toBeGreaterThan(outerRingIdx);
+    expect(overlayIdx).toBeGreaterThan(innerRingIdx);
+    expect(overlayIdx).toBeLessThan(labelIdx);
   });
 
   it("Saturn ring is centered on Saturn body", () => {
@@ -519,15 +566,21 @@ describe("renderSolarSystem", () => {
     renderInto(container, new Date("2026-02-14"));
 
     const svg = container.querySelector("svg");
-    const { cx, cy } = bodyPos(svg, "#e0c080");
+    const { cx, cy } = bodyPos(svg, "#e2c58c");
 
-    const rings = svg.querySelectorAll('circle[stroke="#e0c080"][opacity="0.6"]');
+    const rings = svg.querySelectorAll('circle[stroke="#e2c58c"][opacity="0.6"]');
     expect(rings.length).toBe(2);
 
     for (const ring of rings) {
       expect(Number(ring.getAttribute("cx"))).toBeCloseTo(cx, 6);
       expect(Number(ring.getAttribute("cy"))).toBeCloseTo(cy, 6);
     }
+
+    // Slice 2 (#199): the shadow overlay circle is centered on Saturn's body too.
+    const shadowOverlay = svg.querySelector('circle[clip-path="url(#saturn-shadow)"]');
+    expect(shadowOverlay).not.toBeNull();
+    expect(Number(shadowOverlay.getAttribute("cx"))).toBeCloseTo(cx, 6);
+    expect(Number(shadowOverlay.getAttribute("cy"))).toBeCloseTo(cy, 6);
   });
 
   it("no other planets have ring elements", () => {
@@ -536,7 +589,7 @@ describe("renderSolarSystem", () => {
 
     const svg = container.querySelector("svg");
     // Only Saturn should have ring-colored circles
-    const ringCircles = svg.querySelectorAll('circle[stroke="#e0c080"][opacity="0.6"]');
+    const ringCircles = svg.querySelectorAll('circle[stroke="#e2c58c"][opacity="0.6"]');
     expect(ringCircles.length).toBe(2); // Only Saturn's dual rings
     // Ellipses are planet/comet orbits only
     const planetOrbitEllipses2 = svg.querySelectorAll('ellipse[stroke-dasharray="5, 5"]');
@@ -544,6 +597,11 @@ describe("renderSolarSystem", () => {
     expect(svg.querySelectorAll("ellipse").length).toBe(
       planetOrbitEllipses2.length + cometEllipses2.length
     );
+
+    // Slice 2 (#199): the saturn-shadow clip and its clipped overlay belong to Saturn
+    // alone — exactly one of each in the whole scene.
+    expect(svg.querySelectorAll("clipPath#saturn-shadow").length).toBe(1);
+    expect(svg.querySelectorAll('circle[clip-path="url(#saturn-shadow)"]').length).toBe(1);
   });
 
   it("renders Moon orbit as a dotted circle centered on Earth", () => {
@@ -566,7 +624,7 @@ describe("renderSolarSystem", () => {
     const earthCy = Number(moonOrbit.getAttribute("cy"));
 
     // Earth body should be at the same position
-    const earthBody = bodyPos(svg, "#4a90d9");
+    const earthBody = bodyPos(svg, "#3f7fc4");
     expect(earthCx).toBeCloseTo(earthBody.cx, 0);
     expect(earthCy).toBeCloseTo(earthBody.cy, 0);
   });
@@ -582,8 +640,8 @@ describe("renderSolarSystem", () => {
     const moonOrbit = svg.querySelector('circle[stroke-dasharray="5, 5"]');
     expect(moonOrbit).not.toBeNull();
 
-    // Moon body: grey half-disc (#cccccc is the lit path's fill; off-center body)
-    const moonBody = svg.querySelector('path[fill="#cccccc"]');
+    // Moon body: plain grey circle (#c8c6c0), off-center body
+    const moonBody = svg.querySelector('circle[fill="#c8c6c0"]');
     expect(moonBody).not.toBeNull();
 
     const orbitIdx = allElements.indexOf(moonOrbit);
@@ -598,8 +656,8 @@ describe("renderSolarSystem", () => {
     renderInto(c2, new Date("2024-07-01"));
 
     // Earth (blue) should be at different positions
-    const earth1 = bodyPos(c1.querySelector("svg"), "#4a90d9");
-    const earth2 = bodyPos(c2.querySelector("svg"), "#4a90d9");
+    const earth1 = bodyPos(c1.querySelector("svg"), "#3f7fc4");
+    const earth2 = bodyPos(c2.querySelector("svg"), "#3f7fc4");
     expect(earth1.cx).not.toBe(earth2.cx);
   });
 
@@ -661,6 +719,65 @@ describe("renderSolarSystem", () => {
   it("does not render a moon phase indicator", () => {
     const { svg } = renderSolarSystem(new Date("2024-01-15T12:00:00Z"), "north", null, {}, false);
     expect(svg.querySelector("g.moon-phase-indicator")).toBeNull();
+  });
+});
+
+describe("renderSolarSystem — Sun halo is zoom-aware (#199 slice 4)", () => {
+  const DATE = new Date("2026-02-14");
+
+  it("returns an updateHalo function", () => {
+    const result = renderSolarSystem(DATE);
+    expect(typeof result.updateHalo).toBe("function");
+  });
+
+  it("fresh render sizes the #sun-halo-glow circle to VIEW_SIZE * HALO_VIEW_FRACTION", () => {
+    const { svg } = renderSolarSystem(DATE);
+    const glow = svg.querySelector("#sun-halo-glow");
+    expect(glow).not.toBeNull();
+    // Un-zoomed view width is 800; 800 * 0.7 = 560.
+    expect(Number(glow.getAttribute("r"))).toBe(800 * HALO_VIEW_FRACTION);
+    expect(Number(glow.getAttribute("r"))).toBe(560);
+  });
+
+  it("updateHalo scales the glow radius to viewState.width * HALO_VIEW_FRACTION", () => {
+    const { svg, updateHalo } = renderSolarSystem(DATE);
+    const glow = svg.querySelector("#sun-halo-glow");
+
+    updateHalo({ centerX: 400, centerY: 400, width: 320 });
+    // Tightest zoom rung: 320 * 0.7 = 224.
+    expect(Number(glow.getAttribute("r"))).toBe(320 * HALO_VIEW_FRACTION);
+    expect(Number(glow.getAttribute("r"))).toBe(224);
+
+    updateHalo({ centerX: 400, centerY: 400, width: 800 });
+    expect(Number(glow.getAttribute("r"))).toBe(560);
+  });
+
+  it("updateHalo changes only the radius — the glow stays centred at 400,400", () => {
+    const { svg, updateHalo } = renderSolarSystem(DATE);
+    const glow = svg.querySelector("#sun-halo-glow");
+
+    updateHalo({ centerX: 120, centerY: 700, width: 480 });
+    expect(glow.getAttribute("cx")).toBe("400");
+    expect(glow.getAttribute("cy")).toBe("400");
+    expect(Number(glow.getAttribute("r"))).toBe(480 * HALO_VIEW_FRACTION);
+  });
+
+  it("updateHalo is a no-op (does not throw) when the glow circle is absent", () => {
+    const result = renderSolarSystem(DATE);
+    result.svg.querySelector("#sun-halo-glow")?.remove();
+    expect(() => result.updateHalo({ centerX: 400, centerY: 400, width: 320 })).not.toThrow();
+  });
+
+  it("the halo still paints before the Sun body after updateHalo", () => {
+    const { svg, updateHalo } = renderSolarSystem(DATE);
+    updateHalo({ centerX: 400, centerY: 400, width: 320 });
+
+    const halo = svg.querySelector("#sun-halo-glow");
+    const sun = svg.querySelector('circle[fill="#ffd700"]');
+    expect(halo).not.toBeNull();
+    expect(sun).not.toBeNull();
+    const following = halo.compareDocumentPosition(sun) & Node.DOCUMENT_POSITION_FOLLOWING;
+    expect(following).toBeTruthy();
   });
 });
 

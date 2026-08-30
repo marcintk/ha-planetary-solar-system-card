@@ -9,11 +9,45 @@ import {
   orbitTransformComponents,
   radiusFromAU,
   sunwardHalfDiscPaths,
+  VIEW_SIZE,
 } from "./svg-utils.js";
 
 export const ORBIT_COLOR = "color-mix(in srgb, currentColor 12%, transparent)";
 // Outer ring circle (r=23, stroke-width=2) -> visible edge at 24px, wider than Saturn's shrunk body.
 export const SATURN_RING_OUTER_RADIUS = 24;
+
+const SHADOW_FILL = "#05070c";
+const SHADOW_OPACITY = 0.45;
+
+export const HALO_VIEW_FRACTION = 0.7;
+
+/**
+ * A soft radial glow behind the Sun — one translucent gradient circle, no filter.
+ * Call before drawing the Sun body so it paints underneath. The radius here is the
+ * zoom-1 default (VIEW_SIZE * HALO_VIEW_FRACTION); updateHalo rescales it as the view zooms.
+ */
+export function renderSunHalo(svg: SVGElement): void {
+  const defs =
+    svg.querySelector("defs") || svg.insertBefore(createSvgElement("defs", {}), svg.firstChild);
+  const grad = createSvgElement("radialGradient", { id: "sun-halo" });
+  const stop = (offset: string, color: string, opacity: string) =>
+    grad.appendChild(
+      createSvgElement("stop", { offset, "stop-color": color, "stop-opacity": opacity })
+    );
+  stop("0%", "#ffd479", "0.5");
+  stop("55%", "#ffcf6b", "0.14");
+  stop("100%", "#ffcf6b", "0");
+  defs.appendChild(grad);
+  svg.appendChild(
+    createSvgElement("circle", {
+      id: "sun-halo-glow",
+      cx: CENTER,
+      cy: CENTER,
+      r: VIEW_SIZE * HALO_VIEW_FRACTION,
+      fill: "url(#sun-halo)",
+    })
+  );
+}
 
 /**
  * Where the drawn orbit ellipse crosses the vertical line x=CENTER (the
@@ -105,31 +139,58 @@ export function renderOrbit(
 }
 
 /**
- * Draw a body as a hard day/night sphere: the dark anti-sunward half-disc with the lit
- * half painted on top, both facing `lightFrom` (the Sun at CENTER by default). Falls back
- * to a plain circle when the body sits exactly on the light source.
+ * Wash the anti-sunward half of a body dark — one translucent overlay on top of the plain
+ * disc the caller already drew. phi comes from the screen-space vector to the Sun at CENTER,
+ * so no eclipticViewDirection (the split is not an orbital angle — CLAUDE.md, #94).
+ *
+ * With `reach > coreR` (Saturn) the shadow instead spans body + rings + gap: a translucent
+ * disc of radius `reach` clipped to a rotated rect band reaching from the body centre out to
+ * `reach` on the anti-sunward side.
  */
-export function renderShadedDisc(
+export function renderBodyShadow(
   svg: SVGElement,
   x: number,
   y: number,
-  r: number,
-  color: string,
-  lightFrom?: { x: number; y: number }
+  coreR: number,
+  reach = coreR
 ): void {
-  const halves = sunwardHalfDiscPaths(x, y, r, lightFrom);
-  if (halves === null) {
-    svg.appendChild(createSvgElement("circle", { cx: x, cy: y, r, fill: color }));
+  const halves = sunwardHalfDiscPaths(x, y, coreR);
+  if (halves === null) return; // body at CENTER (the Sun) — no shadow
+  if (reach === coreR) {
+    svg.appendChild(
+      createSvgElement("path", {
+        d: halves.darkD,
+        fill: SHADOW_FILL,
+        "fill-opacity": SHADOW_OPACITY,
+      })
+    );
     return;
   }
-  // Dark half first, lit half last so the lit side paints on top.
-  svg.appendChild(
-    createSvgElement("path", {
-      d: halves.darkD,
-      fill: `color-mix(in srgb, ${color} 35%, black)`,
+  // reach > coreR (Saturn): a clipped band across body + rings + gap
+  const phiDeg = (Math.atan2(y - CENTER, x - CENTER) * 180) / Math.PI;
+  const defs =
+    svg.querySelector("defs") || svg.insertBefore(createSvgElement("defs", {}), svg.firstChild);
+  const clip = createSvgElement("clipPath", { id: "saturn-shadow" });
+  clip.appendChild(
+    createSvgElement("rect", {
+      x: 0,
+      y: -coreR,
+      width: reach,
+      height: 2 * coreR,
+      transform: `translate(${x} ${y}) rotate(${phiDeg})`,
     })
   );
-  svg.appendChild(createSvgElement("path", { d: halves.litD, fill: color }));
+  defs.appendChild(clip);
+  svg.appendChild(
+    createSvgElement("circle", {
+      cx: x,
+      cy: y,
+      r: reach,
+      fill: SHADOW_FILL,
+      "fill-opacity": SHADOW_OPACITY,
+      "clip-path": "url(#saturn-shadow)",
+    })
+  );
 }
 
 export function renderBody(
@@ -139,7 +200,8 @@ export function renderBody(
   body: CelestialBody,
   showLabel = true
 ): void {
-  renderShadedDisc(svg, x, y, body.size, body.color);
+  svg.appendChild(createSvgElement("circle", { cx: x, cy: y, r: body.size, fill: body.color }));
+  renderBodyShadow(svg, x, y, body.size);
 
   if (showLabel) {
     svg.appendChild(
@@ -153,12 +215,15 @@ export function renderBody(
   }
 }
 
-export function renderSaturnRings(
-  svg: SVGElement,
-  x: number,
-  y: number,
-  body: CelestialBody
-): void {
+/**
+ * Draw Saturn: the plain body disc, the two lit ring circles, and the anti-sunward
+ * shadow band that spans body + rings + gap (via renderBodyShadow with reach set to
+ * the outer ring radius).
+ */
+export function renderSaturn(svg: SVGElement, x: number, y: number, body: CelestialBody): void {
+  const coreR = Math.round(body.size / 2);
+  svg.appendChild(createSvgElement("circle", { cx: x, cy: y, r: coreR, fill: body.color }));
+
   // Outer ring (r=23, stroke-width=2): outer edge 24px, inner edge 22px
   svg.appendChild(
     createSvgElement("circle", {
@@ -185,4 +250,6 @@ export function renderSaturnRings(
       opacity: 0.6,
     })
   );
+
+  renderBodyShadow(svg, x, y, coreR, SATURN_RING_OUTER_RADIUS);
 }

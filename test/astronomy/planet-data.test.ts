@@ -47,4 +47,18 @@ describe("planet-data constants", () => {
     expect(SUN.color).toBeDefined();
     expect(SUN.size).toBeGreaterThan(0);
   });
+
+  it("planet and Moon colours match the approved #199 palette", () => {
+    const colorByName = Object.fromEntries(PLANETS.map((p) => [p.name, p.color]));
+    expect(colorByName.Mercury).toBe("#a9a29b");
+    expect(colorByName.Venus).toBe("#e6ca97");
+    expect(colorByName.Earth).toBe("#3f7fc4");
+    expect(colorByName.Mars).toBe("#c04a1f");
+    expect(colorByName.Jupiter).toBe("#cf9b5f");
+    expect(colorByName.Saturn).toBe("#e2c58c");
+    expect(colorByName.Uranus).toBe("#9ad3df");
+    expect(colorByName.Neptune).toBe("#3a53b0");
+    expect(MOON.color).toBe("#c8c6c0");
+    expect(SUN.color).toBe("#ffd700");
+  });
 });

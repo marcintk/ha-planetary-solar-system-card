@@ -1,5 +1,5 @@
 import type { Comet, CometVisualEllipse } from "../types.js";
-import { ORBIT_COLOR, renderShadedDisc } from "./bodies.js";
+import { ORBIT_COLOR, renderBodyShadow } from "./bodies.js";
 import type { EclipticViewDirection } from "./svg-utils.js";
 import {
   auToRadius,
@@ -100,8 +100,9 @@ export function renderCometBody(
     })
   );
 
-  // Comet head — lit half toward the Sun, dark half anti-sunward.
-  renderShadedDisc(svg, x, y, comet.size, comet.color, { x: sunX, y: sunY });
+  // Comet head — plain disc with a translucent anti-sunward shadow wash on top.
+  svg.appendChild(createSvgElement("circle", { cx: x, cy: y, r: comet.size, fill: comet.color }));
+  renderBodyShadow(svg, x, y, comet.size);
 
   // Label
   svg.appendChild(

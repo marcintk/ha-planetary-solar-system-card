@@ -225,14 +225,6 @@ describe("renderCometBody", () => {
     const n = nums(d);
     return { x: n[n.length - 2], y: n[n.length - 1] };
   }
-  function headCenter(d) {
-    const s = startPoint(d);
-    const e = endPoint(d);
-    return { x: (s.x + e.x) / 2, y: (s.y + e.y) / 2 };
-  }
-  function headRadius(d) {
-    return nums(d)[2];
-  }
   // Independent reconstruction of a semicircular arc's midpoint from its chord
   // endpoints, its center, and the SVG sweep flag (same convention verified in
   // svg-utils.test.ts): for start S, end E, chord dir d = unit(E - S), sweep=1
@@ -246,64 +238,54 @@ describe("renderCometBody", () => {
     const [nx, ny] = nums(d)[6] === 1 ? [uy, -ux] : [-uy, ux];
     return { x: cx + r * nx, y: cy + r * ny };
   }
-  const darkFill = (color) => `color-mix(in srgb, ${color} 35%, black)`;
-
-  it("renders the head as a dark path then a lit path, no circle", () => {
+  it("renders the head as a plain circle plus one translucent shadow path, no half-disc pair", () => {
     const svg = createSvg();
     renderCometBody(svg, bodyX, bodyY, halley, sunX, sunY);
 
-    expect(svg.querySelector("circle")).toBeNull();
+    const circle = svg.querySelector("circle");
+    expect(circle).not.toBeNull();
+    expect(Number(circle.getAttribute("cx"))).toBeCloseTo(bodyX, 6);
+    expect(Number(circle.getAttribute("cy"))).toBeCloseTo(bodyY, 6);
+    expect(Number(circle.getAttribute("r"))).toBeCloseTo(halley.size, 6);
+    expect(circle.getAttribute("fill")).toBe(halley.color);
 
     const paths = Array.from(svg.querySelectorAll("path"));
-    expect(paths.length).toBe(2);
+    expect(paths.length).toBe(1);
 
-    // Dark half first, lit half last (lit paints on top).
-    const [darkPath, litPath] = paths;
-    expect(darkPath.getAttribute("fill")).toBe(darkFill(halley.color));
-    expect(litPath.getAttribute("fill")).toBe(halley.color);
-
-    for (const path of paths) {
-      const d = path.getAttribute("d");
-      const center = headCenter(d);
-      expect(center.x).toBeCloseTo(bodyX, 6);
-      expect(center.y).toBeCloseTo(bodyY, 6);
-      expect(headRadius(d)).toBeCloseTo(halley.size, 6);
-      expect(d).toContain(`A ${halley.size} ${halley.size}`);
-    }
+    const [shadow] = paths;
+    expect(shadow.getAttribute("fill")).toBe("#05070c");
+    const opacity = Number(shadow.getAttribute("fill-opacity"));
+    expect(opacity).toBeGreaterThan(0);
+    expect(opacity).toBeLessThan(1);
+    expect(shadow.getAttribute("d")).toContain(`A ${halley.size} ${halley.size}`);
+    // No opaque color-mix tinted half-disc anymore.
+    expect(svg.querySelector('path[fill^="color-mix"]')).toBeNull();
   });
 
-  it("comet off to one side of the Sun: lit half faces the Sun, dark half and tail point anti-sunward", () => {
+  it("comet off to one side of the Sun: the shadow half and the tail both point anti-sunward", () => {
     const svg = createSvg();
-    // Comet placed cleanly to the right of the Sun; sunward direction is -x.
+    // Comet placed cleanly to the right of the Sun; anti-sunward direction is +x.
     const cometX = sunX + 200;
     const cometY = sunY;
     renderCometBody(svg, cometX, cometY, halley, sunX, sunY);
 
-    expect(svg.querySelector("circle")).toBeNull();
-
     const paths = Array.from(svg.querySelectorAll("path"));
-    expect(paths.length).toBe(2);
-
-    const litPath = paths.find((p) => p.getAttribute("fill") === halley.color);
-    const darkPath = paths.find((p) => p.getAttribute("fill") === darkFill(halley.color));
-    expect(litPath).toBeTruthy();
-    expect(darkPath).toBeTruthy();
+    expect(paths.length).toBe(1);
+    const shadow = paths[0];
+    expect(shadow.getAttribute("fill")).toBe("#05070c");
 
     const r = halley.size;
-    const litMid = arcMidpoint(litPath.getAttribute("d"), cometX, cometY, r);
-    const darkMid = arcMidpoint(darkPath.getAttribute("d"), cometX, cometY, r);
+    const darkMid = arcMidpoint(shadow.getAttribute("d"), cometX, cometY, r);
 
-    const distToSun = (pt) => Math.hypot(pt.x - sunX, pt.y - sunY);
-    // Lit half bulges toward the Sun; dark half away from it.
-    expect(distToSun(litMid)).toBeLessThan(distToSun(darkMid));
-    // Independent geometry: the sunward point on the head circle is (cometX - r, cometY).
-    expect(litMid.x).toBeCloseTo(cometX - r, 6);
-    expect(litMid.y).toBeCloseTo(cometY, 6);
+    // Shadow half bulges away from the Sun (+x).
+    expect(darkMid.x).toBeGreaterThan(cometX);
+    // Independent geometry: the anti-sunward point on the head circle is (cometX + r, cometY).
+    expect(darkMid.x).toBeCloseTo(cometX + r, 6);
+    expect(darkMid.y).toBeCloseTo(cometY, 6);
 
-    // Tail points anti-sunward (+x), same side as the dark half.
+    // Tail points anti-sunward (+x), same side as the shadow half.
     const line = svg.querySelector("line");
     expect(Number(line.getAttribute("x2"))).toBeGreaterThan(cometX);
-    expect(darkMid.x).toBeGreaterThan(cometX);
   });
 
   it("appends a tail line element", () => {
@@ -406,17 +388,19 @@ describe("renderCometBody", () => {
     expect(Number(text.getAttribute("y"))).toBeLessThan(bodyY);
   });
 
-  it("tail renders before the head, head before the label (DOM paint order)", () => {
+  it("tail renders before the head circle, head before the shadow, shadow before the label (DOM paint order)", () => {
     const svg = createSvg();
     renderCometBody(svg, bodyX, bodyY, halley, sunX, sunY);
 
     const children = Array.from(svg.children);
     const lineIdx = children.findIndex((el) => el.tagName === "line");
-    const firstHeadIdx = children.findIndex((el) => el.tagName === "path");
+    const circleIdx = children.findIndex((el) => el.tagName === "circle");
+    const shadowIdx = children.findIndex((el) => el.tagName === "path");
     const textIdx = children.findIndex((el) => el.tagName === "text");
     expect(lineIdx).toBeGreaterThanOrEqual(0);
-    expect(lineIdx).toBeLessThan(firstHeadIdx);
-    expect(firstHeadIdx).toBeLessThan(textIdx);
+    expect(lineIdx).toBeLessThan(circleIdx);
+    expect(circleIdx).toBeLessThan(shadowIdx);
+    expect(shadowIdx).toBeLessThan(textIdx);
   });
 
   it("handles comet at exact Sun position without error", () => {

@@ -83,8 +83,8 @@ full-screen. Which tiles appear is `gallery.mymoon` / `gallery.moon` / `gallery.
 | --------- | ----------------- | ------------------------------------------------------- | ------------ | ------------------- |
 | MY MOON   | [NASA SVS][svs]   | The Moon in my sky — hidden when it's below the horizon | Nearest hour | ≤30 min             |
 | MOON      | [NASA SVS][svs]   | The Moon from Earth's centre — no Earth in frame        | Nearest hour | ≤30 min             |
-| DSCOVR/E  | [NASA EPIC][epic] | Earth's sunlit side, from L1                            | Hourly       | 1-2 days            |
-| SDO/S     | [NASA SDO][sdo]   | The Sun, from geosync orbit                             | 15 min       | 25-55 min           |
+| EARTH     | [NASA EPIC][epic] | Earth's sunlit side, from L1                            | Hourly       | 1-2 days            |
+| SUN       | [NASA SDO][sdo]   | The Sun, from geosync orbit                             | 15 min       | 25-55 min           |
 
 Both Moon tiles are renders (LOLA + LROC + JPL DE421), not photographs — every hour of the year is
 already published, so there's no delay to wait out. The card just picks whichever hour is closest to

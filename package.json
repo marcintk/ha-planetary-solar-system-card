@@ -4,7 +4,6 @@
   "description": "Home Assistant custom Lovelace card displaying a planetary solar system visualization",
   "type": "module",
   "scripts": {
-    "prepare": "git config core.hooksPath .githooks 2>/dev/null || true",
     "build": "rollup -c",
     "build:prod": "NODE_ENV=production rollup -c",
     "dev": "rollup -c -w",
@@ -35,7 +34,7 @@
     "@rollup/plugin-terser": "^1.0.0",
     "@rollup/plugin-typescript": "^12.3.0",
     "@vitest/coverage-v8": "^4.1.11",
-    "ha-card-shared": "github:marcintk/ha-card-shared#v1.4.1",
+    "ha-card-shared": "github:marcintk/ha-card-shared#v2.0.0",
     "jsdom": "^30.0.1",
     "playwright": "^1.62.1",
     "prettier": "^3.9.6",
@@ -46,5 +45,8 @@
   },
   "dependencies": {
     "lit": "^3.3.3"
+  },
+  "allowScripts": {
+    "github:marcintk/ha-card-shared#3aa026356b454771e7da0c442c9a2cc9ccc8ffea": true
   }
 }

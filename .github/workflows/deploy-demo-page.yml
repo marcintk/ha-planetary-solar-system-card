@@ -1,14 +1,64 @@
 name: Deploy Demo Page
 
+# Self-contained (does not call ha-card-shared's shared-deploy-demo-page.yml): that shared job
+# stages only docs/index.html + the bundle, but this card also publishes the design-note pages
+# under docs/design-notes/. Everything else mirrors the shared job step for step.
+
 on:
   push:
     branches: ["main"]
   workflow_dispatch:
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
 jobs:
   deploy:
-    uses: marcintk/ha-card-shared/.github/workflows/shared-deploy-demo-page.yml@v1.4.1
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24.x
+          cache: npm
+
+      - run: npm ci
+
+      - name: Set version from latest git tag
+        run: |
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          npm pkg set version="${LATEST_TAG#v}"
+
+      - run: npm run build:prod
+
+      - name: Stage Pages artifact
+        run: |
+          # Bundle is card.js, pinned via cardBundle({ name: "card" }) in rollup.config.mjs
+          # (not the package name) — see hacs.json "filename".
+          mkdir -p _site
+          # Whole docs/ tree: index.html, images, and design-notes/*.html.
+          cp -r docs/. _site/
+          # docs/card.js is a repo symlink into dist/ — replace it with the real built bundle.
+          rm -f _site/card.js
+          cp dist/card.js _site/card.js
+
+      - uses: actions/configure-pages@v6
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+
+      - id: deployment
+        uses: actions/deploy-pages@v5

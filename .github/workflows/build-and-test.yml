@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    uses: marcintk/ha-card-shared/.github/workflows/shared-build-and-test.yml@v1.4.1
+    uses: marcintk/ha-card-shared/.github/workflows/shared-build-and-test.yml@v2.0.0
     permissions:
       contents: read
       pull-requests: write

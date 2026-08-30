@@ -8,6 +8,7 @@ import {
   type OrbitTransformComponents,
   orbitTransformComponents,
   radiusFromAU,
+  sunwardHalfDiscPaths,
 } from "./svg-utils.js";
 
 export const ORBIT_COLOR = "color-mix(in srgb, currentColor 12%, transparent)";
@@ -103,6 +104,34 @@ export function renderOrbit(
   ).textContent = `${auAt(bottomPoint).toFixed(1)} AU`;
 }
 
+/**
+ * Draw a body as a hard day/night sphere: the dark anti-sunward half-disc with the lit
+ * half painted on top, both facing `lightFrom` (the Sun at CENTER by default). Falls back
+ * to a plain circle when the body sits exactly on the light source.
+ */
+export function renderShadedDisc(
+  svg: SVGElement,
+  x: number,
+  y: number,
+  r: number,
+  color: string,
+  lightFrom?: { x: number; y: number }
+): void {
+  const halves = sunwardHalfDiscPaths(x, y, r, lightFrom);
+  if (halves === null) {
+    svg.appendChild(createSvgElement("circle", { cx: x, cy: y, r, fill: color }));
+    return;
+  }
+  // Dark half first, lit half last so the lit side paints on top.
+  svg.appendChild(
+    createSvgElement("path", {
+      d: halves.darkD,
+      fill: `color-mix(in srgb, ${color} 35%, black)`,
+    })
+  );
+  svg.appendChild(createSvgElement("path", { d: halves.litD, fill: color }));
+}
+
 export function renderBody(
   svg: SVGElement,
   x: number,
@@ -110,14 +139,7 @@ export function renderBody(
   body: CelestialBody,
   showLabel = true
 ): void {
-  svg.appendChild(
-    createSvgElement("circle", {
-      cx: x,
-      cy: y,
-      r: body.size,
-      fill: body.color,
-    })
-  );
+  renderShadedDisc(svg, x, y, body.size, body.color);
 
   if (showLabel) {
     svg.appendChild(

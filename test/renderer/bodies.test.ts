@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PLANETS } from "../../src/astronomy/planet-data.js";
+import { PLANETS, SUN } from "../../src/astronomy/planet-data.js";
 import {
   ORBIT_COLOR,
   renderBody,
@@ -155,16 +155,35 @@ describe("renderOrbit", () => {
 describe("renderBody", () => {
   const earth = PLANETS.find((p) => p.name === "Earth");
 
-  it("appends a circle with correct position, radius, and fill", () => {
+  it("appends a dark then a lit half-disc path (and no circle) for an off-center body", () => {
     const svg = createSvg();
     renderBody(svg, 300, 250, earth, false);
 
+    expect(svg.querySelector("circle")).toBeNull();
+
+    const paths = Array.from(svg.querySelectorAll("path"));
+    expect(paths.length).toBe(2);
+
+    const [darkPath, litPath] = paths;
+    // Dark half is drawn first, lit half last so the lit side paints on top.
+    expect(darkPath.getAttribute("fill")).toBe(`color-mix(in srgb, ${earth.color} 35%, black)`);
+    expect(litPath.getAttribute("fill")).toBe(earth.color);
+    expect(darkPath.getAttribute("d")).not.toBeNull();
+    expect(litPath.getAttribute("d")).not.toBeNull();
+  });
+
+  it("appends a plain circle (and no path) for a body at CENTER, e.g. the Sun", () => {
+    const svg = createSvg();
+    renderBody(svg, CENTER, CENTER, SUN, false);
+
+    expect(svg.querySelector("path")).toBeNull();
+
     const circle = svg.querySelector("circle");
     expect(circle).not.toBeNull();
-    expect(circle.getAttribute("cx")).toBe("300");
-    expect(circle.getAttribute("cy")).toBe("250");
-    expect(circle.getAttribute("r")).toBe(String(earth.size));
-    expect(circle.getAttribute("fill")).toBe(earth.color);
+    expect(circle.getAttribute("cx")).toBe(String(CENTER));
+    expect(circle.getAttribute("cy")).toBe(String(CENTER));
+    expect(circle.getAttribute("r")).toBe(String(SUN.size));
+    expect(circle.getAttribute("fill")).toBe(SUN.color);
   });
 
   it("appends a label text above the circle when showLabel is true", () => {

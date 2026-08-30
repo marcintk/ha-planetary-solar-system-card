@@ -96,6 +96,42 @@ export function polarFromFocus(
   return polarOffset(CENTER, CENTER, radius, angle, eclipticViewDirection);
 }
 
+/**
+ * The two half-disc SVG paths for a body lit from `lightFrom` (the Sun by default): a `litD`
+ * half bulging toward the light and a `darkD` half bulging away, split along the diameter
+ * perpendicular to the body->light vector. Returns null when the body sits on the light
+ * source (no meaningful direction).
+ *
+ * This deliberately takes no eclipticViewDirection: the split direction comes from the
+ * screen-space delta between two already-placed points (body and light), not from an
+ * orbital angle, so the +/-1 ecliptic mirror does not apply here.
+ */
+export function sunwardHalfDiscPaths(
+  x: number,
+  y: number,
+  r: number,
+  lightFrom: { x: number; y: number } = { x: CENTER, y: CENTER }
+): { litD: string; darkD: string } | null {
+  const dx = lightFrom.x - x;
+  const dy = lightFrom.y - y;
+  if (Math.hypot(dx, dy) < 1e-9) {
+    return null;
+  }
+  const phi = Math.atan2(dy, dx);
+  const p1 = {
+    x: x + r * Math.cos(phi + Math.PI / 2),
+    y: y + r * Math.sin(phi + Math.PI / 2),
+  };
+  const p2 = {
+    x: x + r * Math.cos(phi - Math.PI / 2),
+    y: y + r * Math.sin(phi - Math.PI / 2),
+  };
+  // Screen y is downward: going p1 -> p2 the short way through the phi direction
+  // (toward the light) is sweep-flag 0; the opposite half is sweep-flag 1.
+  const arc = (sweep: number) => `M ${p1.x} ${p1.y} A ${r} ${r} 0 0 ${sweep} ${p2.x} ${p2.y} Z`;
+  return { litD: arc(0), darkD: arc(1) };
+}
+
 export interface OrbitTransformComponents {
   a: number;
   b: number;

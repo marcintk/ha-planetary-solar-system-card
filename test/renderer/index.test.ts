@@ -22,6 +22,24 @@ function renderInto(container, date) {
   return svg;
 }
 
+// Body position, tolerant of the two renderings bodies.ts produces: a plain
+// <circle> for a body at CENTER (the Sun), or a lit half-disc <path> for an
+// off-center body. For the path, the body centre is the midpoint of the two
+// diameter endpoints in "M x1 y1 A r r 0 0 sweep x2 y2 Z".
+function bodyPos(svg, hex) {
+  const circle = svg.querySelector(`circle[fill="${hex}"]`);
+  if (circle) {
+    return { cx: Number(circle.getAttribute("cx")), cy: Number(circle.getAttribute("cy")) };
+  }
+  const path = svg.querySelector(`path[fill="${hex}"]`);
+  const nums = path
+    .getAttribute("d")
+    .match(/-?\d+(\.\d+)?/g)
+    .map(Number);
+  // nums = [x1, y1, r, r, 0, 0, sweep, x2, y2]
+  return { cx: (nums[0] + nums[7]) / 2, cy: (nums[1] + nums[8]) / 2 };
+}
+
 // Returns the normalised dot product of the two edge vectors of a cone clip path.
 // dot = cos(2 * halfAngle): value of -1 means 180° span; > -1 means wider.
 function coneEdgeDot(svg, clipId) {
@@ -464,10 +482,11 @@ describe("renderSolarSystem", () => {
       planetOrbitEllipses.length + cometEllipses.length
     );
 
-    // Saturn's body should be rendered at half its data size (13px)
-    const saturnBody = svg.querySelector('circle[fill="#e0c080"]');
+    // Saturn's body should be rendered at half its data size (13px). Off-center,
+    // so it's a lit half-disc <path> whose arc carries radii "13 13".
+    const saturnBody = svg.querySelector('path[fill="#e0c080"]');
     expect(saturnBody).not.toBeNull();
-    expect(saturnBody.getAttribute("r")).toBe("13");
+    expect(saturnBody.getAttribute("d")).toContain("A 13 13");
   });
 
   it("Saturn label renders above (after) both rings in SVG DOM order", () => {
@@ -500,15 +519,14 @@ describe("renderSolarSystem", () => {
     renderInto(container, new Date("2026-02-14"));
 
     const svg = container.querySelector("svg");
-    const saturnBody = svg.querySelector('circle[fill="#e0c080"]');
-    expect(saturnBody).not.toBeNull();
+    const { cx, cy } = bodyPos(svg, "#e0c080");
 
     const rings = svg.querySelectorAll('circle[stroke="#e0c080"][opacity="0.6"]');
     expect(rings.length).toBe(2);
 
     for (const ring of rings) {
-      expect(ring.getAttribute("cx")).toBe(saturnBody.getAttribute("cx"));
-      expect(ring.getAttribute("cy")).toBe(saturnBody.getAttribute("cy"));
+      expect(Number(ring.getAttribute("cx"))).toBeCloseTo(cx, 6);
+      expect(Number(ring.getAttribute("cy"))).toBeCloseTo(cy, 6);
     }
   });
 
@@ -547,10 +565,10 @@ describe("renderSolarSystem", () => {
     const earthCx = Number(moonOrbit.getAttribute("cx"));
     const earthCy = Number(moonOrbit.getAttribute("cy"));
 
-    // Earth body circle should be at the same position
-    const earthBody = svg.querySelector('circle[fill="#4a90d9"]');
-    expect(earthCx).toBeCloseTo(Number(earthBody.getAttribute("cx")), 0);
-    expect(earthCy).toBeCloseTo(Number(earthBody.getAttribute("cy")), 0);
+    // Earth body should be at the same position
+    const earthBody = bodyPos(svg, "#4a90d9");
+    expect(earthCx).toBeCloseTo(earthBody.cx, 0);
+    expect(earthCy).toBeCloseTo(earthBody.cy, 0);
   });
 
   it("Moon orbit circle appears before Moon body in SVG order", () => {
@@ -564,8 +582,8 @@ describe("renderSolarSystem", () => {
     const moonOrbit = svg.querySelector('circle[stroke-dasharray="5, 5"]');
     expect(moonOrbit).not.toBeNull();
 
-    // Moon body: grey circle (#cccccc)
-    const moonBody = svg.querySelector('circle[fill="#cccccc"]');
+    // Moon body: grey half-disc (#cccccc is the lit path's fill; off-center body)
+    const moonBody = svg.querySelector('path[fill="#cccccc"]');
     expect(moonBody).not.toBeNull();
 
     const orbitIdx = allElements.indexOf(moonOrbit);
@@ -579,10 +597,10 @@ describe("renderSolarSystem", () => {
     renderInto(c1, new Date("2024-01-01"));
     renderInto(c2, new Date("2024-07-01"));
 
-    // Earth circle (blue) should be at different positions
-    const earth1 = c1.querySelector('svg circle[fill="#4a90d9"]');
-    const earth2 = c2.querySelector('svg circle[fill="#4a90d9"]');
-    expect(earth1.getAttribute("cx")).not.toBe(earth2.getAttribute("cx"));
+    // Earth (blue) should be at different positions
+    const earth1 = bodyPos(c1.querySelector("svg"), "#4a90d9");
+    const earth2 = bodyPos(c2.querySelector("svg"), "#4a90d9");
+    expect(earth1.cx).not.toBe(earth2.cx);
   });
 
   it("renders observer needle on Earth", () => {

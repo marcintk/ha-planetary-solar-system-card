@@ -70,9 +70,9 @@ export function renderSphere3dDef(svg: SVGElement): void {
       createSvgElement("stop", { offset, "stop-color": color, "stop-opacity": opacity })
     );
   stop("0%", "#ffffff", "0.22");
-  stop("38%", "#ffffff", "0");
-  stop("70%", SHADOW_FILL, "0.14");
-  stop("100%", SHADOW_FILL, "0.5");
+  stop("36%", "#ffffff", "0");
+  stop("82%", SHADOW_FILL, "0.05");
+  stop("100%", SHADOW_FILL, "0.44");
   defs.appendChild(grad);
 }
 

@@ -27,8 +27,10 @@ index.
   painted in the element's pre-transform box, so the group rotation carries it. Just don't reach for
   it when a symmetric gradient will do.
 - **Follow-on (slice 9):** a translucent centred gradient tuned on a mid-tone body reads as nothing
-  on a pale one (Venus `#e6ca97`) — it needs a tight bright hotspot _and_ a rim that ramps to ~0.5,
-  not ~0.3. And a "3d ball" gradient (roundness, no lit/dark side) is fine on the Sun too — no need
+  on a pale one (Venus `#e6ca97`) — it needs a tight bright hotspot and a distinctly dark limb. But
+  keep the dark ramp in the outer ~18% (`#05070c 0.05 @82% → 0.44 @100%`): an `objectBoundingBox`
+  gradient scales with the body, so a wide ramp (`0.14 @70%`) becomes a fog band on the big outer
+  planets. And a "3d ball" gradient (roundness, no lit/dark side) is fine on the Sun too — no need
   to special-case `CENTER` out of it; only the Sun-directional day/night overlay must no-op there.
 - **Ref:** [#199](https://github.com/marcintk/ha-planetary-solar-system-card/issues/199) ·
   2026-08-30

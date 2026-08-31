@@ -8,7 +8,6 @@ import {
   type OrbitTransformComponents,
   orbitTransformComponents,
   radiusFromAU,
-  sunwardHalfDiscPaths,
   VIEW_SIZE,
 } from "./svg-utils.js";
 
@@ -47,6 +46,51 @@ export function renderSunHalo(svg: SVGElement): void {
       fill: "url(#sun-halo)",
     })
   );
+}
+
+/**
+ * One shared paint server for spherical body shading: an off-centre radial gradient in
+ * objectBoundingBox units. The focal point (fx) sits toward local +x — the "lit" side — so
+ * the fill runs from a soft sunward highlight, through transparent, to a dark anti-sunward
+ * limb. renderSphereShade rotates each body's overlay so local +x points at the Sun, which
+ * is why one def serves every body. Call once, before the bodies.
+ */
+export function renderSphereShadeDef(svg: SVGElement): void {
+  const defs =
+    svg.querySelector("defs") || svg.insertBefore(createSvgElement("defs", {}), svg.firstChild);
+  const grad = createSvgElement("radialGradient", {
+    id: "sphere-shade",
+    cx: "0.5",
+    cy: "0.5",
+    r: "0.62",
+    fx: "0.72",
+    fy: "0.5",
+  });
+  const stop = (offset: string, color: string, opacity: string) =>
+    grad.appendChild(
+      createSvgElement("stop", { offset, "stop-color": color, "stop-opacity": opacity })
+    );
+  stop("0%", "#ffffff", "0.14");
+  stop("34%", "#ffffff", "0");
+  stop("58%", SHADOW_FILL, "0.16");
+  stop("100%", SHADOW_FILL, "0.62");
+  defs.appendChild(grad);
+}
+
+/**
+ * Overlay a body's plain disc with the shared #sphere-shade gradient, rotated so its lit
+ * face points at the Sun. phi is the screen-space angle from (x, y) to the Sun at CENTER —
+ * not an orbital angle, so no eclipticViewDirection (CLAUDE.md, #94). No-op at CENTER (the
+ * Sun itself). Needs renderSphereShadeDef to have run once on the same SVG.
+ */
+export function renderSphereShade(svg: SVGElement, x: number, y: number, r: number): void {
+  const dx = CENTER - x;
+  const dy = CENTER - y;
+  if (Math.hypot(dx, dy) < 1e-9) return;
+  const deg = (Math.atan2(dy, dx) * 180) / Math.PI;
+  const g = createSvgElement("g", { transform: `rotate(${deg} ${x} ${y})` });
+  g.appendChild(createSvgElement("circle", { cx: x, cy: y, r, fill: "url(#sphere-shade)" }));
+  svg.appendChild(g);
 }
 
 /**
@@ -139,13 +183,14 @@ export function renderOrbit(
 }
 
 /**
- * Wash the anti-sunward half of a body dark — one translucent overlay on top of the plain
- * disc the caller already drew. phi comes from the screen-space vector to the Sun at CENTER,
- * so no eclipticViewDirection (the split is not an orbital angle — CLAUDE.md, #94).
+ * Shade a body's plain disc against the Sun at CENTER. Every lone body (reach === coreR)
+ * gets the spherical #sphere-shade overlay via renderSphereShade — a lit sunward face
+ * fading to a dark anti-sunward limb.
  *
  * With `reach > coreR` (Saturn) the shadow instead spans body + rings + gap: a translucent
  * disc of radius `reach` clipped to a rotated rect band reaching from the body centre out to
- * `reach` on the anti-sunward side.
+ * `reach` on the anti-sunward side. phi comes from the screen-space vector to the Sun, so no
+ * eclipticViewDirection (not an orbital angle — CLAUDE.md, #94).
  */
 export function renderBodyShadow(
   svg: SVGElement,
@@ -154,16 +199,9 @@ export function renderBodyShadow(
   coreR: number,
   reach = coreR
 ): void {
-  const halves = sunwardHalfDiscPaths(x, y, coreR);
-  if (halves === null) return; // body at CENTER (the Sun) — no shadow
+  if (Math.hypot(x - CENTER, y - CENTER) < 1e-9) return; // body at CENTER (the Sun) — no shadow
   if (reach === coreR) {
-    svg.appendChild(
-      createSvgElement("path", {
-        d: halves.darkD,
-        fill: SHADOW_FILL,
-        "fill-opacity": SHADOW_OPACITY,
-      })
-    );
+    renderSphereShade(svg, x, y, coreR);
     return;
   }
   // reach > coreR (Saturn): a clipped band across body + rings + gap

@@ -212,33 +212,7 @@ describe("renderCometBody", () => {
   const sunX = CENTER;
   const sunY = CENTER;
 
-  // Half-disc head "d" is "M x1 y1 A r r 0 0 sweep x2 y2 Z", so the numbers are
-  // [x1, y1, r, r, xrot, largeArc, sweep, x2, y2].
-  function nums(d) {
-    return (d.match(/-?\d+(?:\.\d+)?/g) ?? []).map(Number);
-  }
-  function startPoint(d) {
-    const n = nums(d);
-    return { x: n[0], y: n[1] };
-  }
-  function endPoint(d) {
-    const n = nums(d);
-    return { x: n[n.length - 2], y: n[n.length - 1] };
-  }
-  // Independent reconstruction of a semicircular arc's midpoint from its chord
-  // endpoints, its center, and the SVG sweep flag (same convention verified in
-  // svg-utils.test.ts): for start S, end E, chord dir d = unit(E - S), sweep=1
-  // bulges toward center + r*(dy, -dx), sweep=0 toward center + r*(-dy, dx).
-  function arcMidpoint(d, cx, cy, r) {
-    const s = startPoint(d);
-    const e = endPoint(d);
-    const len = Math.hypot(e.x - s.x, e.y - s.y);
-    const ux = (e.x - s.x) / len;
-    const uy = (e.y - s.y) / len;
-    const [nx, ny] = nums(d)[6] === 1 ? [uy, -ux] : [-uy, ux];
-    return { x: cx + r * nx, y: cy + r * ny };
-  }
-  it("renders the head as a plain circle plus one translucent shadow path, no half-disc pair", () => {
+  it("renders the head as a plain circle plus one rotated sphere-shade overlay group", () => {
     const svg = createSvg();
     renderCometBody(svg, bodyX, bodyY, halley, sunX, sunY);
 
@@ -249,41 +223,30 @@ describe("renderCometBody", () => {
     expect(Number(circle.getAttribute("r"))).toBeCloseTo(halley.size, 6);
     expect(circle.getAttribute("fill")).toBe(halley.color);
 
-    const paths = Array.from(svg.querySelectorAll("path"));
-    expect(paths.length).toBe(1);
+    expect(svg.querySelector("path")).toBeNull();
 
-    const [shadow] = paths;
-    expect(shadow.getAttribute("fill")).toBe("#05070c");
-    const opacity = Number(shadow.getAttribute("fill-opacity"));
-    expect(opacity).toBeGreaterThan(0);
-    expect(opacity).toBeLessThan(1);
-    expect(shadow.getAttribute("d")).toContain(`A ${halley.size} ${halley.size}`);
-    // No opaque color-mix tinted half-disc anymore.
-    expect(svg.querySelector('path[fill^="color-mix"]')).toBeNull();
+    const overlay = svg.querySelector('g circle[fill="url(#sphere-shade)"]');
+    expect(overlay).not.toBeNull();
+    expect(Number(overlay.getAttribute("r"))).toBeCloseTo(halley.size, 6);
   });
 
-  it("comet off to one side of the Sun: the shadow half and the tail both point anti-sunward", () => {
+  it("comet off to one side of the Sun: the sphere-shade lit side and the tail both resolve anti-sunward", () => {
     const svg = createSvg();
     // Comet placed cleanly to the right of the Sun; anti-sunward direction is +x.
     const cometX = sunX + 200;
     const cometY = sunY;
     renderCometBody(svg, cometX, cometY, halley, sunX, sunY);
 
-    const paths = Array.from(svg.querySelectorAll("path"));
-    expect(paths.length).toBe(1);
-    const shadow = paths[0];
-    expect(shadow.getAttribute("fill")).toBe("#05070c");
+    expect(svg.querySelector("path")).toBeNull();
 
-    const r = halley.size;
-    const darkMid = arcMidpoint(shadow.getAttribute("d"), cometX, cometY, r);
+    const group = svg.querySelector("g");
+    const rotateMatch = group.getAttribute("transform").match(/rotate\(\s*(-?\d+(?:\.\d+)?)/);
+    expect(rotateMatch).not.toBeNull();
+    // Lit local +x rotated by this angle must point from the comet toward the Sun (−x here).
+    const deg = Number(rotateMatch[1]);
+    expect(Math.abs(Math.cos((deg * Math.PI) / 180) - -1)).toBeLessThan(1e-6);
 
-    // Shadow half bulges away from the Sun (+x).
-    expect(darkMid.x).toBeGreaterThan(cometX);
-    // Independent geometry: the anti-sunward point on the head circle is (cometX + r, cometY).
-    expect(darkMid.x).toBeCloseTo(cometX + r, 6);
-    expect(darkMid.y).toBeCloseTo(cometY, 6);
-
-    // Tail points anti-sunward (+x), same side as the shadow half.
+    // Tail points anti-sunward (+x), opposite the lit side.
     const line = svg.querySelector("line");
     expect(Number(line.getAttribute("x2"))).toBeGreaterThan(cometX);
   });
@@ -395,7 +358,7 @@ describe("renderCometBody", () => {
     const children = Array.from(svg.children);
     const lineIdx = children.findIndex((el) => el.tagName === "line");
     const circleIdx = children.findIndex((el) => el.tagName === "circle");
-    const shadowIdx = children.findIndex((el) => el.tagName === "path");
+    const shadowIdx = children.findIndex((el) => el.tagName === "g");
     const textIdx = children.findIndex((el) => el.tagName === "text");
     expect(lineIdx).toBeGreaterThanOrEqual(0);
     expect(lineIdx).toBeLessThan(circleIdx);

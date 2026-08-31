@@ -115,6 +115,19 @@ describe("renderSolarSystem", () => {
     expect(following).toBeTruthy();
   });
 
+  it("defines exactly one shared #sphere-shade gradient, and every off-Sun body carries a sphere-shade overlay", () => {
+    const container = document.createElement("div");
+    renderInto(container, new Date("2026-02-14"));
+    const svg = container.querySelector("svg");
+
+    expect(svg.querySelectorAll("defs radialGradient#sphere-shade").length).toBe(1);
+
+    // 7 lone planets + Moon + Halley head. The Sun (at CENTER) is a no-op; Saturn keeps its
+    // clipped ring band this slice, so it has no sphere-shade group yet.
+    const overlays = svg.querySelectorAll('g > circle[fill="url(#sphere-shade)"]');
+    expect(overlays.length).toBe(9);
+  });
+
   it("renders planet and Moon labels", () => {
     const container = document.createElement("div");
     renderInto(container, new Date("2026-02-14"));

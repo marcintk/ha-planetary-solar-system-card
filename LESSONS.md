@@ -6,6 +6,22 @@ index.
 
 <!-- ponytail: single file; split by area if it outgrows one screen-scroll -->
 
+## Per-body directional gradient in SVG without a `<defs>` entry per body
+
+- **Root cause:** #199 slice 5 wanted every body shaded as a lit sphere — a gradient whose bright
+  side faces the Sun, so the direction differs per body. The obvious build is one
+  `<radialGradient gradientUnits="userSpaceOnUse">` per body (unique id, `<defs>` round-trip), ~10×
+  a frame on a fully-rebuilt SVG — the same cost the flat-wash slices had explicitly refused.
+- **Guardrail:** one shared `<radialGradient id="sphere-shade">` in the default `objectBoundingBox`
+  units with an **off-centre focal point** (`fx="0.72"`), then per body a
+  `<g transform="rotate(θ x y)">` wrapping the overlay `<circle fill="url(#sphere-shade)">`, where
+  `θ = atan2(CENTER − y, CENTER − x)`. An objectBoundingBox gradient is painted in the element's
+  pre-transform local box, so rotating the group rotates the gradient with it — one def orients
+  itself for every body. Reach for a shared bounding-box paint server + a wrapper transform before
+  minting per-instance gradient ids.
+- **Ref:** [#199](https://github.com/marcintk/ha-planetary-solar-system-card/issues/199) ·
+  2026-08-30
+
 ## A rendered element needs to respond to pan/zoom without a full SVG rebuild
 
 - **Root cause:** the Sun halo had to fill the visible view at any zoom, but zoom is a `viewBox`
@@ -30,9 +46,10 @@ index.
 - **Guardrail:** the fix that landed and then unified the whole feature was a **translucent overlay
   layer** — one `renderBodyShadow()` that washes the anti-sunward half dark
   (`fill="#05070c" fill-opacity="0.45"`), the SVG cousin of the gallery's `mix-blend-mode: color`
-  tint (`.gallery-thumb-tint`). For a lone body it's a translucent `darkD` half-disc path; for
-  Saturn a `<clipPath>` band over body + rings. When a shading/tint effect keeps reading wrong,
-  reach for an overlay wash before iterating the geometry again.
+  tint (`.gallery-thumb-tint`). Lone bodies started as a translucent `darkD` half-disc path (slice 5
+  replaced that with the `#sphere-shade` gradient overlay — see the entry above); Saturn stays a
+  `<clipPath>` band over body + rings. When a shading/tint effect keeps reading wrong, reach for an
+  overlay wash before iterating the geometry again.
 - **Ref:** [#199](https://github.com/marcintk/ha-planetary-solar-system-card/issues/199) ·
   2026-08-30
 

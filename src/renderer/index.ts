@@ -12,6 +12,7 @@ import {
   renderBody,
   renderOrbit,
   renderSaturn,
+  renderSphereShadeDef,
   renderSunHalo,
   SATURN_RING_OUTER_RADIUS,
 } from "./bodies.js";
@@ -96,6 +97,7 @@ export function renderSolarSystem(
 
   // Sun at center
   renderSunHalo(svg);
+  renderSphereShadeDef(svg);
   renderBody(svg, CENTER, CENTER, SUN, false);
 
   // Draw planets (labels rendered in a separate dynamic-placement pass below,

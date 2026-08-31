@@ -419,9 +419,8 @@ describe("renderSunHalo", () => {
     expect(halo.getAttribute("id")).toBe("sun-halo-glow");
     expect(halo.getAttribute("cx")).toBe(String(CENTER));
     expect(halo.getAttribute("cy")).toBe(String(CENTER));
-    // Initial radius covers HALO_VIEW_FRACTION of the un-zoomed 800px view: 800 * 0.7 = 560.
+    // Initial radius covers HALO_VIEW_FRACTION of the un-zoomed 800px view.
     expect(Number(halo.getAttribute("r"))).toBe(VIEW_SIZE * HALO_VIEW_FRACTION);
-    expect(Number(halo.getAttribute("r"))).toBe(560);
     expect(Number(halo.getAttribute("r"))).toBeGreaterThan(SUN.size);
   });
 });

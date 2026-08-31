@@ -734,9 +734,7 @@ describe("renderSolarSystem — Sun halo is zoom-aware (#199 slice 4)", () => {
     const { svg } = renderSolarSystem(DATE);
     const glow = svg.querySelector("#sun-halo-glow");
     expect(glow).not.toBeNull();
-    // Un-zoomed view width is 800; 800 * 0.7 = 560.
     expect(Number(glow.getAttribute("r"))).toBe(800 * HALO_VIEW_FRACTION);
-    expect(Number(glow.getAttribute("r"))).toBe(560);
   });
 
   it("updateHalo scales the glow radius to viewState.width * HALO_VIEW_FRACTION", () => {
@@ -744,12 +742,11 @@ describe("renderSolarSystem — Sun halo is zoom-aware (#199 slice 4)", () => {
     const glow = svg.querySelector("#sun-halo-glow");
 
     updateHalo({ centerX: 400, centerY: 400, width: 320 });
-    // Tightest zoom rung: 320 * 0.7 = 224.
+    // Tightest zoom rung.
     expect(Number(glow.getAttribute("r"))).toBe(320 * HALO_VIEW_FRACTION);
-    expect(Number(glow.getAttribute("r"))).toBe(224);
 
     updateHalo({ centerX: 400, centerY: 400, width: 800 });
-    expect(Number(glow.getAttribute("r"))).toBe(560);
+    expect(Number(glow.getAttribute("r"))).toBe(800 * HALO_VIEW_FRACTION);
   });
 
   it("updateHalo changes only the radius — the glow stays centred at 400,400", () => {

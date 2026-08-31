@@ -19,7 +19,7 @@ export const SATURN_RING_OUTER_RADIUS = 24;
 const SHADOW_FILL = "#05070c";
 const SHADOW_OPACITY = 0.45;
 
-export const HALO_VIEW_FRACTION = 0.7;
+export const HALO_VIEW_FRACTION = 0.33;
 
 /**
  * A soft radial glow behind the Sun — one translucent gradient circle, no filter.
@@ -34,8 +34,8 @@ export function renderSunHalo(svg: SVGElement): void {
     grad.appendChild(
       createSvgElement("stop", { offset, "stop-color": color, "stop-opacity": opacity })
     );
-  stop("0%", "#ffd479", "0.5");
-  stop("55%", "#ffcf6b", "0.14");
+  stop("0%", "#ffd479", "0.35");
+  stop("54%", "#ffcf6b", "0.1");
   stop("100%", "#ffcf6b", "0");
   defs.appendChild(grad);
   svg.appendChild(

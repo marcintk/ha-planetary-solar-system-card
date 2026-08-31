@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { SolarView } from "../../src/card/solar-view.js";
 import { ZoomController } from "../../src/card/zoom-controller.js";
+import { HALO_VIEW_FRACTION } from "../../src/renderer/bodies.js";
 import { MARKER_GROUP_ID } from "../../src/renderer/offscreen-markers.js";
 
 function mountedView(): { view: SolarView; zoom: ZoomController; container: HTMLElement } {
@@ -96,14 +97,12 @@ describe("SolarView.applyViewState", () => {
     const haloR = () => Number(svg.querySelector("#sun-halo-glow")?.getAttribute("r"));
 
     view.applyViewState();
-    expect(haloR()).toBeCloseTo((zoom.panZoomState?.width as number) * 0.7, 6);
+    expect(haloR()).toBeCloseTo((zoom.panZoomState?.width as number) * HALO_VIEW_FRACTION, 6);
 
     // Step in one zoom rung: level 2 (width 640) -> level 3 (width 480).
     zoom.zoomIn();
     view.applyViewState();
-    expect(haloR()).toBeCloseTo((zoom.panZoomState?.width as number) * 0.7, 6);
-    // 480 * 0.7 = 336.
-    expect(haloR()).toBe(336);
+    expect(haloR()).toBeCloseTo((zoom.panZoomState?.width as number) * HALO_VIEW_FRACTION, 6);
   });
 });
 

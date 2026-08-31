@@ -12,13 +12,17 @@ index.
   side faces the Sun, so the direction differs per body. The obvious build is one
   `<radialGradient gradientUnits="userSpaceOnUse">` per body (unique id, `<defs>` round-trip), ~10×
   a frame on a fully-rebuilt SVG — the same cost the flat-wash slices had explicitly refused.
-- **Guardrail:** one shared `<radialGradient id="sphere-shade">` in the default `objectBoundingBox`
-  units with an **off-centre focal point** (`fx="0.72"`), then per body a
+- **Guardrail:** one shared gradient in the default `objectBoundingBox` units, then per body a
   `<g transform="rotate(θ x y)">` wrapping the overlay `<circle fill="url(#sphere-shade)">`, where
   `θ = atan2(CENTER − y, CENTER − x)`. An objectBoundingBox gradient is painted in the element's
   pre-transform local box, so rotating the group rotates the gradient with it — one def orients
   itself for every body. Reach for a shared bounding-box paint server + a wrapper transform before
   minting per-instance gradient ids.
+- **Follow-on (slice 6):** the shape started as an offset `<radialGradient fx="0.72">` and read as a
+  small anti-sunward crescent — the light/dark midpoint off the disc centre. A side-lit sphere seen
+  top-down splits exactly in half; that is a horizontal `<linearGradient x1=0 x2=1>` with the
+  transparent stop at the midpoint (terminator at `x = 0.5`), not a radial one. Use linear for a
+  centred terminator; an offset radial only ever gives a crescent.
 - **Ref:** [#199](https://github.com/marcintk/ha-planetary-solar-system-card/issues/199) ·
   2026-08-30
 

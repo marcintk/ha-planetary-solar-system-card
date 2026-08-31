@@ -290,7 +290,7 @@
   <div class="meta">
     <span class="badge">approved</span>
     <span>Issue: <a href="https://github.com/marcintk/ha-planetary-solar-system-card/issues/199">#199</a></span>
-    <span>Slices: 5</span>
+    <span>Slices: 7</span>
     <span>Area: src/renderer</span>
   </div>
 
@@ -587,6 +587,79 @@ export function renderBodyShadow(
       <code>sunwardHalfDiscPaths</code> caller. <code>index.ts</code> calls
       <code>renderSphereShadeDef</code> next to <code>renderSunHalo</code>. Saturn&rsquo;s band
       unchanged. 1229 tests, 100% coverage; typecheck + biome green.
+    </p>
+    <p style="font-size:0.88rem;color:var(--ink-faint);margin:0.4rem 0 0">
+      <em>Superseded by slice 6:</em> the offset <em>radial</em> gradient put the light/dark
+      midpoint off the disc centre &mdash; a dark crescent smaller than half the body, wrong for
+      a top-down view. Slice 6 swaps it for a horizontal <em>linear</em> gradient (terminator at
+      x&nbsp;=&nbsp;0.5) and extends it to Saturn.
+    </p>
+  </div>
+
+  <div class="box">
+    <h3>Slice 6 &mdash; linear terminator + Saturn <span style="color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:0.7rem;letter-spacing:0.1em">&nbsp;ACCEPTED</span></h3>
+    <p style="font-size:0.92rem;color:var(--ink-soft)">
+      An offset radial gradient reads as a small anti-sunward crescent, not a half-lit sphere:
+      its light/dark midpoint sits off the disc centre. A side-lit sphere seen top-down splits
+      exactly in half with a straight terminator through the centre &mdash; a <em>linear</em>
+      gradient, not a radial one.
+    </p>
+    <ul>
+      <li><code>renderSphereShadeDef</code> now emits a horizontal
+        <code>&lt;linearGradient id="sphere-shade" x1="0" x2="1"&gt;</code>: <code>#05070c</code>
+        0.6 at <code>x=0</code> (anti-sunward limb) &rarr; ~0.1 at 42% &rarr; transparent at 52%
+        (the terminator, disc centre) &rarr; <code>#ffffff</code> 0.14 at <code>x=1</code>
+        (soft sunward highlight). Still objectBoundingBox, still rotated per body by the same
+        <code>&lt;g&gt;</code>, so <code>renderSphereShade</code> is unchanged.</li>
+      <li><code>renderSaturn</code> gains a trailing <code>renderSphereShade(svg, x, y, coreR)</code>
+        after its ring band &mdash; the core disc now reads as a sphere like every other body;
+        the band still crosses the rings.</li>
+      <li><strong>Red tests:</strong> <code>bodies.test.ts</code> &mdash;
+        <code>linearGradient#sphere-shade</code> with <code>x1/x2</code>, darkest stop first,
+        highlight stop last, a near-transparent stop ~50%; <code>renderSaturn</code> ends with a
+        <code>g &gt; circle[fill="url(#sphere-shade)"]</code> after the band.
+        <code>index.test.ts</code> &mdash; the def is a <code>linearGradient</code>; the
+        sphere-overlay count is 10 (Saturn now included).</li>
+    </ul>
+    <p style="font-size:0.9rem;color:var(--ink-soft);margin:0.6rem 0 0">
+      <strong>Shipped:</strong> as designed. Q2 answered in-thread &mdash; the highlight
+      offset toward the Sun is deliberate; the crescent artefact was the radial gradient, fixed
+      by going linear. 1229 tests, 100% coverage.
+    </p>
+  </div>
+
+  <div class="box">
+    <h3>Slice 7 &mdash; <code>shading</code> / <code>display</code> config <span style="color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:0.7rem;letter-spacing:0.1em">&nbsp;ACCEPTED</span></h3>
+    <p style="font-size:0.92rem;color:var(--ink-soft)">
+      Two card options, collapsed to one renderer enum <code>ShadeMode</code>:
+    </p>
+    <table>
+      <tr><th>config</th><th>ShadeMode</th><th>effect</th></tr>
+      <tr><td><code>shading: false</code></td><td><code>"none"</code></td><td>flat discs, no Sun halo, no Saturn ring shadow</td></tr>
+      <tr><td><code>shading: true</code> (default)<br><code>display: 2d</code></td><td><code>"flat"</code></td><td>Sun halo + Saturn ring shadow on; bodies stay flat discs</td></tr>
+      <tr><td><code>shading: true</code><br><code>display: 3d</code> (default)</td><td><code>"sphere"</code></td><td>the above + the linear terminator gradient on every body</td></tr>
+    </table>
+    <ul>
+      <li><code>ShadeMode</code> lives in <code>types.ts</code>. <code>parseCardConfig</code>
+        derives <code>shadeMode</code> (<code>shading === false ? "none" : display === "2d" ?
+        "flat" : "sphere"</code>); <code>card.ts</code> holds <code>_shadeMode</code> and passes
+        it to <code>SolarView.mount</code> &rarr; <code>renderSolarSystem(&hellip;, shadeMode)</code>
+        as a 6th arg (default <code>"sphere"</code>).</li>
+      <li><code>renderSolarSystem</code>: <code>renderSunHalo</code> gated on
+        <code>shadeMode !== "none"</code>, <code>renderSphereShadeDef</code> on
+        <code>shadeMode === "sphere"</code>; the mode threads into <code>renderBody</code>,
+        <code>renderSaturn</code>, <code>renderCometBody</code> &rarr; <code>renderBodyShadow</code>,
+        whose <code>reach === coreR</code> branch draws the gradient only in <code>"sphere"</code>
+        and whose Saturn band draws in <code>"flat"</code> + <code>"sphere"</code>.</li>
+      <li><strong>Red tests:</strong> <code>card-config.test.ts</code> &mdash; the derivation
+        table above, plus &ldquo;only <code>=== false</code> is off&rdquo; and unknown
+        <code>display</code> &rarr; 3d. <code>index.test.ts</code> &mdash; per-mode presence of
+        halo / <code>#sphere-shade</code> / Saturn band. <code>solar-view.test.ts</code> &mdash;
+        <code>mount</code> forwards the arg; omitting it defaults to sphere.</li>
+    </ul>
+    <p style="font-size:0.9rem;color:var(--ink-soft);margin:0.6rem 0 0">
+      <strong>Shipped:</strong> as designed. 1237 tests, 100% coverage; typecheck + biome +
+      prettier green.
     </p>
   </div>
 

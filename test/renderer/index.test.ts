@@ -120,12 +120,42 @@ describe("renderSolarSystem", () => {
     renderInto(container, new Date("2026-02-14"));
     const svg = container.querySelector("svg");
 
-    expect(svg.querySelectorAll("defs radialGradient#sphere-shade").length).toBe(1);
+    expect(svg.querySelectorAll("defs linearGradient#sphere-shade").length).toBe(1);
 
-    // 7 lone planets + Moon + Halley head. The Sun (at CENTER) is a no-op; Saturn keeps its
-    // clipped ring band this slice, so it has no sphere-shade group yet.
+    // 8 planets (Saturn included) + Moon + Halley head = 10. The Sun at CENTER is a no-op.
     const overlays = svg.querySelectorAll('g > circle[fill="url(#sphere-shade)"]');
-    expect(overlays.length).toBe(9);
+    expect(overlays.length).toBe(10);
+  });
+
+  describe("shadeMode", () => {
+    const DATE = new Date("2026-02-14");
+
+    it("'none' — no Sun halo, no #sphere-shade def, no sphere overlays, no Saturn shadow band", () => {
+      const { svg } = renderSolarSystem(DATE, "north", null, {}, false, "none");
+      expect(svg.querySelector("#sun-halo")).toBeNull();
+      expect(svg.querySelector("#sun-halo-glow")).toBeNull();
+      expect(svg.querySelector("#sphere-shade")).toBeNull();
+      expect(svg.querySelectorAll('circle[fill="url(#sphere-shade)"]').length).toBe(0);
+      expect(svg.querySelector("clipPath#saturn-shadow")).toBeNull();
+      expect(svg.querySelector('circle[clip-path="url(#saturn-shadow)"]')).toBeNull();
+    });
+
+    it("'flat' — Sun halo and Saturn shadow band on, but flat bodies: no #sphere-shade def or overlays", () => {
+      const { svg } = renderSolarSystem(DATE, "north", null, {}, false, "flat");
+      expect(svg.querySelector("#sun-halo-glow")).not.toBeNull();
+      expect(svg.querySelector("clipPath#saturn-shadow")).not.toBeNull();
+      expect(svg.querySelector('circle[clip-path="url(#saturn-shadow)"]')).not.toBeNull();
+      expect(svg.querySelector("#sphere-shade")).toBeNull();
+      expect(svg.querySelectorAll('circle[fill="url(#sphere-shade)"]').length).toBe(0);
+    });
+
+    it("'sphere' (default) — halo, Saturn band, the #sphere-shade def, and 10 overlays", () => {
+      const { svg } = renderSolarSystem(DATE, "north", null, {}, false, "sphere");
+      expect(svg.querySelector("#sun-halo-glow")).not.toBeNull();
+      expect(svg.querySelector('circle[clip-path="url(#saturn-shadow)"]')).not.toBeNull();
+      expect(svg.querySelector("linearGradient#sphere-shade")).not.toBeNull();
+      expect(svg.querySelectorAll('g > circle[fill="url(#sphere-shade)"]').length).toBe(10);
+    });
   });
 
   it("renders planet and Moon labels", () => {

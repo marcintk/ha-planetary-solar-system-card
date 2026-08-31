@@ -29,6 +29,29 @@ describe("SolarView.mount", () => {
     view.mount(container, new Date("2026-08-17T12:00:00Z"), "north", null, {}, false);
     expect(container.children.length).toBe(1);
   });
+
+  it("forwards shadeMode to the renderer — 'none' drops the Sun halo and all body shading", () => {
+    const zoom = new ZoomController(
+      () => {},
+      () => {}
+    );
+    zoom.configure(2, false, 4, false);
+    zoom.ensureInitialized();
+    const view = new SolarView(zoom);
+    const container = document.createElement("div");
+    view.mount(container, new Date("2026-08-16T12:00:00Z"), "north", null, {}, false, "none");
+
+    const svg = container.querySelector("svg") as SVGSVGElement;
+    expect(svg.querySelector("#sun-halo-glow")).toBeNull();
+    expect(svg.querySelector('circle[fill="url(#sphere-shade)"]')).toBeNull();
+  });
+
+  it("defaults shadeMode to the 3d sphere treatment when the arg is omitted", () => {
+    const { container } = mountedView();
+    const svg = container.querySelector("svg") as SVGSVGElement;
+    expect(svg.querySelector("#sun-halo-glow")).not.toBeNull();
+    expect(svg.querySelector('g > circle[fill="url(#sphere-shade)"]')).not.toBeNull();
+  });
 });
 
 describe("SolarView.applyViewState", () => {

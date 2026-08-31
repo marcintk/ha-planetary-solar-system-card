@@ -56,6 +56,12 @@ export interface Colors {
 export type ZoomLevel = 1 | 2 | 3 | 4;
 export type Hemisphere = "north" | "south";
 
+// How bodies are shaded against the Sun. "none": flat discs, no Sun halo, no Saturn ring
+// shadow (config `shading: false`). "flat": halo + Saturn ring shadow on, bodies stay flat
+// discs (`shading: true`, `display: 2d`). "sphere": as flat, plus the linear terminator
+// gradient on every body (`shading: true`, `display: 3d` — the default).
+export type ShadeMode = "none" | "flat" | "sphere";
+
 export interface ViewPosition {
   name: string;
   x: number;
@@ -111,6 +117,8 @@ export interface CardConfig {
   zoom_animate?: boolean;
   colors?: Colors;
   ecliptic_view?: string;
+  shading?: boolean;
+  display?: "2d" | "3d";
   show_version?: boolean;
   debug?: boolean;
   gallery?: {

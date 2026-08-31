@@ -1,4 +1,4 @@
-import type { Comet, CometVisualEllipse } from "../types.js";
+import type { Comet, CometVisualEllipse, ShadeMode } from "../types.js";
 import { ORBIT_COLOR, renderBodyShadow } from "./bodies.js";
 import type { EclipticViewDirection } from "./svg-utils.js";
 import {
@@ -72,7 +72,8 @@ export function renderCometBody(
   comet: Comet,
   sunX: number,
   sunY: number,
-  dynamicTailLength?: number
+  dynamicTailLength?: number,
+  shadeMode: ShadeMode = "sphere"
 ): void {
   // Direction away from the Sun
   const dx = x - sunX;
@@ -100,9 +101,10 @@ export function renderCometBody(
     })
   );
 
-  // Comet head — plain disc with a translucent anti-sunward shadow wash on top.
+  // Comet head — plain disc; renderBodyShadow adds the sphere terminator gradient on top
+  // in "sphere" mode (nothing in "flat"/"none").
   svg.appendChild(createSvgElement("circle", { cx: x, cy: y, r: comet.size, fill: comet.color }));
-  renderBodyShadow(svg, x, y, comet.size);
+  renderBodyShadow(svg, x, y, comet.size, comet.size, shadeMode);
 
   // Label
   svg.appendChild(

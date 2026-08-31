@@ -22,6 +22,29 @@ describe("parseCardConfig", () => {
       gallerySources: ["mymoon"],
       galleryIntervalMs: 60000,
       mymoonTint: false,
+      shadeMode: "sphere",
+    });
+  });
+
+  describe("shadeMode", () => {
+    it("defaults to 'sphere' (shading on, display 3d)", () => {
+      expect(parseCardConfig({}).shadeMode).toBe("sphere");
+      expect(parseCardConfig({ shading: true, display: "3d" }).shadeMode).toBe("sphere");
+    });
+    it("is 'flat' when shading is on but display is 2d", () => {
+      expect(parseCardConfig({ display: "2d" }).shadeMode).toBe("flat");
+      expect(parseCardConfig({ shading: true, display: "2d" }).shadeMode).toBe("flat");
+    });
+    it("is 'none' when shading is false, regardless of display", () => {
+      expect(parseCardConfig({ shading: false }).shadeMode).toBe("none");
+      expect(parseCardConfig({ shading: false, display: "3d" }).shadeMode).toBe("none");
+      expect(parseCardConfig({ shading: false, display: "2d" }).shadeMode).toBe("none");
+    });
+    it("only shading === false counts as off (undefined stays on)", () => {
+      expect(parseCardConfig({ shading: undefined }).shadeMode).toBe("sphere");
+    });
+    it("an unrecognised display value falls back to 3d", () => {
+      expect(parseCardConfig({ display: "flat" as never }).shadeMode).toBe("sphere");
     });
   });
 

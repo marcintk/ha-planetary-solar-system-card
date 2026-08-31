@@ -1,4 +1,4 @@
-import type { CardConfig, Colors, ZoomLevel } from "../types.js";
+import type { CardConfig, Colors, ShadeMode, ZoomLevel } from "../types.js";
 import type { GalleryMode, GalleryPosition, GalleryShape } from "./gallery/gallery-controller.js";
 import { DEFAULT_GALLERY_INTERVAL_MS } from "./gallery/gallery-controller.js";
 import type { ImageSource } from "./gallery/sources.js";
@@ -14,6 +14,7 @@ export interface ParsedCardConfig {
   colors: Colors;
   theme: "auto" | "dark" | "light";
   eclipticView: boolean;
+  shadeMode: ShadeMode;
   locationOverride: { lat: number; lon: number; timezone: string } | null;
   locationNameOverride: string | null;
   heightStyle: string;
@@ -115,6 +116,12 @@ export function parseCardConfig(config: CardConfig): ParsedCardConfig {
   const theme = config.theme === "dark" || config.theme === "light" ? config.theme : "auto";
   const eclipticView = config.ecliptic_view === "south";
 
+  // `shading` (default true) gates the Sun halo + Saturn's ring shadow; `display` (default
+  // "3d") then picks flat discs vs. the per-body terminator gradient. Collapsed to one enum
+  // for the renderer.
+  const shadeMode: ShadeMode =
+    config.shading === false ? "none" : config.display === "2d" ? "flat" : "sphere";
+
   const overrideLat = config.location?.latitude;
   const overrideLon = config.location?.longitude;
   const hasOverride =
@@ -156,6 +163,7 @@ export function parseCardConfig(config: CardConfig): ParsedCardConfig {
     colors: config.colors ?? {},
     theme,
     eclipticView,
+    shadeMode,
     locationOverride,
     locationNameOverride,
     heightStyle,

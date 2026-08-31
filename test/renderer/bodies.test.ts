@@ -365,57 +365,76 @@ describe("renderSaturn", () => {
     expect(opacity).toBeLessThan(1);
   });
 
-  it("draws body circle first, then both rings, then the clipped shadow overlay last", () => {
+  it("draws body circle, then both rings, then the clipped shadow band, then the sphere-shade overlay last", () => {
     const svg = createSvg();
     renderSaturn(svg, 520, 300, saturn);
 
+    // body + outer ring + inner ring + shadow band + sphere-shade core overlay
     const circles = Array.from(svg.querySelectorAll("circle"));
-    // body + outer ring + inner ring + shadow overlay
-    expect(circles.length).toBe(4);
+    expect(circles.length).toBe(5);
 
     const body = circles[0];
     expect(body.getAttribute("fill")).toBe(saturn.color);
     expect(body.getAttribute("r")).toBe("13");
 
-    const overlay = svg.querySelector('circle[clip-path="url(#saturn-shadow)"]');
-    expect(overlay).not.toBeNull();
-    expect(circles[circles.length - 1]).toBe(overlay);
+    const band = svg.querySelector('circle[clip-path="url(#saturn-shadow)"]');
+    expect(band).not.toBeNull();
+
+    // The sphere-shade overlay is wrapped in a rotated <g>, and it is Saturn's last element.
+    const sphere = svg.querySelector('g > circle[fill="url(#sphere-shade)"]');
+    expect(sphere).not.toBeNull();
+    expect(Number(sphere.getAttribute("r"))).toBe(13);
+    expect(svg.lastElementChild.tagName).toBe("g");
 
     const rings = Array.from(
       svg.querySelectorAll('circle[fill="none"][stroke="#e2c58c"][opacity="0.6"]')
     );
     const bodyIdx = circles.indexOf(body);
-    const overlayIdx = circles.indexOf(overlay);
+    const bandIdx = circles.indexOf(band);
     for (const ring of rings) {
       const ringIdx = circles.indexOf(ring);
       expect(ringIdx).toBeGreaterThan(bodyIdx);
-      expect(ringIdx).toBeLessThan(overlayIdx);
+      expect(ringIdx).toBeLessThan(bandIdx);
     }
+    // Band paints before the core sphere overlay.
+    expect(bandIdx).toBe(circles.length - 2);
   });
 });
 
 describe("renderSphereShadeDef", () => {
-  it("appends a <defs> with one <radialGradient id='sphere-shade'>, focal point offset toward the lit side", () => {
+  it("appends a <defs> with one horizontal <linearGradient id='sphere-shade'>: dark anti-sunward limb, terminator mid, soft highlight sunward", () => {
     const svg = createSvg();
     renderSphereShadeDef(svg);
 
     const defs = svg.querySelector("defs");
     expect(defs).not.toBeNull();
 
-    const grad = defs.querySelectorAll("radialGradient#sphere-shade");
+    const grad = defs.querySelectorAll("linearGradient#sphere-shade");
     expect(grad.length).toBe(1);
 
-    // Focal point pushed off-centre so one side reads lit, the other in shadow.
-    const fx = Number(grad[0].getAttribute("fx"));
-    expect(fx).toBeGreaterThan(0.5);
+    // Horizontal gradient: local +x is the lit side, −x the anti-sunward side.
+    expect(grad[0].getAttribute("x1")).toBe("0");
+    expect(grad[0].getAttribute("x2")).toBe("1");
+    expect(grad[0].getAttribute("y1")).toBe(grad[0].getAttribute("y2"));
 
-    const stops = grad[0].querySelectorAll("stop");
+    const stops = Array.from(grad[0].querySelectorAll("stop"));
     expect(stops.length).toBeGreaterThanOrEqual(3);
-    // Darkest stop last, at the anti-sunward limb.
-    const last = stops[stops.length - 1];
-    expect(last.getAttribute("stop-color")).toBe("#05070c");
-    expect(Number(last.getAttribute("stop-opacity"))).toBeGreaterThan(0);
-    expect(Number(last.getAttribute("stop-opacity"))).toBeLessThan(1);
+
+    // First stop (x=0) is the darkest — the anti-sunward limb.
+    expect(stops[0].getAttribute("stop-color")).toBe("#05070c");
+    expect(Number(stops[0].getAttribute("stop-opacity"))).toBeGreaterThan(0.3);
+
+    // Last stop (x=1) is the soft sunward highlight.
+    expect(stops[stops.length - 1].getAttribute("stop-color")).toBe("#ffffff");
+    expect(Number(stops[stops.length - 1].getAttribute("stop-opacity"))).toBeLessThan(0.3);
+
+    // A near-transparent stop sits around the middle — the terminator through the disc centre.
+    const mid = stops.find((s) => {
+      const off = Number.parseFloat(s.getAttribute("offset"));
+      return off > 40 && off < 60;
+    });
+    expect(mid).toBeDefined();
+    expect(Number(mid.getAttribute("stop-opacity"))).toBeLessThan(0.15);
   });
 
   it("reuses the existing <defs> rather than adding a second one", () => {

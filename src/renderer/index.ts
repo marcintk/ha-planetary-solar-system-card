@@ -10,7 +10,7 @@ import type {
   Hemisphere,
   LocationData,
   PanZoomState,
-  ShadeMode,
+  ShadeOptions,
   ViewPosition,
 } from "../types.js";
 import {
@@ -19,7 +19,7 @@ import {
   renderBody,
   renderOrbit,
   renderSaturn,
-  renderSphereShadeDef,
+  renderSphere3dDef,
   renderSunHalo,
   SATURN_RING_OUTER_RADIUS,
 } from "./bodies.js";
@@ -45,7 +45,7 @@ export function renderSolarSystem(
   locationData: LocationData | null = null,
   colors: Colors = {},
   eclipticView = false,
-  shadeMode: ShadeMode = "sphere"
+  shade: ShadeOptions = { sphere: true, dayNight: true }
 ): {
   svg: SVGSVGElement;
   positions: ViewPosition[];
@@ -103,11 +103,11 @@ export function renderSolarSystem(
     renderCometOrbit(svg, comet, eclipticViewDirection);
   }
 
-  // Sun at center. The halo and Saturn's ring shadow ride on `shadeMode !== "none"`; the
-  // per-body #sphere-shade gradient def is only needed in "sphere" mode.
-  if (shadeMode !== "none") renderSunHalo(svg);
-  if (shadeMode === "sphere") renderSphereShadeDef(svg);
-  renderBody(svg, CENTER, CENTER, SUN, false, shadeMode);
+  // Sun at center. The halo rides on `shade.dayNight`; the #sphere-3d gradient def is only
+  // needed when `shade.sphere`.
+  if (shade.dayNight) renderSunHalo(svg);
+  if (shade.sphere) renderSphere3dDef(svg);
+  renderBody(svg, CENTER, CENTER, SUN, false, shade);
 
   // Draw planets (labels rendered in a separate dynamic-placement pass below,
   // once every body's position is known)
@@ -124,10 +124,10 @@ export function renderSolarSystem(
     }
     positions.push({ name: planet.name, x, y, color: planet.color });
     if (planet.name === "Saturn") {
-      renderSaturn(svg, x, y, planet, shadeMode);
+      renderSaturn(svg, x, y, planet, shade);
       planetLabels.push({ name: planet.name, x, y, radius: SATURN_RING_OUTER_RADIUS });
     } else {
-      renderBody(svg, x, y, planet, false, shadeMode);
+      renderBody(svg, x, y, planet, false, shade);
       planetLabels.push({ name: planet.name, x, y, radius: planet.size });
     }
   });
@@ -141,7 +141,7 @@ export function renderSolarSystem(
     const perihelion = comet.semiMajorAxis * (1 - comet.eccentricity);
     const tailScale = Math.min(1, perihelion / radius);
     const dynamicTail = comet.tailLength * tailScale;
-    renderCometBody(svg, cx, cy, comet, CENTER, CENTER, dynamicTail, shadeMode);
+    renderCometBody(svg, cx, cy, comet, CENTER, CENTER, dynamicTail, shade);
     positions.push({ name: comet.name, x: cx, y: cy, color: comet.color });
   }
 
@@ -177,7 +177,7 @@ export function renderSolarSystem(
     })
   );
 
-  renderBody(svg, moonX, moonY, MOON, false, shadeMode);
+  renderBody(svg, moonX, moonY, MOON, false, shade);
 
   // Planet + Moon labels, placed once every body's final position is known
   // so each label can steer away from its nearest neighbor instead of

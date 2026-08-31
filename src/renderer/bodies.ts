@@ -1,4 +1,4 @@
-import type { CelestialBody, CometVisualEllipse, ShadeMode } from "../types.js";
+import type { CelestialBody, CometVisualEllipse, ShadeOptions } from "../types.js";
 import type { EclipticViewDirection } from "./svg-utils.js";
 import {
   BODY_LABEL_ATTRS,
@@ -8,6 +8,7 @@ import {
   type OrbitTransformComponents,
   orbitTransformComponents,
   radiusFromAU,
+  sunwardHalfDiscPaths,
   VIEW_SIZE,
 } from "./svg-utils.js";
 
@@ -49,49 +50,38 @@ export function renderSunHalo(svg: SVGElement): void {
 }
 
 /**
- * One shared paint server for spherical body shading: a horizontal linear gradient in
- * objectBoundingBox units. Local +x is the "lit" side, local −x the anti-sunward side; the
- * terminator sits at the midpoint (x = 0.5), so a body reads as exactly half lit / half dark
- * with a soft edge down its centre — the top-down projection of a side-lit sphere.
- * renderSphereShade rotates each body's overlay so local +x points at the Sun, which is why
- * one def serves every body. Call once, before the bodies.
+ * One shared paint server for the `display: 3d` ball look: a radial gradient centred on the
+ * disc (objectBoundingBox units, focal point = centre), bright centre fading to a darker rim.
+ * Pure geometry — no Sun direction, so it needs no per-body transform and one def serves
+ * every body. Call once, before the bodies.
  */
-export function renderSphereShadeDef(svg: SVGElement): void {
+export function renderSphere3dDef(svg: SVGElement): void {
   const defs =
     svg.querySelector("defs") || svg.insertBefore(createSvgElement("defs", {}), svg.firstChild);
-  const grad = createSvgElement("linearGradient", {
-    id: "sphere-shade",
-    x1: "0",
-    y1: "0.5",
-    x2: "1",
-    y2: "0.5",
+  const grad = createSvgElement("radialGradient", {
+    id: "sphere-3d",
+    cx: "0.5",
+    cy: "0.5",
+    r: "0.5",
   });
   const stop = (offset: string, color: string, opacity: string) =>
     grad.appendChild(
       createSvgElement("stop", { offset, "stop-color": color, "stop-opacity": opacity })
     );
-  // x=0 anti-sunward limb (darkest) -> terminator at x=0.5 -> x=1 sunward limb (soft highlight).
-  stop("0%", SHADOW_FILL, "0.6");
-  stop("42%", SHADOW_FILL, "0.1");
-  stop("52%", "#ffffff", "0");
-  stop("100%", "#ffffff", "0.14");
+  stop("0%", "#ffffff", "0.1");
+  stop("48%", "#ffffff", "0");
+  stop("100%", SHADOW_FILL, "0.3");
   defs.appendChild(grad);
 }
 
 /**
- * Overlay a body's plain disc with the shared #sphere-shade gradient, rotated so its lit
- * face points at the Sun. The angle is the screen-space direction from (x, y) to the Sun at
- * CENTER — not an orbital angle, so no eclipticViewDirection (CLAUDE.md, #94). No-op at
- * CENTER (the Sun itself). Needs renderSphereShadeDef to have run once on the same SVG.
+ * Overlay a body's plain disc with the centred #sphere-3d gradient so it reads as a ball.
+ * No-op at CENTER (the Sun is a light source, not a shaded ball). Needs renderSphere3dDef to
+ * have run once on the same SVG.
  */
-export function renderSphereShade(svg: SVGElement, x: number, y: number, r: number): void {
-  const dx = CENTER - x;
-  const dy = CENTER - y;
-  if (Math.hypot(dx, dy) < 1e-9) return;
-  const deg = (Math.atan2(dy, dx) * 180) / Math.PI;
-  const g = createSvgElement("g", { transform: `rotate(${deg} ${x} ${y})` });
-  g.appendChild(createSvgElement("circle", { cx: x, cy: y, r, fill: "url(#sphere-shade)" }));
-  svg.appendChild(g);
+export function renderSphere3d(svg: SVGElement, x: number, y: number, r: number): void {
+  if (Math.hypot(x - CENTER, y - CENTER) < 1e-9) return;
+  svg.appendChild(createSvgElement("circle", { cx: x, cy: y, r, fill: "url(#sphere-3d)" }));
 }
 
 /**
@@ -184,29 +174,32 @@ export function renderOrbit(
 }
 
 /**
- * Shade a body's plain disc against the Sun at CENTER, per `shadeMode`:
- * - `"none"`  — nothing (flat discs, config `shading: false`).
- * - `"flat"`  — lone bodies stay flat; only Saturn's `reach > coreR` ring band draws.
- * - `"sphere"` — every lone body (reach === coreR) gets the #sphere-shade terminator gradient
- *   via renderSphereShade; Saturn also draws the ring band.
+ * The astronomical day/night overlay (config `shading: true`). For a lone body (reach ===
+ * coreR) it washes the anti-sunward half-disc dark — a distinct straight terminator, the dark
+ * side darker but not black. phi comes from the screen-space vector to the Sun at CENTER, so
+ * no eclipticViewDirection (not an orbital angle — CLAUDE.md, #94). No-op at CENTER (the Sun).
  *
- * The `reach > coreR` (Saturn) branch spans body + rings + gap: a translucent disc of radius
- * `reach` clipped to a rotated rect band reaching from the body centre out to `reach` on the
- * anti-sunward side. phi comes from the screen-space vector to the Sun, so no
- * eclipticViewDirection (not an orbital angle — CLAUDE.md, #94).
+ * With `reach > coreR` (Saturn) it instead spans body + rings + gap: a translucent disc of
+ * radius `reach` clipped to a rotated rect band reaching from the body centre out to `reach`
+ * on the anti-sunward side.
  */
 export function renderBodyShadow(
   svg: SVGElement,
   x: number,
   y: number,
   coreR: number,
-  reach = coreR,
-  shadeMode: ShadeMode = "sphere"
+  reach = coreR
 ): void {
-  if (shadeMode === "none") return;
-  if (Math.hypot(x - CENTER, y - CENTER) < 1e-9) return; // body at CENTER (the Sun) — no shadow
+  const halves = sunwardHalfDiscPaths(x, y, coreR);
+  if (halves === null) return; // body at CENTER (the Sun) — no shadow
   if (reach === coreR) {
-    if (shadeMode === "sphere") renderSphereShade(svg, x, y, coreR);
+    svg.appendChild(
+      createSvgElement("path", {
+        d: halves.darkD,
+        fill: SHADOW_FILL,
+        "fill-opacity": SHADOW_OPACITY,
+      })
+    );
     return;
   }
   // reach > coreR (Saturn): a clipped band across body + rings + gap
@@ -242,10 +235,11 @@ export function renderBody(
   y: number,
   body: CelestialBody,
   showLabel = true,
-  shadeMode: ShadeMode = "sphere"
+  shade: ShadeOptions = { sphere: true, dayNight: true }
 ): void {
   svg.appendChild(createSvgElement("circle", { cx: x, cy: y, r: body.size, fill: body.color }));
-  renderBodyShadow(svg, x, y, body.size, body.size, shadeMode);
+  if (shade.sphere) renderSphere3d(svg, x, y, body.size);
+  if (shade.dayNight) renderBodyShadow(svg, x, y, body.size);
 
   if (showLabel) {
     svg.appendChild(
@@ -260,17 +254,16 @@ export function renderBody(
 }
 
 /**
- * Draw Saturn: the plain body disc, the two lit ring circles, the anti-sunward shadow band
- * that spans body + rings + gap (renderBodyShadow with reach = the outer ring radius), and
- * finally the sphere-shade terminator gradient on the core disc so Saturn reads as a lit
- * sphere like every other body.
+ * Draw Saturn: the plain body disc and its two lit ring circles, then — per `shade` — the
+ * anti-sunward day/night band across body + rings + gap (`shade.dayNight`) and the centred
+ * ball gradient on the core disc (`shade.sphere`), so Saturn matches every other body.
  */
 export function renderSaturn(
   svg: SVGElement,
   x: number,
   y: number,
   body: CelestialBody,
-  shadeMode: ShadeMode = "sphere"
+  shade: ShadeOptions = { sphere: true, dayNight: true }
 ): void {
   const coreR = Math.round(body.size / 2);
   svg.appendChild(createSvgElement("circle", { cx: x, cy: y, r: coreR, fill: body.color }));
@@ -302,6 +295,6 @@ export function renderSaturn(
     })
   );
 
-  renderBodyShadow(svg, x, y, coreR, SATURN_RING_OUTER_RADIUS, shadeMode);
-  if (shadeMode === "sphere") renderSphereShade(svg, x, y, coreR);
+  if (shade.dayNight) renderBodyShadow(svg, x, y, coreR, SATURN_RING_OUTER_RADIUS);
+  if (shade.sphere) renderSphere3d(svg, x, y, coreR);
 }

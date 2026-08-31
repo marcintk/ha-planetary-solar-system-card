@@ -7,11 +7,17 @@ import {
   renderBodyShadow,
   renderOrbit,
   renderSaturn,
-  renderSphereShade,
-  renderSphereShadeDef,
+  renderSphere3d,
+  renderSphere3dDef,
   renderSunHalo,
 } from "../../src/renderer/bodies.js";
-import { CENTER, radiusFromAU, SVG_NS, VIEW_SIZE } from "../../src/renderer/svg-utils.js";
+import {
+  CENTER,
+  radiusFromAU,
+  SVG_NS,
+  sunwardHalfDiscPaths,
+  VIEW_SIZE,
+} from "../../src/renderer/svg-utils.js";
 import type { CometVisualEllipse } from "../../src/types.js";
 
 function createSvg() {
@@ -160,45 +166,56 @@ describe("renderOrbit", () => {
 describe("renderBody", () => {
   const earth = PLANETS.find((p) => p.name === "Earth");
 
-  it("appends a plain base disc plus one rotated sphere-shade overlay group for an off-center body", () => {
+  it("default shade: base disc + centred #sphere-3d overlay + the day/night half-disc path", () => {
     const svg = createSvg();
     renderBody(svg, 300, 250, earth, false);
 
-    const circle = svg.querySelector("circle");
-    expect(circle).not.toBeNull();
-    expect(circle.getAttribute("cx")).toBe("300");
-    expect(circle.getAttribute("cy")).toBe("250");
-    expect(circle.getAttribute("r")).toBe(String(earth.size));
-    expect(circle.getAttribute("fill")).toBe(earth.color);
+    const base = svg.querySelector("circle");
+    expect(base.getAttribute("cx")).toBe("300");
+    expect(base.getAttribute("cy")).toBe("250");
+    expect(base.getAttribute("r")).toBe(String(earth.size));
+    expect(base.getAttribute("fill")).toBe(earth.color);
 
-    // No flat half-disc shadow anymore — neither the color-mix opaque one nor the #05070c wash.
-    expect(svg.querySelector('path[fill^="color-mix"]')).toBeNull();
-    expect(svg.querySelector('path[fill="#05070c"]')).toBeNull();
+    // 3d ball: a plain (un-rotated) circle filled with the centred gradient.
+    expect(svg.querySelector("g")).toBeNull();
+    const ball = svg.querySelector('circle[fill="url(#sphere-3d)"]');
+    expect(ball).not.toBeNull();
+    expect(ball.getAttribute("cx")).toBe("300");
+    expect(ball.getAttribute("r")).toBe(String(earth.size));
 
-    const group = svg.querySelector("g");
-    expect(group).not.toBeNull();
-    const rotateMatch = group.getAttribute("transform").match(/rotate\(\s*(-?\d+(?:\.\d+)?)/);
-    expect(rotateMatch).not.toBeNull();
-    const expectedDeg = (Math.atan2(CENTER - 250, CENTER - 300) * 180) / Math.PI;
-    expect(Math.abs(Number(rotateMatch[1]) - expectedDeg)).toBeLessThan(1e-6);
-
-    const overlay = group.querySelector('circle[fill="url(#sphere-shade)"]');
-    expect(overlay).not.toBeNull();
-    expect(overlay.getAttribute("cx")).toBe("300");
-    expect(overlay.getAttribute("cy")).toBe("250");
-    expect(overlay.getAttribute("r")).toBe(String(earth.size));
+    // day/night: a distinct translucent half-disc over the anti-sunward hemisphere.
+    const paths = Array.from(svg.querySelectorAll("path"));
+    expect(paths.length).toBe(1);
+    expect(paths[0].getAttribute("fill")).toBe("#05070c");
+    expect(paths[0].getAttribute("d")).toBe(sunwardHalfDiscPaths(300, 250, earth.size).darkD);
+    const op = Number(paths[0].getAttribute("fill-opacity"));
+    expect(op).toBeGreaterThan(0);
+    expect(op).toBeLessThan(1);
   });
 
-  it("appends a plain circle (and no sphere-shade group) for a body at CENTER, e.g. the Sun", () => {
+  it("shade { sphere: false, dayNight: false }: base disc only", () => {
+    const svg = createSvg();
+    renderBody(svg, 300, 250, earth, false, { sphere: false, dayNight: false });
+    expect(svg.querySelectorAll("circle").length).toBe(1);
+    expect(svg.querySelector('circle[fill="url(#sphere-3d)"]')).toBeNull();
+    expect(svg.querySelector("path")).toBeNull();
+  });
+
+  it("shade { sphere: true, dayNight: false }: base disc + ball, no day/night path", () => {
+    const svg = createSvg();
+    renderBody(svg, 300, 250, earth, false, { sphere: true, dayNight: false });
+    expect(svg.querySelector('circle[fill="url(#sphere-3d)"]')).not.toBeNull();
+    expect(svg.querySelector("path")).toBeNull();
+  });
+
+  it("appends a plain circle (no ball, no path) for a body at CENTER, e.g. the Sun", () => {
     const svg = createSvg();
     renderBody(svg, CENTER, CENTER, SUN, false);
 
     expect(svg.querySelector("path")).toBeNull();
-    expect(svg.querySelector("g")).toBeNull();
-    expect(svg.querySelector('circle[fill="url(#sphere-shade)"]')).toBeNull();
+    expect(svg.querySelector('circle[fill="url(#sphere-3d)"]')).toBeNull();
 
     const circle = svg.querySelector("circle");
-    expect(circle).not.toBeNull();
     expect(circle.getAttribute("cx")).toBe(String(CENTER));
     expect(circle.getAttribute("cy")).toBe(String(CENTER));
     expect(circle.getAttribute("r")).toBe(String(SUN.size));
@@ -239,24 +256,21 @@ describe("renderBody", () => {
 });
 
 describe("renderBodyShadow", () => {
-  it("appends one rotated sphere-shade overlay group (no flat path) for an off-center body", () => {
+  it("appends one translucent anti-sunward half-disc path (and no circle) for an off-center body", () => {
     const svg = createSvg();
     renderBodyShadow(svg, 300, 250, 10);
 
-    expect(svg.querySelector("path")).toBeNull();
+    expect(svg.querySelector("circle")).toBeNull();
 
-    const group = svg.querySelector("g");
-    expect(group).not.toBeNull();
-    const rotateMatch = group.getAttribute("transform").match(/rotate\(\s*(-?\d+(?:\.\d+)?)/);
-    expect(rotateMatch).not.toBeNull();
-    const expectedDeg = (Math.atan2(CENTER - 250, CENTER - 300) * 180) / Math.PI;
-    expect(Math.abs(Number(rotateMatch[1]) - expectedDeg)).toBeLessThan(1e-6);
+    const paths = Array.from(svg.querySelectorAll("path"));
+    expect(paths.length).toBe(1);
 
-    const overlay = group.querySelector('circle[fill="url(#sphere-shade)"]');
-    expect(overlay).not.toBeNull();
-    expect(overlay.getAttribute("cx")).toBe("300");
-    expect(overlay.getAttribute("cy")).toBe("250");
-    expect(overlay.getAttribute("r")).toBe("10");
+    const [shadow] = paths;
+    expect(shadow.getAttribute("fill")).toBe("#05070c");
+    const op = Number(shadow.getAttribute("fill-opacity"));
+    expect(op).toBe(0.45);
+    // The dark half-disc is the same geometry sunwardHalfDiscPaths returns — a distinct terminator.
+    expect(shadow.getAttribute("d")).toBe(sunwardHalfDiscPaths(300, 250, 10).darkD);
   });
 
   it("appends nothing for a body at CENTER (the Sun no-op)", () => {
@@ -365,11 +379,11 @@ describe("renderSaturn", () => {
     expect(opacity).toBeLessThan(1);
   });
 
-  it("draws body circle, then both rings, then the clipped shadow band, then the sphere-shade overlay last", () => {
+  it("draws body circle, both rings, the clipped day/night band, then the #sphere-3d ball last", () => {
     const svg = createSvg();
     renderSaturn(svg, 520, 300, saturn);
 
-    // body + outer ring + inner ring + shadow band + sphere-shade core overlay
+    // body + outer ring + inner ring + day/night band + sphere-3d core overlay
     const circles = Array.from(svg.querySelectorAll("circle"));
     expect(circles.length).toBe(5);
 
@@ -380,11 +394,11 @@ describe("renderSaturn", () => {
     const band = svg.querySelector('circle[clip-path="url(#saturn-shadow)"]');
     expect(band).not.toBeNull();
 
-    // The sphere-shade overlay is wrapped in a rotated <g>, and it is Saturn's last element.
-    const sphere = svg.querySelector('g > circle[fill="url(#sphere-shade)"]');
-    expect(sphere).not.toBeNull();
-    expect(Number(sphere.getAttribute("r"))).toBe(13);
-    expect(svg.lastElementChild.tagName).toBe("g");
+    // The 3d ball is a plain circle (no rotation), and it is Saturn's last element.
+    const ball = circles[circles.length - 1];
+    expect(ball.getAttribute("fill")).toBe("url(#sphere-3d)");
+    expect(Number(ball.getAttribute("r"))).toBe(13);
+    expect(svg.querySelector("g")).toBeNull();
 
     const rings = Array.from(
       svg.querySelectorAll('circle[fill="none"][stroke="#e2c58c"][opacity="0.6"]')
@@ -396,78 +410,66 @@ describe("renderSaturn", () => {
       expect(ringIdx).toBeGreaterThan(bodyIdx);
       expect(ringIdx).toBeLessThan(bandIdx);
     }
-    // Band paints before the core sphere overlay.
     expect(bandIdx).toBe(circles.length - 2);
+  });
+
+  it("shade { sphere: false, dayNight: false }: just the body + two rings", () => {
+    const svg = createSvg();
+    renderSaturn(svg, 520, 300, saturn, { sphere: false, dayNight: false });
+    expect(svg.querySelectorAll("circle").length).toBe(3);
+    expect(svg.querySelector('circle[clip-path="url(#saturn-shadow)"]')).toBeNull();
+    expect(svg.querySelector('circle[fill="url(#sphere-3d)"]')).toBeNull();
   });
 });
 
-describe("renderSphereShadeDef", () => {
-  it("appends a <defs> with one horizontal <linearGradient id='sphere-shade'>: dark anti-sunward limb, terminator mid, soft highlight sunward", () => {
+describe("renderSphere3dDef", () => {
+  it("appends a <defs> with one centred <radialGradient id='sphere-3d'>: bright centre, dark rim", () => {
     const svg = createSvg();
-    renderSphereShadeDef(svg);
+    renderSphere3dDef(svg);
 
-    const defs = svg.querySelector("defs");
-    expect(defs).not.toBeNull();
-
-    const grad = defs.querySelectorAll("linearGradient#sphere-shade");
+    const grad = svg.querySelectorAll("defs radialGradient#sphere-3d");
     expect(grad.length).toBe(1);
 
-    // Horizontal gradient: local +x is the lit side, −x the anti-sunward side.
-    expect(grad[0].getAttribute("x1")).toBe("0");
-    expect(grad[0].getAttribute("x2")).toBe("1");
-    expect(grad[0].getAttribute("y1")).toBe(grad[0].getAttribute("y2"));
+    // Centred — no offset focal point.
+    expect(grad[0].getAttribute("cx")).toBe("0.5");
+    expect(grad[0].getAttribute("cy")).toBe("0.5");
+    expect(grad[0].getAttribute("fx")).toBeNull();
 
     const stops = Array.from(grad[0].querySelectorAll("stop"));
     expect(stops.length).toBeGreaterThanOrEqual(3);
-
-    // First stop (x=0) is the darkest — the anti-sunward limb.
-    expect(stops[0].getAttribute("stop-color")).toBe("#05070c");
-    expect(Number(stops[0].getAttribute("stop-opacity"))).toBeGreaterThan(0.3);
-
-    // Last stop (x=1) is the soft sunward highlight.
-    expect(stops[stops.length - 1].getAttribute("stop-color")).toBe("#ffffff");
-    expect(Number(stops[stops.length - 1].getAttribute("stop-opacity"))).toBeLessThan(0.3);
-
-    // A near-transparent stop sits around the middle — the terminator through the disc centre.
-    const mid = stops.find((s) => {
-      const off = Number.parseFloat(s.getAttribute("offset"));
-      return off > 40 && off < 60;
-    });
-    expect(mid).toBeDefined();
-    expect(Number(mid.getAttribute("stop-opacity"))).toBeLessThan(0.15);
+    // Bright highlight at the centre.
+    expect(stops[0].getAttribute("stop-color")).toBe("#ffffff");
+    // Dark at the rim, but translucent — not black.
+    expect(stops[stops.length - 1].getAttribute("stop-color")).toBe("#05070c");
+    const rim = Number(stops[stops.length - 1].getAttribute("stop-opacity"));
+    expect(rim).toBeGreaterThan(0);
+    expect(rim).toBeLessThan(1);
   });
 
   it("reuses the existing <defs> rather than adding a second one", () => {
     const svg = createSvg();
     renderSunHalo(svg);
-    renderSphereShadeDef(svg);
+    renderSphere3dDef(svg);
     expect(svg.querySelectorAll("defs").length).toBe(1);
   });
 });
 
-describe("renderSphereShade", () => {
-  it("wraps a url(#sphere-shade) circle in a group rotated to aim the lit side at CENTER", () => {
+describe("renderSphere3d", () => {
+  it("appends a plain circle filled with the centred gradient — no rotation group", () => {
     const svg = createSvg();
-    renderSphereShade(svg, 520, 300, 13);
+    renderSphere3d(svg, 520, 300, 13);
 
-    const group = svg.querySelector("g");
-    expect(group).not.toBeNull();
-
-    const rotateMatch = group.getAttribute("transform").match(/rotate\(\s*(-?\d+(?:\.\d+)?)/);
-    expect(rotateMatch).not.toBeNull();
-    const expectedDeg = (Math.atan2(CENTER - 300, CENTER - 520) * 180) / Math.PI;
-    expect(Math.abs(Number(rotateMatch[1]) - expectedDeg)).toBeLessThan(1e-6);
-
-    const circle = group.querySelector("circle");
+    expect(svg.querySelector("g")).toBeNull();
+    const circle = svg.querySelector("circle");
     expect(circle.getAttribute("cx")).toBe("520");
     expect(circle.getAttribute("cy")).toBe("300");
     expect(circle.getAttribute("r")).toBe("13");
-    expect(circle.getAttribute("fill")).toBe("url(#sphere-shade)");
+    expect(circle.getAttribute("fill")).toBe("url(#sphere-3d)");
   });
 
   it("is a no-op for a body at CENTER (the Sun)", () => {
     const svg = createSvg();
-    renderSphereShade(svg, CENTER, CENTER, 16);
+    renderSphere3d(svg, CENTER, CENTER, 16);
     expect(svg.childNodes.length).toBe(0);
   });
 });

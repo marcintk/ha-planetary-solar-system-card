@@ -6,23 +6,26 @@ index.
 
 <!-- ponytail: single file; split by area if it outgrows one screen-scroll -->
 
-## Per-body directional gradient in SVG without a `<defs>` entry per body
+## Don't fold two visual switches into one enum — and keep the sphere look off the Sun vector
 
-- **Root cause:** #199 slice 5 wanted every body shaded as a lit sphere — a gradient whose bright
-  side faces the Sun, so the direction differs per body. The obvious build is one
-  `<radialGradient gradientUnits="userSpaceOnUse">` per body (unique id, `<defs>` round-trip), ~10×
-  a frame on a fully-rebuilt SVG — the same cost the flat-wash slices had explicitly refused.
-- **Guardrail:** one shared gradient in the default `objectBoundingBox` units, then per body a
-  `<g transform="rotate(θ x y)">` wrapping the overlay `<circle fill="url(#sphere-shade)">`, where
-  `θ = atan2(CENTER − y, CENTER − x)`. An objectBoundingBox gradient is painted in the element's
-  pre-transform local box, so rotating the group rotates the gradient with it — one def orients
-  itself for every body. Reach for a shared bounding-box paint server + a wrapper transform before
-  minting per-instance gradient ids.
-- **Follow-on (slice 6):** the shape started as an offset `<radialGradient fx="0.72">` and read as a
-  small anti-sunward crescent — the light/dark midpoint off the disc centre. A side-lit sphere seen
-  top-down splits exactly in half; that is a horizontal `<linearGradient x1=0 x2=1>` with the
-  transparent stop at the midpoint (terminator at `x = 0.5`), not a radial one. Use linear for a
-  centred terminator; an offset radial only ever gives a crescent.
+- **Root cause:** #199 grew a `display: 2d|3d` and a `shading: on|off` control. Slices 5–7 built the
+  3d look as a Sun-facing gradient and collapsed both switches into one `ShadeMode`
+  (`none|flat|sphere`). That (a) tied `display` to `shading` — you couldn't have a flat disc with
+  day/night, or a 3d ball with no terminator — and (b) forced a per-body directional gradient: slice
+  5's offset `<radialGradient fx="0.72">` read as a lopsided crescent, slice 6's rotated
+  `<linearGradient>` needed a per-body `<g transform="rotate(atan2(CENTER−y,CENTER−x))">`.
+- **Guardrail:** the two switches are orthogonal — model them as
+  `ShadeOptions { sphere: boolean; dayNight: boolean }`, derived independently
+  (`sphere = display !== "2d"`, `dayNight = shading !== false`), and let each renderer do
+  `if (shade.sphere) …; if (shade.dayNight) …`. The `3d` ball look has no reason to track the Sun: a
+  **centred** `<radialGradient cx=.5 cy=.5 r=.5>` (bright centre → dark rim) is radially symmetric,
+  so it drops the per-body id, the `userSpaceOnUse` maths, and the rotation `<g>` entirely — one
+  def, a plain `<circle fill="url(#sphere-3d)">`. The Sun-dependent part (day/night) stays the flat
+  translucent `darkD` half-disc.
+- **Salvage:** if you ever _do_ need a per-body directional gradient, the cheap way is still one
+  shared `objectBoundingBox` gradient + a wrapper `<g transform="rotate(θ x y)">` — the gradient is
+  painted in the element's pre-transform box, so the group rotation carries it. Just don't reach for
+  it when a symmetric gradient will do.
 - **Ref:** [#199](https://github.com/marcintk/ha-planetary-solar-system-card/issues/199) ·
   2026-08-30
 
@@ -50,10 +53,10 @@ index.
 - **Guardrail:** the fix that landed and then unified the whole feature was a **translucent overlay
   layer** — one `renderBodyShadow()` that washes the anti-sunward half dark
   (`fill="#05070c" fill-opacity="0.45"`), the SVG cousin of the gallery's `mix-blend-mode: color`
-  tint (`.gallery-thumb-tint`). Lone bodies started as a translucent `darkD` half-disc path (slice 5
-  replaced that with the `#sphere-shade` gradient overlay — see the entry above); Saturn stays a
-  `<clipPath>` band over body + rings. When a shading/tint effect keeps reading wrong, reach for an
-  overlay wash before iterating the geometry again.
+  tint (`.gallery-thumb-tint`). Lone bodies use the translucent `darkD` half-disc path (slices 5–6
+  briefly tried a gradient, slice 8 reverted — see the entry above); Saturn is a `<clipPath>` band
+  over body + rings. When a shading/tint effect keeps reading wrong, reach for an overlay wash
+  before iterating the geometry again.
 - **Ref:** [#199](https://github.com/marcintk/ha-planetary-solar-system-card/issues/199) ·
   2026-08-30
 

@@ -1,6 +1,6 @@
 import type { TemplateResult } from "lit";
 import { html, LitElement, nothing } from "lit";
-import type { CardConfig, Colors, HASSConfig, ShadeMode } from "../types.js";
+import type { CardConfig, Colors, HASSConfig, ShadeOptions } from "../types.js";
 import { parseCardConfig } from "./card-config.js";
 import { cardStyles } from "./card-styles.js";
 import { buildGalleryCaption, buildStatusBarView, discStyle } from "./card-template.js";
@@ -60,7 +60,7 @@ export class SolarViewCard extends LitElement {
   private _colors: Colors;
   private _refreshMs: number;
   private _eclipticView: boolean;
-  private _shadeMode: ShadeMode;
+  private _shade: ShadeOptions;
   private _theme: "auto" | "dark" | "light";
   private _heightStyle: string;
   private _solarView: SolarView;
@@ -84,7 +84,7 @@ export class SolarViewCard extends LitElement {
     this._colors = {};
     this._refreshMs = 60000;
     this._eclipticView = false;
-    this._shadeMode = "sphere";
+    this._shade = { sphere: true, dayNight: true };
     this._theme = "auto";
     this._heightStyle = "";
     this._solarView = new SolarView(this._zoom);
@@ -110,7 +110,7 @@ export class SolarViewCard extends LitElement {
     this._colors = parsed.colors;
     this._theme = parsed.theme;
     this._eclipticView = parsed.eclipticView;
-    this._shadeMode = parsed.shadeMode;
+    this._shade = parsed.shade;
     this._location.configure(parsed.locationOverride, parsed.locationNameOverride);
     this._heightStyle = parsed.heightStyle;
     this._galleryPosition = parsed.galleryPosition;
@@ -279,7 +279,7 @@ export class SolarViewCard extends LitElement {
         this._location.data,
         this._colors,
         this._eclipticView,
-        this._shadeMode
+        this._shade
       );
     }
 

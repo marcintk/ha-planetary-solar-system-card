@@ -22,29 +22,35 @@ describe("parseCardConfig", () => {
       gallerySources: ["mymoon"],
       galleryIntervalMs: 60000,
       mymoonTint: false,
-      shadeMode: "sphere",
+      shade: { sphere: true, dayNight: true },
     });
   });
 
-  describe("shadeMode", () => {
-    it("defaults to 'sphere' (shading on, display 3d)", () => {
-      expect(parseCardConfig({}).shadeMode).toBe("sphere");
-      expect(parseCardConfig({ shading: true, display: "3d" }).shadeMode).toBe("sphere");
+  describe("shade", () => {
+    it("defaults to both on (display 3d, shading true)", () => {
+      expect(parseCardConfig({}).shade).toEqual({ sphere: true, dayNight: true });
+      expect(parseCardConfig({ shading: true, display: "3d" }).shade).toEqual({
+        sphere: true,
+        dayNight: true,
+      });
     });
-    it("is 'flat' when shading is on but display is 2d", () => {
-      expect(parseCardConfig({ display: "2d" }).shadeMode).toBe("flat");
-      expect(parseCardConfig({ shading: true, display: "2d" }).shadeMode).toBe("flat");
+    it("display: 2d turns sphere off but leaves dayNight independent", () => {
+      expect(parseCardConfig({ display: "2d" }).shade).toEqual({ sphere: false, dayNight: true });
+      expect(parseCardConfig({ display: "2d", shading: false }).shade).toEqual({
+        sphere: false,
+        dayNight: false,
+      });
     });
-    it("is 'none' when shading is false, regardless of display", () => {
-      expect(parseCardConfig({ shading: false }).shadeMode).toBe("none");
-      expect(parseCardConfig({ shading: false, display: "3d" }).shadeMode).toBe("none");
-      expect(parseCardConfig({ shading: false, display: "2d" }).shadeMode).toBe("none");
+    it("shading: false turns dayNight off but leaves sphere independent", () => {
+      expect(parseCardConfig({ shading: false }).shade).toEqual({ sphere: true, dayNight: false });
+      expect(parseCardConfig({ shading: false, display: "3d" }).shade).toEqual({
+        sphere: true,
+        dayNight: false,
+      });
     });
-    it("only shading === false counts as off (undefined stays on)", () => {
-      expect(parseCardConfig({ shading: undefined }).shadeMode).toBe("sphere");
-    });
-    it("an unrecognised display value falls back to 3d", () => {
-      expect(parseCardConfig({ display: "flat" as never }).shadeMode).toBe("sphere");
+    it("only the exact off values count — undefined / unknown stay on", () => {
+      expect(parseCardConfig({ shading: undefined }).shade.dayNight).toBe(true);
+      expect(parseCardConfig({ display: "flat" as never }).shade.sphere).toBe(true);
     });
   });
 

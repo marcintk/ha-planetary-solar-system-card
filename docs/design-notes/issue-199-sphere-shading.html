@@ -290,7 +290,7 @@
   <div class="meta">
     <span class="badge">approved</span>
     <span>Issue: <a href="https://github.com/marcintk/ha-planetary-solar-system-card/issues/199">#199</a></span>
-    <span>Slices: 7</span>
+    <span>Slices: 8</span>
     <span>Area: src/renderer</span>
   </div>
 
@@ -659,6 +659,54 @@ export function renderBodyShadow(
     </ul>
     <p style="font-size:0.9rem;color:var(--ink-soft);margin:0.6rem 0 0">
       <strong>Shipped:</strong> as designed. 1237 tests, 100% coverage; typecheck + biome +
+      prettier green.
+    </p>
+    <p style="font-size:0.88rem;color:var(--ink-faint);margin:0.4rem 0 0">
+      <em>Reworked by slice 8:</em> the collapsed <code>ShadeMode</code> enum forced
+      <code>display</code> to only matter when <code>shading</code> was on. Slice 8 makes the two
+      axes independent and redefines each.
+    </p>
+  </div>
+
+  <div class="box">
+    <h3>Slice 8 &mdash; separate the two axes <span style="color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:0.7rem;letter-spacing:0.1em">&nbsp;ACCEPTED</span></h3>
+    <p style="font-size:0.92rem;color:var(--ink-soft)">
+      <code>display</code> and <code>shading</code> are orthogonal &mdash; all four combinations
+      are valid &mdash; and each does one thing:
+    </p>
+    <ul>
+      <li><strong><code>display: 2d | 3d</code></strong> &mdash; pure geometry, no Sun. <code>2d</code>
+        is a flat disc. <code>3d</code> overlays <code>renderSphere3d</code>: a plain
+        <code>&lt;circle fill="url(#sphere-3d)"&gt;</code> where <code>#sphere-3d</code> is a
+        <em>centred</em> <code>&lt;radialGradient cx=.5 cy=.5 r=.5&gt;</code> (white 0.1 centre
+        &rarr; transparent &rarr; <code>#05070c</code> 0.3 rim). No focal offset, no rotation
+        &mdash; radially symmetric, so one def, no <code>&lt;g&gt;</code>.</li>
+      <li><strong><code>shading: true</code></strong> &mdash; the astronomical day/night.
+        <code>renderBodyShadow</code> is back to the flat <code>darkD</code> half-disc
+        (<code>#05070c</code> @ 0.45): a distinct straight terminator down the body's centre,
+        the dark side darker but not black. Screen-space Sun vector, no
+        <code>eclipticViewDirection</code>. Still also gates the Sun halo and Saturn's clipped
+        ring band.</li>
+      <li><code>ShadeMode</code> &rarr; <code>ShadeOptions { sphere: boolean; dayNight: boolean }</code>
+        in <code>types.ts</code>. <code>parseCardConfig</code>:
+        <code>sphere = display !== "2d"</code>, <code>dayNight = shading !== false</code> &mdash;
+        independent. <code>renderBody</code> / <code>renderSaturn</code> / <code>renderCometBody</code>
+        each do <code>if (shade.sphere) renderSphere3d(&hellip;)</code> then
+        <code>if (shade.dayNight) renderBodyShadow(&hellip;)</code>.</li>
+      <li>The offset-radial (slice 5) and linear (slice 6) <code>#sphere-shade</code> gradients
+        and <code>renderSphereShade</code>'s per-body rotation <code>&lt;g&gt;</code> are gone
+        &mdash; <code>#sphere-3d</code> is symmetric so it needs neither.</li>
+      <li><strong>Red tests:</strong> <code>bodies.test.ts</code> &mdash; <code>renderSphere3dDef</code>
+        (centred, no <code>fx</code>), <code>renderSphere3d</code> (plain circle, no group),
+        <code>renderBodyShadow</code> (half-disc <code>darkD</code> again), per-<code>shade</code>
+        combos on <code>renderBody</code>/<code>renderSaturn</code>. <code>index.test.ts</code>
+        &mdash; the four <code>{sphere, dayNight}</code> combinations, each asserting halo /
+        <code>#sphere-3d</code> / ball count / <code>#05070c</code> half-disc paths / Saturn band.
+        <code>card-config.test.ts</code> &mdash; the independent derivation.
+        <code>solar-view.test.ts</code> &mdash; <code>mount</code> forwards the object.</li>
+    </ul>
+    <p style="font-size:0.9rem;color:var(--ink-soft);margin:0.6rem 0 0">
+      <strong>Shipped:</strong> as designed. 1242 tests, 100% coverage; typecheck + biome +
       prettier green.
     </p>
   </div>

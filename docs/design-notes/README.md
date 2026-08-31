@@ -14,12 +14,11 @@ has a rendered URL — link to that, since GitHub shows `.html` as source, not r
   achromatic-blend pitfall found while researching
   [#177](https://github.com/marcintk/ha-planetary-solar-system-card/issues/177)/[#178](https://github.com/marcintk/ha-planetary-solar-system-card/issues/178).
 - [Body shading & Sun halo](https://marcintk.github.io/ha-planetary-solar-system-card/design-notes/issue-199-sphere-shading.html)
-  — _approved_ ([#199](https://github.com/marcintk/ha-planetary-solar-system-card/issues/199)) — a
-  translucent anti-sunward shadow layer (`renderBodyShadow`) applied the same way to every planet,
-  the Moon, comet heads and Saturn's rings, then resolved into a spherical read: one shared
-  `#sphere-shade` linear-terminator gradient (slice 6; slice 5's offset radial gave a crescent)
-  rotated per body toward the Sun, Saturn included; the screen-space reason it needs no
-  `eclipticViewDirection`; a static radial Sun halo (retuned tighter/dimmer) with a
-  `docs/halo-tune.html` slider harness; a subtle palette nudge toward real planet tones; and
-  (slice 7) `shading: true|false` + `display: 2d|3d` config, collapsed to one `ShadeMode` enum.
-  Explain-diff: —.
+  — _approved_ ([#199](https://github.com/marcintk/ha-planetary-solar-system-card/issues/199)) — two
+  independent body-render switches (slice 8, after slices 5–7 tried a Sun-facing gradient and one
+  collapsed enum): `display: 2d|3d` — flat disc vs. a centred `#sphere-3d` ball gradient, no Sun
+  involved — and `shading: true|false` — the astronomical day/night as a flat translucent `darkD`
+  half-disc (distinct terminator), plus the anti-sunward band across Saturn's rings and the Sun
+  halo. Also the screen-space reason day/night needs no `eclipticViewDirection`; a retuned
+  tighter/dimmer Sun halo with a `docs/halo-tune.html` slider harness; and a palette nudge toward
+  real planet tones. Explain-diff: —.

@@ -56,11 +56,17 @@ export interface Colors {
 export type ZoomLevel = 1 | 2 | 3 | 4;
 export type Hemisphere = "north" | "south";
 
-// How bodies are shaded against the Sun. "none": flat discs, no Sun halo, no Saturn ring
-// shadow (config `shading: false`). "flat": halo + Saturn ring shadow on, bodies stay flat
-// discs (`shading: true`, `display: 2d`). "sphere": as flat, plus the linear terminator
-// gradient on every body (`shading: true`, `display: 3d` — the default).
-export type ShadeMode = "none" | "flat" | "sphere";
+// Two independent switches for how bodies are drawn.
+export interface ShadeOptions {
+  // config `display: "3d"` (default) — draw each body as a ball: a radial gradient centred on
+  // the disc, bright centre fading to a darker rim. Pure geometry, no Sun direction. `"2d"`
+  // leaves bodies as flat discs.
+  sphere: boolean;
+  // config `shading: true` (default) — overlay the astronomical day/night terminator: a
+  // translucent dark layer over the anti-sunward hemisphere with a distinct straight edge, and
+  // draw the Sun halo + Saturn's ring shadow. `false` turns all three off.
+  dayNight: boolean;
+}
 
 export interface ViewPosition {
   name: string;

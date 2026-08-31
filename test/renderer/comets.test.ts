@@ -212,7 +212,7 @@ describe("renderCometBody", () => {
   const sunX = CENTER;
   const sunY = CENTER;
 
-  it("renders the head as a plain circle plus one rotated sphere-shade overlay group", () => {
+  it("renders the head as a plain circle plus the #sphere-3d ball and the day/night half-disc", () => {
     const svg = createSvg();
     renderCometBody(svg, bodyX, bodyY, halley, sunX, sunY);
 
@@ -223,30 +223,31 @@ describe("renderCometBody", () => {
     expect(Number(circle.getAttribute("r"))).toBeCloseTo(halley.size, 6);
     expect(circle.getAttribute("fill")).toBe(halley.color);
 
-    expect(svg.querySelector("path")).toBeNull();
+    expect(svg.querySelector("g")).toBeNull();
+    const ball = svg.querySelector('circle[fill="url(#sphere-3d)"]');
+    expect(ball).not.toBeNull();
+    expect(Number(ball.getAttribute("r"))).toBeCloseTo(halley.size, 6);
 
-    const overlay = svg.querySelector('g circle[fill="url(#sphere-shade)"]');
-    expect(overlay).not.toBeNull();
-    expect(Number(overlay.getAttribute("r"))).toBeCloseTo(halley.size, 6);
+    const shadow = svg.querySelector("path");
+    expect(shadow.getAttribute("fill")).toBe("#05070c");
+    expect(shadow.getAttribute("d")).toContain(`A ${halley.size} ${halley.size}`);
   });
 
-  it("comet off to one side of the Sun: the sphere-shade lit side and the tail both resolve anti-sunward", () => {
+  it("comet off to one side of the Sun: the day/night half-disc and the tail both point anti-sunward", () => {
     const svg = createSvg();
     // Comet placed cleanly to the right of the Sun; anti-sunward direction is +x.
     const cometX = sunX + 200;
     const cometY = sunY;
     renderCometBody(svg, cometX, cometY, halley, sunX, sunY);
 
-    expect(svg.querySelector("path")).toBeNull();
+    const shadow = svg.querySelector("path");
+    expect(shadow.getAttribute("fill")).toBe("#05070c");
+    // darkD half-disc bulges away from the Sun: its endpoints span x = cometX, its arc reaches +x.
+    const xs = (shadow.getAttribute("d").match(/-?\d+(?:\.\d+)?/g) ?? []).map(Number);
+    // d = "M x1 y1 A r r 0 0 sweep x2 y2 Z" — both diameter endpoints sit at x = cometX.
+    expect(xs[0]).toBeCloseTo(cometX, 6);
+    expect(xs[7]).toBeCloseTo(cometX, 6);
 
-    const group = svg.querySelector("g");
-    const rotateMatch = group.getAttribute("transform").match(/rotate\(\s*(-?\d+(?:\.\d+)?)/);
-    expect(rotateMatch).not.toBeNull();
-    // Lit local +x rotated by this angle must point from the comet toward the Sun (−x here).
-    const deg = Number(rotateMatch[1]);
-    expect(Math.abs(Math.cos((deg * Math.PI) / 180) - -1)).toBeLessThan(1e-6);
-
-    // Tail points anti-sunward (+x), opposite the lit side.
     const line = svg.querySelector("line");
     expect(Number(line.getAttribute("x2"))).toBeGreaterThan(cometX);
   });
@@ -358,7 +359,7 @@ describe("renderCometBody", () => {
     const children = Array.from(svg.children);
     const lineIdx = children.findIndex((el) => el.tagName === "line");
     const circleIdx = children.findIndex((el) => el.tagName === "circle");
-    const shadowIdx = children.findIndex((el) => el.tagName === "g");
+    const shadowIdx = children.findIndex((el) => el.tagName === "path");
     const textIdx = children.findIndex((el) => el.tagName === "text");
     expect(lineIdx).toBeGreaterThanOrEqual(0);
     expect(lineIdx).toBeLessThan(circleIdx);

@@ -30,7 +30,7 @@ describe("SolarView.mount", () => {
     expect(container.children.length).toBe(1);
   });
 
-  it("forwards shadeMode to the renderer — 'none' drops the Sun halo and all body shading", () => {
+  it("forwards shade options to the renderer — both off drops the halo and all body shading", () => {
     const zoom = new ZoomController(
       () => {},
       () => {}
@@ -39,18 +39,23 @@ describe("SolarView.mount", () => {
     zoom.ensureInitialized();
     const view = new SolarView(zoom);
     const container = document.createElement("div");
-    view.mount(container, new Date("2026-08-16T12:00:00Z"), "north", null, {}, false, "none");
+    view.mount(container, new Date("2026-08-16T12:00:00Z"), "north", null, {}, false, {
+      sphere: false,
+      dayNight: false,
+    });
 
     const svg = container.querySelector("svg") as SVGSVGElement;
     expect(svg.querySelector("#sun-halo-glow")).toBeNull();
-    expect(svg.querySelector('circle[fill="url(#sphere-shade)"]')).toBeNull();
+    expect(svg.querySelector('circle[fill="url(#sphere-3d)"]')).toBeNull();
+    expect(svg.querySelector('path[fill="#05070c"]')).toBeNull();
   });
 
-  it("defaults shadeMode to the 3d sphere treatment when the arg is omitted", () => {
+  it("defaults shade to both-on (3d ball + day/night) when the arg is omitted", () => {
     const { container } = mountedView();
     const svg = container.querySelector("svg") as SVGSVGElement;
     expect(svg.querySelector("#sun-halo-glow")).not.toBeNull();
-    expect(svg.querySelector('g > circle[fill="url(#sphere-shade)"]')).not.toBeNull();
+    expect(svg.querySelector('circle[fill="url(#sphere-3d)"]')).not.toBeNull();
+    expect(svg.querySelector('path[fill="#05070c"]')).not.toBeNull();
   });
 });
 

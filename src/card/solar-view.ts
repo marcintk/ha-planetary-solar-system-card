@@ -1,5 +1,5 @@
 import { renderSolarSystem } from "../renderer/index.js";
-import type { Colors, Hemisphere, LocationData, PanZoomState, ShadeMode } from "../types.js";
+import type { Colors, Hemisphere, LocationData, PanZoomState, ShadeOptions } from "../types.js";
 import type { ZoomController } from "./zoom-controller.js";
 
 /**
@@ -27,7 +27,7 @@ export class SolarView {
     locationData: LocationData | null,
     colors: Colors,
     eclipticView: boolean,
-    shadeMode: ShadeMode = "sphere"
+    shade: ShadeOptions = { sphere: true, dayNight: true }
   ): void {
     while (container.firstChild) container.removeChild(container.firstChild);
     const { svg, updateMarkers, updateHalo } = renderSolarSystem(
@@ -36,7 +36,7 @@ export class SolarView {
       locationData,
       colors,
       eclipticView,
-      shadeMode
+      shade
     );
     this._svg = svg;
     this._updateMarkers = updateMarkers;

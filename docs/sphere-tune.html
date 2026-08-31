@@ -87,20 +87,20 @@
 
   <div class="panel">
     <div class="row">
-      <label>Hotspot opacity — stop 0%<b id="v-hi">0.22</b></label>
-      <input type="range" id="s-hi" min="0" max="0.6" step="0.01" value="0.22" />
+      <label>Hotspot opacity — stop 0%<b id="v-hi">0.60</b></label>
+      <input type="range" id="s-hi" min="0" max="1" step="0.01" value="0.6" />
     </div>
     <div class="row">
-      <label>Hotspot size — white fades out at<b id="v-hisize">36%</b></label>
-      <input type="range" id="s-hisize" min="10" max="70" step="1" value="36" />
+      <label>Hotspot size — white fades out at<b id="v-hisize">70%</b></label>
+      <input type="range" id="s-hisize" min="10" max="95" step="1" value="70" />
     </div>
     <div class="row">
-      <label>Rim ramp starts at<b id="v-rimstart">82%</b></label>
-      <input type="range" id="s-rimstart" min="40" max="98" step="1" value="82" />
+      <label>Rim ramp starts at<b id="v-rimstart">98%</b></label>
+      <input type="range" id="s-rimstart" min="40" max="99" step="1" value="98" />
     </div>
     <div class="row">
-      <label>Rim opacity — stop 100%<b id="v-rim">0.44</b></label>
-      <input type="range" id="s-rim" min="0" max="0.8" step="0.01" value="0.44" />
+      <label>Rim opacity — stop 100%<b id="v-rim">0.80</b></label>
+      <input type="range" id="s-rim" min="0" max="1" step="0.01" value="0.8" />
     </div>
     <div class="actions">
       <button id="btn-reset">Reset to current</button>
@@ -125,7 +125,7 @@
     };
 
     // Committed defaults (src/renderer/bodies.ts).
-    const DEFAULTS = { hi: 0.22, hisize: 36, rimstart: 82, rim: 0.44 };
+    const DEFAULTS = { hi: 0.6, hisize: 70, rimstart: 98, rim: 0.8 };
     const MID_OPACITY = 0.05; // the soft anchor where the rim ramp begins
     const HI = "#ffffff";
     const DARK = "#05070c";

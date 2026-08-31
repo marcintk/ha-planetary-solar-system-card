@@ -51,10 +51,10 @@ export function renderSunHalo(svg: SVGElement): void {
 
 /**
  * One shared paint server for the `display: 3d` ball look: a radial gradient centred on the
- * disc (objectBoundingBox units, focal point = centre) — a tight bright hotspot, then a long
- * darkening ramp to a distinctly dark rim, so even a pale body reads as a sphere. Pure
- * geometry — no Sun direction, so it needs no per-body transform and one def serves every
- * body, the Sun included. Call once, before the bodies.
+ * disc (objectBoundingBox units, focal point = centre) — a broad soft highlight over most of
+ * the face, then a thin near-opaque dark limb in the last ~2%, so the body reads as a lit
+ * sphere with a crisp edge. Pure geometry — no Sun direction, so it needs no per-body
+ * transform and one def serves every body, the Sun included. Call once, before the bodies.
  */
 export function renderSphere3dDef(svg: SVGElement): void {
   const defs =
@@ -69,10 +69,10 @@ export function renderSphere3dDef(svg: SVGElement): void {
     grad.appendChild(
       createSvgElement("stop", { offset, "stop-color": color, "stop-opacity": opacity })
     );
-  stop("0%", "#ffffff", "0.22");
-  stop("36%", "#ffffff", "0");
-  stop("82%", SHADOW_FILL, "0.05");
-  stop("100%", SHADOW_FILL, "0.44");
+  stop("0%", "#ffffff", "0.6");
+  stop("70%", "#ffffff", "0");
+  stop("98%", SHADOW_FILL, "0.05");
+  stop("100%", SHADOW_FILL, "0.8");
   defs.appendChild(grad);
 }
 

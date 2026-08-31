@@ -718,12 +718,12 @@ export function renderBodyShadow(
       had no roundness at all (a <code>CENTER</code> guard skipped it).
     </p>
     <ul>
-      <li><code>#sphere-3d</code> stops go from
-        <code>white 0.1 &rarr; 0 @48% &rarr; #05070c 0.3 @100%</code> to a tight hotspot, a clean
-        transparent interior, and a thin dark limb:
-        <code>white 0.22 &rarr; 0 @36% &rarr; #05070c 0.05 @82% &rarr; 0.44 @100%</code>. (First
-        tried a wide <code>0.14 @70% &rarr; 0.5</code> ramp — the dark band read as fog on the
-        big outer planets, so the darkening was pulled into the outer ~18%.)</li>
+      <li><code>#sphere-3d</code> stops, tuned on the card via <code>sphere-tune.html</code>:
+        <code>white 0.6 &rarr; 0 @70% &rarr; #05070c 0.05 @98% &rarr; 0.8 @100%</code> &mdash; a
+        broad soft highlight over most of the face, then a thin near-opaque dark limb in the last
+        ~2%, so the edge stays crisp instead of hazy. (Earlier tries: slice 8's faint
+        <code>0.1/0.3</code>; a wide <code>0.14 @70% &rarr; 0.5</code> ramp that fogged the big
+        outer planets because <code>objectBoundingBox</code> scales it with the body.)</li>
       <li><code>renderSphere3d</code> drops its <code>CENTER</code> no-op &mdash; the Sun now gets
         the same gradient (roundness only; <code>renderBodyShadow</code> still no-ops there, so no
         false lit/dark side). Ball-overlay count 10 &rarr; 11.</li>

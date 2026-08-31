@@ -290,7 +290,7 @@
   <div class="meta">
     <span class="badge">approved</span>
     <span>Issue: <a href="https://github.com/marcintk/ha-planetary-solar-system-card/issues/199">#199</a></span>
-    <span>Slices: 8</span>
+    <span>Slices: 9</span>
     <span>Area: src/renderer</span>
   </div>
 
@@ -708,6 +708,33 @@ export function renderBodyShadow(
     <p style="font-size:0.9rem;color:var(--ink-soft);margin:0.6rem 0 0">
       <strong>Shipped:</strong> as designed. 1242 tests, 100% coverage; typecheck + biome +
       prettier green.
+    </p>
+  </div>
+
+  <div class="box">
+    <h3>Slice 9 &mdash; stronger ball, Sun included <span style="color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:0.7rem;letter-spacing:0.1em">&nbsp;ACCEPTED</span></h3>
+    <p style="font-size:0.92rem;color:var(--ink-soft)">
+      Slice 8's <code>#sphere-3d</code> was too faint to read on pale bodies (Venus) and the Sun
+      had no roundness at all (a <code>CENTER</code> guard skipped it).
+    </p>
+    <ul>
+      <li><code>#sphere-3d</code> stops go from
+        <code>white 0.1 &rarr; 0 @48% &rarr; #05070c 0.3 @100%</code> to a tighter hotspot with a
+        longer, darker ramp:
+        <code>white 0.22 &rarr; 0 @38% &rarr; #05070c 0.14 @70% &rarr; 0.5 @100%</code>.</li>
+      <li><code>renderSphere3d</code> drops its <code>CENTER</code> no-op &mdash; the Sun now gets
+        the same gradient (roundness only; <code>renderBodyShadow</code> still no-ops there, so no
+        false lit/dark side). Ball-overlay count 10 &rarr; 11.</li>
+      <li><code>docs/sphere-tune.html</code> &mdash; a live slider harness over the four
+        <code>#sphere-3d</code> stops (hotspot opacity/size, rim ramp start, rim opacity), same
+        pattern as <code>halo-tune.html</code>.</li>
+      <li><strong>Red tests:</strong> <code>bodies.test.ts</code> &mdash; <code>renderSphere3d</code>
+        appends at <code>CENTER</code>; <code>renderBody</code> at <code>CENTER</code> = base disc
+        + ball, still no day/night path. <code>index.test.ts</code> &mdash; ball count 11 across
+        the sphere-on cases.</li>
+    </ul>
+    <p style="font-size:0.9rem;color:var(--ink-soft);margin:0.6rem 0 0">
+      <strong>Shipped:</strong> as designed. 1242 tests, 100% coverage.
     </p>
   </div>
 

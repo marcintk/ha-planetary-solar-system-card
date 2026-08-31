@@ -26,6 +26,10 @@ index.
   shared `objectBoundingBox` gradient + a wrapper `<g transform="rotate(θ x y)">` — the gradient is
   painted in the element's pre-transform box, so the group rotation carries it. Just don't reach for
   it when a symmetric gradient will do.
+- **Follow-on (slice 9):** a translucent centred gradient tuned on a mid-tone body reads as nothing
+  on a pale one (Venus `#e6ca97`) — it needs a tight bright hotspot _and_ a rim that ramps to ~0.5,
+  not ~0.3. And a "3d ball" gradient (roundness, no lit/dark side) is fine on the Sun too — no need
+  to special-case `CENTER` out of it; only the Sun-directional day/night overlay must no-op there.
 - **Ref:** [#199](https://github.com/marcintk/ha-planetary-solar-system-card/issues/199) ·
   2026-08-30
 

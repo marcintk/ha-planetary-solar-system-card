@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sphere (3d) — Tuning Harness</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #111827;
+      color: #e5e7eb;
+      font-family: sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 32px 16px;
+      gap: 20px;
+    }
+    h1 { font-size: 1.25rem; font-weight: 600; color: #f9fafb; }
+    .subtitle {
+      font-size: 0.85rem;
+      color: rgba(255, 255, 255, 0.5);
+      text-align: center;
+      max-width: 460px;
+      line-height: 1.5;
+    }
+    .card-wrapper { width: 420px; max-width: 100%; }
+    ha-planetary-solar-system-card { display: block; width: 100%; }
+    .panel {
+      width: 420px;
+      max-width: 100%;
+      background: #1f2937;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 16px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .row { display: flex; flex-direction: column; gap: 4px; }
+    .row label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      color: rgba(255, 255, 255, 0.75);
+    }
+    .row label b { color: #fbbf24; font-variant-numeric: tabular-nums; }
+    input[type="range"] { width: 100%; accent-color: #fbbf24; }
+    .actions { display: flex; gap: 10px; }
+    button {
+      flex: 1;
+      background: #374151;
+      color: #e5e7eb;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 0.8rem;
+      cursor: pointer;
+    }
+    button:hover { background: #4b5563; }
+    pre {
+      background: #0b1220;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 6px;
+      padding: 12px;
+      font-size: 0.72rem;
+      line-height: 1.5;
+      color: #9ca3af;
+      overflow-x: auto;
+      white-space: pre;
+    }
+    pre b { color: #fbbf24; }
+  </style>
+</head>
+<body>
+  <h1>Sphere (3d) — Tuning Harness</h1>
+  <p class="subtitle">
+    Live-tweak the centred <code>#sphere-3d</code> ball gradient on your real card
+    (Chicago, <code>display: 3d</code>). Sliders re-apply continuously, surviving the
+    card's SVG rebuilds. The box shows the exact <code>src/renderer/bodies.ts</code> stops.
+  </p>
+
+  <div class="card-wrapper">
+    <ha-planetary-solar-system-card id="demo-card"></ha-planetary-solar-system-card>
+  </div>
+
+  <div class="panel">
+    <div class="row">
+      <label>Hotspot opacity — stop 0%<b id="v-hi">0.22</b></label>
+      <input type="range" id="s-hi" min="0" max="0.6" step="0.01" value="0.22" />
+    </div>
+    <div class="row">
+      <label>Hotspot size — white fades out at<b id="v-hisize">38%</b></label>
+      <input type="range" id="s-hisize" min="10" max="70" step="1" value="38" />
+    </div>
+    <div class="row">
+      <label>Rim ramp starts at<b id="v-rimstart">70%</b></label>
+      <input type="range" id="s-rimstart" min="40" max="95" step="1" value="70" />
+    </div>
+    <div class="row">
+      <label>Rim opacity — stop 100%<b id="v-rim">0.50</b></label>
+      <input type="range" id="s-rim" min="0" max="0.8" step="0.01" value="0.5" />
+    </div>
+    <div class="actions">
+      <button id="btn-reset">Reset to current</button>
+      <button id="btn-off">Sphere off</button>
+      <button id="btn-copy">Copy snippet</button>
+    </div>
+    <pre id="out"></pre>
+  </div>
+
+  <script type="module">
+    import "./card.js";
+
+    const card = document.getElementById("demo-card");
+    card.setConfig({ default_zoom: 3, gallery: { mode: "off" }, display: "3d", shading: true });
+    card.hass = {
+      config: {
+        latitude: 41.8781,
+        longitude: -87.6298,
+        time_zone: "America/Chicago",
+        location_name: "Chicago",
+      },
+    };
+
+    // Committed defaults (src/renderer/bodies.ts).
+    const DEFAULTS = { hi: 0.22, hisize: 38, rimstart: 70, rim: 0.5 };
+    const HI = "#ffffff";
+    const DARK = "#05070c";
+
+    const els = {
+      hi: document.getElementById("s-hi"),
+      hisize: document.getElementById("s-hisize"),
+      rimstart: document.getElementById("s-rimstart"),
+      rim: document.getElementById("s-rim"),
+    };
+    const out = document.getElementById("out");
+
+    const state = () => ({
+      hi: parseFloat(els.hi.value),
+      hisize: parseInt(els.hisize.value, 10),
+      rimstart: parseInt(els.rimstart.value, 10),
+      rim: parseFloat(els.rim.value),
+    });
+
+    function deepQuery(root, sel) {
+      const hit = root.querySelector?.(sel);
+      if (hit) return hit;
+      for (const node of root.querySelectorAll?.("*") ?? []) {
+        if (node.shadowRoot) {
+          const inner = deepQuery(node.shadowRoot, sel);
+          if (inner) return inner;
+        }
+      }
+      return null;
+    }
+
+    function applySphere() {
+      const s = state();
+      const grad = deepQuery(card.shadowRoot, "#sphere-3d");
+      if (grad) {
+        const stops = grad.querySelectorAll("stop");
+        // stops: [hotspot, hotspot-end, rim-start, rim]
+        if (stops[0]) {
+          stops[0].setAttribute("offset", "0%");
+          stops[0].setAttribute("stop-color", HI);
+          stops[0].setAttribute("stop-opacity", String(s.hi));
+        }
+        if (stops[1]) {
+          stops[1].setAttribute("offset", s.hisize + "%");
+          stops[1].setAttribute("stop-color", HI);
+          stops[1].setAttribute("stop-opacity", "0");
+        }
+        if (stops[2]) {
+          stops[2].setAttribute("offset", s.rimstart + "%");
+          stops[2].setAttribute("stop-color", DARK);
+          stops[2].setAttribute("stop-opacity", String((s.rim * 0.28).toFixed(3)));
+        }
+        if (stops[3]) {
+          stops[3].setAttribute("offset", "100%");
+          stops[3].setAttribute("stop-color", DARK);
+          stops[3].setAttribute("stop-opacity", String(s.rim));
+        }
+      }
+      renderReadout(s);
+    }
+
+    function renderReadout(s) {
+      document.getElementById("v-hi").textContent = s.hi.toFixed(2);
+      document.getElementById("v-hisize").textContent = s.hisize + "%";
+      document.getElementById("v-rimstart").textContent = s.rimstart + "%";
+      document.getElementById("v-rim").textContent = s.rim.toFixed(2);
+      const mid = (s.rim * 0.28).toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
+      out.innerHTML =
+        `stop("0%",   "${HI}", "<b>${s.hi}</b>");\n` +
+        `stop("${s.hisize}%",  "${HI}", "0");\n` +
+        `stop("${s.rimstart}%",  "${DARK}", "<b>${mid}</b>");\n` +
+        `stop("100%", "${DARK}", "<b>${s.rim}</b>");`;
+    }
+
+    for (const el of Object.values(els)) el.addEventListener("input", applySphere);
+    document.getElementById("btn-reset").addEventListener("click", () => {
+      els.hi.value = DEFAULTS.hi;
+      els.hisize.value = DEFAULTS.hisize;
+      els.rimstart.value = DEFAULTS.rimstart;
+      els.rim.value = DEFAULTS.rim;
+      applySphere();
+    });
+    document.getElementById("btn-off").addEventListener("click", () => {
+      els.hi.value = 0;
+      els.rim.value = 0;
+      applySphere();
+    });
+    document.getElementById("btn-copy").addEventListener("click", () => {
+      navigator.clipboard?.writeText(out.textContent);
+    });
+
+    setInterval(applySphere, 200);
+    applySphere();
+  </script>
+</body>
+</html>

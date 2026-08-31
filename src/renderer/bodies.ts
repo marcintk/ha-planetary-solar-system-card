@@ -51,9 +51,10 @@ export function renderSunHalo(svg: SVGElement): void {
 
 /**
  * One shared paint server for the `display: 3d` ball look: a radial gradient centred on the
- * disc (objectBoundingBox units, focal point = centre), bright centre fading to a darker rim.
- * Pure geometry — no Sun direction, so it needs no per-body transform and one def serves
- * every body. Call once, before the bodies.
+ * disc (objectBoundingBox units, focal point = centre) — a tight bright hotspot, then a long
+ * darkening ramp to a distinctly dark rim, so even a pale body reads as a sphere. Pure
+ * geometry — no Sun direction, so it needs no per-body transform and one def serves every
+ * body, the Sun included. Call once, before the bodies.
  */
 export function renderSphere3dDef(svg: SVGElement): void {
   const defs =
@@ -68,19 +69,19 @@ export function renderSphere3dDef(svg: SVGElement): void {
     grad.appendChild(
       createSvgElement("stop", { offset, "stop-color": color, "stop-opacity": opacity })
     );
-  stop("0%", "#ffffff", "0.1");
-  stop("48%", "#ffffff", "0");
-  stop("100%", SHADOW_FILL, "0.3");
+  stop("0%", "#ffffff", "0.22");
+  stop("38%", "#ffffff", "0");
+  stop("70%", SHADOW_FILL, "0.14");
+  stop("100%", SHADOW_FILL, "0.5");
   defs.appendChild(grad);
 }
 
 /**
  * Overlay a body's plain disc with the centred #sphere-3d gradient so it reads as a ball.
- * No-op at CENTER (the Sun is a light source, not a shaded ball). Needs renderSphere3dDef to
- * have run once on the same SVG.
+ * Applied to every body including the Sun (it only adds roundness, not a lit/dark side).
+ * Needs renderSphere3dDef to have run once on the same SVG.
  */
 export function renderSphere3d(svg: SVGElement, x: number, y: number, r: number): void {
-  if (Math.hypot(x - CENTER, y - CENTER) < 1e-9) return;
   svg.appendChild(createSvgElement("circle", { cx: x, cy: y, r, fill: "url(#sphere-3d)" }));
 }
 

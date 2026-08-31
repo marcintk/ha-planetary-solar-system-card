@@ -208,18 +208,23 @@ describe("renderBody", () => {
     expect(svg.querySelector("path")).toBeNull();
   });
 
-  it("appends a plain circle (no ball, no path) for a body at CENTER, e.g. the Sun", () => {
+  it("body at CENTER (the Sun): base disc + the ball overlay (roundness only), but no day/night path", () => {
     const svg = createSvg();
     renderBody(svg, CENTER, CENTER, SUN, false);
 
+    // No day/night terminator — the Sun has no lit/dark side.
     expect(svg.querySelector("path")).toBeNull();
-    expect(svg.querySelector('circle[fill="url(#sphere-3d)"]')).toBeNull();
 
     const circle = svg.querySelector("circle");
     expect(circle.getAttribute("cx")).toBe(String(CENTER));
     expect(circle.getAttribute("cy")).toBe(String(CENTER));
     expect(circle.getAttribute("r")).toBe(String(SUN.size));
     expect(circle.getAttribute("fill")).toBe(SUN.color);
+
+    // The centred ball gradient still applies — it only adds volume.
+    const ball = svg.querySelector('circle[fill="url(#sphere-3d)"]');
+    expect(ball).not.toBeNull();
+    expect(ball.getAttribute("r")).toBe(String(SUN.size));
   });
 
   it("appends a label text above the circle when showLabel is true", () => {
@@ -467,10 +472,12 @@ describe("renderSphere3d", () => {
     expect(circle.getAttribute("fill")).toBe("url(#sphere-3d)");
   });
 
-  it("is a no-op for a body at CENTER (the Sun)", () => {
+  it("applies at CENTER too (the Sun gets the roundness gradient)", () => {
     const svg = createSvg();
     renderSphere3d(svg, CENTER, CENTER, 16);
-    expect(svg.childNodes.length).toBe(0);
+    const circle = svg.querySelector('circle[fill="url(#sphere-3d)"]');
+    expect(circle).not.toBeNull();
+    expect(circle.getAttribute("r")).toBe("16");
   });
 });
 

@@ -115,15 +115,15 @@ describe("renderSolarSystem", () => {
     expect(following).toBeTruthy();
   });
 
-  it("default shade: one shared #sphere-3d gradient + a ball overlay on every off-Sun body", () => {
+  it("default shade: one shared #sphere-3d gradient + a ball overlay on every body incl. the Sun", () => {
     const container = document.createElement("div");
     renderInto(container, new Date("2026-02-14"));
     const svg = container.querySelector("svg");
 
     expect(svg.querySelectorAll("defs radialGradient#sphere-3d").length).toBe(1);
 
-    // 8 planets (Saturn included) + Moon + Halley head = 10. The Sun at CENTER is a no-op.
-    expect(svg.querySelectorAll('circle[fill="url(#sphere-3d)"]').length).toBe(10);
+    // 8 planets + Moon + Halley head + the Sun = 11.
+    expect(svg.querySelectorAll('circle[fill="url(#sphere-3d)"]').length).toBe(11);
   });
 
   describe("shade options", () => {
@@ -143,13 +143,13 @@ describe("renderSolarSystem", () => {
       expect(svg.querySelector('circle[clip-path="url(#saturn-shadow)"]')).toBeNull();
     });
 
-    it("{ sphere: true, dayNight: false } — balls only: #sphere-3d + 10 overlays, but no halo / day-night / band", () => {
+    it("{ sphere: true, dayNight: false } — balls only: #sphere-3d + 11 overlays, but no halo / day-night / band", () => {
       const { svg } = renderSolarSystem(DATE, "north", null, {}, false, {
         sphere: true,
         dayNight: false,
       });
       expect(svg.querySelector("radialGradient#sphere-3d")).not.toBeNull();
-      expect(svg.querySelectorAll('circle[fill="url(#sphere-3d)"]').length).toBe(10);
+      expect(svg.querySelectorAll('circle[fill="url(#sphere-3d)"]').length).toBe(11);
       expect(svg.querySelector("#sun-halo-glow")).toBeNull();
       expect(dayNightPaths(svg).length).toBe(0);
       expect(svg.querySelector('circle[clip-path="url(#saturn-shadow)"]')).toBeNull();
@@ -167,10 +167,10 @@ describe("renderSolarSystem", () => {
       expect(svg.querySelectorAll('circle[fill="url(#sphere-3d)"]').length).toBe(0);
     });
 
-    it("default (omitted) — everything on: halo, #sphere-3d + 10 balls, Saturn band, half-disc paths", () => {
+    it("default (omitted) — everything on: halo, #sphere-3d + 11 balls, Saturn band, half-disc paths", () => {
       const { svg } = renderSolarSystem(DATE);
       expect(svg.querySelector("#sun-halo-glow")).not.toBeNull();
-      expect(svg.querySelectorAll('circle[fill="url(#sphere-3d)"]').length).toBe(10);
+      expect(svg.querySelectorAll('circle[fill="url(#sphere-3d)"]').length).toBe(11);
       expect(svg.querySelector('circle[clip-path="url(#saturn-shadow)"]')).not.toBeNull();
       expect(dayNightPaths(svg).length).toBeGreaterThan(0);
     });

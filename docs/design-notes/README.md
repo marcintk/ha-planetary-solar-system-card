@@ -24,4 +24,5 @@ has a rendered URL — link to that, since GitHub shows `.html` as source, not r
   band across Saturn's rings and the zoom-aware Sun halo. Also the screen-space reason day/night
   needs no `eclipticViewDirection`, why an SVG gradient couldn't do the 3d ball (the "bake the
   sphere" LESSON), and a palette nudge toward real tones.
-  [Explain-diff](https://marcintk.github.io/ha-planetary-solar-system-card/design-notes/issue-199-explain-diff.html).
+  [Explain-diff](https://marcintk.github.io/ha-planetary-solar-system-card/design-notes/issue-199-explain-diff.html)
+  · [PR #208](https://github.com/marcintk/ha-planetary-solar-system-card/pull/208).

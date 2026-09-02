@@ -122,13 +122,15 @@ a pipeline stall doesn't break the feed.
 
 ### Appearance
 
-| Option          | Type                              | Default   | Description                                                                                                                |
-| --------------- | --------------------------------- | --------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `theme`         | `"auto"` \| `"dark"` \| `"light"` | `"auto"`  | `"auto"` follows the HA theme. `"dark"`/`"light"` forces a built-in background/text pair regardless of the installed theme |
-| `colors`        | object                            | see below | Color overrides (see Colors)                                                                                               |
-| `ecliptic_view` | `"north"` \| `"south"`            | `"north"` | Viewing pole: `"north"` = counter-clockwise orbits; `"south"` = clockwise orbits                                           |
-| `show_version`  | boolean                           | `false`   | Show the card version number in the bottom navigation bar, right-aligned                                                   |
-| `debug`         | boolean                           | `false`   | Show a live overlay of gallery fetch/cache stats per NASA source (refreshes, cache hits, retries, failures)                |
+| Option          | Type                              | Default   | Description                                                                                                                                                                                             |
+| --------------- | --------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `theme`         | `"auto"` \| `"dark"` \| `"light"` | `"auto"`  | `"auto"` follows the HA theme. `"dark"`/`"light"` forces a built-in background/text pair regardless of the installed theme                                                                              |
+| `colors`        | object                            | see below | Color overrides (see Colors)                                                                                                                                                                            |
+| `ecliptic_view` | `"north"` \| `"south"`            | `"north"` | Viewing pole: `"north"` = counter-clockwise orbits; `"south"` = clockwise orbits                                                                                                                        |
+| `display`       | `"2d"` \| `"3d"`                  | `"3d"`    | Body geometry, independent of `shading`. `"3d"` gives each body a centred highlight so it reads as a ball; `"2d"` draws flat discs                                                                      |
+| `shading`       | boolean                           | `true`    | Astronomical day/night: a dark layer over each body's anti-sunward half with a distinct terminator, the anti-sunward shadow across Saturn's rings, and the Sun's glow halo. `false` turns all three off |
+| `show_version`  | boolean                           | `false`   | Show the card version number in the bottom navigation bar, right-aligned                                                                                                                                |
+| `debug`         | boolean                           | `false`   | Show a live overlay of gallery fetch/cache stats per NASA source (refreshes, cache hits, retries, failures)                                                                                             |
 
 ### Colors
 

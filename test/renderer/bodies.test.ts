@@ -1,12 +1,26 @@
 import { describe, expect, it } from "vitest";
-import { PLANETS } from "../../src/astronomy/planet-data.js";
+import { PLANETS, SUN } from "../../src/astronomy/planet-data.js";
 import {
+  HALO_VIEW_FRACTION,
   ORBIT_COLOR,
   renderBody,
+  renderBodyShadow,
   renderOrbit,
-  renderSaturnRings,
+  renderSaturn,
+  renderSphereSprite,
+  renderSunHalo,
+  sunBearing,
 } from "../../src/renderer/bodies.js";
-import { CENTER, radiusFromAU, SVG_NS } from "../../src/renderer/svg-utils.js";
+import {
+  CENTER,
+  radiusFromAU,
+  SVG_NS,
+  terminatorShadowPath,
+  VIEW_SIZE,
+} from "../../src/renderer/svg-utils.js";
+
+const TERMINATOR_BOW = 0.22;
+
 import type { CometVisualEllipse } from "../../src/types.js";
 
 function createSvg() {
@@ -152,19 +166,69 @@ describe("renderOrbit", () => {
   });
 });
 
+// display:3d draws a Lambert sprite <image> tinted by url(#tint-<hex-without-#>).
+const tintRef = (hex) => `url(#tint-${hex.replace(/[^a-z0-9]/gi, "")})`;
+const sprite = (svg, hex) => svg.querySelector(`image[filter="${tintRef(hex)}"]`);
+
 describe("renderBody", () => {
   const earth = PLANETS.find((p) => p.name === "Earth");
 
-  it("appends a circle with correct position, radius, and fill", () => {
+  it("default shade (3d + day/night): a Sun-rotated sprite image, no separate terminator path", () => {
     const svg = createSvg();
     renderBody(svg, 300, 250, earth, false);
 
-    const circle = svg.querySelector("circle");
-    expect(circle).not.toBeNull();
-    expect(circle.getAttribute("cx")).toBe("300");
-    expect(circle.getAttribute("cy")).toBe("250");
-    expect(circle.getAttribute("r")).toBe(String(earth.size));
-    expect(circle.getAttribute("fill")).toBe(earth.color);
+    const img = sprite(svg, earth.color);
+    expect(img).not.toBeNull();
+    expect(img.getAttribute("x")).toBe(String(300 - earth.size));
+    expect(img.getAttribute("y")).toBe(String(250 - earth.size));
+    expect(img.getAttribute("width")).toBe(String(2 * earth.size));
+    expect(img.getAttribute("href")).toMatch(/^data:image\/png;base64,/);
+    // shading on -> the sprite is rotated so its lit side faces the Sun; it carries the
+    // day/night itself, so there is no terminatorShadowPath <path>.
+    const deg = (Math.atan2(CENTER - 250, CENTER - 300) * 180) / Math.PI;
+    expect(img.getAttribute("transform")).toBe(`rotate(${deg} 300 250)`);
+    expect(svg.querySelector("path")).toBeNull();
+    expect(svg.querySelector("defs filter#tint-3f7fc4")).not.toBeNull();
+    expect(svg.querySelector("circle")).toBeNull();
+  });
+
+  it("shade { sphere: false, dayNight: false }: one flat-fill disc, no sprite", () => {
+    const svg = createSvg();
+    renderBody(svg, 300, 250, earth, false, { sphere: false, dayNight: false });
+    expect(svg.querySelectorAll("circle").length).toBe(1);
+    expect(svg.querySelector("circle").getAttribute("fill")).toBe(earth.color);
+    expect(svg.querySelector("image")).toBeNull();
+    expect(svg.querySelector("path")).toBeNull();
+  });
+
+  it("shade { sphere: true, dayNight: false }: the soft (unrotated) sprite, no day/night", () => {
+    const svg = createSvg();
+    renderBody(svg, 300, 250, earth, false, { sphere: true, dayNight: false });
+    const img = sprite(svg, earth.color);
+    expect(img).not.toBeNull();
+    expect(img.getAttribute("transform")).toBeNull();
+    expect(svg.querySelector("path")).toBeNull();
+  });
+
+  it("shade { sphere: false, dayNight: true }: flat disc + the elliptical terminator wash", () => {
+    const svg = createSvg();
+    renderBody(svg, 300, 250, earth, false, { sphere: false, dayNight: true });
+    expect(svg.querySelector("circle").getAttribute("fill")).toBe(earth.color);
+    expect(svg.querySelector("image")).toBeNull();
+    expect(svg.querySelector("path").getAttribute("d")).toBe(
+      terminatorShadowPath(300, 250, earth.size, TERMINATOR_BOW)
+    );
+  });
+
+  it("body at CENTER (the Sun): a flat disc even in 3d — it's a light source, not a lit ball", () => {
+    const svg = createSvg();
+    renderBody(svg, CENTER, CENTER, SUN, false);
+    expect(svg.querySelector("path")).toBeNull();
+    expect(svg.querySelector("image")).toBeNull();
+    const disc = svg.querySelector("circle");
+    expect(disc.getAttribute("fill")).toBe(SUN.color);
+    expect(disc.getAttribute("cx")).toBe(String(CENTER));
+    expect(disc.getAttribute("r")).toBe(String(SUN.size));
   });
 
   it("appends a label text above the circle when showLabel is true", () => {
@@ -200,54 +264,255 @@ describe("renderBody", () => {
   });
 });
 
-describe("renderSaturnRings", () => {
+describe("renderBodyShadow", () => {
+  it("appends one translucent anti-sunward half-disc path (and no circle) for an off-center body", () => {
+    const svg = createSvg();
+    renderBodyShadow(svg, 300, 250, 10);
+
+    expect(svg.querySelector("circle")).toBeNull();
+
+    const paths = Array.from(svg.querySelectorAll("path"));
+    expect(paths.length).toBe(1);
+
+    const [shadow] = paths;
+    expect(shadow.getAttribute("fill")).toBe("#05070c");
+    const op = Number(shadow.getAttribute("fill-opacity"));
+    expect(op).toBe(0.55);
+    // The dark region is terminatorShadowPath's geometry — an anti-sunward wash
+    // bounded by the elliptical terminator.
+    expect(shadow.getAttribute("d")).toBe(terminatorShadowPath(300, 250, 10, TERMINATOR_BOW));
+  });
+
+  it("appends nothing for a body at CENTER (the Sun no-op)", () => {
+    const svg = createSvg();
+    renderBodyShadow(svg, CENTER, CENTER, 12);
+    expect(svg.childNodes.length).toBe(0);
+  });
+
+  // reach > coreR (Saturn): the elliptical terminator on the core disc, plus a body-width
+  // band clipped to a rotated rect and masked to leave the core to the terminator path.
+  it("with reach > coreR, appends the core terminator path plus a clipped + masked ring band", () => {
+    const svg = createSvg();
+    renderBodyShadow(svg, 520, 300, 13, 24);
+
+    // core disc: the same elliptical terminator geometry every lone body gets.
+    const corePath = svg.querySelector("path");
+    expect(corePath).not.toBeNull();
+    expect(corePath.getAttribute("d")).toBe(terminatorShadowPath(520, 300, 13, TERMINATOR_BOW));
+    expect(corePath.getAttribute("fill")).toBe("#05070c");
+
+    const defs = svg.querySelector("defs");
+    expect(defs).not.toBeNull();
+
+    const clip = defs.querySelector("clipPath#saturn-shadow");
+    expect(clip).not.toBeNull();
+    const rects = clip.querySelectorAll("rect");
+    expect(rects.length).toBe(1);
+    const [rect] = rects;
+    expect(rect.getAttribute("width")).toBe("24");
+    expect(rect.getAttribute("height")).toBe("26");
+    expect(rect.getAttribute("y")).toBe("-13");
+
+    const transform = rect.getAttribute("transform");
+    expect(transform).toContain("translate(520 300)");
+    const rotateMatch = transform.match(/rotate\(\s*(-?\d+(?:\.\d+)?)\s*\)/);
+    expect(rotateMatch).not.toBeNull();
+    const expectedDeg = (Math.atan2(300 - CENTER, 520 - CENTER) * 180) / Math.PI;
+    expect(Math.abs(Number(rotateMatch[1]) - expectedDeg)).toBeLessThan(1e-6);
+
+    // mask that punches the core out of the ring band.
+    const mask = defs.querySelector("mask#saturn-core-cut");
+    expect(mask).not.toBeNull();
+    const hole = mask.querySelector("circle");
+    expect(hole.getAttribute("r")).toBe("13");
+    expect(hole.getAttribute("fill")).toBe("#000");
+
+    const overlay = svg.querySelector('circle[clip-path="url(#saturn-shadow)"]');
+    expect(overlay).not.toBeNull();
+    expect(overlay.getAttribute("cx")).toBe("520");
+    expect(overlay.getAttribute("cy")).toBe("300");
+    expect(overlay.getAttribute("r")).toBe("24");
+    // coreShaded=false + no shadeColor here -> the flat #05070c wash.
+    expect(overlay.getAttribute("fill")).toBe("#05070c");
+    expect(overlay.getAttribute("mask")).toBe("url(#saturn-core-cut)");
+
+    const opacity = Number(overlay.getAttribute("fill-opacity"));
+    expect(opacity).toBeGreaterThan(0);
+    expect(opacity).toBeLessThan(1);
+  });
+
+  it("is still a no-op for a body at CENTER even when a reach arg is given", () => {
+    const svg = createSvg();
+    renderBodyShadow(svg, CENTER, CENTER, 13, 24);
+    expect(svg.childNodes.length).toBe(0);
+  });
+});
+
+describe("renderSaturn", () => {
   const saturn = PLANETS.find((p) => p.name === "Saturn");
 
-  it("appends exactly two ring circles", () => {
+  it("draws the core as a Sun-rotated sprite image (r=13 box), centered on x, y", () => {
     const svg = createSvg();
-    renderSaturnRings(svg, 200, 300, saturn);
-    expect(svg.querySelectorAll("circle").length).toBe(2);
+    renderSaturn(svg, 520, 300, saturn);
+
+    const img = sprite(svg, saturn.color);
+    expect(img).not.toBeNull();
+    expect(img.getAttribute("x")).toBe(String(520 - 13));
+    expect(img.getAttribute("width")).toBe(String(2 * 13));
+    expect(img.getAttribute("transform")).toBe(
+      `rotate(${(Math.atan2(CENTER - 300, CENTER - 520) * 180) / Math.PI} 520 300)`
+    );
+    // No plain core circle — the sprite is the core; the only circles are the rings + band.
+    expect(svg.querySelector('circle[fill="#e2c58c"]')).toBeNull();
   });
 
-  it("ring circles have fill: none (stroke-only)", () => {
+  it("appends the two plain lit ring circles (r 23/18, stroke-width 2/6, fill none, Saturn colour @ 0.8)", () => {
     const svg = createSvg();
-    renderSaturnRings(svg, 200, 300, saturn);
-    for (const circle of svg.querySelectorAll("circle")) {
-      expect(circle.getAttribute("fill")).toBe("none");
-    }
-  });
+    renderSaturn(svg, 520, 300, saturn);
 
-  it("ring circles are centered on the given x, y", () => {
-    const svg = createSvg();
-    renderSaturnRings(svg, 200, 300, saturn);
-    for (const circle of svg.querySelectorAll("circle")) {
-      expect(circle.getAttribute("cx")).toBe("200");
-      expect(circle.getAttribute("cy")).toBe("300");
-    }
-  });
+    const rings = svg.querySelectorAll('circle[fill="none"][stroke="#e2c58c"][opacity="0.8"]');
+    expect(rings.length).toBe(2);
 
-  it("outer ring has r=23 and stroke-width=2", () => {
-    const svg = createSvg();
-    renderSaturnRings(svg, 200, 300, saturn);
-    const [outer] = svg.querySelectorAll("circle");
+    const [outer, inner] = rings;
     expect(outer.getAttribute("r")).toBe("23");
     expect(outer.getAttribute("stroke-width")).toBe("2");
-  });
-
-  it("inner ring has r=18 and stroke-width=6", () => {
-    const svg = createSvg();
-    renderSaturnRings(svg, 200, 300, saturn);
-    const rings = svg.querySelectorAll("circle");
-    const inner = rings[1];
     expect(inner.getAttribute("r")).toBe("18");
     expect(inner.getAttribute("stroke-width")).toBe("6");
+    for (const ring of rings) {
+      expect(ring.getAttribute("stroke")).toBe(saturn.color);
+      expect(ring.getAttribute("cx")).toBe("520");
+      expect(ring.getAttribute("cy")).toBe("300");
+    }
   });
 
-  it("ring stroke color matches Saturn's body color with 0.6 opacity", () => {
+  it("appends the shadow band via the shared helper: defs > clipPath#saturn-shadow plus one clipped translucent overlay circle (r=24)", () => {
     const svg = createSvg();
-    renderSaturnRings(svg, 200, 300, saturn);
-    const [outer] = svg.querySelectorAll("circle");
-    expect(outer.getAttribute("stroke")).toBe(saturn.color);
-    expect(outer.getAttribute("opacity")).toBe("0.6");
+    renderSaturn(svg, 520, 300, saturn);
+
+    const clip = svg.querySelector("defs clipPath#saturn-shadow");
+    expect(clip).not.toBeNull();
+    expect(clip.querySelectorAll("rect").length).toBe(1);
+
+    const overlay = svg.querySelector('circle[clip-path="url(#saturn-shadow)"]');
+    expect(overlay).not.toBeNull();
+    expect(overlay.getAttribute("r")).toBe("24");
+    // 3d: the band matches the sprite's in-hue dark side, not the flat #05070c wash.
+    expect(overlay.getAttribute("fill")).toBe("color-mix(in srgb, #e2c58c 28%, black)");
+
+    const opacity = Number(overlay.getAttribute("fill-opacity"));
+    expect(opacity).toBeGreaterThan(0);
+    expect(opacity).toBeLessThan(1);
+  });
+
+  it("3d + day/night: the core sprite carries the terminator, so only the ring band <path>-free", () => {
+    const svg = createSvg();
+    renderSaturn(svg, 520, 300, saturn);
+
+    // No terminatorShadowPath <path> on the core — the sprite handles it.
+    expect(svg.querySelector("path")).toBeNull();
+
+    const circles = Array.from(svg.querySelectorAll("circle")).filter((c) => !c.closest("defs"));
+    // outer ring + inner ring + day/night band (no core circle).
+    expect(circles.length).toBe(3);
+
+    const band = svg.querySelector('circle[clip-path="url(#saturn-shadow)"]');
+    expect(band).not.toBeNull();
+    expect(band.getAttribute("mask")).toBe("url(#saturn-core-cut)");
+    expect(circles[circles.length - 1]).toBe(band);
+  });
+
+  it("2d + day/night: flat core circle + the elliptical wash + the ring band", () => {
+    const svg = createSvg();
+    renderSaturn(svg, 520, 300, saturn, { sphere: false, dayNight: true });
+    expect(svg.querySelector("image")).toBeNull();
+    expect(svg.querySelector('circle[fill="#e2c58c"]')).not.toBeNull();
+    expect(svg.querySelector("path").getAttribute("d")).toBe(
+      terminatorShadowPath(520, 300, 13, TERMINATOR_BOW)
+    );
+    expect(svg.querySelector('circle[clip-path="url(#saturn-shadow)"]')).not.toBeNull();
+  });
+
+  it("shade { sphere: false, dayNight: false }: just the flat-fill body + two rings", () => {
+    const svg = createSvg();
+    renderSaturn(svg, 520, 300, saturn, { sphere: false, dayNight: false });
+    expect(svg.querySelectorAll("circle").length).toBe(3);
+    expect(svg.querySelector("circle").getAttribute("fill")).toBe(saturn.color);
+    expect(svg.querySelector('circle[clip-path="url(#saturn-shadow)"]')).toBeNull();
+    expect(svg.querySelector("image")).toBeNull();
+  });
+});
+
+describe("renderSphereSprite / sunBearing", () => {
+  it("sunBearing is the screen-space angle to CENTER, null at CENTER", () => {
+    expect(sunBearing(CENTER, CENTER)).toBeNull();
+    expect(sunBearing(300, 250)).toBeCloseTo(
+      (Math.atan2(CENTER - 250, CENTER - 300) * 180) / Math.PI,
+      9
+    );
+  });
+
+  it("emits one tint <filter> per colour (feColorMatrix multiply) and reuses <defs>", () => {
+    const svg = createSvg();
+    renderSunHalo(svg);
+    renderSphereSprite(svg, 300, 250, 8, "#3f7fc4", 40);
+    renderSphereSprite(svg, 100, 100, 8, "#3f7fc4", -40);
+    renderSphereSprite(svg, 200, 200, 8, "#c04a1f", null);
+
+    expect(svg.querySelectorAll("defs").length).toBe(1);
+    expect(svg.querySelectorAll("defs filter#tint-3f7fc4").length).toBe(1);
+    expect(svg.querySelectorAll("defs filter#tint-c04a1f").length).toBe(1);
+
+    const fcm = svg.querySelector("defs filter#tint-3f7fc4 feColorMatrix");
+    expect(fcm.getAttribute("type")).toBe("matrix");
+    // diagonal R,G,B scale = the hue's channels / 255 (0x3f/255, 0x7f/255, 0xc4/255)
+    const vals = fcm.getAttribute("values").trim().split(/\s+/).map(Number);
+    expect(vals[0]).toBeCloseTo(0x3f / 255, 5);
+    expect(vals[6]).toBeCloseTo(0x7f / 255, 5);
+    expect(vals[12]).toBeCloseTo(0xc4 / 255, 5);
+  });
+
+  it("uses SPRITE_LIT (rotated) when a bearing is given, SPRITE_SOFT (unrotated) when null", () => {
+    const svg = createSvg();
+    renderSphereSprite(svg, 300, 250, 8, "#3f7fc4", 40);
+    renderSphereSprite(svg, 100, 100, 8, "#c04a1f", null);
+    const [lit, soft] = Array.from(svg.querySelectorAll("image"));
+    expect(lit.getAttribute("transform")).toBe("rotate(40 300 250)");
+    expect(soft.getAttribute("transform")).toBeNull();
+    // Different sprite data for lit vs soft.
+    expect(lit.getAttribute("href")).not.toBe(soft.getAttribute("href"));
+    expect(lit.getAttribute("href")).toMatch(/^data:image\/png;base64,/);
+  });
+});
+
+describe("renderSunHalo", () => {
+  it("appends a <defs> holding a <radialGradient id='sun-halo'> with ≥ 3 stops, last fully transparent", () => {
+    const svg = createSvg();
+    renderSunHalo(svg);
+
+    const defs = svg.querySelector("defs");
+    expect(defs).not.toBeNull();
+
+    const gradient = defs.querySelector("radialGradient#sun-halo");
+    expect(gradient).not.toBeNull();
+
+    const stops = gradient.querySelectorAll("stop");
+    expect(stops.length).toBeGreaterThanOrEqual(3);
+    expect(stops[stops.length - 1].getAttribute("stop-opacity")).toBe("0");
+  });
+
+  it("appends exactly one halo circle (id='sun-halo-glow') at CENTER, sized to the full view", () => {
+    const svg = createSvg();
+    renderSunHalo(svg);
+
+    const halos = svg.querySelectorAll('circle[fill="url(#sun-halo)"]');
+    expect(halos.length).toBe(1);
+
+    const [halo] = halos;
+    expect(halo.getAttribute("id")).toBe("sun-halo-glow");
+    expect(halo.getAttribute("cx")).toBe(String(CENTER));
+    expect(halo.getAttribute("cy")).toBe(String(CENTER));
+    // Initial radius covers HALO_VIEW_FRACTION of the un-zoomed 800px view.
+    expect(Number(halo.getAttribute("r"))).toBe(VIEW_SIZE * HALO_VIEW_FRACTION);
+    expect(Number(halo.getAttribute("r"))).toBeGreaterThan(SUN.size);
   });
 });

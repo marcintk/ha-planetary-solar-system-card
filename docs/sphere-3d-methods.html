@@ -1,0 +1,323 @@
+<title>Drawing a Planet as a Sphere</title>
+<meta name="description" content="Every way to make a flat SVG disc read as a 3-D planet, rendered at real card sizes so you can pick one." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chivo:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" />
+<style>
+  :root {
+    --ground: #0c111b;
+    --sky: #0d1420;
+    --panel: #141c2a;
+    --edge: rgba(255, 255, 255, 0.09);
+    --well: #0a0e17;
+    --ink: #eef2f8;
+    --dim: #9aa7bc;
+    --faint: #616f88;
+    --accent: #f4b13c;
+    --good: #63d29b;
+    --bad: #ef7a63;
+    --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+    --sans: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+    --disp: "Chivo", "IBM Plex Sans", system-ui, sans-serif;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--ground); color: var(--ink);
+    font: 400 14px/1.6 var(--sans); -webkit-font-smoothing: antialiased;
+    padding: 0 20px 80px;
+  }
+  .wrap { max-width: 960px; margin: 0 auto; }
+  header { padding: 52px 0 22px; border-bottom: 1px solid var(--edge); }
+  h1 { font: 700 28px/1.16 var(--disp); letter-spacing: -0.01em; text-wrap: balance; }
+  .lede { margin-top: 12px; max-width: 68ch; color: var(--dim); font-size: 15px; }
+  code {
+    font-family: var(--mono); font-size: 0.85em; color: var(--ink);
+    background: var(--well); padding: 0.08em 0.34em; border-radius: 4px;
+  }
+
+  .row {
+    display: grid; grid-template-columns: 210px 1fr; gap: 24px;
+    padding: 22px 0; border-bottom: 1px solid var(--edge); align-items: center;
+  }
+  .row .scene {
+    background: var(--sky); border: 1px solid var(--edge); border-radius: 10px;
+    padding: 10px; overflow: hidden;
+  }
+  .row .scene svg, .row .scene canvas { display: block; width: 100%; height: auto; }
+  .meta h2 { font: 600 15px/1.25 var(--disp); }
+  .meta h2 .tag {
+    font: 500 10px/1 var(--mono); text-transform: uppercase; letter-spacing: 0.05em;
+    margin-left: 8px; padding: 2px 6px; border-radius: 999px; border: 1px solid currentColor;
+    vertical-align: 2px;
+  }
+  .t-cur { color: var(--accent); }
+  .t-no { color: var(--bad); }
+  .meta p { margin-top: 5px; color: var(--dim); font-size: 12.5px; max-width: 60ch; }
+  .meta p.cost { color: var(--faint); font-size: 11.5px; margin-top: 4px; }
+
+  .note { margin-top: 26px; background: var(--panel); border: 1px solid var(--edge); border-left: 3px solid var(--accent); border-radius: 8px; padding: 20px 22px; }
+  .note h2 { font: 600 16px/1.2 var(--disp); margin-bottom: 9px; }
+  .note p { color: var(--dim); font-size: 13.5px; max-width: 68ch; }
+  .note p + p { margin-top: 8px; }
+  .note strong { color: var(--ink); }
+
+  @media (max-width: 640px) { h1 { font-size: 22px; } .row { grid-template-columns: 1fr; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Drawing a Planet as a Sphere</h1>
+    <p class="lede">
+      Every method rendered on four planets at real card radii (<code>r</code> 24 / 16 / 10 / 6)
+      over the card's dark ground. The constraint: it must read as round, differ from a flat
+      disc, and not look aggressively lit from one side. Scroll and pick.
+    </p>
+  </header>
+
+  <div id="rows"></div>
+
+  <div class="note">
+    <h2>The unavoidable trade</h2>
+    <p>
+      A circle only reads as a sphere because of a light&rarr;dark gradient across it. There is
+      no method that adds volume without implying a light. Everything below is a point on that
+      spectrum &mdash; from "barely there" to "obviously lit".
+    </p>
+    <p>
+      <strong>For this card:</strong> methods 1&ndash;5 are one shared or per-colour gradient,
+      free to draw. Method 6 (SVG filter) allocates a filter region per body every frame &mdash;
+      measurable on HA tablets. Method 8 is a bitmap in a vector card &mdash; blurs on zoom.
+    </p>
+  </div>
+</div>
+
+<script>
+  (function () {
+    "use strict";
+    const NS = "http://www.w3.org/2000/svg";
+    const GROUND = "#0d1420";
+    // Jupiter-ish, Earth, Mars, Uranus — real card palette + radii.
+    const PLANETS = [
+      { r: 24, c: "#cf9b5f" },
+      { r: 16, c: "#3f7fc4" },
+      { r: 10, c: "#c04a1f" },
+      { r: 6, c: "#9ad3df" },
+    ];
+    const VW = 300, VH = 74, CY = 37;
+    // x-centres spaced so the discs don't touch
+    const CXS = [40, 108, 168, 216];
+
+    const mix = (c, pct, other) => `color-mix(in srgb, ${c} ${pct}%, ${other})`;
+
+    function el(tag, attrs, parent) {
+      const n = document.createElementNS(NS, tag);
+      for (const k in attrs) n.setAttribute(k, attrs[k]);
+      if (parent) parent.appendChild(n);
+      return n;
+    }
+
+    function svgScene(build) {
+      const svg = el("svg", { viewBox: `0 0 ${VW} ${VH}`, xmlns: NS });
+      el("rect", { width: VW, height: VH, fill: GROUND }, svg);
+      const defs = el("defs", {}, svg);
+      PLANETS.forEach((p, i) => build(svg, defs, CXS[i], CY, p.r, p.c, i));
+      return svg;
+    }
+
+    // ---- methods -----------------------------------------------------------
+
+    function flat(svg, defs, x, y, r, c) {
+      el("circle", { cx: x, cy: y, r, fill: c }, svg);
+    }
+
+    function centredGrad(lightPct, darkPct) {
+      return (svg, defs, x, y, r, c, i) => {
+        const id = `g${lightPct}-${darkPct}-${i}`;
+        const g = el("radialGradient", { id, cx: "0.5", cy: "0.5", r: "0.5" }, defs);
+        el("stop", { offset: "0%", "stop-color": mix(c, lightPct, "white") }, g);
+        el("stop", { offset: "50%", "stop-color": c }, g);
+        el("stop", { offset: "100%", "stop-color": mix(c, darkPct, "black") }, g);
+        el("circle", { cx: x, cy: y, r, fill: `url(#${id})` }, svg);
+      };
+    }
+
+    function limbDark(svg, defs, x, y, r, c, i) {
+      const id = `ld${i}`;
+      const g = el("radialGradient", { id, cx: "0.5", cy: "0.5", r: "0.5" }, defs);
+      el("stop", { offset: "0%", "stop-color": c }, g);
+      el("stop", { offset: "64%", "stop-color": c }, g);
+      el("stop", { offset: "100%", "stop-color": mix(c, 52, "black") }, g);
+      el("circle", { cx: x, cy: y, r, fill: `url(#${id})` }, svg);
+    }
+
+    function offsetGrad(svg, defs, x, y, r, c, i) {
+      const id = `og${i}`;
+      const g = el("radialGradient", { id, cx: "0.5", cy: "0.5", r: "0.62", fx: "0.78", fy: "0.34" }, defs);
+      el("stop", { offset: "0%", "stop-color": mix(c, 62, "white") }, g);
+      el("stop", { offset: "55%", "stop-color": c }, g);
+      el("stop", { offset: "100%", "stop-color": mix(c, 58, "black") }, g);
+      el("circle", { cx: x, cy: y, r, fill: `url(#${id})` }, svg);
+    }
+
+    let litFilterDone = false;
+    function svgLit(svg, defs, x, y, r, c, i) {
+      if (!litFilterDone) {
+        const f = el("filter", { id: "lit3d", x: "-30%", y: "-30%", width: "160%", height: "160%" }, defs);
+        el("feGaussianBlur", { in: "SourceAlpha", stdDeviation: "3", result: "b" }, f);
+        const sl = el("feSpecularLighting", { in: "b", surfaceScale: "4", specularConstant: "0.7", specularExponent: "14", "lighting-color": "#ffffff", result: "s" }, f);
+        el("feDistantLight", { azimuth: "235", elevation: "52" }, sl);
+        el("feComposite", { in: "s", in2: "SourceAlpha", operator: "in", result: "sc" }, f);
+        const dl = el("feDiffuseLighting", { in: "b", surfaceScale: "4", diffuseConstant: "1", "lighting-color": "#9fb0c6", result: "d" }, f);
+        el("feDistantLight", { azimuth: "235", elevation: "52" }, dl);
+        el("feComposite", { in: "d", in2: "SourceGraphic", operator: "arithmetic", k1: "1", k2: "0", k3: "0", k4: "0", result: "dc" }, f);
+        el("feComposite", { in: "dc", in2: "SourceAlpha", operator: "in", result: "dcc" }, f);
+        const m = el("feMerge", {}, f);
+        el("feMergeNode", { in: "dcc" }, m);
+        el("feMergeNode", { in: "sc" }, m);
+        litFilterDone = true;
+      }
+      el("circle", { cx: x, cy: y, r, fill: c, filter: "url(#lit3d)" }, svg);
+    }
+
+    function twoTone(svg, defs, x, y, r, c) {
+      el("circle", { cx: x, cy: y, r, fill: mix(c, 86, "white") }, svg);
+      // hard terminator: a half-disc, split down a slight diagonal
+      const a = -0.35; // radians off vertical
+      const p1 = [x + r * Math.cos(a + Math.PI / 2), y + r * Math.sin(a + Math.PI / 2)];
+      const p2 = [x + r * Math.cos(a - Math.PI / 2), y + r * Math.sin(a - Math.PI / 2)];
+      el("path", {
+        d: `M ${p1[0]} ${p1[1]} A ${r} ${r} 0 0 1 ${p2[0]} ${p2[1]} Z`,
+        fill: mix(c, 52, "black"),
+      }, svg);
+    }
+
+    function outline(svg, defs, x, y, r, c) {
+      el("circle", { cx: x, cy: y, r: r - 0.75, fill: c, stroke: mix(c, 45, "black"), "stroke-width": "1.5" }, svg);
+    }
+
+    // ---- canvas Lambert sprite -------------------------------------------
+    let spriteCanvas = null;
+    function sprite() {
+      if (spriteCanvas) return spriteCanvas;
+      const N = 128;
+      const cv = document.createElement("canvas");
+      cv.width = cv.height = N;
+      const ctx = cv.getContext("2d");
+      const img = ctx.createImageData(N, N), d = img.data;
+      let Lx = -0.5, Ly = -0.55, Lz = 0.9;
+      const ll = Math.hypot(Lx, Ly, Lz); Lx /= ll; Ly /= ll; Lz /= ll;
+      const half = N / 2, rad = half - 1;
+      for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+        const nx = (x - half) / rad, ny = (y - half) / rad, d2 = nx * nx + ny * ny;
+        const o = (y * N + x) * 4;
+        if (d2 > 1) { d[o + 3] = 0; continue; }
+        const nz = Math.sqrt(1 - d2);
+        let diff = nx * Lx + ny * Ly + nz * Lz; if (diff < 0) diff = 0;
+        const v = 0.18 + 0.86 * diff;
+        const g = Math.round(Math.min(1, v) * 255);
+        d[o] = d[o + 1] = d[o + 2] = g;
+        const dist = Math.sqrt(d2);
+        d[o + 3] = dist > 0.94 ? Math.max(0, Math.round(255 * (1 - (dist - 0.94) / 0.06))) : 255;
+      }
+      ctx.putImageData(img, 0, 0);
+      spriteCanvas = cv;
+      return cv;
+    }
+    function canvasScene() {
+      const S = 2;
+      const cv = document.createElement("canvas");
+      cv.width = VW * S; cv.height = VH * S;
+      const g = cv.getContext("2d");
+      g.fillStyle = GROUND; g.fillRect(0, 0, cv.width, cv.height);
+      const sp = sprite();
+      PLANETS.forEach((p, i) => {
+        const size = Math.ceil(p.r * 2 * S);
+        const tmp = document.createElement("canvas");
+        tmp.width = tmp.height = size;
+        const tg = tmp.getContext("2d");
+        tg.drawImage(sp, 0, 0, size, size);
+        tg.globalCompositeOperation = "multiply";
+        tg.fillStyle = p.c; tg.fillRect(0, 0, size, size);
+        tg.globalCompositeOperation = "destination-in";
+        tg.drawImage(sp, 0, 0, size, size);
+        g.drawImage(tmp, CXS[i] * S - size / 2, CY * S - size / 2);
+      });
+      return cv;
+    }
+
+    // ---- rows -----------------------------------------------------------
+    const METHODS = [
+      {
+        name: "1 · Flat disc", tag: "2d", tagClass: "t-no",
+        desc: "The baseline — <code>fill = colour</code>, nothing else. No volume at all.",
+        cost: "free",
+        make: () => svgScene(flat),
+      },
+      {
+        name: "2 · Centred gradient — subtle", tag: "on the card now", tagClass: "t-cur",
+        desc: "Centre 9% lighter, edge 22% darker, in-hue, opaque. What's shipping now.",
+        cost: "one gradient def per colour · free",
+        make: () => svgScene(centredGrad(91, 78)),
+      },
+      {
+        name: "3 · Centred gradient — stronger", tag: "", tagClass: "",
+        desc: "Same shape, pushed: centre 30% lighter, edge 45% darker. Clearly a ball; clearly lit from the front.",
+        cost: "same as 2",
+        make: () => svgScene(centredGrad(70, 55)),
+      },
+      {
+        name: "4 · Limb darkening only", tag: "", tagClass: "",
+        desc: "Flat colour for the inner 64%, then a darker in-hue rim. No brightening anywhere.",
+        cost: "same as 2",
+        make: () => svgScene(limbDark),
+      },
+      {
+        name: "5 · Offset gradient (directional)", tag: "rejected", tagClass: "t-no",
+        desc: "Highlight pushed off-centre toward a light. Reads as a spotlight / one-sided — the slice-2 look you turned down.",
+        cost: "same as 2",
+        make: () => svgScene(offsetGrad),
+      },
+      {
+        name: "6 · SVG lighting filter", tag: "", tagClass: "",
+        desc: "<code>feDiffuseLighting</code> + <code>feSpecularLighting</code> — a real computed highlight and falloff. The most '3-D', and the most obviously lit.",
+        cost: "a filter region per body, re-run every frame · slow on HA tablets",
+        make: () => svgScene(svgLit),
+      },
+      {
+        name: "7 · Two-tone / cel", tag: "", tagClass: "",
+        desc: "A flat light half and a flat dark half with a hard edge. Stylised, unmistakably a lit hemisphere.",
+        cost: "one extra path per body · free",
+        make: () => svgScene(twoTone),
+      },
+      {
+        name: "8 · Canvas Lambert sprite", tag: "", tagClass: "",
+        desc: "One raster sphere, tinted per planet. Same look as the filter, cheaper to draw — but a bitmap in a vector card, so it softens when the card is zoomed.",
+        cost: "one 128px sprite, blit per body · raster",
+        make: () => canvasScene(),
+      },
+      {
+        name: "9 · Outline only", tag: "", tagClass: "",
+        desc: "Flat fill, a darker in-hue stroke. Crisp, no light implied — but reads as an outlined disc, not a sphere.",
+        cost: "free",
+        make: () => svgScene(outline),
+      },
+    ];
+
+    const rows = document.getElementById("rows");
+    for (const m of METHODS) {
+      const row = document.createElement("div");
+      row.className = "row";
+      const scene = document.createElement("div");
+      scene.className = "scene";
+      scene.appendChild(m.make());
+      const meta = document.createElement("div");
+      meta.className = "meta";
+      const tag = m.tag ? ` <span class="tag ${m.tagClass}">${m.tag}</span>` : "";
+      meta.innerHTML =
+        `<h2>${m.name}${tag}</h2><p>${m.desc}</p><p class="cost">${m.cost}</p>`;
+      row.appendChild(scene);
+      row.appendChild(meta);
+      rows.appendChild(row);
+    }
+  })();
+</script>

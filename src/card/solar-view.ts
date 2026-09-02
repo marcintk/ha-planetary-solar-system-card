@@ -1,5 +1,5 @@
 import { renderSolarSystem } from "../renderer/index.js";
-import type { Colors, Hemisphere, LocationData, PanZoomState } from "../types.js";
+import type { Colors, Hemisphere, LocationData, PanZoomState, ShadeOptions } from "../types.js";
 import type { ZoomController } from "./zoom-controller.js";
 
 /**
@@ -11,11 +11,13 @@ export class SolarView {
   private _zoom: ZoomController;
   private _svg: SVGSVGElement | null;
   private _updateMarkers: ((viewState: PanZoomState, aspect?: number) => void) | null;
+  private _updateHalo: ((viewState: PanZoomState) => void) | null;
 
   constructor(zoom: ZoomController) {
     this._zoom = zoom;
     this._svg = null;
     this._updateMarkers = null;
+    this._updateHalo = null;
   }
 
   mount(
@@ -24,18 +26,21 @@ export class SolarView {
     hemisphere: Hemisphere,
     locationData: LocationData | null,
     colors: Colors,
-    eclipticView: boolean
+    eclipticView: boolean,
+    shade: ShadeOptions = { sphere: true, dayNight: true }
   ): void {
     while (container.firstChild) container.removeChild(container.firstChild);
-    const { svg, updateMarkers } = renderSolarSystem(
+    const { svg, updateMarkers, updateHalo } = renderSolarSystem(
       date,
       hemisphere,
       locationData,
       colors,
-      eclipticView
+      eclipticView,
+      shade
     );
     this._svg = svg;
     this._updateMarkers = updateMarkers;
+    this._updateHalo = updateHalo;
     container.appendChild(svg);
     this._bindPointerEvents(svg);
   }
@@ -49,6 +54,7 @@ export class SolarView {
     // element is the only thing that knows its rendered aspect.
     const rect = this._svg?.getBoundingClientRect();
     this._updateMarkers?.(panZoomState, rect?.height ? rect.width / rect.height : 1);
+    this._updateHalo?.(panZoomState);
   }
 
   private _bindPointerEvents(svg: SVGSVGElement): void {

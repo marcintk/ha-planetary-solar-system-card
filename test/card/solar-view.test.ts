@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { SolarView } from "../../src/card/solar-view.js";
 import { ZoomController } from "../../src/card/zoom-controller.js";
+import { HALO_VIEW_FRACTION } from "../../src/renderer/bodies.js";
 import { MARKER_GROUP_ID } from "../../src/renderer/offscreen-markers.js";
 
 function mountedView(): { view: SolarView; zoom: ZoomController; container: HTMLElement } {
@@ -27,6 +28,36 @@ describe("SolarView.mount", () => {
     const { view, container } = mountedView();
     view.mount(container, new Date("2026-08-17T12:00:00Z"), "north", null, {}, false);
     expect(container.children.length).toBe(1);
+  });
+
+  it("forwards shade options to the renderer — both off drops the halo and all body shading", () => {
+    const zoom = new ZoomController(
+      () => {},
+      () => {}
+    );
+    zoom.configure(2, false, 4, false);
+    zoom.ensureInitialized();
+    const view = new SolarView(zoom);
+    const container = document.createElement("div");
+    view.mount(container, new Date("2026-08-16T12:00:00Z"), "north", null, {}, false, {
+      sphere: false,
+      dayNight: false,
+    });
+
+    const svg = container.querySelector("svg") as SVGSVGElement;
+    expect(svg.querySelector("#sun-halo-glow")).toBeNull();
+    expect(svg.querySelector('defs filter[id^="tint-"]')).toBeNull();
+    expect(svg.querySelector('path[fill="#05070c"]')).toBeNull();
+  });
+
+  it("defaults shade to both-on (3d sprite + day/night) when the arg is omitted", () => {
+    const { container } = mountedView();
+    const svg = container.querySelector("svg") as SVGSVGElement;
+    expect(svg.querySelector("#sun-halo-glow")).not.toBeNull();
+    expect(svg.querySelector('defs filter[id^="tint-"]')).not.toBeNull();
+    // day/night on: sprites are rotated toward the Sun + Saturn has its clipped band
+    expect(svg.querySelector('image[transform^="rotate("]')).not.toBeNull();
+    expect(svg.querySelector('circle[clip-path="url(#saturn-shadow)"]')).not.toBeNull();
   });
 });
 
@@ -88,6 +119,20 @@ describe("SolarView.applyViewState", () => {
     svg.setAttribute("viewBox", "0 0 1 1");
     view.applyViewState();
     expect(svg.getAttribute("viewBox")).toBe(zoom.viewBox);
+  });
+
+  it("resizes the Sun halo to the zoom width (#199 slice 4)", () => {
+    const { view, zoom, container } = mountedView();
+    const svg = container.querySelector("svg") as SVGSVGElement;
+    const haloR = () => Number(svg.querySelector("#sun-halo-glow")?.getAttribute("r"));
+
+    view.applyViewState();
+    expect(haloR()).toBeCloseTo((zoom.panZoomState?.width as number) * HALO_VIEW_FRACTION, 6);
+
+    // Step in one zoom rung: level 2 (width 640) -> level 3 (width 480).
+    zoom.zoomIn();
+    view.applyViewState();
+    expect(haloR()).toBeCloseTo((zoom.panZoomState?.width as number) * HALO_VIEW_FRACTION, 6);
   });
 });
 

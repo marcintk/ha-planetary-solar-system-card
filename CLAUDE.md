@@ -2,6 +2,27 @@
 
 # ha-planetary-solar-system-card
 
+## Workflow
+
+- **Show every slice.** During `/code-it`, at each slice's `[HUMAN]` review gate, run `/show-it`
+  before asking accept-or-grill so the change can be eyeballed in the real card. `/show-it` is a
+  local project skill (`.claude/skills/show-it/`, not yet in the shared harness); promote it to
+  `ha-card-shared` once it has earned its shape, then this note and the manual step go away.
+
+## Show-It
+
+Repo-specific config for the `/show-it` skill (the skill itself is repo-agnostic):
+
+- kind: web
+- build: npm run build
+- serve-dir: docs
+- entry: index.html
+
+`serve-dir` is `docs/`; `docs/card.js` is a symlink to the built `dist/card.js`, and
+`docs/index.html` loads the card from it. The demo is fixed to Chicago — to preview another location
+or date, edit the `setConfig` / `hass` block in `docs/index.html` by hand (it is a committed asset;
+`/show-it` never touches it).
+
 ## Design Invariants
 
 Durable visual/UX constraints. Preserve unless the user explicitly changes them.

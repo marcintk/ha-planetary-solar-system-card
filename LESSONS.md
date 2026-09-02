@@ -70,14 +70,12 @@ index.
   Lambert sphere sprite** (see the "bake the sphere" entry at the top), and when `shading: true` its
   `lit` variant is rotated toward the Sun — the sprite carries the day/night. Don't try to revive
   the `#sphere-3d` _gradient_ for the ball; that's the dead end this entry documents.
-- **Follow-on (slice 9):** the `#sphere-3d` shape was dialed in on the card itself via a slider
-  harness (`docs/sphere-tune.html`), not guessed — it landed at a broad soft highlight
-  (`white 0.6 → 0 @70%`) plus a thin near-opaque limb in the last 2% (`#05070c 0.05 @98% → 0.8`).
-  Key constraint: an `objectBoundingBox` gradient scales with the body, so any _wide_ dark ramp fogs
-  the big outer planets — keep the darkening pinned to the outermost sliver. Build the harness
-  before iterating stop values. And a "3d ball" gradient (roundness, no lit/dark side) is fine on
-  the Sun too — no need to special-case `CENTER` out of it; only the Sun-directional day/night
-  overlay must no-op there.
+- **Follow-on (slice 9):** the `#sphere-3d` gradient shape was originally dialed in on the card via
+  a slider harness (`docs/sphere-tune.html`, since removed with the gradient), not guessed. Key
+  constraint that outlived it: an `objectBoundingBox` gradient scales with the body, so any _wide_
+  dark ramp fogs the big outer planets — keep the darkening pinned to the outermost sliver. Whatever
+  draws the ball, dial it on the real card at real radii before committing numbers (the sprite is
+  now tuned via `docs/shade-compare.html`).
 - **Ref:** [#199](https://github.com/marcintk/ha-planetary-solar-system-card/issues/199) ·
   2026-08-30
 

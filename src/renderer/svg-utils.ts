@@ -132,6 +132,46 @@ export function sunwardHalfDiscPaths(
   return { litD: arc(0), darkD: arc(1) };
 }
 
+/**
+ * The SVG path `d` for the dark, anti-sunward region of a body disc lit from `lightFrom`
+ * (the Sun by default): the two `phi ± 90°` poles joined by an anti-sunward semicircle and
+ * then a shallow terminator arc that bows `bow·r` deep into the dark side, so the lit face
+ * reads as more than a flat half. Returns null when the body sits on the light source (no
+ * meaningful direction).
+ *
+ * Like sunwardHalfDiscPaths this takes no eclipticViewDirection: `phi` is the screen-space
+ * delta between two already-placed points (body and light), not an orbital angle, so the
+ * ±1 ecliptic mirror does not apply here.
+ */
+export function terminatorShadowPath(
+  x: number,
+  y: number,
+  r: number,
+  bow: number,
+  lightFrom: { x: number; y: number } = { x: CENTER, y: CENTER }
+): string | null {
+  const dx = lightFrom.x - x;
+  const dy = lightFrom.y - y;
+  if (Math.hypot(dx, dy) < 1e-9) {
+    return null;
+  }
+  const phi = Math.atan2(dy, dx);
+  const phiDeg = (phi * 180) / Math.PI;
+  const p1 = {
+    x: x + r * Math.cos(phi + Math.PI / 2),
+    y: y + r * Math.sin(phi + Math.PI / 2),
+  };
+  const p2 = {
+    x: x + r * Math.cos(phi - Math.PI / 2),
+    y: y + r * Math.sin(phi - Math.PI / 2),
+  };
+  // p1 -> p2 the anti-sunward way (sweep 1), then the terminator arc back p2 -> p1: an ellipse
+  // whose x-radius (bow*r) lies along the body->light axis (x-axis-rotation phiDeg). Sweep 0 on
+  // this second arc bows it *away* from the light, into the dark side, so the lit hemisphere
+  // reads as bulging past the pole diameter.
+  return `M ${p1.x} ${p1.y} A ${r} ${r} 0 0 1 ${p2.x} ${p2.y} A ${bow * r} ${r} ${phiDeg} 0 0 ${p1.x} ${p1.y} Z`;
+}
+
 export interface OrbitTransformComponents {
   a: number;
   b: number;

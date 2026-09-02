@@ -6,6 +6,43 @@ index.
 
 <!-- ponytail: single file; split by area if it outgrows one screen-scroll -->
 
+## "Looks round" can't be separated from "looks lit" with an SVG gradient overlay — bake the sphere
+
+- **Root cause:** #199's `display: 3d` tried to make a flat disc read as a 3-D planet with a
+  translucent `#sphere-3d` overlay gradient, ~10 tunings over as many rounds: centred bright core
+  (read as top-lit — the eye's light-from-above prior), Sun-directional offset focal + a per-body
+  rotate-`<g>` (rotation was exact, every stop tune still read as a hot spot or a flat wash),
+  limb-darkening only (read as flat, or blurry at the edge), opaque in-hue radial fill (still
+  "lit"). A translucent radial can't give volume without implying a light source and a direction.
+- **Guardrail:** when a "make it look 3-D" effect keeps reading wrong, stop tuning the gradient and
+  **pre-bake a real shaded sphere**. `scripts/gen-sphere-sprites.mjs` renders two 128px Lambert
+  spheres (a `soft` viewer-lit one for `shading: off`, a `lit` in-plane one for `shading: on`) to
+  grayscale+alpha PNGs — with its own tiny PNG encoder, no deps — inlined into `bodies.ts` as
+  `data:` URIs. Runtime is pure SVG: `<image href=SPRITE_*>` + a per-colour `<feColorMatrix>`
+  multiply tints it, `transform="rotate(sunBearing)"` aims the lit one. **No runtime `<canvas>`**
+  (jsdom has none), and the light params live in a re-runnable script, not guessed hex stops. The
+  `lit` sprite's terminator is the day/night for 3d (no separate wash); 2d keeps
+  `terminatorShadowPath`, and one `shadeFill()` (`color-mix(color 28%, black)`) makes both modes'
+  dark sides the same in-hue tone.
+- **Ref:** [#199](https://github.com/marcintk/ha-planetary-solar-system-card/issues/199) ·
+  2026-09-01
+
+## A multi-command SVG path test passes but the rendered shape is wrong
+
+- **Root cause:** #199's `terminatorShadowPath` builds `M p1  A r r … p2  A (bow·r) r … p1  Z`. The
+  slice-1 test checked "does the terminator arc bow into the dark side?" with a hand-rolled
+  heuristic — chord direction + sweep flag → bulge offset — copied from the `sunwardHalfDiscPaths`
+  tests, where the arc's start _is_ the `M` point. Here the second `A` chains from the **first arc's
+  endpoint** (`p2`), not `M` (`p1`), which flips the `sweep`→bulge rule. The test passed with
+  `sweep 1` while the arc actually bowed **toward** the Sun (lit hemisphere shrank instead of
+  bulging). Only numeric SVG arc sampling / the render snapshot caught it.
+- **Guardrail:** for geometry on a multi-command SVG path, assert against a real endpoint→centre arc
+  parameterisation (SVG spec F.6.5) **or** pin the literal `d` string plus the render snapshot —
+  never a bespoke "which way does it bulge" heuristic keyed to the `M` point. Each `A` starts where
+  the previous command ended.
+- **Ref:** [#199](https://github.com/marcintk/ha-planetary-solar-system-card/issues/199) ·
+  2026-08-31
+
 ## Don't fold two visual switches into one enum — and keep the sphere look off the Sun vector
 
 - **Root cause:** #199 grew a `display: 2d|3d` and a `shading: on|off` control. Slices 5–7 built the
@@ -26,6 +63,13 @@ index.
   shared `objectBoundingBox` gradient + a wrapper `<g transform="rotate(θ x y)">` — the gradient is
   painted in the element's pre-transform box, so the group rotation carries it. Just don't reach for
   it when a symmetric gradient will do.
+- **Superseded (2026-09-01):** #199 was reopened and `display: 3d` was reworked several times. The
+  _enum_ half of this guardrail still holds — `ShadeOptions { sphere, dayNight }` stays two
+  independent booleans. But "the 3d ball never tracks the Sun" no longer does: an SVG gradient
+  _can't_ give convincing volume without reading as lit, so `display: 3d` is now a **pre-baked
+  Lambert sphere sprite** (see the "bake the sphere" entry at the top), and when `shading: true` its
+  `lit` variant is rotated toward the Sun — the sprite carries the day/night. Don't try to revive
+  the `#sphere-3d` _gradient_ for the ball; that's the dead end this entry documents.
 - **Follow-on (slice 9):** the `#sphere-3d` shape was dialed in on the card itself via a slider
   harness (`docs/sphere-tune.html`), not guessed — it landed at a broad soft highlight
   (`white 0.6 → 0 @70%`) plus a thin near-opaque limb in the last 2% (`#05070c 0.05 @98% → 0.8`).
@@ -80,5 +124,11 @@ index.
   centre from a `circle[fill]` **or** the midpoint of a lit `path[fill]`'s `d`; `comets.test.ts`
   reconstructs the head centre the same way. Rendering changes assert on geometry recomputed from
   `d`, not on the element type.
+- **Recurred hard (2026-09-01):** `display: 3d` moved from `<circle fill="url(#sphere-3d-…)">` to a
+  pre-baked Lambert `<image filter="url(#tint-…)">` — ~24 tests broke on `circle[fill]` locators
+  again. Fix pattern held: `bodyCircle(svg, hex[, extra])` now tries `circle[fill]` **or**
+  `image[filter="url(#tint-<hex>)"]`, `bodyPos` derives an image body's centre from `x + width/2`,
+  and `sphere3dCount` counts `image[filter^="url(#tint-"]`. When you change how a body is drawn,
+  expect the whole `circle[fill]` locator surface to move and route it through one resolver.
 - **Ref:** [#199](https://github.com/marcintk/ha-planetary-solar-system-card/issues/199) ·
-  2026-08-30
+  2026-08-30, 2026-09-01

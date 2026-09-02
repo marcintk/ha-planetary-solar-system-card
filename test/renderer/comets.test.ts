@@ -212,39 +212,37 @@ describe("renderCometBody", () => {
   const sunX = CENTER;
   const sunY = CENTER;
 
-  it("renders the head as a plain circle plus the #sphere-3d ball and the day/night half-disc", () => {
+  it("renders the head as a Sun-rotated sprite image (3d + day/night), no separate terminator path", () => {
     const svg = createSvg();
     renderCometBody(svg, bodyX, bodyY, halley, sunX, sunY);
 
-    const circle = svg.querySelector("circle");
-    expect(circle).not.toBeNull();
-    expect(Number(circle.getAttribute("cx"))).toBeCloseTo(bodyX, 6);
-    expect(Number(circle.getAttribute("cy"))).toBeCloseTo(bodyY, 6);
-    expect(Number(circle.getAttribute("r"))).toBeCloseTo(halley.size, 6);
-    expect(circle.getAttribute("fill")).toBe(halley.color);
-
-    expect(svg.querySelector("g")).toBeNull();
-    const ball = svg.querySelector('circle[fill="url(#sphere-3d)"]');
-    expect(ball).not.toBeNull();
-    expect(Number(ball.getAttribute("r"))).toBeCloseTo(halley.size, 6);
-
-    const shadow = svg.querySelector("path");
-    expect(shadow.getAttribute("fill")).toBe("#05070c");
-    expect(shadow.getAttribute("d")).toContain(`A ${halley.size} ${halley.size}`);
+    const tintRef = `url(#tint-${halley.color.replace(/[^a-z0-9]/gi, "")})`;
+    const img = svg.querySelector(`image[filter="${tintRef}"]`);
+    expect(img).not.toBeNull();
+    expect(Number(img.getAttribute("x"))).toBeCloseTo(bodyX - halley.size, 6);
+    expect(Number(img.getAttribute("width"))).toBeCloseTo(2 * halley.size, 6);
+    expect(img.getAttribute("href")).toMatch(/^data:image\/png;base64,/);
+    expect((img.getAttribute("transform") || "").startsWith("rotate(")).toBe(true);
+    // the sprite carries the day/night, so no terminatorShadowPath <path> and no plain head circle
+    expect(svg.querySelector("path")).toBeNull();
+    expect(svg.querySelector(`defs filter#tint-${halley.color.slice(1)}`)).not.toBeNull();
   });
 
-  it("comet off to one side of the Sun: the day/night half-disc and the tail both point anti-sunward", () => {
+  it("2d comet head: flat circle + the elliptical terminator wash pointing anti-sunward", () => {
     const svg = createSvg();
     // Comet placed cleanly to the right of the Sun; anti-sunward direction is +x.
     const cometX = sunX + 200;
     const cometY = sunY;
-    renderCometBody(svg, cometX, cometY, halley, sunX, sunY);
+    renderCometBody(svg, cometX, cometY, halley, sunX, sunY, undefined, {
+      sphere: false,
+      dayNight: true,
+    });
 
     const shadow = svg.querySelector("path");
-    expect(shadow.getAttribute("fill")).toBe("#05070c");
-    // darkD half-disc bulges away from the Sun: its endpoints span x = cometX, its arc reaches +x.
+    // in-hue dark wash, matching the 3d sprite's dark side (Halley's colour, 28% of it).
+    expect(shadow.getAttribute("fill")).toBe(`color-mix(in srgb, ${halley.color} 28%, black)`);
     const xs = (shadow.getAttribute("d").match(/-?\d+(?:\.\d+)?/g) ?? []).map(Number);
-    // d = "M x1 y1 A r r 0 0 sweep x2 y2 Z" — both diameter endpoints sit at x = cometX.
+    // first arc endpoints (the poles) sit at x = cometX
     expect(xs[0]).toBeCloseTo(cometX, 6);
     expect(xs[7]).toBeCloseTo(cometX, 6);
 
@@ -352,19 +350,17 @@ describe("renderCometBody", () => {
     expect(Number(text.getAttribute("y"))).toBeLessThan(bodyY);
   });
 
-  it("tail renders before the head circle, head before the shadow, shadow before the label (DOM paint order)", () => {
+  it("tail renders before the head, head before the label (DOM paint order)", () => {
     const svg = createSvg();
     renderCometBody(svg, bodyX, bodyY, halley, sunX, sunY);
 
     const children = Array.from(svg.children);
     const lineIdx = children.findIndex((el) => el.tagName === "line");
-    const circleIdx = children.findIndex((el) => el.tagName === "circle");
-    const shadowIdx = children.findIndex((el) => el.tagName === "path");
+    const headIdx = children.findIndex((el) => el.tagName === "image");
     const textIdx = children.findIndex((el) => el.tagName === "text");
     expect(lineIdx).toBeGreaterThanOrEqual(0);
-    expect(lineIdx).toBeLessThan(circleIdx);
-    expect(circleIdx).toBeLessThan(shadowIdx);
-    expect(shadowIdx).toBeLessThan(textIdx);
+    expect(lineIdx).toBeLessThan(headIdx);
+    expect(headIdx).toBeLessThan(textIdx);
   });
 
   it("handles comet at exact Sun position without error", () => {
@@ -373,9 +369,10 @@ describe("renderCometBody", () => {
 
     const line = svg.querySelector("line");
     expect(line).not.toBeNull();
-    // Tail should still have a length (fallback distance = 1)
-    const circle = svg.querySelector("circle");
-    expect(circle).not.toBeNull();
+    // Head still drawn; sunBearing is null at CENTER so the sprite is the soft, unrotated one.
+    const head = svg.querySelector("image");
+    expect(head).not.toBeNull();
+    expect(head.getAttribute("transform")).toBeNull();
   });
 });
 

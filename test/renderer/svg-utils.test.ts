@@ -11,6 +11,7 @@ import {
   polarOffset,
   SVG_NS,
   sunwardHalfDiscPaths,
+  terminatorShadowPath,
   VIEW_SIZE,
 } from "../../src/renderer/svg-utils.js";
 
@@ -244,6 +245,98 @@ describe("sunwardHalfDiscPaths", () => {
     const phi = Math.atan2(light.y - y, light.x - x);
     expect(litMid.x).toBeCloseTo(x + r * Math.cos(phi), 6);
     expect(litMid.y).toBeCloseTo(y + r * Math.sin(phi), 6);
+  });
+});
+
+describe("terminatorShadowPath", () => {
+  function nums(s: string): number[] {
+    return (s.match(/-?\d+(?:\.\d+)?/g) ?? []).map(Number);
+  }
+  // Split "M ... A ... A ... Z" into its command chunks (coords carry no letters).
+  function commands(d: string): string[] {
+    return d.match(/[MAZ][^MAZ]*/g) ?? [];
+  }
+  function dist(a: { x: number; y: number }, b: { x: number; y: number }): number {
+    return Math.hypot(a.x - b.x, a.y - b.y);
+  }
+
+  const x = 300;
+  const y = 250;
+  const r = 10;
+  const bow = 0.22;
+  const light = { x: CENTER, y: CENTER };
+
+  it("draws the anti-sunward region: M..Z, a full-radius semicircle plus a terminator arc bowed into the dark side", () => {
+    expect(terminatorShadowPath(CENTER, CENTER, 12, 0.22)).toBe(null);
+
+    const d = terminatorShadowPath(x, y, r, bow);
+    expect(d).not.toBeNull();
+    const path = (d as string).trim();
+
+    expect(path.startsWith("M")).toBe(true);
+    expect(path.endsWith("Z")).toBe(true);
+
+    const cmds = commands(path);
+    const arcs = cmds.filter((c) => c.startsWith("A"));
+    expect(arcs.length).toBe(2);
+
+    // The two "poles": the M start point, and the endpoint of the first arc.
+    const startNums = nums(cmds[0]);
+    const start = { x: startNums[0], y: startNums[1] };
+    const arc0Nums = nums(arcs[0]);
+    const pole2 = {
+      x: arc0Nums[arc0Nums.length - 2],
+      y: arc0Nums[arc0Nums.length - 1],
+    };
+
+    // Independent geometry: poles are the phi +/- 90 degree points on the disc.
+    const phi = Math.atan2(light.y - y, light.x - x);
+    const pPlus = {
+      x: x + r * Math.cos(phi + Math.PI / 2),
+      y: y + r * Math.sin(phi + Math.PI / 2),
+    };
+    const pMinus = {
+      x: x + r * Math.cos(phi - Math.PI / 2),
+      y: y + r * Math.sin(phi - Math.PI / 2),
+    };
+    expect(dist(start, { x, y })).toBeCloseTo(r, 6);
+    expect(dist(pole2, { x, y })).toBeCloseTo(r, 6);
+    const matched =
+      (dist(start, pPlus) < 1e-6 && dist(pole2, pMinus) < 1e-6) ||
+      (dist(start, pMinus) < 1e-6 && dist(pole2, pPlus) < 1e-6);
+    expect(matched).toBe(true);
+
+    // The pole chord is perpendicular to the body->light direction.
+    const chord = { x: pole2.x - start.x, y: pole2.y - start.y };
+    const toLight = { x: light.x - x, y: light.y - y };
+    expect(chord.x * toLight.x + chord.y * toLight.y).toBeCloseTo(0, 6);
+
+    // First arc: a full-radius semicircle "A r r 0 0 1 ...".
+    expect(arc0Nums[0]).toBeCloseTo(r, 6);
+    expect(arc0Nums[1]).toBeCloseTo(r, 6);
+    expect(arc0Nums[2]).toBe(0); // x-axis-rotation
+    expect(arc0Nums[3]).toBe(0); // large-arc-flag
+    expect(arc0Nums[4]).toBe(1); // sweep-flag
+
+    // Second arc (the terminator): x-radius bow*r, y-radius r.
+    const arc1Nums = nums(arcs[1]);
+    expect(arc1Nums[0]).toBeCloseTo(bow * r, 6);
+    expect(arc1Nums[1]).toBeCloseTo(r, 6);
+
+    // The terminator arc bows away from the light. It renders from pole2 (where the
+    // first arc ended) back to the M start point, so reconstruct its midpoint from
+    // that chord direction, the ellipse cross-axis (bow*r), and the SVG sweep flag
+    // (same "positive angle = visually clockwise" rule the sunwardHalfDiscPaths tests use).
+    const sweep = arc1Nums[4];
+    const len = dist(start, pole2);
+    const dx = (start.x - pole2.x) / len;
+    const dy = (start.y - pole2.y) / len;
+    const [nx, ny] = sweep === 1 ? [dy, -dx] : [-dy, dx];
+    const termMid = { x: x + bow * r * nx, y: y + bow * r * ny };
+
+    // Offset ~bow*r from the pole-diameter midpoint (x, y), on the far side from the light.
+    expect(dist(termMid, { x, y })).toBeCloseTo(bow * r, 6);
+    expect(dist(termMid, light)).toBeGreaterThan(dist({ x, y }, light));
   });
 });
 

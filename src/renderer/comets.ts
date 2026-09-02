@@ -1,5 +1,5 @@
 import type { Comet, CometVisualEllipse, ShadeOptions } from "../types.js";
-import { ORBIT_COLOR, renderBodyShadow, renderSphere3d } from "./bodies.js";
+import { ORBIT_COLOR, renderBodyShadow, renderSphereSprite, sunBearing } from "./bodies.js";
 import type { EclipticViewDirection } from "./svg-utils.js";
 import {
   auToRadius,
@@ -101,10 +101,23 @@ export function renderCometBody(
     })
   );
 
-  // Comet head — plain disc, then the ball gradient and/or the day/night terminator per config.
-  svg.appendChild(createSvgElement("circle", { cx: x, cy: y, r: comet.size, fill: comet.color }));
-  if (shade.sphere) renderSphere3d(svg, x, y, comet.size);
-  if (shade.dayNight) renderBodyShadow(svg, x, y, comet.size);
+  // Comet head — a `display: 3d` sphere sprite (lit toward the Sun per config), or a flat disc
+  // plus the elliptical terminator wash in `2d`.
+  if (shade.sphere) {
+    renderSphereSprite(
+      svg,
+      x,
+      y,
+      comet.size,
+      comet.color,
+      shade.dayNight ? sunBearing(x, y) : null
+    );
+  } else {
+    svg.appendChild(createSvgElement("circle", { cx: x, cy: y, r: comet.size, fill: comet.color }));
+    if (shade.dayNight) {
+      renderBodyShadow(svg, x, y, comet.size, comet.size, false, comet.color);
+    }
+  }
 
   // Label
   svg.appendChild(

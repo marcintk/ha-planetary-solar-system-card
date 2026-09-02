@@ -46,16 +46,18 @@ describe("SolarView.mount", () => {
 
     const svg = container.querySelector("svg") as SVGSVGElement;
     expect(svg.querySelector("#sun-halo-glow")).toBeNull();
-    expect(svg.querySelector('circle[fill="url(#sphere-3d)"]')).toBeNull();
+    expect(svg.querySelector('defs filter[id^="tint-"]')).toBeNull();
     expect(svg.querySelector('path[fill="#05070c"]')).toBeNull();
   });
 
-  it("defaults shade to both-on (3d ball + day/night) when the arg is omitted", () => {
+  it("defaults shade to both-on (3d sprite + day/night) when the arg is omitted", () => {
     const { container } = mountedView();
     const svg = container.querySelector("svg") as SVGSVGElement;
     expect(svg.querySelector("#sun-halo-glow")).not.toBeNull();
-    expect(svg.querySelector('circle[fill="url(#sphere-3d)"]')).not.toBeNull();
-    expect(svg.querySelector('path[fill="#05070c"]')).not.toBeNull();
+    expect(svg.querySelector('defs filter[id^="tint-"]')).not.toBeNull();
+    // day/night on: sprites are rotated toward the Sun + Saturn has its clipped band
+    expect(svg.querySelector('image[transform^="rotate("]')).not.toBeNull();
+    expect(svg.querySelector('circle[clip-path="url(#saturn-shadow)"]')).not.toBeNull();
   });
 });
 

@@ -19,7 +19,6 @@ import {
   renderBody,
   renderOrbit,
   renderSaturn,
-  renderSphere3dDef,
   renderSunHalo,
   SATURN_RING_OUTER_RADIUS,
 } from "./bodies.js";
@@ -103,10 +102,9 @@ export function renderSolarSystem(
     renderCometOrbit(svg, comet, eclipticViewDirection);
   }
 
-  // Sun at center. The halo rides on `shade.dayNight`; the #sphere-3d gradient def is only
-  // needed when `shade.sphere`.
+  // Sun at center. The halo rides on `shade.dayNight`; the sphere3d gradient defs are created
+  // lazily by renderBody / renderSaturn / renderCometBody per body colour when `shade.sphere`.
   if (shade.dayNight) renderSunHalo(svg);
-  if (shade.sphere) renderSphere3dDef(svg);
   renderBody(svg, CENTER, CENTER, SUN, false, shade);
 
   // Draw planets (labels rendered in a separate dynamic-placement pass below,

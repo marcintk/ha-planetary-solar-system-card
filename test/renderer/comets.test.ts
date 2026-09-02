@@ -212,42 +212,16 @@ describe("renderCometBody", () => {
   const sunX = CENTER;
   const sunY = CENTER;
 
-  it("renders the head as a Sun-rotated sprite image (3d + day/night), no separate terminator path", () => {
+  it("appends a circle for the comet body", () => {
     const svg = createSvg();
     renderCometBody(svg, bodyX, bodyY, halley, sunX, sunY);
 
-    const tintRef = `url(#tint-${halley.color.replace(/[^a-z0-9]/gi, "")})`;
-    const img = svg.querySelector(`image[filter="${tintRef}"]`);
-    expect(img).not.toBeNull();
-    expect(Number(img.getAttribute("x"))).toBeCloseTo(bodyX - halley.size, 6);
-    expect(Number(img.getAttribute("width"))).toBeCloseTo(2 * halley.size, 6);
-    expect(img.getAttribute("href")).toMatch(/^data:image\/png;base64,/);
-    expect((img.getAttribute("transform") || "").startsWith("rotate(")).toBe(true);
-    // the sprite carries the day/night, so no terminatorShadowPath <path> and no plain head circle
-    expect(svg.querySelector("path")).toBeNull();
-    expect(svg.querySelector(`defs filter#tint-${halley.color.slice(1)}`)).not.toBeNull();
-  });
-
-  it("2d comet head: flat circle + the elliptical terminator wash pointing anti-sunward", () => {
-    const svg = createSvg();
-    // Comet placed cleanly to the right of the Sun; anti-sunward direction is +x.
-    const cometX = sunX + 200;
-    const cometY = sunY;
-    renderCometBody(svg, cometX, cometY, halley, sunX, sunY, undefined, {
-      sphere: false,
-      dayNight: true,
-    });
-
-    const shadow = svg.querySelector("path");
-    // in-hue dark wash, matching the 3d sprite's dark side (Halley's colour, 28% of it).
-    expect(shadow.getAttribute("fill")).toBe(`color-mix(in srgb, ${halley.color} 28%, black)`);
-    const xs = (shadow.getAttribute("d").match(/-?\d+(?:\.\d+)?/g) ?? []).map(Number);
-    // first arc endpoints (the poles) sit at x = cometX
-    expect(xs[0]).toBeCloseTo(cometX, 6);
-    expect(xs[7]).toBeCloseTo(cometX, 6);
-
-    const line = svg.querySelector("line");
-    expect(Number(line.getAttribute("x2"))).toBeGreaterThan(cometX);
+    const circle = svg.querySelector("circle");
+    expect(circle).not.toBeNull();
+    expect(circle.getAttribute("cx")).toBe(String(bodyX));
+    expect(circle.getAttribute("cy")).toBe(String(bodyY));
+    expect(circle.getAttribute("r")).toBe(String(halley.size));
+    expect(circle.getAttribute("fill")).toBe(halley.color);
   });
 
   it("appends a tail line element", () => {
@@ -350,17 +324,14 @@ describe("renderCometBody", () => {
     expect(Number(text.getAttribute("y"))).toBeLessThan(bodyY);
   });
 
-  it("tail renders before the head, head before the label (DOM paint order)", () => {
+  it("tail renders before body in DOM order (body paints on top)", () => {
     const svg = createSvg();
     renderCometBody(svg, bodyX, bodyY, halley, sunX, sunY);
 
     const children = Array.from(svg.children);
     const lineIdx = children.findIndex((el) => el.tagName === "line");
-    const headIdx = children.findIndex((el) => el.tagName === "image");
-    const textIdx = children.findIndex((el) => el.tagName === "text");
-    expect(lineIdx).toBeGreaterThanOrEqual(0);
-    expect(lineIdx).toBeLessThan(headIdx);
-    expect(headIdx).toBeLessThan(textIdx);
+    const circleIdx = children.findIndex((el) => el.tagName === "circle");
+    expect(lineIdx).toBeLessThan(circleIdx);
   });
 
   it("handles comet at exact Sun position without error", () => {
@@ -369,10 +340,9 @@ describe("renderCometBody", () => {
 
     const line = svg.querySelector("line");
     expect(line).not.toBeNull();
-    // Head still drawn; sunBearing is null at CENTER so the sprite is the soft, unrotated one.
-    const head = svg.querySelector("image");
-    expect(head).not.toBeNull();
-    expect(head.getAttribute("transform")).toBeNull();
+    // Tail should still have a length (fallback distance = 1)
+    const circle = svg.querySelector("circle");
+    expect(circle).not.toBeNull();
   });
 });
 

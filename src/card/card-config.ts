@@ -1,4 +1,4 @@
-import type { CardConfig, Colors, ShadeOptions, ZoomLevel } from "../types.js";
+import type { CardConfig, Colors, ZoomLevel } from "../types.js";
 import type { GalleryMode, GalleryPosition, GalleryShape } from "./gallery/gallery-controller.js";
 import { DEFAULT_GALLERY_INTERVAL_MS } from "./gallery/gallery-controller.js";
 import type { ImageSource } from "./gallery/sources.js";
@@ -14,7 +14,6 @@ export interface ParsedCardConfig {
   colors: Colors;
   theme: "auto" | "dark" | "light";
   eclipticView: boolean;
-  shade: ShadeOptions;
   locationOverride: { lat: number; lon: number; timezone: string } | null;
   locationNameOverride: string | null;
   heightStyle: string;
@@ -116,14 +115,6 @@ export function parseCardConfig(config: CardConfig): ParsedCardConfig {
   const theme = config.theme === "dark" || config.theme === "light" ? config.theme : "auto";
   const eclipticView = config.ecliptic_view === "south";
 
-  // Two independent switches (see ShadeOptions): `display` (default "3d") gives each body the
-  // centred ball gradient; `shading` (default true) adds the day/night terminator overlay plus
-  // the Sun halo and Saturn's ring shadow.
-  const shade: ShadeOptions = {
-    sphere: config.display !== "2d",
-    dayNight: config.shading !== false,
-  };
-
   const overrideLat = config.location?.latitude;
   const overrideLon = config.location?.longitude;
   const hasOverride =
@@ -165,7 +156,6 @@ export function parseCardConfig(config: CardConfig): ParsedCardConfig {
     colors: config.colors ?? {},
     theme,
     eclipticView,
-    shade,
     locationOverride,
     locationNameOverride,
     heightStyle,

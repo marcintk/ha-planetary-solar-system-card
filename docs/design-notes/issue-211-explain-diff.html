@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>One shading path for 2D and 3D bodies</title>
+<style>
+  :root {
+    --bg: #fafaf8; --fg: #1a1a1a; --accent: #b5541f; --muted: #6b6b6b;
+    --code-bg: #282c34; --code-fg: #e6e6e6; --callout-bg: #fff4e8; --border: #e0ddd6;
+  }
+  body { font-family: Georgia, 'Times New Roman', serif; background: var(--bg); color: var(--fg);
+    max-width: 820px; margin: 0 auto; padding: 2rem 1.5rem 6rem; line-height: 1.65; }
+  h1 { font-size: 1.9rem; border-bottom: 3px solid var(--accent); padding-bottom: .5rem; }
+  h2 { font-size: 1.4rem; margin-top: 3rem; color: var(--accent); }
+  h3 { font-size: 1.1rem; margin-top: 1.8rem; }
+  code { font-family: 'SF Mono', Consolas, monospace; background: #eee; padding: .1rem .3rem;
+    border-radius: 3px; font-size: .92em; }
+  pre { background: var(--code-bg); color: var(--code-fg); padding: 1rem 1.2rem; border-radius: 8px;
+    overflow-x: auto; white-space: pre-wrap; font-family: 'SF Mono', Consolas, monospace;
+    font-size: .88rem; line-height: 1.5; }
+  pre code { background: none; padding: 0; color: inherit; }
+  .callout { background: var(--callout-bg); border-left: 4px solid var(--accent); padding: .9rem 1.2rem;
+    border-radius: 0 6px 6px 0; margin: 1.2rem 0; }
+  .toc { background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.5rem; margin: 1.5rem 0; }
+  .toc a { color: var(--accent); text-decoration: none; }
+  .toc ul { margin: .3rem 0; }
+  .diagram { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 1.2rem;
+    margin: 1.2rem 0; font-family: 'SF Mono', Consolas, monospace; font-size: .85rem; }
+  .flow { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; justify-content: center; padding: .5rem 0; }
+  .box { border: 2px solid var(--accent); border-radius: 8px; padding: .6rem 1rem; background: #fdf6ee;
+    text-align: center; min-width: 120px; }
+  .box.fail { border-color: #b91c1c; background: #fef2f2; }
+  .arrow { font-size: 1.4rem; color: var(--muted); }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: .92rem; }
+  th, td { border: 1px solid var(--border); padding: .5rem .7rem; text-align: left; }
+  th { background: #f0ede6; }
+  .quiz-q { background: #fff; border: 1px solid var(--border); border-radius: 10px;
+    padding: 1.2rem 1.5rem; margin: 1.2rem 0; }
+  .quiz-opt { display: block; width: 100%; text-align: left; padding: .6rem 1rem; margin: .4rem 0;
+    border: 1px solid var(--border); border-radius: 6px; background: #fff; cursor: pointer;
+    font-family: inherit; font-size: .95rem; }
+  .quiz-opt:hover { background: #f5f2ec; }
+  .quiz-opt:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .feedback { display: none; margin-top: .6rem; padding: .6rem 1rem; border-radius: 6px; font-size: .9rem; }
+  .feedback.correct { background: #ecfdf3; color: #166534; border-left: 3px solid #16a34a; }
+  .feedback.incorrect { background: #fef2f2; color: #991b1b; border-left: 3px solid #dc2626; }
+  @media (max-width: 600px) { body { padding: 1rem; } .flow { flex-direction: column; } }
+</style>
+</head>
+<body>
+
+<h1>One shading path for 2D and 3D bodies</h1>
+<p style="color:var(--muted); margin-top:-.5rem;">Prepared 2026-09-02 · PR #212</p>
+
+<div class="toc">
+<strong>Contents</strong>
+<ul>
+  <li><a href="#background">Background</a></li>
+  <li><a href="#intuition">The idea</a></li>
+  <li><a href="#code">The code</a></li>
+  <li><a href="#quiz">Quiz</a></li>
+</ul>
+</div>
+
+<h2 id="background">Background</h2>
+<p>The card draws the solar system as one big SVG. Every planet is a small shape near a coordinate the astronomy code hands back, and two independent config switches decide how that shape looks:</p><ul><li><code>display</code> — <code>"2d"</code> draws each body as a flat filled circle; <code>"3d"</code> (the default) makes it read as a ball.</li><li><code>shading</code> — <code>true</code> (the default) adds the astronomical day/night terminator: the side of the body facing away from the Sun is darkened. It also draws the Sun's halo and the shadow band across Saturn's rings.</li></ul><p>These are deliberately orthogonal: you can have a flat disc <em>with</em> a day/night line, or a round ball <em>without</em> one. An earlier change (issue #199) tried hard to fake the &ldquo;ball&rdquo; look with an SVG radial gradient and never got it to stop reading as either a top-lit hotspot or a flat wash. The lesson recorded from that work: a translucent gradient cannot imply volume without also implying a light source and a direction. The fix was to stop faking it &mdash; pre-render a real Lambert-shaded sphere to a 128&times;128 PNG once (<code>scripts/gen-sphere-sprites.mjs</code>), inline it into the bundle as a <code>data:</code> URI, and blit it as an <code>&lt;image&gt;</code>. A per-colour <code>&lt;feColorMatrix&gt;</code> filter multiplies the grey sprite up to each body's hue. No <code>&lt;canvas&gt;</code> at runtime, which matters because the tests run under jsdom, which has none.</p><div class="callout"><strong>The wrinkle this PR fixes.</strong> #199 shipped <em>two</em> sprites. <code>SPRITE_SOFT</code> has viewer-weighted light and a high ambient floor &mdash; pure roundness, no direction. <code>SPRITE_LIT</code> has a hard in-plane light: a bright hemisphere and a dark one. With <code>shading</code> on, a 3D body used <code>SPRITE_LIT</code>, rotated by <code>transform="rotate(sunBearing)"</code> so its bright side faced the Sun &mdash; the sprite itself <em>was</em> the terminator. With <code>shading</code> off it fell back to <code>SPRITE_SOFT</code>. The problem: the hard hemisphere split of <code>SPRITE_LIT</code> reads <em>flatter</em> than the plain round ball. Turning shading on made a 3D planet look less three-dimensional, not more. Meanwhile 2D bodies already had a gentler treatment for the same concept &mdash; <code>renderBodyShadow</code> lays down an elliptical wash (<code>terminatorShadowPath</code>) over the away-from-Sun side, tinted by <code>shadeFill</code> to <code>color-mix(colour 28%, black)</code>. Two mechanisms, one idea.</p>
+
+<h2 id="intuition">The idea</h2>
+<p>Collapse the two mechanisms into one. A 3D body stops swapping sprites: it always blits the round <code>SPRITE_SOFT</code>, and then &mdash; if <code>shading</code> is on &mdash; gets the <em>exact same</em> <code>renderBodyShadow</code> wash a 2D body gets, laid on top. Roundness comes from the sprite; the day/night comes from the overlay; they are now separate jobs done by separate code, for every body, in both modes.</p><p>The shape of every renderer becomes the same two steps:</p><div class="diagram"><div class="flow"><div class="box">draw the body form<br><small>sprite if <code>display:3d</code>,<br>else a flat circle</small></div><div class="arrow">&rarr;</div><div class="box">if <code>shading</code> and not the Sun:<br><code>renderBodyShadow(&hellip;)</code><br><small>one elliptical wash</small></div></div></div><p>Before, the day/night call lived <em>inside</em> the <code>else</code> branch (2D only); the 3D branch carried its own terminator via the rotated sprite. After, the call is hoisted out so both branches fall through to it. That is the whole behavioural change. Everything else in the diff is removing the now-unreachable machinery: the second sprite, the rotation, the bearing helper, and a parameter on <code>renderBodyShadow</code> that only existed to tell it &ldquo;skip the core wash, the sprite already did it.&rdquo;</p><h3>A concrete body</h3><p>Take Earth at screen <code>(300, 250)</code>, Sun at the centre <code>(400, 400)</code>, both switches on.</p><table><tr><th></th><th>Before</th><th>After</th></tr><tr><td>sprite <code>&lt;image&gt;</code></td><td><code>SPRITE_LIT</code>, <code>transform="rotate(56.31 300 250)"</code></td><td><code>SPRITE_SOFT</code>, no <code>transform</code></td></tr><tr><td>day/night <code>&lt;path&gt;</code></td><td>none (sprite carried it)</td><td><code>d = terminatorShadowPath(300, 250, r, 0.22)</code> &mdash; byte-identical to what the 2D Earth emits</td></tr></table><p>Across the whole fixed-date snapshot the counts move exactly as you'd predict: sprite <code>rotate()</code> transforms 10&nbsp;&rarr;&nbsp;0, and <code>color-mix</code> day/night washes gain one per off-centre body.</p><h3>Saturn and comets</h3><p>Saturn's core is just another body form &mdash; it takes the soft sprite and the wash like everyone else now. Its ring band (the shadow reaching out across the rings) is still drawn on top when <code>shading</code> is on, masked so it doesn't double-darken the core. Comet heads follow the identical pattern. The Sun itself is untouched: it sits at the centre, <code>terminatorShadowPath</code> returns <code>null</code> there, and it stays a flat disc &mdash; it is a light source, not a lit ball, and its halo carries its depth.</p>
+
+<h2 id="code">The code</h2>
+<p>Five source files, split across two commits &mdash; the behaviour change, then the cleanup.</p><h3><code>src/renderer/bodies.ts</code> &mdash; the core of it</h3><p><code>renderBody</code> is restructured to the two-step shape: draw the sprite (<code>shade.sphere &amp;&amp; !atCenter</code>) or a flat <code>&lt;circle&gt;</code>, then a single <code>if (shade.dayNight &amp;&amp; !atCenter) renderBodyShadow(&hellip;)</code> that both branches share. <code>renderSaturn</code> gets the same treatment for its core, and its ring-band <code>renderBodyShadow</code> call now passes an unconditional wash instead of suppressing the core.</p><p>Then the deletions. <code>SPRITE_LIT</code> (the constant) is gone. <code>renderSphereSprite</code> loses its <code>sunDeg</code> parameter and the line <code>if (sunDeg !== null) attrs.transform = &grave;rotate(&hellip;)&grave;</code> &mdash; it now unconditionally blits <code>SPRITE_SOFT</code>. <code>sunBearing()</code> &mdash; the helper that computed the screen-space angle from a body to the Sun &mdash; is deleted; it had no other callers. <code>renderBodyShadow</code> loses its <code>coreShaded</code> parameter and the <code>if (!coreShaded)</code> guard around the core wash; every caller already passed <code>false</code>, so the wash is now always appended.</p><h3><code>src/renderer/comets.ts</code></h3><p>The comet head is restructured to the same two-step shape, and the now-unused <code>sunBearing</code> import is dropped.</p><h3><code>scripts/gen-sphere-sprites.mjs</code></h3><p>The <code>lit</code> sprite generation is removed &mdash; the const, its log line, and the <code>/tmp/sprite-lit.b64</code> write. <code>SPRITE_SOFT</code> was the only remaining caller of the internal <code>sprite()</code> function and always passed <code>lo=0, hi=1</code>, so that <code>lo/hi</code> smoothstep band is inlined away. This is algebraically identity for those values (<code>(diff - 0) / (1 - 0)</code> is <code>diff</code>; the <code>hi - lo &lt; 0.9</code> smoothstep never fired), so re-running the script still emits the byte-identical <code>SPRITE_SOFT</code> &mdash; verified during review.</p><h3><code>src/types.ts</code>, <code>src/renderer/index.ts</code>, <code>src/card/card-config.ts</code></h3><p>Comment-only. The <code>ShadeOptions</code> doc-comments still described <code>sphere</code> as &ldquo;a radial gradient centred on the disc&rdquo; and <code>dayNight</code> as having &ldquo;a distinct straight edge&rdquo; &mdash; wording that predates the Lambert sprite entirely. Rewritten to describe the actual mechanism. Two more stale &ldquo;gradient&rdquo; / &ldquo;centred highlight&rdquo; references in <code>index.ts</code> and <code>card-config.ts</code> were caught by the review's <code>/simplify</code> pass.</p><h3>Tests</h3><p>Six renderer/card tests that pinned the old behaviour (<code>rotate()</code> transforms, <code>SPRITE_LIT</code> vs <code>SPRITE_SOFT</code>, &ldquo;no path over the sprite&rdquo;) were migrated to assert the new contract; the two that only tested <code>sunBearing</code> and the sprite swap were deleted. The full-SVG snapshot was regenerated. One new one-line guard was added: <code>"sunBearing" in bodies</code> is <code>false</code> &mdash; a cheap lock against the export creeping back. Coverage stays at 100%.</p>
+
+<h2 id="quiz">Quiz</h2>
+
+<div class="quiz-q">
+<p><strong>After this change, what makes a `display: 3d` planet read as a ball?</strong></p>
+<button class="quiz-opt" data-correct="false">The `renderBodyShadow` elliptical wash.</button>
+<button class="quiz-opt" data-correct="true">The pre-baked `SPRITE_SOFT` Lambert sphere image, tinted per body.</button>
+<button class="quiz-opt" data-correct="false">A `rotate()` transform aiming the sprite at the Sun.</button>
+<button class="quiz-opt" data-correct="false">An SVG radial gradient centred on the disc.</button>
+</div>
+
+<div class="quiz-q">
+<p><strong>Why did turning `shading` on previously make a 3D planet look flatter?</strong></p>
+<button class="quiz-opt" data-correct="false">The day/night wash covered the whole disc.</button>
+<button class="quiz-opt" data-correct="true">It swapped in `SPRITE_LIT`, whose hard bright/dark hemisphere split reads flatter than the soft round ball.</button>
+<button class="quiz-opt" data-correct="false">The sprite was scaled down when shading was enabled.</button>
+<button class="quiz-opt" data-correct="false">The tint filter desaturated the sprite.</button>
+</div>
+
+<div class="quiz-q">
+<p><strong>What is the one behavioural change, as opposed to the deletions that follow from it?</strong></p>
+<button class="quiz-opt" data-correct="true">The day/night `renderBodyShadow` call is hoisted out of the 2D-only `else` branch so 2D and 3D bodies share it.</button>
+<button class="quiz-opt" data-correct="false">`terminatorShadowPath` was given a new bow parameter.</button>
+<button class="quiz-opt" data-correct="false">Saturn&#x27;s rings are drawn after the core instead of before.</button>
+<button class="quiz-opt" data-correct="false">The Sun now also gets a day/night wash.</button>
+</div>
+
+<div class="quiz-q">
+<p><strong>Removing `renderBodyShadow`&#x27;s `coreShaded` parameter was safe because…</strong></p>
+<button class="quiz-opt" data-correct="false">it was only read in dead code paths.</button>
+<button class="quiz-opt" data-correct="false">the parameter was never actually referenced inside the function.</button>
+<button class="quiz-opt" data-correct="false">TypeScript&#x27;s optional-parameter defaulting made it a no-op.</button>
+<button class="quiz-opt" data-correct="true">every call site already passed `false` after the first commit, so the guarded branch always ran.</button>
+</div>
+
+<div class="quiz-q">
+<p><strong>Why can the `sprite()` simplification in `gen-sphere-sprites.mjs` claim `SPRITE_SOFT` is byte-unchanged?</strong></p>
+<button class="quiz-opt" data-correct="false">The PNG encoder rounds away any small numerical differences.</button>
+<button class="quiz-opt" data-correct="false">The script is no longer run, so its output doesn&#x27;t matter.</button>
+<button class="quiz-opt" data-correct="true">`SPRITE_SOFT` passed `lo=0, hi=1`, for which `(diff-0)/(1-0)` is `diff` and the `hi-lo &lt; 0.9` smoothstep never ran — the removed code was inert for that caller.</button>
+<button class="quiz-opt" data-correct="false">`SPRITE_SOFT` is checked into the repo separately from the script.</button>
+</div>
+
+<script>
+document.querySelectorAll('.quiz-q').forEach(q => {
+  q.querySelectorAll('.quiz-opt').forEach(opt => {
+    opt.addEventListener('click', () => {
+      if (opt.disabled) return;
+      q.querySelectorAll('.quiz-opt').forEach(b => { b.disabled = true; });
+      const correct = opt.dataset.correct === 'true';
+      const fb = document.createElement('div');
+      fb.className = 'feedback ' + (correct ? 'correct' : 'incorrect');
+      fb.textContent = correct
+        ? '✅ Correct.'
+        : '❌ Not quite — reread the section above.';
+      opt.insertAdjacentElement('afterend', fb);
+      fb.style.display = 'block';
+    });
+  });
+});
+</script>
+
+</body>
+</html>

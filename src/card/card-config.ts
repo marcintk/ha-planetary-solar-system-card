@@ -116,9 +116,9 @@ export function parseCardConfig(config: CardConfig): ParsedCardConfig {
   const theme = config.theme === "dark" || config.theme === "light" ? config.theme : "auto";
   const eclipticView = config.ecliptic_view === "south";
 
-  // Two independent switches (see ShadeOptions): `display` (default "3d") gives each body the
-  // centred ball gradient; `shading` (default true) adds the day/night terminator overlay plus
-  // the Sun halo and Saturn's ring shadow.
+  // Two independent switches (see ShadeOptions): `display` (default "3d") draws each body as a
+  // soft-shaded sphere sprite; `shading` (default true) adds the day/night terminator overlay
+  // plus the Sun halo and Saturn's ring shadow.
   const shade: ShadeOptions = {
     sphere: config.display !== "2d",
     dayNight: config.shading !== false,

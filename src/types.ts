@@ -58,13 +58,13 @@ export type Hemisphere = "north" | "south";
 
 // Two independent switches for how bodies are drawn.
 export interface ShadeOptions {
-  // config `display: "3d"` (default) — draw each body as a ball: a radial gradient centred on
-  // the disc, bright centre fading to a darker rim. Pure geometry, no Sun direction. `"2d"`
-  // leaves bodies as flat discs.
+  // config `display: "3d"` (default) — a pre-baked soft-shaded Lambert sphere sprite tinted to
+  // the body's hue — pure volume, no Sun direction. `"2d"` leaves bodies as flat discs.
   sphere: boolean;
-  // config `shading: true` (default) — overlay the astronomical day/night terminator: a
-  // translucent dark layer over the anti-sunward hemisphere with a distinct straight edge, and
-  // draw the Sun halo + Saturn's ring shadow. `false` turns all three off.
+  // config `shading: true` (default) — overlay the astronomical day/night terminator: an
+  // elliptical `terminatorShadowPath` wash darkening the anti-sunward side of the body — flat 2d
+  // disc and 3d sprite alike — plus the Sun halo and Saturn's ring band. `false` turns all
+  // three off.
   dayNight: boolean;
 }
 

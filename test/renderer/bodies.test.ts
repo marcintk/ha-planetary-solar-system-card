@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { PLANETS, SUN } from "../../src/astronomy/planet-data.js";
+import * as bodies from "../../src/renderer/bodies.js";
 import {
   HALO_VIEW_FRACTION,
   ORBIT_COLOR,
@@ -333,7 +334,7 @@ describe("renderBodyShadow", () => {
     expect(overlay.getAttribute("cx")).toBe("520");
     expect(overlay.getAttribute("cy")).toBe("300");
     expect(overlay.getAttribute("r")).toBe("24");
-    // coreShaded=false + no shadeColor here -> the flat #05070c wash.
+    // no shadeColor here -> the flat #05070c wash.
     expect(overlay.getAttribute("fill")).toBe("#05070c");
     expect(overlay.getAttribute("mask")).toBe("url(#saturn-core-cut)");
 
@@ -496,5 +497,11 @@ describe("renderSunHalo", () => {
     // Initial radius covers HALO_VIEW_FRACTION of the un-zoomed 800px view.
     expect(Number(halo.getAttribute("r"))).toBe(VIEW_SIZE * HALO_VIEW_FRACTION);
     expect(Number(halo.getAttribute("r"))).toBeGreaterThan(SUN.size);
+  });
+});
+
+describe("module surface (post-#211)", () => {
+  it("no longer exports the directional-lighting sunBearing helper", () => {
+    expect("sunBearing" in bodies).toBe(false);
   });
 });

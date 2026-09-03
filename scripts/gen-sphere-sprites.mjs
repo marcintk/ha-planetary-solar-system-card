@@ -35,10 +35,7 @@ function png(gray2) { // gray2: Uint8Array length N*N*2 (gray, alpha)
 }
 function norm(x, y, z) { const l = Math.hypot(x, y, z); return [x / l, y / l, z / l]; }
 
-// lo/hi remap the diffuse term through a smoothstep: N·L below `lo` is fully dark, above
-// `hi` fully lit, and the transition happens only in that band — a narrower band = a sharper
-// terminator without moving where it sits (the light direction is unchanged).
-function sprite(L, ambient, k, lo = 0, hi = 1) {
+function sprite(L, ambient, k) {
   const [Lx, Ly, Lz] = norm(...L);
   const out = new Uint8Array(N * N * 2);
   // rad = half -> the disc reaches the very edge of the box, so the sprite's visible radius
@@ -51,12 +48,11 @@ function sprite(L, ambient, k, lo = 0, hi = 1) {
     const dist = Math.sqrt(d2);
     if (d2 > 1) { out[o] = 0; out[o + 1] = 0; continue; }
     const nz = Math.sqrt(1 - d2);
-    // Keep N·L signed: with lo/hi straddling 0 the sharp band is centred on the true
-    // terminator (the great circle where N·L = 0), so the lit face is a full hemisphere.
+    // Keep N·L signed: the terminator (the great circle where N·L = 0) sits where it should,
+    // so the lit face is a full hemisphere.
     const diff = nx * Lx + ny * Ly + nz * Lz;
-    let t = (diff - lo) / (hi - lo);
+    let t = diff;
     t = t < 0 ? 0 : t > 1 ? 1 : t;
-    if (hi - lo < 0.9) t = t * t * (3 - 2 * t); // smoothstep — only for the tight LIT band
     let v = ambient + k * t; if (v > 1) v = 1;
     out[o] = Math.round(v * 255);
     // Solid almost to the edge; only a ~1px anti-alias feather in the last 2%.
@@ -65,14 +61,7 @@ function sprite(L, ambient, k, lo = 0, hi = 1) {
   return out;
 }
 
-const soft = png(sprite([-0.3, -0.36, 1.05], 0.34, 0.66, 0, 1));
-// LIT: in-plane light, bright side = local +x. The lo/hi band centre is the "how much of the
-// disc is lit" knob — more positive shrinks the lit cap. 0.14 mid puts the whole lit+penumbra
-// inside ~87° of the sub-solar point, so the dark side is a clear ~half+ of the disc.
-// ambient 0.14 keeps the dark side clearly dark without a black hole.
-const lit = png(sprite([0.96, 0.02, 0.3], 0.28, 0.72, 0.02, 0.26));
+const soft = png(sprite([-0.3, -0.36, 1.05], 0.34, 0.66));
 console.log("SOFT_LEN", soft.length, "b64", Math.ceil(soft.length / 3) * 4);
-console.log("LIT_LEN", lit.length, "b64", Math.ceil(lit.length / 3) * 4);
 import { writeFileSync } from "node:fs";
 writeFileSync("/tmp/sprite-soft.b64", soft.toString("base64"));
-writeFileSync("/tmp/sprite-lit.b64", lit.toString("base64"));

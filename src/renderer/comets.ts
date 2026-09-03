@@ -109,7 +109,7 @@ export function renderCometBody(
     svg.appendChild(createSvgElement("circle", { cx: x, cy: y, r: comet.size, fill: comet.color }));
   }
   if (shade.dayNight) {
-    renderBodyShadow(svg, x, y, comet.size, comet.size, false, comet.color);
+    renderBodyShadow(svg, x, y, comet.size, comet.size, comet.color);
   }
 
   // Label

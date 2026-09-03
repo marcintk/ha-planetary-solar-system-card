@@ -316,20 +316,25 @@
       </td>
     </tr>
     <tr>
-      <td>2</td>
+      <td>2&nbsp;&check;</td>
       <td>
-        Remove the now-unreachable directional-lighting code:
+        <strong>Shipped.</strong> Removed the directional-lighting code:
         <code>SPRITE_LIT</code>, <code>renderSphereSprite</code>'s <code>sunDeg</code> param + the
         <code>rotate()</code> line, <code>sunBearing()</code> + its <code>comets.ts</code> import,
-        <code>renderBodyShadow</code>'s <code>coreShaded</code> param, the <code>lit</code> half of
-        <code>scripts/gen-sphere-sprites.mjs</code>. Fix the stale gradient wording in
-        <code>src/types.ts</code> (<code>ShadeOptions</code> doc-comments) and
-        <code>README.md</code> (<code>display</code> row).
+        <code>renderBodyShadow</code>'s <code>coreShaded</code> param + its guard, the
+        <code>lit</code> half of <code>scripts/gen-sphere-sprites.mjs</code> (with <code>sprite()</code>'s
+        <code>lo/hi</code> band inlined &mdash; <code>SPRITE_SOFT</code> byte-unchanged). Fixed the
+        stale gradient wording in <code>src/types.ts</code>, <code>README.md</code>, and &mdash; via
+        <code>/simplify</code> &mdash; <code>src/renderer/index.ts</code> + <code>src/card/card-config.ts</code>.
+        Guard test: <code>"sunBearing" in bodies === false</code>. Reviewer re-ran the sprite
+        script and byte-diffed; no renderer output change; suite 1243 green, <code>check:ci</code>
+        clean.
       </td>
       <td>
-        <code>npm run check:ci</code> / <code>knip</code>-style: no unused export
-        <code>sunBearing</code>; <code>grep -r SPRITE_LIT src</code> empty. Mechanical &mdash; guarded
-        by the existing type + lint gate rather than a new unit test.
+        <code>test/renderer/bodies.test.ts</code> &gt; "module surface (post-#211)" &mdash;
+        <code>"sunBearing" in bodies</code> is <code>false</code> (was <code>true</code>). Plus the
+        <code>check:ci</code> type + lint gate and an empty
+        <code>grep -rn "SPRITE_LIT|sunBearing|coreShaded" src/ scripts/</code>.
       </td>
     </tr>
   </table>

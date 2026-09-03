@@ -102,7 +102,7 @@ export function renderSolarSystem(
     renderCometOrbit(svg, comet, eclipticViewDirection);
   }
 
-  // Sun at center. The halo rides on `shade.dayNight`; the sphere3d gradient defs are created
+  // Sun at center. The halo rides on `shade.dayNight`; the 3d sprite tint defs are created
   // lazily by renderBody / renderSaturn / renderCometBody per body colour when `shade.sphere`.
   if (shade.dayNight) renderSunHalo(svg);
   renderBody(svg, CENTER, CENTER, SUN, false, shade);

@@ -19,13 +19,20 @@ index.
   spheres (a `soft` viewer-lit one for `shading: off`, a `lit` in-plane one for `shading: on`) to
   grayscale+alpha PNGs — with its own tiny PNG encoder, no deps — inlined into `bodies.ts` as
   `data:` URIs. Runtime is pure SVG: `<image href=SPRITE_*>` + a per-colour `<feColorMatrix>`
-  multiply tints it, `transform="rotate(sunBearing)"` aims the lit one. **No runtime `<canvas>`**
-  (jsdom has none), and the light params live in a re-runnable script, not guessed hex stops. The
-  `lit` sprite's terminator is the day/night for 3d (no separate wash); 2d keeps
-  `terminatorShadowPath`, and one `shadeFill()` (`color-mix(color 28%, black)`) makes both modes'
-  dark sides the same in-hue tone.
+  multiply tints it. **No runtime `<canvas>`** (jsdom has none), and the light params live in a
+  re-runnable script, not guessed hex stops. One `shadeFill()` (`color-mix(color 28%, black)`) makes
+  2d and 3d dark sides the same in-hue tone.
+- **Superseded (2026-09-02, #211):** the two-sprite split is gone. There was a `lit` in-plane sprite
+  `rotate(sunBearing)`-aimed at the Sun whose own falloff _was_ the 3d terminator (no separate wash)
+  — but a hard directional sprite read flatter than the plain ball. `display: 3d` now always blits
+  `SPRITE_SOFT`; the day/night for 2d **and** 3d is one shared `renderBodyShadow` →
+  `terminatorShadowPath` wash. Bake-the-sphere still holds — `SPRITE_SOFT` and
+  `gen-sphere-sprites.mjs` are byte-unchanged — only "the lit sprite carries the terminator" is
+  dropped, along with `SPRITE_LIT`, `sunBearing`, `renderSphereSprite`'s `sunDeg` param and
+  `renderBodyShadow`'s `coreShaded` param.
 - **Ref:** [#199](https://github.com/marcintk/ha-planetary-solar-system-card/issues/199) ·
-  2026-09-01
+  2026-09-01 · superseded
+  [#211](https://github.com/marcintk/ha-planetary-solar-system-card/issues/211) 2026-09-02
 
 ## A multi-command SVG path test passes but the rendered shape is wrong
 
@@ -67,9 +74,10 @@ index.
   _enum_ half of this guardrail still holds — `ShadeOptions { sphere, dayNight }` stays two
   independent booleans. But "the 3d ball never tracks the Sun" no longer does: an SVG gradient
   _can't_ give convincing volume without reading as lit, so `display: 3d` is now a **pre-baked
-  Lambert sphere sprite** (see the "bake the sphere" entry at the top), and when `shading: true` its
-  `lit` variant is rotated toward the Sun — the sprite carries the day/night. Don't try to revive
-  the `#sphere-3d` _gradient_ for the ball; that's the dead end this entry documents.
+  Lambert sphere sprite** (see the "bake the sphere" entry at the top). Don't try to revive the
+  `#sphere-3d` _gradient_ for the ball; that's the dead end this entry documents. (#211, 2026-09-02:
+  the Sun-facing `lit` sprite variant is also gone — 3d now uses the plain `SPRITE_SOFT` plus the
+  shared 2d day/night wash. The two-booleans point is untouched.)
 - **Follow-on (slice 9):** the `#sphere-3d` gradient shape was originally dialed in on the card via
   a slider harness (`docs/sphere-tune.html`, since removed with the gradient), not guessed. Key
   constraint that outlived it: an `objectBoundingBox` gradient scales with the body, so any _wide_

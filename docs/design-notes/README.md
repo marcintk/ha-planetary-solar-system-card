@@ -35,4 +35,6 @@ has a rendered URL — link to that, since GitHub shows `.html` as source, not r
   `terminatorShadowPath` + `shadeFill` wash the `2d` branch already uses, so 2D and 3D share one
   day/night call site. Removes `sunBearing`, `renderSphereSprite`'s `sunDeg` param,
   `renderBodyShadow`'s `coreShaded` param, and the `lit` half of `gen-sphere-sprites.mjs`; fixes the
-  stale gradient wording in `src/types.ts` and `README.md`. Explain-diff — · PR —.
+  stale gradient wording in `src/types.ts` and `README.md`.
+  [Explain-diff](https://marcintk.github.io/ha-planetary-solar-system-card/design-notes/issue-211-explain-diff.html)
+  · PR —.

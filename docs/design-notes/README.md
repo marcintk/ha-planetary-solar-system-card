@@ -37,4 +37,4 @@ has a rendered URL — link to that, since GitHub shows `.html` as source, not r
   `renderBodyShadow`'s `coreShaded` param, and the `lit` half of `gen-sphere-sprites.mjs`; fixes the
   stale gradient wording in `src/types.ts` and `README.md`.
   [Explain-diff](https://marcintk.github.io/ha-planetary-solar-system-card/design-notes/issue-211-explain-diff.html)
-  · PR —.
+  · [PR #212](https://github.com/marcintk/ha-planetary-solar-system-card/pull/212).

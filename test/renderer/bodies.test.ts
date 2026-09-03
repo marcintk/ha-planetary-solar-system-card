@@ -9,7 +9,6 @@ import {
   renderSaturn,
   renderSphereSprite,
   renderSunHalo,
-  sunBearing,
 } from "../../src/renderer/bodies.js";
 import {
   CENTER,
@@ -173,7 +172,7 @@ const sprite = (svg, hex) => svg.querySelector(`image[filter="${tintRef(hex)}"]`
 describe("renderBody", () => {
   const earth = PLANETS.find((p) => p.name === "Earth");
 
-  it("default shade (3d + day/night): a Sun-rotated sprite image, no separate terminator path", () => {
+  it("default shade (3d + day/night): the soft unrotated sprite plus the shared 2D terminator wash", () => {
     const svg = createSvg();
     renderBody(svg, 300, 250, earth, false);
 
@@ -183,11 +182,13 @@ describe("renderBody", () => {
     expect(img.getAttribute("y")).toBe(String(250 - earth.size));
     expect(img.getAttribute("width")).toBe(String(2 * earth.size));
     expect(img.getAttribute("href")).toMatch(/^data:image\/png;base64,/);
-    // shading on -> the sprite is rotated so its lit side faces the Sun; it carries the
-    // day/night itself, so there is no terminatorShadowPath <path>.
-    const deg = (Math.atan2(CENTER - 250, CENTER - 300) * 180) / Math.PI;
-    expect(img.getAttribute("transform")).toBe(`rotate(${deg} 300 250)`);
-    expect(svg.querySelector("path")).toBeNull();
+    // shading on -> the soft sprite is NOT rotated toward the Sun. The day/night comes
+    // from the identical terminatorShadowPath <path> the 2D { sphere: false, dayNight: true }
+    // body emits (a 3D shaded body === soft sprite + the 2D terminator path).
+    expect(img.getAttribute("transform")).toBeNull();
+    expect(svg.querySelector("path").getAttribute("d")).toBe(
+      terminatorShadowPath(300, 250, earth.size, TERMINATOR_BOW)
+    );
     expect(svg.querySelector("defs filter#tint-3f7fc4")).not.toBeNull();
     expect(svg.querySelector("circle")).toBeNull();
   });
@@ -351,7 +352,7 @@ describe("renderBodyShadow", () => {
 describe("renderSaturn", () => {
   const saturn = PLANETS.find((p) => p.name === "Saturn");
 
-  it("draws the core as a Sun-rotated sprite image (r=13 box), centered on x, y", () => {
+  it("draws the core as the soft unrotated sprite image (r=13 box), centered on x, y", () => {
     const svg = createSvg();
     renderSaturn(svg, 520, 300, saturn);
 
@@ -359,9 +360,8 @@ describe("renderSaturn", () => {
     expect(img).not.toBeNull();
     expect(img.getAttribute("x")).toBe(String(520 - 13));
     expect(img.getAttribute("width")).toBe(String(2 * 13));
-    expect(img.getAttribute("transform")).toBe(
-      `rotate(${(Math.atan2(CENTER - 300, CENTER - 520) * 180) / Math.PI} 520 300)`
-    );
+    // soft sprite -> not rotated toward the Sun; the day/night comes from a separate <path>.
+    expect(img.getAttribute("transform")).toBeNull();
     // No plain core circle — the sprite is the core; the only circles are the rings + band.
     expect(svg.querySelector('circle[fill="#e2c58c"]')).toBeNull();
   });
@@ -404,12 +404,14 @@ describe("renderSaturn", () => {
     expect(opacity).toBeLessThan(1);
   });
 
-  it("3d + day/night: the core sprite carries the terminator, so only the ring band <path>-free", () => {
+  it("3d + day/night: the core gets the same terminator <path> the 2D core gets, plus the ring band", () => {
     const svg = createSvg();
     renderSaturn(svg, 520, 300, saturn);
 
-    // No terminatorShadowPath <path> on the core — the sprite handles it.
-    expect(svg.querySelector("path")).toBeNull();
+    // The core now emits the shared elliptical terminator wash — identical d to the 2D core.
+    const corePath = svg.querySelector("path");
+    expect(corePath).not.toBeNull();
+    expect(corePath.getAttribute("d")).toBe(terminatorShadowPath(520, 300, 13, TERMINATOR_BOW));
 
     const circles = Array.from(svg.querySelectorAll("circle")).filter((c) => !c.closest("defs"));
     // outer ring + inner ring + day/night band (no core circle).
@@ -442,21 +444,13 @@ describe("renderSaturn", () => {
   });
 });
 
-describe("renderSphereSprite / sunBearing", () => {
-  it("sunBearing is the screen-space angle to CENTER, null at CENTER", () => {
-    expect(sunBearing(CENTER, CENTER)).toBeNull();
-    expect(sunBearing(300, 250)).toBeCloseTo(
-      (Math.atan2(CENTER - 250, CENTER - 300) * 180) / Math.PI,
-      9
-    );
-  });
-
+describe("renderSphereSprite", () => {
   it("emits one tint <filter> per colour (feColorMatrix multiply) and reuses <defs>", () => {
     const svg = createSvg();
     renderSunHalo(svg);
-    renderSphereSprite(svg, 300, 250, 8, "#3f7fc4", 40);
-    renderSphereSprite(svg, 100, 100, 8, "#3f7fc4", -40);
-    renderSphereSprite(svg, 200, 200, 8, "#c04a1f", null);
+    renderSphereSprite(svg, 300, 250, 8, "#3f7fc4");
+    renderSphereSprite(svg, 100, 100, 8, "#3f7fc4");
+    renderSphereSprite(svg, 200, 200, 8, "#c04a1f");
 
     expect(svg.querySelectorAll("defs").length).toBe(1);
     expect(svg.querySelectorAll("defs filter#tint-3f7fc4").length).toBe(1);
@@ -469,18 +463,6 @@ describe("renderSphereSprite / sunBearing", () => {
     expect(vals[0]).toBeCloseTo(0x3f / 255, 5);
     expect(vals[6]).toBeCloseTo(0x7f / 255, 5);
     expect(vals[12]).toBeCloseTo(0xc4 / 255, 5);
-  });
-
-  it("uses SPRITE_LIT (rotated) when a bearing is given, SPRITE_SOFT (unrotated) when null", () => {
-    const svg = createSvg();
-    renderSphereSprite(svg, 300, 250, 8, "#3f7fc4", 40);
-    renderSphereSprite(svg, 100, 100, 8, "#c04a1f", null);
-    const [lit, soft] = Array.from(svg.querySelectorAll("image"));
-    expect(lit.getAttribute("transform")).toBe("rotate(40 300 250)");
-    expect(soft.getAttribute("transform")).toBeNull();
-    // Different sprite data for lit vs soft.
-    expect(lit.getAttribute("href")).not.toBe(soft.getAttribute("href"));
-    expect(lit.getAttribute("href")).toMatch(/^data:image\/png;base64,/);
   });
 });
 

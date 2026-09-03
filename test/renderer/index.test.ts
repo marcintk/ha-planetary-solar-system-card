@@ -197,18 +197,18 @@ describe("renderSolarSystem", () => {
       expect(sphere3dCount(svg)).toBe(0);
     });
 
-    it("default (omitted) — everything on: halo, 11 sprites carrying the day/night, Saturn band, no terminator paths", () => {
+    it("default (omitted) — everything on: halo, 10 soft sprites, Saturn band, one terminator wash per off-centre body", () => {
       const { svg } = renderSolarSystem(DATE);
       expect(svg.querySelector("#sun-halo-glow")).not.toBeNull();
       expect(sphere3dCount(svg)).toBe(10);
       expect(svg.querySelector('circle[clip-path="url(#saturn-shadow)"]')).not.toBeNull();
-      // In 3d + shading the sprites are the terminator, so there are no standalone wash <path>s.
-      expect(dayNightPaths(svg).length).toBe(0);
-      // every non-Sun sprite is rotated toward the Sun
+      // 3d + shading now shares the 2D path: one standalone wash <path> per off-centre body.
+      expect(dayNightPaths(svg).length).toBe(10);
+      // sprites are the soft (unrotated) sprite — none carry a rotate() transform.
       const rotated = Array.from(svg.querySelectorAll("image")).filter((im) =>
         (im.getAttribute("transform") || "").startsWith("rotate(")
       );
-      expect(rotated.length).toBe(10);
+      expect(rotated.length).toBe(0);
     });
   });
 

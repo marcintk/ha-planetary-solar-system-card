@@ -55,8 +55,12 @@ describe("SolarView.mount", () => {
     const svg = container.querySelector("svg") as SVGSVGElement;
     expect(svg.querySelector("#sun-halo-glow")).not.toBeNull();
     expect(svg.querySelector('defs filter[id^="tint-"]')).not.toBeNull();
-    // day/night on: sprites are rotated toward the Sun + Saturn has its clipped band
-    expect(svg.querySelector('image[transform^="rotate("]')).not.toBeNull();
+    // 3d on: bodies are drawn as tinted soft sprites (no rotate transform)
+    const sprite = svg.querySelector('image[filter^="url(#tint-"]');
+    expect(sprite).not.toBeNull();
+    expect(sprite.getAttribute("transform")).toBeNull();
+    // day/night on: the shared terminator wash <path> + Saturn's clipped band
+    expect(svg.querySelector('path[fill^="color-mix(in srgb,"]')).not.toBeNull();
     expect(svg.querySelector('circle[clip-path="url(#saturn-shadow)"]')).not.toBeNull();
   });
 });

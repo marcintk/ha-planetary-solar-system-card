@@ -25,4 +25,14 @@ has a rendered URL — link to that, since GitHub shows `.html` as source, not r
   needs no `eclipticViewDirection`, why an SVG gradient couldn't do the 3d ball (the "bake the
   sphere" LESSON), and a palette nudge toward real tones.
   [Explain-diff](https://marcintk.github.io/ha-planetary-solar-system-card/design-notes/issue-199-explain-diff.html)
-  · [PR #208](https://github.com/marcintk/ha-planetary-solar-system-card/pull/208).
+  · [PR #208](https://github.com/marcintk/ha-planetary-solar-system-card/pull/208). _The `lit`
+  sprite / `sunBearing` rotation is superseded by
+  [#211](https://github.com/marcintk/ha-planetary-solar-system-card/issues/211)._
+- [One shading path for 2D and 3D](https://marcintk.github.io/ha-planetary-solar-system-card/design-notes/issue-211-unified-body-shading.html)
+  — _approved_ ([#211](https://github.com/marcintk/ha-planetary-solar-system-card/issues/211)) —
+  drop `SPRITE_LIT` and the per-body `rotate(sunBearing)`. `display: 3d` always blits the round
+  `SPRITE_SOFT`; when `shading: true` it gets the **same** `renderBodyShadow` →
+  `terminatorShadowPath` + `shadeFill` wash the `2d` branch already uses, so 2D and 3D share one
+  day/night call site. Removes `sunBearing`, `renderSphereSprite`'s `sunDeg` param,
+  `renderBodyShadow`'s `coreShaded` param, and the `lit` half of `gen-sphere-sprites.mjs`; fixes the
+  stale gradient wording in `src/types.ts` and `README.md`. Explain-diff — · PR —.

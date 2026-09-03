@@ -68,18 +68,12 @@ export function renderSunHalo(svg: SVGElement): void {
 }
 
 /**
- * The `display: 3d` ball look: a pre-rendered Lambert-shaded sphere, blitted as an `<image>` and
- * tinted to the body's hue by a per-colour `<feColorMatrix>` (multiply). Two 128px grayscale
- * sprites ship inline as data URIs:
- *
- * - `SPRITE_SOFT` — viewer-weighted light + high ambient: pure volume, no obvious direction.
- *   Used when `shading` is off (and always for the Sun, its own light source).
- * - `SPRITE_LIT` — in-plane light (bright side = local +x) + low ambient: a clear lit hemisphere
- *   and a dark one. Used when `shading` is on, rotated per body so the bright side faces the Sun
- *   — i.e. the sprite *is* the day/night terminator for `display: 3d`.
- *
- * `sunDeg` is the screen-space bearing to the Sun (`null` → soft, unrotated). Raster, so it
- * softens somewhat when the card is zoomed in — the accepted trade for a real shaded sphere.
+ * The `display: 3d` ball look: the pre-rendered `SPRITE_SOFT` Lambert sphere (viewer-weighted
+ * light + high ambient: pure volume, no obvious direction), blitted as an `<image>` and tinted
+ * to the body's hue by a per-colour `<feColorMatrix>` (multiply). Callers omit `sunDeg`; the
+ * day/night split is layered on top by a separate `renderBodyShadow` call, the same overlay the
+ * flat-circle path gets. Raster, so it softens somewhat when the card is zoomed in — the
+ * accepted trade for a real shaded sphere.
  */
 export function renderSphereSprite(
   svg: SVGElement,
@@ -87,7 +81,7 @@ export function renderSphereSprite(
   y: number,
   r: number,
   color: string,
-  sunDeg: number | null
+  sunDeg: number | null = null
 ): void {
   const defs =
     svg.querySelector("defs") || svg.insertBefore(createSvgElement("defs", {}), svg.firstChild);
@@ -299,16 +293,16 @@ export function renderBody(
   shade: ShadeOptions = { sphere: true, dayNight: true }
 ): void {
   const atCenter = x === CENTER && y === CENTER;
+  // Draw the body form — 3d Lambert sphere sprite or a flat 2d disc — then, off-centre, layer
+  // the shared day/night terminator wash on top: 2d and 3d get the exact same overlay now. The
+  // Sun (atCenter) stays a flat disc with neither; the halo carries its depth.
   if (shade.sphere && !atCenter) {
-    // 3d: a Lambert sphere sprite, lit toward the Sun when shading is on (the sprite *is* the
-    // day/night). The Sun itself stays a flat disc — it's a light source, not a lit ball;
-    // the halo carries its depth.
-    renderSphereSprite(svg, x, y, body.size, body.color, shade.dayNight ? sunBearing(x, y) : null);
+    renderSphereSprite(svg, x, y, body.size, body.color);
   } else {
     svg.appendChild(createSvgElement("circle", { cx: x, cy: y, r: body.size, fill: body.color }));
-    if (shade.dayNight && !atCenter) {
-      renderBodyShadow(svg, x, y, body.size, body.size, false, body.color);
-    }
+  }
+  if (shade.dayNight && !atCenter) {
+    renderBodyShadow(svg, x, y, body.size, body.size, false, body.color);
   }
 
   if (showLabel) {
@@ -325,9 +319,9 @@ export function renderBody(
 
 /**
  * Draw Saturn: the core disc (a `display: 3d` sprite per `shade.sphere`, like every other body)
- * and its two lit ring circles, then — per `shade.dayNight` — the day/night. When `3d`, the
- * core sprite already carries its own terminator, so only the ring band is added; when `2d`,
- * the core gets the elliptical wash plus the band.
+ * and its two lit ring circles, then — per `shade.dayNight` — the day/night. The core sprite no
+ * longer covers the terminator: 2d and 3d cores both get the elliptical wash now, plus the ring
+ * band reaching anti-sunward across the rings.
  */
 export function renderSaturn(
   svg: SVGElement,
@@ -338,7 +332,7 @@ export function renderSaturn(
 ): void {
   const coreR = Math.round(body.size / 2);
   if (shade.sphere) {
-    renderSphereSprite(svg, x, y, coreR, body.color, shade.dayNight ? sunBearing(x, y) : null);
+    renderSphereSprite(svg, x, y, coreR, body.color);
   } else {
     svg.appendChild(createSvgElement("circle", { cx: x, cy: y, r: coreR, fill: body.color }));
   }
@@ -371,6 +365,6 @@ export function renderSaturn(
   );
 
   if (shade.dayNight) {
-    renderBodyShadow(svg, x, y, coreR, SATURN_RING_OUTER_RADIUS, shade.sphere, body.color);
+    renderBodyShadow(svg, x, y, coreR, SATURN_RING_OUTER_RADIUS, false, body.color);
   }
 }

@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>One shading path for 2D and 3D</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,ital@9..144,300..700,0..1&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #eceef4;
+    --paper-raised: #ffffff;
+    --ink: #171b2b;
+    --ink-soft: #565d78;
+    --ink-faint: #888ea8;
+    --line: #d2d7e3;
+    --accent: #b3801f;
+    --accent-soft: #ecdaa8;
+    --cool: #3f6cae;
+    --ok: #1f7a4d;
+    --warn-bg: #fbf3e0;
+    --warn-line: #e0c078;
+    --shadow: 0 1px 2px rgba(23,27,43,0.06), 0 8px 24px rgba(23,27,43,0.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #0e1017;
+      --paper-raised: #161925;
+      --ink: #eceef4;
+      --ink-soft: #a6abc1;
+      --ink-faint: #6b718e;
+      --line: #282c3c;
+      --accent: #e0b256;
+      --accent-soft: #40361f;
+      --cool: #89a6dc;
+      --ok: #5cc48c;
+      --warn-bg: #2c2416;
+      --warn-line: #665328;
+      --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 12px 32px rgba(0,0,0,0.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #0e1017;
+    --paper-raised: #161925;
+    --ink: #eceef4;
+    --ink-soft: #a6abc1;
+    --ink-faint: #6b718e;
+    --line: #282c3c;
+    --accent: #e0b256;
+    --accent-soft: #40361f;
+    --cool: #89a6dc;
+    --ok: #5cc48c;
+    --warn-bg: #2c2416;
+    --warn-line: #665328;
+    --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 12px 32px rgba(0,0,0,0.35);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Source Serif 4", Georgia, "Times New Roman", serif;
+    font-size: 16px;
+    line-height: 1.6;
+    padding: 4.5rem 1.5rem 6rem;
+    margin: 0;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page { max-width: 880px; margin: 0 auto; }
+  .eyebrow {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 0.9rem;
+  }
+  h1 {
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 600;
+    font-size: clamp(2rem, 5vw, 2.9rem);
+    line-height: 1.06;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+    margin: 0 0 1rem;
+  }
+  h2 {
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 600;
+    font-size: 1.5rem;
+    margin: 3.5rem 0 1rem;
+    padding-top: 1.6rem;
+    border-top: 1px solid var(--line);
+    text-wrap: balance;
+  }
+  h3 {
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 600;
+    font-size: 1.13rem;
+    margin: 2rem 0 0.6rem;
+  }
+  p { margin: 0 0 1rem; }
+  a { color: var(--accent); text-underline-offset: 2px; }
+  .lede { font-size: 1.16rem; color: var(--ink-soft); margin-bottom: 1.6rem; text-wrap: pretty; }
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.4rem;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.76rem;
+    color: var(--ink-faint);
+    margin-bottom: 2.4rem;
+  }
+  .badge {
+    display: inline-block;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 0.28rem 0.66rem;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    border: 1px solid var(--warn-line);
+  }
+  ul, ol { margin: 0 0 1rem; padding-left: 1.3rem; }
+  li { margin-bottom: 0.45rem; }
+  code {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.86em;
+    background: var(--accent-soft);
+    color: inherit;
+    padding: 0.1em 0.36em;
+    border-radius: 4px;
+  }
+  pre {
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 1rem 1.15rem;
+    overflow-x: auto;
+    box-shadow: var(--shadow);
+    margin: 0 0 1.4rem;
+  }
+  pre code { background: none; padding: 0; font-size: 0.82rem; line-height: 1.55; }
+  pre .add { color: var(--ok); }
+  pre .del { color: #b3402f; }
+  :root:not([data-theme="light"]) pre .del { color: #e08a7a; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) pre .del { color: #e08a7a; } }
+  pre .dim { color: var(--ink-faint); }
+  table { width: 100%; border-collapse: collapse; margin: 0 0 1.6rem; font-size: 0.92rem; }
+  th, td { text-align: left; padding: 0.6rem 0.8rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+  td:first-child { white-space: nowrap; font-family: "JetBrains Mono", monospace; font-size: 0.82rem; }
+  .verdict {
+    border-left: 3px solid var(--accent);
+    padding: 0.4rem 0 0.4rem 1.1rem;
+    margin: 1.4rem 0;
+    font-size: 1.03rem;
+  }
+  .callout {
+    background: var(--warn-bg);
+    border: 1px solid var(--warn-line);
+    border-left-width: 3px;
+    border-radius: 6px;
+    padding: 0.9rem 1.15rem;
+    margin: 0 0 1.4rem;
+    font-size: 0.95rem;
+  }
+  .callout strong { color: var(--accent); }
+  .demo {
+    background: radial-gradient(120% 120% at 50% 40%, #1d2740 0%, #10141f 60%, #0b0e16 100%);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 1.2rem;
+    margin: 0 0 1rem;
+    box-shadow: var(--shadow);
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 0.9rem;
+  }
+  .cell { text-align: center; }
+  .cell svg { width: 100%; height: auto; display: block; border-radius: 8px; background: #0a0e15; }
+  .cell .cap {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.68rem;
+    line-height: 1.4;
+    color: #aeb9c8;
+    margin-top: 0.5rem;
+  }
+  .cell .cap b { color: #fff; font-weight: 500; }
+  .cell.pick .cap b { color: #7ee0b0; }
+</style>
+</head>
+<body>
+<div class="page">
+  <p class="eyebrow">Issue #211 &middot; Design note</p>
+  <h1>One shading path for 2D and 3D</h1>
+  <p><span class="badge">approved</span></p>
+  <p class="lede">
+    <code>display: 3d</code> with <code>shading: true</code> currently swaps in a second sprite,
+    <code>SPRITE_LIT</code>, rotated toward the Sun. Its hard hemisphere split reads flatter than
+    the plain round ball. Drop the swap: always draw the round <code>SPRITE_SOFT</code>, and give
+    3D the <em>same</em> day/night overlay 2D already uses.
+  </p>
+  <p class="meta">
+    <span><a href="https://github.com/marcintk/ha-planetary-solar-system-card/issues/211">#211</a></span>
+    <span>2026-09-02</span>
+    <span>supersedes part of #199</span>
+    <span>2 slices</span>
+  </p>
+
+  <h2>Problem</h2>
+  <p>
+    #199 baked two 128&nbsp;px Lambert sphere sprites (<a
+    href="https://marcintk.github.io/ha-planetary-solar-system-card/design-notes/issue-199-sphere-shading.html">note</a>):
+    <code>SPRITE_SOFT</code> (viewer-weighted light, high ambient &mdash; a round ball with no
+    direction) and <code>SPRITE_LIT</code> (in-plane light, tight terminator). <code>renderBody</code>
+    picks between them:
+  </p>
+  <pre><code>if (shade.sphere &amp;&amp; !atCenter) {
+  renderSphereSprite(svg, x, y, body.size, body.color, shade.dayNight ? sunBearing(x, y) : null);
+} else {
+  svg.appendChild(createSvgElement("circle", { cx: x, cy: y, r: body.size, fill: body.color }));
+  if (shade.dayNight &amp;&amp; !atCenter) renderBodyShadow(svg, x, y, body.size, body.size, false, body.color);
+}</code></pre>
+  <p>
+    With shading on, the 3D body is <code>SPRITE_LIT</code> rotated by <code>sunBearing</code>. The
+    lit/dark split is a hard edge across the disc; against the softly-lit unshaded ball it looks
+    <em>less</em> three-dimensional, not more. Meanwhile the 2D branch already has a gentler
+    day/night treatment &mdash; <code>renderBodyShadow</code> &rarr; <code>terminatorShadowPath</code>
+    (an elliptical wash that bows <code>0.22&middot;r</code> into the dark side) filled by
+    <code>shadeFill</code> (<code>color-mix(colour 28%, black)</code>). Two treatments for one
+    concept.
+  </p>
+
+  <h2>Approach &mdash; designed twice</h2>
+  <h3>A. Grow the 3D branch</h3>
+  <p>
+    Keep the <code>if / else</code> shape. In the <code>shade.sphere</code> branch, call
+    <code>renderSphereSprite(&hellip;, null)</code> unconditionally (always <code>SPRITE_SOFT</code>)
+    and add the same <code>if (shade.dayNight) renderBodyShadow(&hellip;)</code> line the
+    <code>else</code> branch has. Minimal diff, but the day/night call is now written twice, once per
+    branch, and has to be kept in sync by hand &mdash; the exact split-treatment shape that caused
+    the problem.
+  </p>
+  <h3>B. Collapse to form + overlay <span style="color:var(--ok)">&larr; chosen</span></h3>
+  <p>
+    After the change both modes do the same two steps: <em>draw the body form</em>, then
+    <em>if <code>dayNight</code>, wash the night side</em>. Only the first step differs. Write it that
+    way:
+  </p>
+  <pre><code><span class="dim">  const atCenter = x === CENTER &amp;&amp; y === CENTER;</span>
+<span class="del">- if (shade.sphere &amp;&amp; !atCenter) {</span>
+<span class="del">-   renderSphereSprite(svg, x, y, body.size, body.color, shade.dayNight ? sunBearing(x, y) : null);</span>
+<span class="del">- } else {</span>
+<span class="del">-   svg.appendChild(createSvgElement("circle", { cx: x, cy: y, r: body.size, fill: body.color }));</span>
+<span class="del">-   if (shade.dayNight &amp;&amp; !atCenter) renderBodyShadow(svg, x, y, body.size, body.size, false, body.color);</span>
+<span class="del">- }</span>
+<span class="add">+ if (shade.sphere &amp;&amp; !atCenter) {</span>
+<span class="add">+   renderSphereSprite(svg, x, y, body.size, body.color);</span>
+<span class="add">+ } else {</span>
+<span class="add">+   svg.appendChild(createSvgElement("circle", { cx: x, cy: y, r: body.size, fill: body.color }));</span>
+<span class="add">+ }</span>
+<span class="add">+ if (shade.dayNight &amp;&amp; !atCenter) renderBodyShadow(svg, x, y, body.size, body.size, body.color);</span></code></pre>
+  <p>
+    <code>renderSphereSprite</code> loses its <code>sunDeg</code> parameter entirely;
+    <code>renderBodyShadow</code> loses <code>coreShaded</code> (see slice 2). <code>renderSaturn</code>
+    and the comet head (<code>renderCometBody</code>) get the same shape: sprite-or-circle, then one
+    <code>renderBodyShadow</code> call gated on <code>dayNight</code>. Saturn's call keeps its
+    <code>reach</code> argument (<code>SATURN_RING_OUTER_RADIUS</code>) so the ring band still draws.
+  </p>
+  <div class="verdict">
+    <strong>B.</strong> The duplicated day/night call in A is exactly the "two treatments for one
+    concept" this issue removes &mdash; leaving it duplicated in the code just moves the seam. B
+    makes 2D and 3D share the literal call site, so they cannot drift.
+  </div>
+
+  <h2>What it looks like</h2>
+  <p>
+    Every planet below is drawn with the renderer's own geometry &mdash; sprite blit,
+    <code>feColorMatrix</code> tint, <code>terminatorShadowPath</code>, <code>shadeFill</code>. Big
+    Earth lit from the left; then the scene.
+  </p>
+  <div class="demo"><div class="grid" id="closeups"></div></div>
+  <div class="demo"><div class="grid" id="scene"></div></div>
+
+  <h2>Slices</h2>
+  <table>
+    <tr><th>#</th><th>Change</th><th>Red test</th></tr>
+    <tr>
+      <td>1&nbsp;&check;</td>
+      <td>
+        <strong>Shipped.</strong> Unified the path in <code>renderBody</code>,
+        <code>renderSaturn</code>, <code>renderCometBody</code>: always <code>SPRITE_SOFT</code>
+        (via <code>renderSphereSprite</code>'s new <code>sunDeg = null</code> default), one
+        <code>dayNight &amp;&amp; !atCenter</code>-gated <code>renderBodyShadow</code> hoisted out of
+        the <code>else</code> so 2D and 3D share it verbatim; Saturn's <code>coreShaded</code> arg
+        forced <code>false</code>. Migrated 6 renderer/card tests + regenerated the SVG snapshot
+        (sprite <code>rotate()</code> 10&rarr;0, <code>color-mix</code> washes +10). Reviewer: no
+        regression across every shade combo; suite 1242 green.
+      </td>
+      <td>
+        A 3D + <code>shading</code> body emits the <code>terminatorShadowPath</code> <code>path</code>
+        (same <code>d</code> as the 2D body) and its sprite <code>image</code> has no
+        <code>transform</code>.
+      </td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>
+        Remove the now-unreachable directional-lighting code:
+        <code>SPRITE_LIT</code>, <code>renderSphereSprite</code>'s <code>sunDeg</code> param + the
+        <code>rotate()</code> line, <code>sunBearing()</code> + its <code>comets.ts</code> import,
+        <code>renderBodyShadow</code>'s <code>coreShaded</code> param, the <code>lit</code> half of
+        <code>scripts/gen-sphere-sprites.mjs</code>. Fix the stale gradient wording in
+        <code>src/types.ts</code> (<code>ShadeOptions</code> doc-comments) and
+        <code>README.md</code> (<code>display</code> row).
+      </td>
+      <td>
+        <code>npm run check:ci</code> / <code>knip</code>-style: no unused export
+        <code>sunBearing</code>; <code>grep -r SPRITE_LIT src</code> empty. Mechanical &mdash; guarded
+        by the existing type + lint gate rather than a new unit test.
+      </td>
+    </tr>
+  </table>
+
+  <h2>Test surface</h2>
+  <p>Breaks and must change (from recon):</p>
+  <table>
+    <tr><th>File</th><th>What moves</th></tr>
+    <tr><td>renderer/bodies.test.ts</td><td><code>:176</code>, <code>:354</code>, <code>:407</code>, <code>:474</code> assert <code>rotate()</code> / <code>SPRITE_LIT</code> vs <code>SPRITE_SOFT</code> / "no path over the sprite"; <code>:445</code> &amp; <code>:454</code> lose their subject (<code>sunBearing</code> / the <code>sunDeg</code> arg).</td></tr>
+    <tr><td>renderer/index.test.ts</td><td><code>:200</code> &mdash; <code>dayNightPaths == 0</code> and <code>rotated == 10</code> for the all-on default; now paths &gt; 0, rotated 0.</td></tr>
+    <tr><td>renderer/comets.test.ts</td><td><code>:215</code> Sun-rotated head + "no path"; <code>:372</code> stale comment.</td></tr>
+    <tr><td>card/solar-view.test.ts</td><td><code>:59</code> expects <code>image[transform^="rotate("]</code>.</td></tr>
+    <tr><td>__snapshots__/&hellip;.snap</td><td><code>:429</code> full-SVG tripwire &mdash; regenerate.</td></tr>
+  </table>
+  <p>
+    Unaffected: <code>bodyCircle</code> / <code>bodyPos</code> / <code>sphere3dCount</code> key on
+    <code>image[filter="url(#tint-&hellip;)"]</code>, which <code>SPRITE_SOFT</code> still carries;
+    <code>collision.test.ts</code> (#62) reads <code>positions</code>, independent of the sprite's
+    cosmetic <code>transform</code>; <code>terminatorShadowPath</code>'s own tests
+    (<code>svg-utils.test.ts</code>) are unchanged &mdash; it just runs on more bodies now.
+  </p>
+
+  <h2>Adjacent opportunities</h2>
+  <ul>
+    <li>
+      <strong>Not folded in.</strong> <code>docs/design-notes/issue-199-sphere-shading.html</code>
+      and its README bullet describe the <code>SPRITE_LIT</code> mechanism this reverses &mdash;
+      annotate as superseded (the #199 precedent for <code>LESSONS.md</code>), don't rewrite. Done in
+      this PR's <code>explain-it</code> steps, not as renderer work.
+    </li>
+    <li>
+      <code>docs/shade-compare.html</code> imports the built <code>card.js</code>, so its
+      "3d &middot; shading: true" panel reflects the new look automatically &mdash; no committed
+      change, and <code>/show-it</code> won't touch it.
+    </li>
+    <li>
+      <code>docs/sphere-3d-methods.html</code>, <code>sun-3d-variants.html</code> are frozen
+      historical explorations with their own in-page sprite code &mdash; leave.
+    </li>
+  </ul>
+
+  <h2>Design invariant preserved</h2>
+  <p>
+    Bodies still read as spheres (<code>SPRITE_SOFT</code> is the same ball
+    <code>display: 3d</code> + <code>shading: false</code> already shows). The dark side stays a dark
+    shade of the body's own hue via the shared <code>shadeFill</code>, never black. The
+    <code>display</code> / <code>shading</code> switches remain two independent booleans
+    (<code>ShadeOptions { sphere, dayNight }</code>).
+  </p>
+  <div class="callout">
+    <strong>LESSONS.md.</strong> This reverses one #199 decision only &mdash; "the <code>lit</code>
+    sprite's terminator <em>is</em> the day/night for 3d, no separate wash" (line&nbsp;24). It does
+    <em>not</em> revive the abandoned <code>#sphere-3d</code> gradient: volume still comes from the
+    baked sprite, so "bake the sphere" (line&nbsp;9) and "don't revive the gradient" (line&nbsp;72)
+    still hold. The enum guardrail (line&nbsp;46, two independent booleans) is untouched.
+  </div>
+</div>
+
+<script>
+  const TERMINATOR_BOW = 0.22, SHADE_MIX = 28, SHADE_OPACITY = 0.92;
+  const SPRITE_SOFT = "data:image/png;base64,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";
+  const SPRITE_LIT = "data:image/png;base64,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";
+
+  function tintFilter(color, id) {
+    const cr = parseInt(color.slice(1, 3), 16) / 255;
+    const cg = parseInt(color.slice(3, 5), 16) / 255;
+    const cb = parseInt(color.slice(5, 7), 16) / 255;
+    return `<filter id="${id}" color-interpolation-filters="sRGB">` +
+      `<feColorMatrix type="matrix" values="${cr} 0 0 0 0  0 ${cg} 0 0 0  0 0 ${cb} 0 0  0 0 0 1 0"/></filter>`;
+  }
+  const shadeFill = (c) => `fill="color-mix(in srgb, ${c} ${SHADE_MIX}%, black)" fill-opacity="${SHADE_OPACITY}"`;
+  function termPath(x, y, r, bow, L) {
+    const dx = L.x - x, dy = L.y - y;
+    const phi = Math.atan2(dy, dx), phiDeg = (phi * 180) / Math.PI;
+    const p1 = { x: x + r * Math.cos(phi + Math.PI / 2), y: y + r * Math.sin(phi + Math.PI / 2) };
+    const p2 = { x: x + r * Math.cos(phi - Math.PI / 2), y: y + r * Math.sin(phi - Math.PI / 2) };
+    return `M ${p1.x} ${p1.y} A ${r} ${r} 0 0 1 ${p2.x} ${p2.y} A ${bow * r} ${r} ${phiDeg} 0 0 ${p1.x} ${p1.y} Z`;
+  }
+  const bearing = (x, y, L) => (Math.atan2(L.y - y, L.x - x) * 180) / Math.PI;
+  function sprite(href, x, y, r, id, rot) {
+    const t = rot == null ? "" : ` transform="rotate(${rot} ${x} ${y})"`;
+    return `<image href="${href}" x="${x - r}" y="${y - r}" width="${2 * r}" height="${2 * r}" filter="url(#${id})"${t}/>`;
+  }
+  const MODES = [
+    { key: "lit", name: "SPRITE_LIT, rotated", sub: "current", pick: false },
+    { key: "soft2d", name: "SPRITE_SOFT + wash", sub: "proposed", pick: true },
+    { key: "flat2d", name: "2D: disc + wash", sub: "current 2D", pick: false },
+    { key: "soft", name: "SPRITE_SOFT only", sub: "shading off", pick: false },
+  ];
+  function draw(key, c) {
+    const { x, y, r, color, id, L } = c;
+    if (key === "lit") return sprite(SPRITE_LIT, x, y, r, id, bearing(x, y, L));
+    if (key === "soft2d") return sprite(SPRITE_SOFT, x, y, r, id, null) + `<path d="${termPath(x, y, r, TERMINATOR_BOW, L)}" ${shadeFill(color)}/>`;
+    if (key === "flat2d") return `<circle cx="${x}" cy="${y}" r="${r}" fill="${color}"/><path d="${termPath(x, y, r, TERMINATOR_BOW, L)}" ${shadeFill(color)}/>`;
+    return sprite(SPRITE_SOFT, x, y, r, id, null);
+  }
+  function closeup(m) {
+    const color = "#5b8fd6", id = "cu_" + m.key, L = { x: -260, y: 120 };
+    return `<svg viewBox="0 0 240 240"><defs>${tintFilter(color, id)}</defs>` +
+      `<rect width="240" height="240" fill="#0a0e15"/>${draw(m.key, { x: 120, y: 120, r: 88, color, id, L })}</svg>`;
+  }
+  const BODIES = [
+    { color: "#9c9188", dist: 48, ang: 22, r: 9 },
+    { color: "#e6d2a8", dist: 72, ang: 128, r: 14 },
+    { color: "#5b8fd6", dist: 96, ang: 232, r: 16 },
+    { color: "#c1502e", dist: 108, ang: 312, r: 12 },
+  ];
+  function scene(m) {
+    const C = 130, L = { x: C, y: C };
+    let defs = `<radialGradient id="h_${m.key}"><stop offset="0%" stop-color="#ffd479" stop-opacity="0.35"/><stop offset="54%" stop-color="#ffcf6b" stop-opacity="0.1"/><stop offset="100%" stop-color="#ffcf6b" stop-opacity="0"/></radialGradient>`;
+    let body = "";
+    const seen = new Set();
+    for (const b of BODIES) {
+      const a = (b.ang * Math.PI) / 180, x = C + b.dist * Math.cos(a), y = C - b.dist * Math.sin(a);
+      const id = "s_" + m.key + "_" + b.color.slice(1);
+      if (!seen.has(id)) { defs += tintFilter(b.color, id); seen.add(id); }
+      body += draw(m.key, { x, y, r: b.r, color: b.color, id, L });
+    }
+    return `<svg viewBox="0 0 260 260"><defs>${defs}</defs><rect width="260" height="260" fill="#0a0e15"/>` +
+      `<circle cx="${C}" cy="${C}" r="86" fill="url(#h_${m.key})"/><circle cx="${C}" cy="${C}" r="15" fill="#ffcf4a"/>${body}</svg>`;
+  }
+  const cell = (m, svg) =>
+    `<figure class="cell${m.pick ? " pick" : ""}" style="margin:0">${svg}` +
+    `<figcaption class="cap"><b>${m.name}</b><br>${m.sub}</figcaption></figure>`;
+  document.getElementById("closeups").innerHTML = MODES.map((m) => cell(m, closeup(m))).join("");
+  document.getElementById("scene").innerHTML = MODES.map((m) => cell(m, scene(m))).join("");
+</script>
+</body>
+</html>

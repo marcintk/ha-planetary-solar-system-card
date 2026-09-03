@@ -212,7 +212,7 @@ describe("renderCometBody", () => {
   const sunX = CENTER;
   const sunY = CENTER;
 
-  it("renders the head as a Sun-rotated sprite image (3d + day/night), no separate terminator path", () => {
+  it("renders the head as the soft unrotated sprite image (3d + day/night) plus the shared terminator path", () => {
     const svg = createSvg();
     renderCometBody(svg, bodyX, bodyY, halley, sunX, sunY);
 
@@ -222,9 +222,9 @@ describe("renderCometBody", () => {
     expect(Number(img.getAttribute("x"))).toBeCloseTo(bodyX - halley.size, 6);
     expect(Number(img.getAttribute("width"))).toBeCloseTo(2 * halley.size, 6);
     expect(img.getAttribute("href")).toMatch(/^data:image\/png;base64,/);
-    expect((img.getAttribute("transform") || "").startsWith("rotate(")).toBe(true);
-    // the sprite carries the day/night, so no terminatorShadowPath <path> and no plain head circle
-    expect(svg.querySelector("path")).toBeNull();
+    // soft sprite -> not rotated toward the Sun; the day/night comes from a terminator <path>.
+    expect(img.getAttribute("transform")).toBeNull();
+    expect(svg.querySelector("path")).not.toBeNull();
     expect(svg.querySelector(`defs filter#tint-${halley.color.slice(1)}`)).not.toBeNull();
   });
 
@@ -369,7 +369,7 @@ describe("renderCometBody", () => {
 
     const line = svg.querySelector("line");
     expect(line).not.toBeNull();
-    // Head still drawn; sunBearing is null at CENTER so the sprite is the soft, unrotated one.
+    // Head still drawn; the sprite is always the soft, unrotated one.
     const head = svg.querySelector("image");
     expect(head).not.toBeNull();
     expect(head.getAttribute("transform")).toBeNull();

@@ -34,7 +34,7 @@
     "@rollup/plugin-terser": "^1.0.0",
     "@rollup/plugin-typescript": "^12.3.0",
     "@vitest/coverage-v8": "^4.1.11",
-    "ha-card-shared": "github:marcintk/ha-card-shared#v2.1.0",
+    "ha-card-shared": "github:marcintk/ha-card-shared#v2.0.0",
     "jsdom": "^30.0.1",
     "playwright": "^1.62.1",
     "prettier": "^3.9.6",

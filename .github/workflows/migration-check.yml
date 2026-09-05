@@ -11,4 +11,4 @@ permissions:
 
 jobs:
   check:
-    uses: marcintk/ha-card-shared/.github/workflows/shared-migration-check.yml@v2.0.0
+    uses: marcintk/ha-card-shared/.github/workflows/shared-migration-check.yml@v2.0.1

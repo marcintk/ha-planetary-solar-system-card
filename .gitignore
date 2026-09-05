@@ -6,3 +6,15 @@ dist/
 .serena/
 .claude/
 docs/design-notes/.work/
+
+# Stray shell/editor/tooling dotfiles that land in the working tree
+.bash_profile
+.bashrc
+.gitconfig
+.gitmodules
+.idea
+.profile
+.ripgreprc
+.vscode
+.zprofile
+.zshrc

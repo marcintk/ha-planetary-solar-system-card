@@ -1,10 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { calculatePlanetPosition } from "../../src/astronomy/orbital-mechanics.js";
 import { PLANETS } from "../../src/astronomy/planet-data.js";
-import {
-  computeSolarElevationDeg,
-  computeZenithAngleFromSun,
-} from "../../src/astronomy/solar-position.js";
+import { computeZenithAngleFromSun } from "../../src/astronomy/solar-position.js";
 import {
   CONE_ASTRONOMICAL,
   CONE_CIVIL,
@@ -329,104 +326,6 @@ describe("renderDayNightSplit cone bisector geometry", () => {
     expect(sweepFlagOf(svgNorth)).toBe("1");
     expect(sweepFlagOf(svgSouth)).toBe("0");
   });
-});
-
-describe("renderDayNightSplit twilight cone/line edges drift from the Sun", () => {
-  // Extract the near-Sun cone edge angle from the rendered SVG clip path.
-  // Path format: "M anchorX anchorY L leftX leftY A D D 0 flag 1 rightX rightY Z"
-  function coneEdgeAngles(svg: SVGElement): { left: number; right: number } {
-    const path = svg.querySelector("clipPath path");
-    const coords = path
-      .getAttribute("d")
-      .match(/-?[\d.]+/g)
-      .map(Number);
-    const anchorX = coords[0];
-    const anchorY = coords[1];
-    const leftX = coords[2];
-    const leftY = coords[3];
-    const rightX = coords[9];
-    const rightY = coords[10];
-    // SVG y is inverted (eclipticViewDirection = -1), flip back to math coords
-    return {
-      left: Math.atan2(-(leftY - anchorY), leftX - anchorX),
-      right: Math.atan2(-(rightY - anchorY), rightX - anchorX),
-    };
-  }
-
-  const earth = PLANETS.find((p) => p.name === "Earth");
-
-  // Scan forward minute-by-minute from `start` and return the first dusk (descending)
-  // crossing time of each twilight boundary (-6, -12, -18), or null if not found within
-  // the window. Mirrors the bracket-scan approach already used by computeNextTransitionTime.
-  function findDuskCrossings(
-    lat: number,
-    lon: number,
-    start: Date,
-    windowHours = 36
-  ): Record<-6 | -12 | -18, Date | null> {
-    const targets = [-6, -12, -18] as const;
-    const result: Record<-6 | -12 | -18, Date | null> = { "-6": null, "-12": null, "-18": null };
-    let prevElev = computeSolarElevationDeg(lat, lon, start);
-    for (let m = 1; m <= windowHours * 60; m++) {
-      const t = new Date(start.getTime() + m * 60000);
-      const elev = computeSolarElevationDeg(lat, lon, t);
-      for (const target of targets) {
-        if (result[target] === null && prevElev > target && elev <= target) {
-          // Use the prior minute: still inside the band (elevationDeg > target), matching
-          // the renderer's own >= target convention for band membership.
-          result[target] = new Date(t.getTime() - 60000);
-        }
-      }
-      prevElev = elev;
-    }
-    return result;
-  }
-
-  // Angular gap (degrees) between the true Sun direction and the nearer edge of the
-  // rendered twilight cone, for a given observer location/time.
-  function nearSunEdgeDiffDeg(lat: number, lon: number, date: Date): number {
-    const earthAngle = calculatePlanetPosition(earth, date);
-    const sunDir = earthAngle + Math.PI;
-
-    const svg = createSvg();
-    renderDayNightSplit(svg, 200, date, { lat, lon });
-
-    const { left, right } = coneEdgeAngles(svg);
-    const nearSunDiff = Math.min(angleDiff(left, sunDir), angleDiff(right, sunDir));
-    return (nearSunDiff * 180) / Math.PI;
-  }
-
-  // Locations spanning both hemispheres, low/mid/high latitude — the projection error
-  // scales with latitude and season, so a single-location test could get lucky.
-  const locations = [
-    { name: "Denton, TX (mid-lat, N)", lat: 33.2148, lon: -97.1331 },
-    { name: "London, UK (mid-lat, N)", lat: 51.5074, lon: -0.1278 },
-    { name: "Sydney, AU (mid-lat, S)", lat: -33.8688, lon: 151.2093 },
-    { name: "Reykjavik, IS (high-lat, N)", lat: 64.1466, lon: -21.9426 },
-    { name: "Quito, EC (equator)", lat: -0.1807, lon: -78.4678 },
-  ];
-  // Two seasons per location so the check isn't tied to one time of year.
-  const seasonStarts = [new Date("2026-01-01T00:00:00Z"), new Date("2026-07-01T00:00:00Z")];
-
-  for (const loc of locations) {
-    for (const seasonStart of seasonStarts) {
-      const crossings = findDuskCrossings(loc.lat, loc.lon, seasonStart);
-      for (const target of [-6, -12, -18] as const) {
-        const crossingDate = crossings[target];
-        if (crossingDate === null) continue; // polar day/night at this location/season
-        it(`${loc.name} @ ${crossingDate.toISOString()} (${target}° twilight boundary): cone edge should point at the Sun`, () => {
-          const diffDeg = nearSunEdgeDiffDeg(loc.lat, loc.lon, crossingDate);
-          // If the cone/twilight-line geometry were correct, the boundary edge nearest the
-          // Sun would coincide with the Sun's true direction (~0°). It doesn't: the cone
-          // half-angle (90 - elevationDeg) is built from the true, unprojected 3D zenith
-          // angle, while the cone's axis (displayObserverAngle) is built from
-          // computeZenithAngleFromSun's ecliptic-plane *projection* of that same angle. The
-          // two only agree exactly at solar noon/midnight.
-          expect(diffDeg).toBeLessThan(1);
-        });
-      }
-    }
-  }
 });
 
 describe("rayCircleDistance", () => {

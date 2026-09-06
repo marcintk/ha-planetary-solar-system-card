@@ -17,7 +17,7 @@ Have an idea or found a bug?
 
 [![hacs_badge][hacs-shield]][hacs] [![GitHub Release][releases-shield]][releases]
 [![License][license-shield]][license] ![Maintenance][maintenance-shield] [![CI][ci-shield]][ci]
-[![Coverage][coverage-shield]][ci] [![Lines of code][sloc-shield]][repo]
+[![Coverage][coverage-shield]][ci] [![Downloads][downloads-shield]][releases]
 
 ## Installation
 
@@ -180,7 +180,6 @@ a pipeline stall doesn't break the feed.
 [epic]: https://epic.gsfc.nasa.gov/
 [sdo]: https://sdo.gsfc.nasa.gov/
 [svs]: https://svs.gsfc.nasa.gov/5587/
-[repo]: https://github.com/marcintk/ha-planetary-solar-system-card
 [license]: https://github.com/marcintk/ha-planetary-solar-system-card/blob/main/LICENSE
 [iana]: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 [demo-gif]:
@@ -197,4 +196,5 @@ a pipeline stall doesn't break the feed.
 [ci-shield]:
   https://img.shields.io/github/actions/workflow/status/marcintk/ha-planetary-solar-system-card/build-and-test.yml?label=CI
 [coverage-shield]: https://img.shields.io/badge/coverage-100%25-brightgreen
-[sloc-shield]: https://sloc.xyz/github/marcintk/ha-planetary-solar-system-card/?category=code
+[downloads-shield]:
+  https://img.shields.io/github/downloads/marcintk/ha-planetary-solar-system-card/total?label=downloads

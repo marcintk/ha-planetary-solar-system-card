@@ -34,6 +34,10 @@ export class ZoomController {
   private _defaultZoomLevel: ZoomLevel;
   private _periodicZoomChange: boolean;
   private _periodicZoomMax: number;
+  // Which way the auto-cycle is currently walking the zoom: +1 out toward periodicZoomMax,
+  // -1 back toward default_zoom. Flips at each endpoint so the cycle ping-pongs rather than
+  // snapping back.
+  private _periodicDirection: 1 | -1;
   private _animate: boolean;
   private _userInteracted: boolean;
   private _onChange: () => void;
@@ -54,6 +58,7 @@ export class ZoomController {
     this._defaultZoomLevel = DEFAULT_ZOOM_LEVEL;
     this._periodicZoomChange = false;
     this._periodicZoomMax = MAX_ZOOM;
+    this._periodicDirection = 1;
     this._animate = false;
     this._userInteracted = false;
     this._onChange = onChange;
@@ -152,6 +157,8 @@ export class ZoomController {
    */
   resetToDefault(): void {
     this._userInteracted = false;
+    // A resumed cycle heads outward from the default again.
+    this._periodicDirection = 1;
     if (!this._initialized || this._zoomLevel === this._defaultZoomLevel) return;
     const fromWidth = this._size;
     this._setZoomLevel(this._defaultZoomLevel);
@@ -184,11 +191,19 @@ export class ZoomController {
     if (this._periodicZoomChange && !this._userInteracted) this.advancePeriodic();
   }
 
+  // Ping-pongs the zoom between default_zoom (near) and periodicZoomMax (far), reversing at
+  // each endpoint rather than snapping back to the near end.
   advancePeriodic(): void {
     if (!this._initialized) return;
+    const near = this._defaultZoomLevel;
+    const far = this._periodicZoomMax;
+    if (near >= far) return; // no room to cycle, hold still
     const fromWidth = this._size;
-    const next = this._zoomLevel >= this._periodicZoomMax ? MIN_ZOOM : this._zoomLevel + 1;
-    this._setZoomLevel(next as ZoomLevel);
+    let dir = this._periodicDirection;
+    if (this._zoomLevel + dir > far) dir = -1;
+    else if (this._zoomLevel + dir < near) dir = 1;
+    this._periodicDirection = dir;
+    this._setZoomLevel(this._zoomLevel + dir);
     this._apply(fromWidth);
   }
 

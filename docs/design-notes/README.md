@@ -38,3 +38,12 @@ has a rendered URL — link to that, since GitHub shows `.html` as source, not r
   stale gradient wording in `src/types.ts` and `README.md`.
   [Explain-diff](https://marcintk.github.io/ha-planetary-solar-system-card/design-notes/issue-211-explain-diff.html)
   · [PR #212](https://github.com/marcintk/ha-planetary-solar-system-card/pull/212).
+- [Ping-pong the zoom auto-cycle](https://marcintk.github.io/ha-planetary-solar-system-card/design-notes/issue-222-zoom-cycle-pingpong.html)
+  — _approved_ ([#222](https://github.com/marcintk/ha-planetary-solar-system-card/issues/222)) — the
+  periodic zoom cycle steps `1→2→3→4` then hard-snaps back to `1` (one 2 s tween over three ladder
+  rungs, never revisiting `default_zoom`). Replace the wrap in `ZoomController.advancePeriodic()`
+  with a ping-pong between `default_zoom` (near) and `periodic_zoom_max` (far) — `1→2→3→4→3→2→1→2…`,
+  one rung per tick, a stored `_periodicDirection` that flips at each end and resets outward on
+  "Now"; `default_zoom >= periodic_zoom_max` holds still. Plus `easeInOutCubic → easeInOutSine` in
+  `zoom-animator.ts` (no velocity spike), duration and 60 s cadence unchanged. Explain-diff `—` · PR
+  `—`.

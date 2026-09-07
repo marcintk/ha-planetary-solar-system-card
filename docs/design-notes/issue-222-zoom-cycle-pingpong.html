@@ -392,20 +392,23 @@ const level = near + (phase &lt;= span ? phase : 2 * span - phase);</code></pre>
       </td>
     </tr>
     <tr>
-      <td>2</td>
+      <td>2&nbsp;&check;</td>
       <td>
-        <strong>Soften the easing.</strong> In <code>zoom-animator.ts</code> rename
+        <strong>Shipped.</strong> <code>zoom-animator.ts</code>: renamed
         <code>easeInOutCubic</code> &rarr; <code>easeInOutSine</code>, body
-        <code>-(Math.cos(Math.PI * t) - 1) / 2</code>, update the call site and the function&rsquo;s
-        doc line. <code>ZOOM_ANIMATE_DURATION_MS</code> unchanged.
+        <code>-(Math.cos(Math.PI * t) - 1) / 2</code>, call site + doc comment updated.
+        <code>ZOOM_ANIMATE_DURATION_MS</code> stays <code>2000</code>; no logic change.
+        The existing midpoint ease test still passes untouched (both curves hit
+        <code>0.5</code> at <code>t = 0.5</code>). Suite 1664 green. Nothing to compound &mdash;
+        a curve-taste swap, no new failure class.
       </td>
       <td>
-        At quarter-duration (<code>flushFrame(500)</code> of the 2000&nbsp;ms tween,
-        <code>animateTo(800, 640, &hellip;)</code>) the eased width has progressed
-        <em>past</em> cubic&rsquo;s <code>4&middot;0.25&sup3; = 6.25%</code> &mdash;
-        <code>easeInOutSine(0.25) &approx; 14.6%</code>, so <code>width &lt; 790</code>
-        (cubic would still be <code>&gt; 790</code>). Pins the curve family, not just
-        &ldquo;monotonic between the endpoints&rdquo;.
+        <code>zoom-animator.test.ts</code> &gt; &ldquo;uses a sine ease-in-out, not cubic
+        (gentler start)&rdquo; &mdash; at quarter-duration (<code>flushFrame(500)</code> of the
+        2000&nbsp;ms tween, <code>animateTo(800, 640, &hellip;)</code>) the width is
+        <code>&lt; 785</code>: <code>easeInOutSine(0.25) &approx; 14.6%</code> &rarr; ~776.6,
+        where cubic&rsquo;s <code>6.25%</code> gave exactly 790. Pins the curve family, not just
+        monotonicity.
       </td>
     </tr>
   </table>

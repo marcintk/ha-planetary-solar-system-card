@@ -17,8 +17,8 @@ index.
   multi-rung jump, the exact lurch the ping-pong was meant to remove.
 - **Guardrail:** `ZoomController.advancePeriodic()` keeps a `_periodicDirection: 1 | -1` and moves
   **±1 from the actual current `_zoomLevel`**, flipping direction only when the next step would
-  overshoot an endpoint. Any external mutation of the level (or the bounds) just means the next
-  step eases one rung from wherever it now is; it self-corrects back into range without a jump.
+  overshoot an endpoint. Any external mutation of the level (or the bounds) just means the next step
+  eases one rung from wherever it now is; it self-corrects back into range without a jump.
   `test/card/zoom-controller.test.ts` — "steps one rung back into range after a config edit strands
   the level past the max" pins this; it's the assertion that distinguishes this approach from the
   stateless one. Rule: a bounded cycle that reverses at its ends is driven relative to its current

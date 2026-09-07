@@ -34,7 +34,7 @@ export class ZoomAnimator {
       const elapsed = timestamp - startTime;
       const t = Math.min(elapsed / ZOOM_ANIMATE_DURATION_MS, 1);
 
-      onStep(fromWidth + (toWidth - fromWidth) * easeInOutCubic(t));
+      onStep(fromWidth + (toWidth - fromWidth) * easeInOutSine(t));
 
       if (t < 1) {
         this._animationId = requestAnimationFrame(step);
@@ -55,6 +55,8 @@ export class ZoomAnimator {
   }
 }
 
-function easeInOutCubic(t: number): number {
-  return t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
+// Sine ease-in-out: a real camera-dolly move that drifts off the mark and settles onto the
+// target, with none of the mid-move velocity spike a cubic curve pushes through.
+function easeInOutSine(t: number): number {
+  return -(Math.cos(Math.PI * t) - 1) / 2;
 }

@@ -62,6 +62,19 @@ describe("ZoomAnimator", () => {
     expect(mid).toBeLessThan(800);
   });
 
+  it("uses a sine ease-in-out, not cubic (gentler start)", () => {
+    const animator = new ZoomAnimator();
+    const widths: number[] = [];
+    animator.animateTo(800, 640, (w) => widths.push(w));
+
+    flushFrame(0);
+    flushFrame(500); // quarter of the 2000ms duration
+    const quarter = widths.at(-1) as number;
+    // sine ease-in-out yields ~776.6 here; cubic yields 790.
+    expect(quarter).toBeLessThan(785);
+    expect(quarter).toBeGreaterThan(770);
+  });
+
   it("lands exactly on the target and stops", () => {
     const animator = new ZoomAnimator();
     const widths: number[] = [];

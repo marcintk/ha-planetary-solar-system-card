@@ -5,6 +5,7 @@ import {
   getLocalTimeInZone,
   getSkyMode,
 } from "../../src/astronomy/solar-position.js";
+import { DATES, MATRIX, SITES } from "../fixtures/observer-matrix.js";
 
 describe("getLocalTimeInZone", () => {
   it("returns correct local time for a UTC date in America/Chicago (CST = UTC-6)", () => {
@@ -182,4 +183,41 @@ describe("computeNextTransitionTime", () => {
     expect(result).not.toBeNull();
     expect(result.toMode).toBe("Day");
   });
+});
+
+// Sanity net over the shared site × date matrix — no external ground truth, just that the
+// public helpers stay well-formed at every canonical place and time (including the polar
+// solstices at Trondheim / Ushuaia, where `computeNextTransitionTime` legitimately returns
+// null).
+describe("solar-position helpers over the shared matrix", () => {
+  const VALID_MODES = new Set([
+    "Day",
+    "Civil Twilight",
+    "Nautical Twilight",
+    "Astronomical Twilight",
+    "Night",
+  ]);
+
+  it.each(MATRIX)(
+    "$site on $date: elevation, sky mode and next transition stay well-formed",
+    ({ site, date }) => {
+      const { lat, lon } = SITES[site];
+      const base = new Date(`${DATES[date]}T00:00:00Z`).getTime();
+
+      for (const hour of [0, 6, 12, 18]) {
+        const when = new Date(base + hour * 3600000);
+        const elev = computeSolarElevationDeg(lat, lon, when);
+        expect(elev).toBeGreaterThanOrEqual(-90);
+        expect(elev).toBeLessThanOrEqual(90);
+        expect(VALID_MODES.has(getSkyMode(elev))).toBe(true);
+
+        const next = computeNextTransitionTime(lat, lon, when);
+        if (next !== null) {
+          expect(next.time.getTime()).toBeGreaterThan(when.getTime());
+          expect(next.time.getTime()).toBeLessThanOrEqual(when.getTime() + 24 * 3600000);
+          expect(VALID_MODES.has(next.toMode)).toBe(true);
+        }
+      }
+    }
+  );
 });

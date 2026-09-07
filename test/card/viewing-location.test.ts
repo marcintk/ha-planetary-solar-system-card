@@ -4,6 +4,7 @@ import {
   skyBackgroundForElevation,
   ViewingLocation,
 } from "../../src/card/viewing-location.js";
+import { DATES, MATRIX, SITES } from "../fixtures/observer-matrix.js";
 
 const LONDON = {
   config: { latitude: 51.5, longitude: -0.1, time_zone: "Europe/London", location_name: "London" },
@@ -216,5 +217,55 @@ describe("ViewingLocation", () => {
       // Below the -18deg anchor the sky wash is already a flat plateau, so the fade must be too.
       expect(moonExtinctionTint(2, -19)).toBe(moonExtinctionTint(2, -25));
     });
+  });
+});
+
+// The shared site × date matrix. No external ground truth — `skyFrame` is self-consistency
+// only — but every canonical place and time must produce a well-formed frame, and both
+// horizon states must be reachable across a day.
+describe("ViewingLocation over the shared matrix", () => {
+  const HEX = /^#[0-9a-f]{6}$/i;
+  const RGBA = /^rgba\(\d+, \d+, \d+, [\d.]+\)$/;
+
+  it.each(Object.keys(SITES) as (keyof typeof SITES)[])(
+    "%s: hemisphere follows latitude",
+    (site) => {
+      const location = new ViewingLocation();
+      const { lat, lon, timezone } = SITES[site];
+      location.configure({ lat, lon, timezone }, site);
+      expect(location.hemisphere).toBe(lat >= 0 ? "north" : "south");
+    }
+  );
+
+  it.each(MATRIX)("$site on $date: skyFrame stays well-formed across the day", ({ site, date }) => {
+    const location = new ViewingLocation();
+    const { lat, lon, timezone } = SITES[site];
+    location.configure({ lat, lon, timezone }, site);
+
+    const base = new Date(`${DATES[date]}T00:00:00Z`).getTime();
+    for (let hour = 0; hour < 24; hour++) {
+      const frame = location.skyFrame(new Date(base + hour * 3600000));
+      expect(Number.isFinite(frame.rotation)).toBe(true);
+      expect(Math.abs(frame.rotation)).toBeLessThanOrEqual(180);
+      expect(frame.background).toMatch(HEX);
+      expect(frame.extinction).toMatch(RGBA);
+      expect(typeof frame.belowHorizon).toBe("boolean");
+    }
+  });
+
+  // Aggregate rather than per-row: at Trondheim near a solstice the Moon can stay below the
+  // horizon for a whole canonical day, so "both states" is only guaranteed across the matrix.
+  it("reaches both Moon-horizon states somewhere in the matrix", () => {
+    const states = new Set<boolean>();
+    for (const { site, date } of MATRIX) {
+      const location = new ViewingLocation();
+      const { lat, lon, timezone } = SITES[site];
+      location.configure({ lat, lon, timezone }, site);
+      const base = new Date(`${DATES[date]}T00:00:00Z`).getTime();
+      for (let hour = 0; hour < 24; hour++) {
+        states.add(location.skyFrame(new Date(base + hour * 3600000)).belowHorizon);
+      }
+    }
+    expect(states).toEqual(new Set([true, false]));
   });
 });

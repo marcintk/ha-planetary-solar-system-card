@@ -8,7 +8,14 @@ import {
 } from "../astronomy/solar-position.js";
 import type { Colors, LocationData } from "../types.js";
 import type { EclipticViewDirection } from "./svg-utils.js";
-import { CENTER, createSvgElement, MAX_RADIUS, polarOffset, VIEW_SIZE } from "./svg-utils.js";
+import {
+  CENTER,
+  createSvgElement,
+  getOrCreateDefs,
+  MAX_RADIUS,
+  polarOffset,
+  VIEW_SIZE,
+} from "./svg-utils.js";
 
 const NEEDLE_COLOR = "color-mix(in srgb, currentColor 70%, transparent)";
 
@@ -159,8 +166,7 @@ function renderVisibilityCone(
   // SVG path: MoveTo apex, LineTo left edge, Arc to right edge, ClosePath
   const pathD = `M ${anchorX} ${anchorY} L ${left.x} ${left.y} A ${D} ${D} 0 ${largeArcFlag} ${sweepFlag} ${right.x} ${right.y} Z`;
 
-  const defs =
-    svg.querySelector("defs") || svg.insertBefore(createSvgElement("defs", {}), svg.firstChild);
+  const defs = getOrCreateDefs(svg);
 
   const clipPath = createSvgElement("clipPath", { id: clipId });
   clipPath.appendChild(createSvgElement("path", { d: pathD }));

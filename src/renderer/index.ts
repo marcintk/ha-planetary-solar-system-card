@@ -5,13 +5,14 @@ import {
   calculatePlanetOrbit,
 } from "../astronomy/orbital-mechanics.js";
 import { EARTH, MOON, MOON_PIXEL_OFFSET, PLANETS, SUN } from "../astronomy/planet-data.js";
-import type {
-  Colors,
-  Hemisphere,
-  LocationData,
-  PanZoomState,
-  ShadeOptions,
-  ViewPosition,
+import {
+  type Colors,
+  DEFAULT_SHADE,
+  type Hemisphere,
+  type LocationData,
+  type PanZoomState,
+  type ShadeOptions,
+  type ViewPosition,
 } from "../types.js";
 import {
   HALO_VIEW_FRACTION,
@@ -44,7 +45,7 @@ export function renderSolarSystem(
   locationData: LocationData | null = null,
   colors: Colors = {},
   eclipticView = false,
-  shade: ShadeOptions = { sphere: true, dayNight: true }
+  shade: ShadeOptions = DEFAULT_SHADE
 ): {
   svg: SVGSVGElement;
   positions: ViewPosition[];

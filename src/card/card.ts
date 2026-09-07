@@ -1,6 +1,12 @@
 import type { TemplateResult } from "lit";
 import { html, LitElement, nothing } from "lit";
-import type { CardConfig, Colors, HASSConfig, ShadeOptions } from "../types.js";
+import {
+  type CardConfig,
+  type Colors,
+  DEFAULT_SHADE,
+  type HASSConfig,
+  type ShadeOptions,
+} from "../types.js";
 import { parseCardConfig } from "./card-config.js";
 import { cardStyles } from "./card-styles.js";
 import { buildGalleryCaption, buildStatusBarView, discStyle } from "./card-template.js";
@@ -84,7 +90,7 @@ export class SolarViewCard extends LitElement {
     this._colors = {};
     this._refreshMs = 60000;
     this._eclipticView = false;
-    this._shade = { sphere: true, dayNight: true };
+    this._shade = DEFAULT_SHADE;
     this._theme = "auto";
     this._heightStyle = "";
     this._solarView = new SolarView(this._zoom);

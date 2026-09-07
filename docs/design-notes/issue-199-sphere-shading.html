@@ -509,7 +509,9 @@
   <ul>
     <li><strong>Remove <code>sunwardHalfDiscPaths</code>.</strong> After slice 1 nothing in
       <code>src/</code> calls it. &rarr; cleanup issue: delete it and its tests, folding any
-      still-useful pole geometry into <code>terminatorShadowPath</code>.</li>
+      still-useful pole geometry into <code>terminatorShadowPath</code>.
+      <strong>Done</strong> &mdash; issue #224, the function and its <code>describe</code> block
+      deleted; no pole geometry needed folding in.</li>
     <li><strong>Specular blob for icy bodies.</strong> The per-body rotate
       <code>&lt;g&gt;</code> from slice 2 could later carry a small bright highlight blob.
       Noted, not built.</li>

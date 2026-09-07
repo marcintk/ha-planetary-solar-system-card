@@ -166,9 +166,9 @@ describe("renderOrbit", () => {
   });
 });
 
-// display:3d draws a Lambert sprite <image> tinted by url(#tint-<hex-without-#>).
+// display:3d places a <use> of the shared #sphere-sprite symbol, tinted by url(#tint-<hex-without-#>).
 const tintRef = (hex) => `url(#tint-${hex.replace(/[^a-z0-9]/gi, "")})`;
-const sprite = (svg, hex) => svg.querySelector(`image[filter="${tintRef(hex)}"]`);
+const sprite = (svg, hex) => svg.querySelector(`use[filter="${tintRef(hex)}"]`);
 
 describe("renderBody", () => {
   const earth = PLANETS.find((p) => p.name === "Earth");
@@ -182,7 +182,11 @@ describe("renderBody", () => {
     expect(img.getAttribute("x")).toBe(String(300 - earth.size));
     expect(img.getAttribute("y")).toBe(String(250 - earth.size));
     expect(img.getAttribute("width")).toBe(String(2 * earth.size));
-    expect(img.getAttribute("href")).toMatch(/^data:image\/png;base64,/);
+    // The <use> points at the shared symbol; the PNG payload is inlined once, inside it.
+    expect(img.getAttribute("href")).toBe("#sphere-sprite");
+    expect(svg.querySelector("defs symbol#sphere-sprite image").getAttribute("href")).toMatch(
+      /^data:image\/png;base64,/
+    );
     // shading on -> the soft sprite is NOT rotated toward the Sun. The day/night comes
     // from the identical terminatorShadowPath <path> the 2D { sphere: false, dayNight: true }
     // body emits (a 3D shaded body === soft sprite + the 2D terminator path).
@@ -269,7 +273,7 @@ describe("renderBody", () => {
 describe("renderBodyShadow", () => {
   it("appends one translucent anti-sunward half-disc path (and no circle) for an off-center body", () => {
     const svg = createSvg();
-    renderBodyShadow(svg, 300, 250, 10);
+    renderBodyShadow(svg, 300, 250, 10, 10, "#3f7fc4");
 
     expect(svg.querySelector("circle")).toBeNull();
 
@@ -277,9 +281,9 @@ describe("renderBodyShadow", () => {
     expect(paths.length).toBe(1);
 
     const [shadow] = paths;
-    expect(shadow.getAttribute("fill")).toBe("#05070c");
+    expect(shadow.getAttribute("fill")).toBe("color-mix(in srgb, #3f7fc4 28%, black)");
     const op = Number(shadow.getAttribute("fill-opacity"));
-    expect(op).toBe(0.55);
+    expect(op).toBe(0.92);
     // The dark region is terminatorShadowPath's geometry — an anti-sunward wash
     // bounded by the elliptical terminator.
     expect(shadow.getAttribute("d")).toBe(terminatorShadowPath(300, 250, 10, TERMINATOR_BOW));
@@ -287,7 +291,7 @@ describe("renderBodyShadow", () => {
 
   it("appends nothing for a body at CENTER (the Sun no-op)", () => {
     const svg = createSvg();
-    renderBodyShadow(svg, CENTER, CENTER, 12);
+    renderBodyShadow(svg, CENTER, CENTER, 12, 12, "#3f7fc4");
     expect(svg.childNodes.length).toBe(0);
   });
 
@@ -295,13 +299,13 @@ describe("renderBodyShadow", () => {
   // band clipped to a rotated rect and masked to leave the core to the terminator path.
   it("with reach > coreR, appends the core terminator path plus a clipped + masked ring band", () => {
     const svg = createSvg();
-    renderBodyShadow(svg, 520, 300, 13, 24);
+    renderBodyShadow(svg, 520, 300, 13, 24, "#e2c58c");
 
     // core disc: the same elliptical terminator geometry every lone body gets.
     const corePath = svg.querySelector("path");
     expect(corePath).not.toBeNull();
     expect(corePath.getAttribute("d")).toBe(terminatorShadowPath(520, 300, 13, TERMINATOR_BOW));
-    expect(corePath.getAttribute("fill")).toBe("#05070c");
+    expect(corePath.getAttribute("fill")).toBe("color-mix(in srgb, #e2c58c 28%, black)");
 
     const defs = svg.querySelector("defs");
     expect(defs).not.toBeNull();
@@ -334,8 +338,8 @@ describe("renderBodyShadow", () => {
     expect(overlay.getAttribute("cx")).toBe("520");
     expect(overlay.getAttribute("cy")).toBe("300");
     expect(overlay.getAttribute("r")).toBe("24");
-    // no shadeColor here -> the flat #05070c wash.
-    expect(overlay.getAttribute("fill")).toBe("#05070c");
+    // the ring band uses the same in-hue darkening as the core.
+    expect(overlay.getAttribute("fill")).toBe("color-mix(in srgb, #e2c58c 28%, black)");
     expect(overlay.getAttribute("mask")).toBe("url(#saturn-core-cut)");
 
     const opacity = Number(overlay.getAttribute("fill-opacity"));
@@ -345,7 +349,7 @@ describe("renderBodyShadow", () => {
 
   it("is still a no-op for a body at CENTER even when a reach arg is given", () => {
     const svg = createSvg();
-    renderBodyShadow(svg, CENTER, CENTER, 13, 24);
+    renderBodyShadow(svg, CENTER, CENTER, 13, 24, "#e2c58c");
     expect(svg.childNodes.length).toBe(0);
   });
 });
@@ -397,7 +401,7 @@ describe("renderSaturn", () => {
     const overlay = svg.querySelector('circle[clip-path="url(#saturn-shadow)"]');
     expect(overlay).not.toBeNull();
     expect(overlay.getAttribute("r")).toBe("24");
-    // 3d: the band matches the sprite's in-hue dark side, not the flat #05070c wash.
+    // 3d: the band matches the sprite's in-hue dark side.
     expect(overlay.getAttribute("fill")).toBe("color-mix(in srgb, #e2c58c 28%, black)");
 
     const opacity = Number(overlay.getAttribute("fill-opacity"));

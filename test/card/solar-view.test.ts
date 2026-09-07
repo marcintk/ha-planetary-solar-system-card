@@ -47,7 +47,7 @@ describe("SolarView.mount", () => {
     const svg = container.querySelector("svg") as SVGSVGElement;
     expect(svg.querySelector("#sun-halo-glow")).toBeNull();
     expect(svg.querySelector('defs filter[id^="tint-"]')).toBeNull();
-    expect(svg.querySelector('path[fill="#05070c"]')).toBeNull();
+    expect(svg.querySelector('path[fill^="color-mix(in srgb,"]')).toBeNull();
   });
 
   it("defaults shade to both-on (3d sprite + day/night) when the arg is omitted", () => {
@@ -56,7 +56,7 @@ describe("SolarView.mount", () => {
     expect(svg.querySelector("#sun-halo-glow")).not.toBeNull();
     expect(svg.querySelector('defs filter[id^="tint-"]')).not.toBeNull();
     // 3d on: bodies are drawn as tinted soft sprites (no rotate transform)
-    const sprite = svg.querySelector('image[filter^="url(#tint-"]');
+    const sprite = svg.querySelector('use[filter^="url(#tint-"]');
     expect(sprite).not.toBeNull();
     expect(sprite.getAttribute("transform")).toBeNull();
     // day/night on: the shared terminator wash <path> + Saturn's clipped band

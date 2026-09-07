@@ -1,0 +1,495 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ping-pong the zoom auto-cycle</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,ital@9..144,300..700,0..1&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #eceef4;
+    --paper-raised: #ffffff;
+    --ink: #171b2b;
+    --ink-soft: #565d78;
+    --ink-faint: #888ea8;
+    --line: #d2d7e3;
+    --accent: #b3801f;
+    --accent-soft: #ecdaa8;
+    --cool: #3f6cae;
+    --ok: #1f7a4d;
+    --warn-bg: #fbf3e0;
+    --warn-line: #e0c078;
+    --shadow: 0 1px 2px rgba(23,27,43,0.06), 0 8px 24px rgba(23,27,43,0.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #0e1017;
+      --paper-raised: #161925;
+      --ink: #eceef4;
+      --ink-soft: #a6abc1;
+      --ink-faint: #6b718e;
+      --line: #282c3c;
+      --accent: #e0b256;
+      --accent-soft: #40361f;
+      --cool: #89a6dc;
+      --ok: #5cc48c;
+      --warn-bg: #2c2416;
+      --warn-line: #665328;
+      --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 12px 32px rgba(0,0,0,0.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #0e1017;
+    --paper-raised: #161925;
+    --ink: #eceef4;
+    --ink-soft: #a6abc1;
+    --ink-faint: #6b718e;
+    --line: #282c3c;
+    --accent: #e0b256;
+    --accent-soft: #40361f;
+    --cool: #89a6dc;
+    --ok: #5cc48c;
+    --warn-bg: #2c2416;
+    --warn-line: #665328;
+    --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 12px 32px rgba(0,0,0,0.35);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Source Serif 4", Georgia, "Times New Roman", serif;
+    font-size: 16px;
+    line-height: 1.6;
+    padding: 4.5rem 1.5rem 6rem;
+    margin: 0;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page { max-width: 880px; margin: 0 auto; }
+  .eyebrow {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 0.9rem;
+  }
+  h1 {
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 600;
+    font-size: clamp(2rem, 5vw, 2.9rem);
+    line-height: 1.06;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+    margin: 0 0 1rem;
+  }
+  h2 {
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 600;
+    font-size: 1.5rem;
+    margin: 3.5rem 0 1rem;
+    padding-top: 1.6rem;
+    border-top: 1px solid var(--line);
+    text-wrap: balance;
+  }
+  h3 {
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 600;
+    font-size: 1.13rem;
+    margin: 2rem 0 0.6rem;
+  }
+  p { margin: 0 0 1rem; }
+  a { color: var(--accent); text-underline-offset: 2px; }
+  .lede { font-size: 1.16rem; color: var(--ink-soft); margin-bottom: 1.6rem; text-wrap: pretty; }
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.4rem;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.76rem;
+    color: var(--ink-faint);
+    margin-bottom: 2.4rem;
+  }
+  .badge {
+    display: inline-block;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 0.28rem 0.66rem;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    border: 1px solid var(--warn-line);
+  }
+  ul, ol { margin: 0 0 1rem; padding-left: 1.3rem; }
+  li { margin-bottom: 0.45rem; }
+  code {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.86em;
+    background: var(--accent-soft);
+    color: inherit;
+    padding: 0.1em 0.36em;
+    border-radius: 4px;
+  }
+  pre {
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 1rem 1.15rem;
+    overflow-x: auto;
+    box-shadow: var(--shadow);
+    margin: 0 0 1.4rem;
+  }
+  pre code { background: none; padding: 0; font-size: 0.82rem; line-height: 1.55; }
+  pre .add { color: var(--ok); }
+  pre .del { color: #b3402f; }
+  :root:not([data-theme="light"]) pre .del { color: #e08a7a; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) pre .del { color: #e08a7a; } }
+  pre .dim { color: var(--ink-faint); }
+  table { width: 100%; border-collapse: collapse; margin: 0 0 1.6rem; font-size: 0.92rem; }
+  th, td { text-align: left; padding: 0.6rem 0.8rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+  td:first-child { white-space: nowrap; font-family: "JetBrains Mono", monospace; font-size: 0.82rem; }
+  .verdict {
+    border-left: 3px solid var(--accent);
+    padding: 0.4rem 0 0.4rem 1.1rem;
+    margin: 1.4rem 0;
+    font-size: 1.03rem;
+  }
+  .callout {
+    background: var(--warn-bg);
+    border: 1px solid var(--warn-line);
+    border-left-width: 3px;
+    border-radius: 6px;
+    padding: 0.9rem 1.15rem;
+    margin: 0 0 1.4rem;
+    font-size: 0.95rem;
+  }
+  .callout strong { color: var(--accent); }
+  .demo {
+    background: radial-gradient(120% 120% at 50% 40%, #1d2740 0%, #10141f 60%, #0b0e16 100%);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 1.4rem 1.2rem 1rem;
+    margin: 0 0 1rem;
+    box-shadow: var(--shadow);
+  }
+  .demo svg { width: 100%; height: auto; display: block; }
+  .demo .cap {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.68rem;
+    line-height: 1.5;
+    color: #aeb9c8;
+    margin-top: 0.7rem;
+  }
+  .demo .cap b { color: #fff; font-weight: 500; }
+  .seq {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.95rem;
+    letter-spacing: 0.04em;
+  }
+  .seq .turn { color: var(--accent); font-weight: 500; }
+</style>
+</head>
+<body>
+<div class="page">
+  <p class="eyebrow">Issue #222 &middot; Design note</p>
+  <h1>Ping-pong the zoom auto-cycle</h1>
+  <p><span class="badge">approved</span></p>
+  <p class="lede">
+    The periodic zoom cycle steps one rung a minute to <code>periodic_zoom_max</code>, then
+    <em>snaps</em> straight back to level&nbsp;1 &mdash; one 2&nbsp;s tween covering three ladder
+    rungs at ~3&times; the speed of every other step, and it never revisits <code>default_zoom</code>
+    again. Make it a ping-pong that turns around at each end, and swap the easing curve for one that
+    doesn&rsquo;t lurch.
+  </p>
+  <p class="meta">
+    <span><a href="https://github.com/marcintk/ha-planetary-solar-system-card/issues/222">#222</a></span>
+    <span>2026-09-07</span>
+    <span>2 slices</span>
+  </p>
+
+  <h2>Problem</h2>
+  <p>
+    The auto-cycle lives in <code>ZoomController.advancePeriodic()</code>
+    (<code>src/card/zoom-controller.ts</code>). The card&rsquo;s 60&nbsp;s refresh timer
+    (<code>_refreshMs</code>, <code>src/card/card.ts</code>) calls <code>_zoom.tick()</code>, which
+    calls it while the cycle is on and the user hasn&rsquo;t taken the camera:
+  </p>
+  <pre><code>advancePeriodic(): void {
+  if (!this._initialized) return;
+  const fromWidth = this._size;
+  <span class="dim">// 1 &rarr; 2 &rarr; 3 &rarr; 4, then hard reset to 1</span>
+  const next = this._zoomLevel &gt;= this._periodicZoomMax ? MIN_ZOOM : this._zoomLevel + 1;
+  this._setZoomLevel(next as ZoomLevel);
+  this._apply(fromWidth);
+}</code></pre>
+  <p>
+    <code>_apply()</code> hands the width change to <code>ZoomAnimator.animateTo()</code>, which
+    tweens the on-screen viewBox width over <code>ZOOM_ANIMATE_DURATION_MS = 2000</code> with
+    <code>easeInOutCubic</code>. Two things read as unnatural:
+  </p>
+  <ul>
+    <li>
+      <strong>The snap-back.</strong> Every forward step moves one ladder rung
+      (widths <code>800&nbsp;&rarr;&nbsp;640&nbsp;&rarr;&nbsp;480&nbsp;&rarr;&nbsp;320</code>, an
+      even 160 units each) in 2&nbsp;s. The <code>4&nbsp;&rarr;&nbsp;1</code> reset moves
+      <em>three</em> rungs (<code>320&nbsp;&rarr;&nbsp;800</code>, 480 units) in the same 2&nbsp;s
+      &mdash; a lurching zoom-out at triple the speed of everything around it. And it abandons
+      <code>default_zoom</code> permanently after the very first step: the cycle only ever bounces
+      off hard-coded level&nbsp;1, never the level the card was configured to rest at.
+    </li>
+    <li>
+      <strong>The curve.</strong> <code>easeInOutCubic</code>
+      (<code>t&lt;.5 ? 4t&sup3; : 1-(-2t+2)&sup3;/2</code>) has a steep mid-move velocity spike
+      &mdash; it accelerates hard out of rest and brakes hard into the target. On a slow ambient
+      drift that reads as a shove, not a glide.
+    </li>
+  </ul>
+
+  <h2>The change</h2>
+  <p>
+    Bounce between two endpoints instead of wrapping:
+  </p>
+  <ul>
+    <li><strong>Near endpoint = <code>default_zoom</code></strong> (the controller already holds it
+      as <code>_defaultZoomLevel</code>). The cycle now passes back through the configured rest
+      level on every inward swing &mdash; the thing it never did before.</li>
+    <li><strong>Far endpoint = <code>periodic_zoom_max</code></strong>, unchanged meaning, no longer
+      a wrap point.</li>
+    <li>Default config (<code>default_zoom: 1</code>, <code>periodic_zoom_max: 4</code>):
+      <span class="seq">1 2 3 <span class="turn">4</span> 3 2 <span class="turn">1</span> 2 3 <span class="turn">4</span> &hellip;</span></li>
+    <li>Every step is exactly one rung, so the 2&nbsp;s tween is now a uniform visual speed in both
+      directions.</li>
+  </ul>
+  <p>
+    And in <code>zoom-animator.ts</code>, <code>easeInOutCubic</code> &rarr;
+    <code>easeInOutSine</code> (<code>-(cos(&pi;t)-1)/2</code>) &mdash; the gentlest standard
+    in/out curve, no velocity spike. Duration stays <code>2000</code>; the rAF frame loop is
+    untouched (it already renders at the display&rsquo;s native rate, so &ldquo;frames&rdquo;
+    needs no change). The 60&nbsp;s cadence and the uniform one-tick dwell on every rung are
+    unchanged.
+  </p>
+
+  <h2>Approach &mdash; designed twice</h2>
+  <h3>A. Stored direction on the controller <span style="color:var(--ok)">&larr; chosen</span></h3>
+  <p>
+    Add <code>_periodicDirection: 1 | -1</code> (init <code>1</code> = outward). Each tick, move
+    one rung the way we&rsquo;re going; if that would overshoot an endpoint, flip first:
+  </p>
+  <pre><code>advancePeriodic(): void {
+  if (!this._initialized) return;
+  const near = this._defaultZoomLevel;
+  const far = this._periodicZoomMax;
+  if (near &gt;= far) return;                       <span class="dim">// no room to cycle &mdash; hold still</span>
+  const fromWidth = this._size;
+  let dir = this._periodicDirection;
+  if (this._zoomLevel + dir &gt; far) dir = -1;
+  else if (this._zoomLevel + dir &lt; near) dir = 1;
+  this._periodicDirection = dir;
+  this._setZoomLevel((this._zoomLevel + dir) as ZoomLevel);
+  this._apply(fromWidth);
+}</code></pre>
+  <p>
+    <code>resetToDefault()</code> (the &ldquo;Now&rdquo; button) gains one line &mdash;
+    <code>this._periodicDirection = 1</code> &mdash; so a resumed cycle always heads outward from
+    <code>default_zoom</code>. The flip rule is self-correcting: whatever <code>_zoomLevel</code>
+    is when the tick fires (a config edit moved it, the user left it mid-ladder before Home), the
+    next move is always exactly &plusmn;1 rung from where the view actually sits.
+  </p>
+  <h3>B. Stateless triangle wave from a step counter</h3>
+  <p>
+    No direction field. Keep <code>_periodicStep</code>, increment it each tick, and map it through
+    a triangle wave of period <code>2&middot;(far&minus;near)</code> to get the level.
+    <code>resetToDefault()</code> zeroes the counter.
+  </p>
+  <pre><code>const span = far - near, phase = this._periodicStep++ % (2 * span);
+const level = near + (phase &lt;= span ? phase : 2 * span - phase);</code></pre>
+  <p>
+    Cleaner in the abstract &mdash; the turnaround is implicit, nothing to keep in sync. But the
+    wave is computed from an internal counter that is <em>blind to the actual <code>_zoomLevel</code></em>.
+    <code>configure()</code> mutates <code>_defaultZoomLevel</code> live from the Lovelace editor;
+    the next tick would then compute <code>triangle(newNear, far, step)</code> and jump the view
+    several rungs in one tween &mdash; reintroducing the exact multi-rung lurch this issue removes.
+  </p>
+  <div class="verdict">
+    <strong>A.</strong> The bug being fixed <em>is</em> a multi-rung jump. B&rsquo;s counter can
+    still produce one whenever anything else moves the zoom; A moves &plusmn;1 from the real
+    current rung every time, by construction. The cost is one boolean-ish field and a one-line
+    reset &mdash; cheap insurance against the failure mode we&rsquo;re here to kill.
+  </div>
+
+  <h2>What it looks like</h2>
+  <p>
+    Viewport width over time (one tick = 60&nbsp;s). Today&rsquo;s sawtooth vs. the ping-pong,
+    default config.
+  </p>
+  <div class="demo">
+    <svg viewBox="0 0 620 220" role="img" aria-label="Sawtooth versus triangle-wave zoom cycle">
+      <g font-family="'JetBrains Mono',monospace" font-size="10" fill="#7d8aa0">
+        <text x="0" y="14">rung 4 &mdash; zoomed in</text>
+        <text x="0" y="200">rung 1 &mdash; default</text>
+      </g>
+      <g stroke="#2a3346" stroke-width="1">
+        <line x1="40" y1="20" x2="600" y2="20"/>
+        <line x1="40" y1="80" x2="600" y2="80"/>
+        <line x1="40" y1="140" x2="600" y2="140"/>
+        <line x1="40" y1="200" x2="600" y2="200"/>
+      </g>
+      <!-- today: sawtooth 1-2-3-4 then snap to 1 -->
+      <polyline fill="none" stroke="#e08a7a" stroke-width="2" stroke-dasharray="4 3"
+        points="40,200 120,140 200,80 280,20 280,200 360,140 440,80 520,20 520,200 600,200"/>
+      <!-- new: triangle 1-2-3-4-3-2-1 -->
+      <polyline fill="none" stroke="#5cc48c" stroke-width="2.5"
+        points="40,200 120,140 200,80 280,20 360,80 440,140 520,200 600,140"/>
+    </svg>
+    <div class="cap">
+      <b style="color:#e08a7a">&mdash; &mdash;</b> today: three-rung snap-back every 4th tick &nbsp;&middot;&nbsp;
+      <b style="color:#5cc48c">&mdash;&mdash;</b> ping-pong: one rung per tick, turns at each end,
+      passes through <b>default</b> on every inward swing
+    </div>
+  </div>
+
+  <h2>Slices</h2>
+  <table>
+    <tr><th>#</th><th>Change</th><th>Red test</th></tr>
+    <tr>
+      <td>1&nbsp;&check;</td>
+      <td>
+        <strong>Shipped.</strong> Added <code>_periodicDirection: 1 | -1</code> (constructor init
+        <code>1</code>); rewrote <code>advancePeriodic()</code> per approach A &mdash; move
+        &plusmn;1 rung from the <em>actual</em> <code>_zoomLevel</code>, flip <code>dir</code>
+        before the write if it would overshoot <code>near</code>/<code>far</code>, and
+        <code>if (near &gt;= far) return</code> before any side effect. Added
+        <code>this._periodicDirection = 1</code> to <code>resetToDefault()</code>.
+        <code>tick()</code>, <code>_apply()</code>, the animator: untouched. Migrated the wrap
+        assertions in <code>zoom-controller.test.ts</code> (now the full <code>2 3 2 1 2 3</code>
+        ping-pong) and three <code>card.auto-zoom.test.ts</code> cases (turnaround at
+        <code>far</code>, inward swing, <code>near&nbsp;==&nbsp;far</code> holds still); added a
+        test for the reviewer&rsquo;s gap &mdash; a live <code>configure()</code> that strands the
+        level past a lowered <code>max</code> still steps one rung inward, not a jump.
+        <code>README.md</code> <code>periodic_zoom_max</code> row reworded. <code>/simplify</code>
+        dropped a redundant <code>as ZoomLevel</code> cast. Reviewer: no correctness bugs; suite
+        1663 green, <code>check:ci</code> clean. <em>Note: the <code>resetToDefault()</code>
+        direction line is provably dead &mdash; the flip rule re-derives <code>+1</code> at
+        <code>near</code> on the next tick regardless &mdash; kept as a documented invariant per
+        this note.</em>
+      </td>
+      <td>
+        <code>zoom-controller.test.ts</code> &gt; &ldquo;advancePeriodic ping-pongs between the
+        default and periodicZoomMax endpoints&rdquo; &mdash; <code>configure(1, true, 3, false)</code>
+        then six <code>advancePeriodic()</code> calls yield <code>[2, 3, 2, 1, 2, 3]</code> (was
+        <code>[2, 3, 1, 2, 3, 1]</code>). Diverges at call&nbsp;3, the far turnaround.
+      </td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>
+        <strong>Soften the easing.</strong> In <code>zoom-animator.ts</code> rename
+        <code>easeInOutCubic</code> &rarr; <code>easeInOutSine</code>, body
+        <code>-(Math.cos(Math.PI * t) - 1) / 2</code>, update the call site and the function&rsquo;s
+        doc line. <code>ZOOM_ANIMATE_DURATION_MS</code> unchanged.
+      </td>
+      <td>
+        At quarter-duration (<code>flushFrame(500)</code> of the 2000&nbsp;ms tween,
+        <code>animateTo(800, 640, &hellip;)</code>) the eased width has progressed
+        <em>past</em> cubic&rsquo;s <code>4&middot;0.25&sup3; = 6.25%</code> &mdash;
+        <code>easeInOutSine(0.25) &approx; 14.6%</code>, so <code>width &lt; 790</code>
+        (cubic would still be <code>&gt; 790</code>). Pins the curve family, not just
+        &ldquo;monotonic between the endpoints&rdquo;.
+      </td>
+    </tr>
+  </table>
+
+  <h2>Test surface</h2>
+  <p>Breaks and must change (from recon):</p>
+  <table>
+    <tr><th>File</th><th>What moves</th></tr>
+    <tr>
+      <td>card/zoom-controller.test.ts</td>
+      <td><code>:107</code> &ldquo;advancePeriodic cycles up to periodicZoomMax then wraps to the
+        minimum&rdquo; &mdash; rewrite as a ping-pong: <code>configure(1,true,3,false)</code> then
+        <code>2 &rarr; 3 &rarr; 2 &rarr; 1 &rarr; 2</code>. <code>:244</code> &ldquo;resetToDefault
+        &hellip; lets the cycle resume&rdquo; still passes; add a direction-reset assertion. New
+        cases: bounce at the far end, bounce at the near end, <code>near &gt;= far</code> holds
+        still.</td>
+    </tr>
+    <tr>
+      <td>card/card.auto-zoom.test.ts</td>
+      <td><code>:53</code> &ldquo;wraps from MAX_ZOOM back to level 1&rdquo; (<code>default_zoom: 4</code>,
+        default <code>periodic_zoom_max: 4</code>) &mdash; that config is now <code>near == far</code>,
+        so it becomes &ldquo;holds at 4 when <code>default_zoom == periodic_zoom_max</code>&rdquo;.
+        <code>:91</code> &ldquo;Now button resumes &hellip;&rdquo; &mdash; still <code>1 &rarr; 2</code>
+        after Home, unchanged. Add a four-tick case asserting <code>1 2 3 4 3</code>.</td>
+    </tr>
+    <tr>
+      <td>card/zoom-animator.test.ts</td>
+      <td><code>:52</code> &ldquo;eases between the two widths&rdquo; checks the midpoint only
+        &mdash; both curves pass through <code>(0.5, 0.5)</code>, so it still passes untouched. The
+        new quarter-duration assertion (slice 2) is the curve tripwire.</td>
+    </tr>
+  </table>
+  <p>
+    Unaffected: everything that suspends the cycle on user takeover (<code>_userInteracted</code>
+    path, <code>tick()</code> no-ops after a manual zoom / drag), <code>isDefaultView</code> (still
+    returns <code>true</code> while the cycle owns the zoom, at any rung), the drag/pan math, the
+    snapshot suite (no SVG shape change).
+  </p>
+
+  <h2>Adjacent opportunities</h2>
+  <ul>
+    <li>
+      <strong>Folded in (docs).</strong> <code>README.md:72</code> &mdash;
+      <code>periodic_zoom_max</code> is described as &ldquo;Maximum zoom level for auto-cycle
+      (2&ndash;4)&rdquo;. Still accurate, but reword to say it&rsquo;s the far turnaround of a
+      ping-pong between it and <code>default_zoom</code>, not a wrap point. One-line doc edit in
+      slice&nbsp;1&rsquo;s PR.
+    </li>
+    <li>
+      <strong>Not folded in.</strong> <code>default_zoom</code> set to a rung &ge;
+      <code>periodic_zoom_max</code> now disables the cycle entirely (it can&rsquo;t
+      &ldquo;start zoomed in <em>and</em> cycle&rdquo; &mdash; the two endpoints would coincide).
+      Today that config gives a lopsided <code>4&rarr;1&rarr;2&rarr;3</code> loop. Accepted
+      trade-off (grill Q1); if anyone actually wants it, a separate
+      <code>periodic_zoom_min</code> key is the clean answer &mdash; own issue, not this one.
+    </li>
+    <li>
+      <strong>Not folded in.</strong> Exposing easing / duration as config keys &mdash; no demand,
+      and the point of this issue is a better <em>default</em> feel. Skip.
+    </li>
+    <li>
+      <strong>Enables.</strong> <a href="https://github.com/marcintk/ha-planetary-solar-system-card/issues/203">#203</a>
+      (realistic-distance orbit mode with fly-in/fly-out zoom) reuses the same
+      <code>ZoomAnimator</code>; a gentler shared curve is a free head start there. Not foreclosed,
+      not pulled forward.
+    </li>
+  </ul>
+
+  <h2>Design invariant preserved</h2>
+  <p>
+    The card still ships with the auto-cycle on (<code>periodic_zoom_change</code> default true),
+    still steps one rung per 60&nbsp;s refresh, still hands the camera back to the user on any zoom
+    / drag and resumes only on &ldquo;Now&rdquo;. The zoom ladder
+    (<code>ZOOM_LEVELS = {1:800, 2:640, 3:480, 4:320}</code>) and the
+    <code>MIN_ZOOM</code>/<code>MAX_ZOOM</code> clamp in <code>_setZoomLevel</code> are untouched.
+    The nav bar&rsquo;s AU-per-orbit labels, visibility cone, and back/forward date buttons are
+    unrelated and unchanged.
+  </p>
+  <div class="callout">
+    <strong>LESSONS.md.</strong> No prior entry for the zoom auto-cycle or the animation curve
+    &mdash; this is new ground. If anything transferable falls out of the build (most likely: the
+    &ldquo;move &plusmn;1 from the real position, don&rsquo;t recompute from a counter&rdquo; point
+    from approach A), <code>explain-it compound</code> logs it after slice&nbsp;1.
+  </div>
+</div>
+</body>
+</html>

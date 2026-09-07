@@ -104,7 +104,7 @@ describe("ZoomController zoom actions", () => {
     expect(onChange).toHaveBeenCalledTimes(2); // the no-op zoomOut doesn't notify
   });
 
-  it("advancePeriodic cycles up to periodicZoomMax then wraps to the minimum", () => {
+  it("advancePeriodic ping-pongs between the default and periodicZoomMax endpoints", () => {
     const zoom = new ZoomController(
       () => {},
       () => {}
@@ -112,12 +112,31 @@ describe("ZoomController zoom actions", () => {
     zoom.configure(1, true, 3, false);
     zoom.ensureInitialized();
 
+    const sequence: (number | null)[] = [];
+    for (let i = 0; i < 6; i++) {
+      zoom.advancePeriodic();
+      sequence.push(zoom.zoomLevel);
+    }
+    expect(sequence).toEqual([2, 3, 2, 1, 2, 3]);
+  });
+
+  it("advancePeriodic steps one rung back into range after a config edit strands the level past the max", () => {
+    const zoom = new ZoomController(
+      () => {},
+      () => {}
+    );
+    zoom.configure(1, true, 4, false);
+    zoom.ensureInitialized();
+    zoom.advancePeriodic();
+    zoom.advancePeriodic();
+    zoom.advancePeriodic();
+    expect(zoom.zoomLevel).toBe(4); // cycled out to the old max
+
+    zoom.configure(1, true, 2, false); // max lowered under the current level
+    zoom.advancePeriodic();
+    expect(zoom.zoomLevel).toBe(3); // one rung inward, not a jump to the new max
     zoom.advancePeriodic();
     expect(zoom.zoomLevel).toBe(2);
-    zoom.advancePeriodic();
-    expect(zoom.zoomLevel).toBe(3);
-    zoom.advancePeriodic();
-    expect(zoom.zoomLevel).toBe(1);
   });
 
   it("tick advances only when periodicZoomChange is enabled", () => {

@@ -64,12 +64,12 @@ gallery:
 
 ### Zoom
 
-| Option                 | Type    | Default | Description                                                             |
-| ---------------------- | ------- | ------- | ----------------------------------------------------------------------- |
-| `default_zoom`         | number  | `1`     | Starting zoom level, and the level the **Now** button returns to        |
-| `zoom_animate`         | boolean | `true`  | Animate zoom transitions                                                |
-| `periodic_zoom_change` | boolean | `true`  | Cycle zoom levels on each refresh tick, until you aim the view yourself |
-| `periodic_zoom_max`    | number  | `4`     | Maximum zoom level for auto-cycle (2–4)                                 |
+| Option                 | Type    | Default | Description                                                                    |
+| ---------------------- | ------- | ------- | ------------------------------------------------------------------------------ |
+| `default_zoom`         | number  | `1`     | Starting zoom level, and the level the **Now** button returns to               |
+| `zoom_animate`         | boolean | `true`  | Animate zoom transitions                                                       |
+| `periodic_zoom_change` | boolean | `true`  | Cycle zoom levels on each refresh tick, until you aim the view yourself        |
+| `periodic_zoom_max`    | number  | `4`     | Far end of the auto-cycle; it ping-pongs between `default_zoom` and this (2–4) |
 
 ### Appearance
 

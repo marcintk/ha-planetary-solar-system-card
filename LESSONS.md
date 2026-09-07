@@ -6,6 +6,26 @@ index.
 
 <!-- ponytail: single file; split by area if it outgrows one screen-scroll -->
 
+## A periodic / ping-pong animation cycle jumps several steps after a config change
+
+- **Root cause:** #222 turned the zoom auto-cycle from a wrap (`1→2→3→4→1`) into a ping-pong
+  (`1→2→3→4→3→2→1`). The tempting implementation is stateless — a step counter fed through a
+  triangle wave, or `next = f(counter, min, max)`. But the cycle's bounds are live config
+  (`default_zoom`, `periodic_zoom_max`, both editable from the Lovelace editor mid-run), and a
+  counter is blind to where the view actually sits. Lower `periodic_zoom_max` from 4 to 2 while the
+  cycle is parked at rung 4 and the next tick recomputes `f(counter, …)` to some far rung — a
+  multi-rung jump, the exact lurch the ping-pong was meant to remove.
+- **Guardrail:** `ZoomController.advancePeriodic()` keeps a `_periodicDirection: 1 | -1` and moves
+  **±1 from the actual current `_zoomLevel`**, flipping direction only when the next step would
+  overshoot an endpoint. Any external mutation of the level (or the bounds) just means the next
+  step eases one rung from wherever it now is; it self-corrects back into range without a jump.
+  `test/card/zoom-controller.test.ts` — "steps one rung back into range after a config edit strands
+  the level past the max" pins this; it's the assertion that distinguishes this approach from the
+  stateless one. Rule: a bounded cycle that reverses at its ends is driven relative to its current
+  state, never recomputed from an absolute counter.
+- **Ref:** [#222](https://github.com/marcintk/ha-planetary-solar-system-card/issues/222) ·
+  2026-09-07
+
 ## "Looks round" can't be separated from "looks lit" with an SVG gradient overlay — bake the sphere
 
 - **Root cause:** #199's `display: 3d` tried to make a flat disc read as a 3-D planet with a

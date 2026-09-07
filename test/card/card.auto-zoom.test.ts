@@ -50,14 +50,18 @@ describe("SolarViewCard auto_zoom", () => {
       card.remove();
     });
 
-    it("wraps from MAX_ZOOM back to level 1", () => {
+    it("holds still when default_zoom leaves no room to cycle", () => {
       vi.useFakeTimers();
       const card = document.createElement("ha-planetary-solar-system-card-test");
+      // default_zoom 4 == the default periodic_zoom_max 4: the two ping-pong
+      // endpoints coincide, so the cycle has nowhere to go.
       card.setConfig({ periodic_zoom_change: true, default_zoom: 4 });
       document.body.appendChild(card);
       expect(card._zoom.zoomLevel).toBe(4);
       vi.advanceTimersByTime(60000);
-      expect(card._zoom.zoomLevel).toBe(1);
+      expect(card._zoom.zoomLevel).toBe(4);
+      vi.advanceTimersByTime(60000);
+      expect(card._zoom.zoomLevel).toBe(4);
       card.remove();
     });
 
@@ -176,7 +180,7 @@ describe("SolarViewCard auto_zoom", () => {
       vi.useRealTimers();
     });
 
-    it("wraps at configured max level instead of MAX_ZOOM", () => {
+    it("turns around at the configured max level instead of MAX_ZOOM", () => {
       vi.useFakeTimers();
       const card = document.createElement("ha-planetary-solar-system-card-test");
       card.setConfig({ periodic_zoom_change: true, periodic_zoom_max: 3 });
@@ -187,11 +191,13 @@ describe("SolarViewCard auto_zoom", () => {
       vi.advanceTimersByTime(60000);
       expect(card._zoom.zoomLevel).toBe(3);
       vi.advanceTimersByTime(60000);
+      expect(card._zoom.zoomLevel).toBe(2);
+      vi.advanceTimersByTime(60000);
       expect(card._zoom.zoomLevel).toBe(1);
       card.remove();
     });
 
-    it("defaults to MAX_ZOOM (4) when periodic_zoom_max is not set", () => {
+    it("defaults the far endpoint to MAX_ZOOM (4) when periodic_zoom_max is not set", () => {
       vi.useFakeTimers();
       const card = document.createElement("ha-planetary-solar-system-card-test");
       card.setConfig({ periodic_zoom_change: true });
@@ -201,7 +207,7 @@ describe("SolarViewCard auto_zoom", () => {
       vi.advanceTimersByTime(60000);
       expect(card._zoom.zoomLevel).toBe(4);
       vi.advanceTimersByTime(60000);
-      expect(card._zoom.zoomLevel).toBe(1);
+      expect(card._zoom.zoomLevel).toBe(3);
       card.remove();
     });
 

@@ -176,8 +176,8 @@ describe("discStyle", () => {
   // varies, so without its own lower target it would render at full size on nearly every frame
   // while Moon and Earth, pinned to their rarely-hit maximum, mostly don't.
   const EXPECTED_TARGET: Record<(typeof SOURCES)[number], number> = {
-    moon: 44.5,
-    mymoon: 44.5,
+    moon: 43.5,
+    mymoon: 43.5,
     earth: 43.5,
     sun: 40,
   };

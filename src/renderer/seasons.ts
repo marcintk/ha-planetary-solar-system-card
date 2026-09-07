@@ -1,6 +1,6 @@
 import type { Colors, Hemisphere } from "../types.js";
 import type { EclipticViewDirection } from "./svg-utils.js";
-import { CENTER, createSvgElement, MAX_RADIUS, VIEW_SIZE } from "./svg-utils.js";
+import { CENTER, createSvgElement, getOrCreateDefs, MAX_RADIUS, VIEW_SIZE } from "./svg-utils.js";
 
 const DEFAULT_SEASON_LINE_COLOR = "color-mix(in srgb, currentColor 25%, transparent)";
 const DEFAULT_SEASON_LABEL_COLOR = "color-mix(in srgb, currentColor 50%, transparent)";
@@ -78,8 +78,7 @@ export function renderSeasonOverlay(
   ];
 
   const labelRadius = MAX_RADIUS + 20;
-  const defs =
-    svg.querySelector("defs") || svg.insertBefore(createSvgElement("defs", {}), svg.firstChild);
+  const defs = getOrCreateDefs(svg);
 
   arcDefs.forEach((season, i) => {
     const pathId = `season-arc-${i}`;

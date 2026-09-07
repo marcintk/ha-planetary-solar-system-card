@@ -68,6 +68,9 @@ export interface ShadeOptions {
   dayNight: boolean;
 }
 
+/** The product default — both switches on. The single source every render entry point defaults to. */
+export const DEFAULT_SHADE: ShadeOptions = { sphere: true, dayNight: true };
+
 export interface ViewPosition {
   name: string;
   x: number;

@@ -1,4 +1,4 @@
-import type { Comet, CometVisualEllipse, ShadeOptions } from "../types.js";
+import { type Comet, type CometVisualEllipse, DEFAULT_SHADE, type ShadeOptions } from "../types.js";
 import { ORBIT_COLOR, renderBodyShadow, renderSphereSprite } from "./bodies.js";
 import type { EclipticViewDirection } from "./svg-utils.js";
 import {
@@ -73,7 +73,7 @@ export function renderCometBody(
   sunX: number,
   sunY: number,
   dynamicTailLength?: number,
-  shade: ShadeOptions = { sphere: true, dayNight: true }
+  shade: ShadeOptions = DEFAULT_SHADE
 ): void {
   // Direction away from the Sun
   const dx = x - sunX;

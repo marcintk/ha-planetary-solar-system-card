@@ -1,10 +1,16 @@
-import type { CelestialBody, CometVisualEllipse, ShadeOptions } from "../types.js";
+import {
+  type CelestialBody,
+  type CometVisualEllipse,
+  DEFAULT_SHADE,
+  type ShadeOptions,
+} from "../types.js";
 import type { EclipticViewDirection } from "./svg-utils.js";
 import {
   BODY_LABEL_ATTRS,
   CENTER,
   createSvgElement,
   DEFAULT_LABEL_COLOR,
+  getOrCreateDefs,
   type OrbitTransformComponents,
   orbitTransformComponents,
   radiusFromAU,
@@ -43,8 +49,7 @@ const SPRITE_SOFT =
  * zoom-1 default (VIEW_SIZE * HALO_VIEW_FRACTION); updateHalo rescales it as the view zooms.
  */
 export function renderSunHalo(svg: SVGElement): void {
-  const defs =
-    svg.querySelector("defs") || svg.insertBefore(createSvgElement("defs", {}), svg.firstChild);
+  const defs = getOrCreateDefs(svg);
   const grad = createSvgElement("radialGradient", { id: "sun-halo" });
   const stop = (offset: string, color: string, opacity: string) =>
     grad.appendChild(
@@ -80,8 +85,7 @@ export function renderSphereSprite(
   r: number,
   color: string
 ): void {
-  const defs =
-    svg.querySelector("defs") || svg.insertBefore(createSvgElement("defs", {}), svg.firstChild);
+  const defs = getOrCreateDefs(svg);
   const tintId = `tint-${color.replace(/[^a-z0-9]/gi, "")}`;
   if (!defs.querySelector(`#${tintId}`)) {
     const cr = Number.parseInt(color.slice(1, 3), 16) / 255;
@@ -231,8 +235,7 @@ export function renderBodyShadow(
   // rotated rect and masked so it stops at the core (the terminator path already covers
   // that, no double wash).
   const phiDeg = (Math.atan2(y - CENTER, x - CENTER) * 180) / Math.PI;
-  const defs =
-    svg.querySelector("defs") || svg.insertBefore(createSvgElement("defs", {}), svg.firstChild);
+  const defs = getOrCreateDefs(svg);
   const clip = createSvgElement("clipPath", { id: "saturn-shadow" });
   clip.appendChild(
     createSvgElement("rect", {
@@ -276,7 +279,7 @@ export function renderBody(
   y: number,
   body: CelestialBody,
   showLabel = true,
-  shade: ShadeOptions = { sphere: true, dayNight: true }
+  shade: ShadeOptions = DEFAULT_SHADE
 ): void {
   const atCenter = x === CENTER && y === CENTER;
   // Draw the body form — 3d Lambert sphere sprite or a flat 2d disc — then, off-centre, layer
@@ -314,7 +317,7 @@ export function renderSaturn(
   x: number,
   y: number,
   body: CelestialBody,
-  shade: ShadeOptions = { sphere: true, dayNight: true }
+  shade: ShadeOptions = DEFAULT_SHADE
 ): void {
   const coreR = Math.round(body.size / 2);
   if (shade.sphere) {

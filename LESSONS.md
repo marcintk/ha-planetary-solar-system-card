@@ -38,10 +38,11 @@ index.
   **pre-bake a real shaded sphere**. `scripts/gen-sphere-sprites.mjs` renders two 128px Lambert
   spheres (a `soft` viewer-lit one for `shading: off`, a `lit` in-plane one for `shading: on`) to
   grayscale+alpha PNGs — with its own tiny PNG encoder, no deps — inlined into `bodies.ts` as
-  `data:` URIs. Runtime is pure SVG: `<image href=SPRITE_*>` + a per-colour `<feColorMatrix>`
-  multiply tints it. **No runtime `<canvas>`** (jsdom has none), and the light params live in a
-  re-runnable script, not guessed hex stops. One `shadeFill()` (`color-mix(color 28%, black)`) makes
-  2d and 3d dark sides the same in-hue tone.
+  `data:` URIs. Runtime is pure SVG: the sprite is inlined once as a `<symbol>` in `<defs>` and each
+  body is a `<use href="#sphere-sprite">` + a per-colour `<feColorMatrix>` multiply that tints it
+  (#228 — the payload used to be re-inlined per body). **No runtime `<canvas>`** (jsdom has none),
+  and the light params live in a re-runnable script, not guessed hex stops. One `shadeFill()`
+  (`color-mix(color 28%, black)`) makes 2d and 3d dark sides the same in-hue tone.
 - **Superseded (2026-09-02, #211):** the two-sprite split is gone. There was a `lit` in-plane sprite
   `rotate(sunBearing)`-aimed at the Sun whose own falloff _was_ the 3d terminator (no separate wash)
   — but a hard directional sprite read flatter than the plain ball. `display: 3d` now always blits

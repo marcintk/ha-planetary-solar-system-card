@@ -223,8 +223,8 @@ export function renderOrbit(
 }
 
 /**
- * The astronomical day/night overlay (config `shading: true`). For a lone body (reach ===
- * coreR) it washes the anti-sunward region dark — bounded by an elliptical terminator that
+ * The astronomical day/night overlay (config `shading: true`). For a lone body (pass `reach ===
+ * coreR`) it washes the anti-sunward region dark — bounded by an elliptical terminator that
  * bows `TERMINATOR_BOW` into the dark side (see terminatorShadowPath), the dark side darker
  * but not black. phi comes from the screen-space vector to the Sun at CENTER, so no
  * eclipticViewDirection (not an orbital angle — CLAUDE.md, #94). No-op at CENTER (the Sun).
@@ -240,7 +240,7 @@ export function renderBodyShadow(
   x: number,
   y: number,
   coreR: number,
-  reach = coreR,
+  reach: number,
   shadeColor: string
 ): void {
   // No-op at CENTER (the Sun): terminatorShadowPath is null exactly there.

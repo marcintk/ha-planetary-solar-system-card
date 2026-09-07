@@ -217,11 +217,14 @@ describe("renderCometBody", () => {
     renderCometBody(svg, bodyX, bodyY, halley, sunX, sunY);
 
     const tintRef = `url(#tint-${halley.color.replace(/[^a-z0-9]/gi, "")})`;
-    const img = svg.querySelector(`image[filter="${tintRef}"]`);
+    const img = svg.querySelector(`use[filter="${tintRef}"]`);
     expect(img).not.toBeNull();
     expect(Number(img.getAttribute("x"))).toBeCloseTo(bodyX - halley.size, 6);
     expect(Number(img.getAttribute("width"))).toBeCloseTo(2 * halley.size, 6);
-    expect(img.getAttribute("href")).toMatch(/^data:image\/png;base64,/);
+    expect(img.getAttribute("href")).toBe("#sphere-sprite");
+    expect(svg.querySelector("defs symbol#sphere-sprite image").getAttribute("href")).toMatch(
+      /^data:image\/png;base64,/
+    );
     // soft sprite -> not rotated toward the Sun; the day/night comes from a terminator <path>.
     expect(img.getAttribute("transform")).toBeNull();
     expect(svg.querySelector("path")).not.toBeNull();
@@ -356,7 +359,7 @@ describe("renderCometBody", () => {
 
     const children = Array.from(svg.children);
     const lineIdx = children.findIndex((el) => el.tagName === "line");
-    const headIdx = children.findIndex((el) => el.tagName === "image");
+    const headIdx = children.findIndex((el) => el.tagName === "use");
     const textIdx = children.findIndex((el) => el.tagName === "text");
     expect(lineIdx).toBeGreaterThanOrEqual(0);
     expect(lineIdx).toBeLessThan(headIdx);
@@ -370,7 +373,7 @@ describe("renderCometBody", () => {
     const line = svg.querySelector("line");
     expect(line).not.toBeNull();
     // Head still drawn; the sprite is always the soft, unrotated one.
-    const head = svg.querySelector("image");
+    const head = svg.querySelector("use");
     expect(head).not.toBeNull();
     expect(head.getAttribute("transform")).toBeNull();
   });

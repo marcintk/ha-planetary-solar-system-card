@@ -22,18 +22,16 @@ export const ORBIT_COLOR = "color-mix(in srgb, currentColor 12%, transparent)";
 // Outer ring circle (r=23, stroke-width=2) -> visible edge at 24px, wider than Saturn's shrunk body.
 export const SATURN_RING_OUTER_RADIUS = 24;
 
-const SHADOW_FILL = "#05070c";
-const SHADOW_OPACITY = 0.55;
 const TERMINATOR_BOW = 0.22;
 // The night-side darkening: a dark shade of the body's own hue, matching the `display: 3d`
 // sprite's ambient floor so 2d and 3d dark sides read the same. `SHADE_MIX` % of the colour,
-// the rest black; near-opaque. Falls back to the flat #05070c wash when no colour is given.
+// the rest black; near-opaque.
 const SHADE_MIX = 28;
 const SHADE_OPACITY = 0.92;
-const shadeFill = (color?: string): Record<string, string | number> =>
-  color
-    ? { fill: `color-mix(in srgb, ${color} ${SHADE_MIX}%, black)`, "fill-opacity": SHADE_OPACITY }
-    : { fill: SHADOW_FILL, "fill-opacity": SHADOW_OPACITY };
+const shadeFill = (color: string): Record<string, string | number> => ({
+  fill: `color-mix(in srgb, ${color} ${SHADE_MIX}%, black)`,
+  "fill-opacity": SHADE_OPACITY,
+});
 
 export const HALO_VIEW_FRACTION = 0.33;
 
@@ -70,13 +68,31 @@ export function renderSunHalo(svg: SVGElement): void {
   );
 }
 
+// One `<symbol>` wrapping the `SPRITE_SOFT` payload, referenced by every 3d body via `<use>`.
+// The scene's SVG is torn down and rebuilt on every `updated()`, so inlining the ~5KB data URI
+// per body (8 planets + Moon + comet head) added ~50KB of duplicated markup to each render —
+// this puts it in the DOM exactly once. `viewBox`/`preserveAspectRatio="none"` let each `<use>`
+// stretch it to the body's pixel box.
+const SPRITE_SYMBOL_ID = "sphere-sprite";
+
+function ensureSpriteSymbol(defs: SVGDefsElement): void {
+  if (defs.querySelector(`#${SPRITE_SYMBOL_ID}`)) return;
+  const symbol = createSvgElement("symbol", {
+    id: SPRITE_SYMBOL_ID,
+    viewBox: "0 0 1 1",
+    preserveAspectRatio: "none",
+  });
+  symbol.appendChild(createSvgElement("image", { href: SPRITE_SOFT, width: 1, height: 1 }));
+  defs.appendChild(symbol);
+}
+
 /**
  * The `display: 3d` ball look: the pre-rendered `SPRITE_SOFT` Lambert sphere (viewer-weighted
- * light + high ambient: pure volume, no obvious direction), blitted as an `<image>` and tinted
- * to the body's hue by a per-colour `<feColorMatrix>` (multiply). The day/night split is layered
- * on top by a separate `renderBodyShadow` call, the same overlay the flat-circle path gets.
- * Raster, so it softens somewhat when the card is zoomed in — the accepted trade for a real
- * shaded sphere.
+ * light + high ambient: pure volume, no obvious direction), placed as a `<use>` of the shared
+ * `#sphere-sprite` symbol and tinted to the body's hue by a per-colour `<feColorMatrix>`
+ * (multiply). The day/night split is layered on top by a separate `renderBodyShadow` call, the
+ * same overlay the flat-circle path gets. Raster, so it softens somewhat when the card is
+ * zoomed in — the accepted trade for a real shaded sphere.
  */
 export function renderSphereSprite(
   svg: SVGElement,
@@ -86,6 +102,7 @@ export function renderSphereSprite(
   color: string
 ): void {
   const defs = getOrCreateDefs(svg);
+  ensureSpriteSymbol(defs);
   const tintId = `tint-${color.replace(/[^a-z0-9]/gi, "")}`;
   if (!defs.querySelector(`#${tintId}`)) {
     const cr = Number.parseInt(color.slice(1, 3), 16) / 255;
@@ -104,15 +121,16 @@ export function renderSphereSprite(
     );
     defs.appendChild(filter);
   }
-  const attrs: Record<string, string | number> = {
-    href: SPRITE_SOFT,
-    x: x - r,
-    y: y - r,
-    width: 2 * r,
-    height: 2 * r,
-    filter: `url(#${tintId})`,
-  };
-  svg.appendChild(createSvgElement("image", attrs));
+  svg.appendChild(
+    createSvgElement("use", {
+      href: `#${SPRITE_SYMBOL_ID}`,
+      x: x - r,
+      y: y - r,
+      width: 2 * r,
+      height: 2 * r,
+      filter: `url(#${tintId})`,
+    })
+  );
 }
 
 /**
@@ -223,7 +241,7 @@ export function renderBodyShadow(
   y: number,
   coreR: number,
   reach = coreR,
-  shadeColor?: string
+  shadeColor: string
 ): void {
   // No-op at CENTER (the Sun): terminatorShadowPath is null exactly there.
   const d = terminatorShadowPath(x, y, coreR, TERMINATOR_BOW);

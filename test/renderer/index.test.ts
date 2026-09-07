@@ -27,26 +27,26 @@ function renderInto(container, date) {
 // <circle> for a body at CENTER (the Sun), or a lit half-disc <path> for an
 // off-center body. For the path, the body centre is the midpoint of the two
 // diameter endpoints in "M x1 y1 A r r 0 0 sweep x2 y2 Z".
-// display:3d draws the body as a Lambert sprite <image> tinted by url(#tint-<hex>);
-// display:2d keeps the flat <circle fill="#hex">.
+// display:3d draws the body as a <use> of the shared #sphere-sprite symbol tinted by
+// url(#tint-<hex>); display:2d keeps the flat <circle fill="#hex">.
 const tintRef = (hex) => `url(#tint-${hex.replace(/[^a-z0-9]/gi, "")})`;
 // A body's rendered element by colour, whichever form.
 function bodyCircle(svg, hex, extra = "") {
   return (
     svg.querySelector(`circle[fill="${hex}"]${extra}`) ||
-    svg.querySelector(`image[filter="${tintRef(hex)}"]${extra}`)
+    svg.querySelector(`use[filter="${tintRef(hex)}"]${extra}`)
   );
 }
 // Count of bodies drawn with a display:3d sprite.
 const sphere3dCount = (svg) =>
-  Array.from(svg.querySelectorAll("image")).filter((im) =>
+  Array.from(svg.querySelectorAll("use")).filter((im) =>
     (im.getAttribute("filter") || "").startsWith("url(#tint-")
   ).length;
 
 function bodyPos(svg, hex) {
   const circle = bodyCircle(svg, hex);
   if (circle) {
-    if (circle.tagName === "image") {
+    if (circle.tagName === "use") {
       const r = Number(circle.getAttribute("width")) / 2;
       return {
         cx: Number(circle.getAttribute("x")) + r,
@@ -113,7 +113,7 @@ describe("renderSolarSystem", () => {
     renderInto(container, new Date("2026-02-14"));
 
     const svg = container.querySelector("svg");
-    // Sun is drawn at card centre (as a sprite <image> in the default 3d shade).
+    // Sun is drawn at card centre (as a sprite <use> in the default 3d shade).
     expect(bodyCircle(svg, "#ffd700")).not.toBeNull();
     expect(bodyPos(svg, "#ffd700")).toEqual({ cx: 400, cy: 400 });
   });
@@ -147,19 +147,17 @@ describe("renderSolarSystem", () => {
     );
     expect(defIds.size).toBeGreaterThanOrEqual(8);
 
-    // 8 planets + Moon + Halley head = 10 sprite images (the Sun is a flat disc).
+    // 8 planets + Moon + Halley head = 10 sprite <use>s (the Sun is a flat disc).
     expect(sphere3dCount(svg)).toBe(10);
   });
 
   describe("shade options", () => {
     const DATE = new Date("2026-02-14");
-    // 2d day/night terminator paths: an in-hue `color-mix(... black)` wash (or the #05070c
-    // fallback when no colour is supplied).
+    // 2d day/night terminator paths: an in-hue `color-mix(... black)` wash.
     const dayNightPaths = (svg) =>
-      Array.from(svg.querySelectorAll("path")).filter((p) => {
-        const f = p.getAttribute("fill") || "";
-        return f === "#05070c" || f.startsWith("color-mix(in srgb,");
-      });
+      Array.from(svg.querySelectorAll("path")).filter((p) =>
+        (p.getAttribute("fill") || "").startsWith("color-mix(in srgb,")
+      );
 
     it("{ sphere: false, dayNight: false } — flat discs, no halo, no sphere gradients, no Saturn band", () => {
       const { svg } = renderSolarSystem(DATE, "north", null, {}, false, {
@@ -205,7 +203,7 @@ describe("renderSolarSystem", () => {
       // 3d + shading now shares the 2D path: one standalone wash <path> per off-centre body.
       expect(dayNightPaths(svg).length).toBe(10);
       // sprites are the soft (unrotated) sprite — none carry a rotate() transform.
-      const rotated = Array.from(svg.querySelectorAll("image")).filter((im) =>
+      const rotated = Array.from(svg.querySelectorAll("use")).filter((im) =>
         (im.getAttribute("transform") || "").startsWith("rotate(")
       );
       expect(rotated.length).toBe(0);
@@ -598,7 +596,7 @@ describe("renderSolarSystem", () => {
       planetOrbitEllipses.length + cometEllipses.length
     );
 
-    // Saturn's core is rendered at half its data size (13px) — a sprite <image> whose
+    // Saturn's core is rendered at half its data size (13px) — a sprite <use> whose
     // 26px box is that diameter.
     const saturnBody = bodyCircle(svg, "#e2c58c");
     expect(saturnBody).not.toBeNull();

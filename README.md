@@ -21,24 +21,30 @@ Have an idea or found a bug?
 
 ## Installation
 
+### Via HACS (recommended)
+
 [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.][my-hacs-shield]][my-hacs]
 
 Click the badge to open this card in your own HACS, or find it manually: HACS → Frontend → search
 **Planetary Solar System Card**. Then Install, reload your browser, and add the card to your
 dashboard.
 
-**Manual (w/o HACS):** drop `card.js` from the [latest release][latest-release] into
+### Manual
+
+Drop `card.js` from the [latest release][latest-release] into
 `<config>/www/ha-planetary-solar-system-card/`, then register
 `/local/ha-planetary-solar-system-card/card.js` as a **JavaScript Module** under Settings →
 Dashboards → Resources.
 
-## Usage
+## Configuration
 
-Add the card to your dashboard:
+Add the card to your dashboard — it runs with no options:
 
 ```yaml
 type: custom:ha-planetary-solar-system-card
 ```
+
+To turn on the live NASA imagery tiles:
 
 ```yaml
 type: custom:ha-planetary-solar-system-card
@@ -48,61 +54,6 @@ gallery:
   earth: true
   sun: true
 ```
-
-## Horizon Twilight Zones
-
-The visibility cone at Earth's orbit shades by how far the Sun is below your local horizon, using
-the standard astronomical twilight definitions:
-
-| Zone                  | Sun elevation | Meaning                                                          |
-| --------------------- | ------------- | ---------------------------------------------------------------- |
-| Day                   | ≥ -0.83°      | Sun is up — its upper limb still on the horizon                  |
-| Civil twilight        | -0.83° to -6° | Bright enough for outdoor activity without lights                |
-| Nautical twilight     | -6° to -12°   | Horizon still visible at sea; too dark for most outdoor activity |
-| Astronomical twilight | -12° to -18°  | Sky background glow, faint stars washed out                      |
-| Night                 | < -18°        | Full dark; the Sun no longer lights the sky                      |
-
-## Replay
-
-The **↺** button animates the recent past, always in 36 frames over roughly five seconds, ending on
-the date you were already viewing:
-
-| Last navigation     | Replay covers        | Each frame advances | Press                      |
-| ------------------- | -------------------- | ------------------- | -------------------------- |
-| hour steps, or none | last 12 hours        | 20 minutes          | **↺** alone — the default  |
-| day steps           | last 36 days         | 1 day               | **≪** or **≫**, then **↺** |
-| month steps         | last 180 days (~6mo) | 5 days              | **⋘** or **⋙**, then **↺** |
-
-## Live Imagery
-
-A thumbnail strip beside the solar view. ☷ toggles it; clicking a NASA thumbnail opens it
-full-screen. Which tiles appear is `gallery.mymoon` / `gallery.moon` / `gallery.earth` /
-`gallery.sun`; left-to-right order is fixed (see [Gallery](#gallery)).
-
-| Thumbnail | Source            | Shows                                                   | We fetch     | Age of what you see |
-| --------- | ----------------- | ------------------------------------------------------- | ------------ | ------------------- |
-| MY MOON   | [NASA SVS][svs]   | The Moon in my sky — hidden when it's below the horizon | Nearest hour | ≤30 min             |
-| MOON      | [NASA SVS][svs]   | The Moon from Earth's centre — no Earth in frame        | Nearest hour | ≤30 min             |
-| EARTH     | [NASA EPIC][epic] | Earth's sunlit side, from L1                            | Hourly       | 1-2 days            |
-| SUN       | [NASA SDO][sdo]   | The Sun, from geosync orbit                             | 15 min       | 25-55 min           |
-
-Both Moon tiles are renders (LOLA + LROC + JPL DE421), not photographs — every hour of the year is
-already published, so there's no delay to wait out. The card just picks whichever hour is closest to
-now, which is why it's "nearest hour" rather than a fetch cadence like the other rows: there's no
-new data arriving to poll for. The product still ships a year at a time under an id that changes
-each December, so both tiles go blank on 1 January until a release adds the new one.
-
-Earth's and Sun's lags are NASA's own publish pipeline: EPIC runs a day or two behind, and SDO posts
-each frame 25-30 minutes after capture. The card learns SDO's actual lag rather than assuming it, so
-a pipeline stall doesn't break the feed.
-
-> **Thumbnails stuck on "unavailable"?** The browser fetches these images straight from NASA, so a
-> reverse proxy in front of Home Assistant (Nginx Proxy Manager, Cloudflare Tunnel, Traefik) can
-> block them with a strict `Content-Security-Policy`. Add `svs.gsfc.nasa.gov`, `epic.gsfc.nasa.gov`
-> and `sdo.gsfc.nasa.gov` to that policy's `img-src`. Nothing card-side can work around it — the
-> block happens before the card sees a response.
-
-## Configuration
 
 ### Layout
 
@@ -125,7 +76,7 @@ a pipeline stall doesn't break the feed.
 | Option          | Type                              | Default   | Description                                                                                                                                                                                             |
 | --------------- | --------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `theme`         | `"auto"` \| `"dark"` \| `"light"` | `"auto"`  | `"auto"` follows the HA theme. `"dark"`/`"light"` forces a built-in background/text pair regardless of the installed theme                                                                              |
-| `colors`        | object                            | see below | Color overrides (see Colors)                                                                                                                                                                            |
+| `colors`        | object                            | see below | Color overrides (see [Colors](#colors))                                                                                                                                                                 |
 | `ecliptic_view` | `"north"` \| `"south"`            | `"north"` | Viewing pole: `"north"` = counter-clockwise orbits; `"south"` = clockwise orbits                                                                                                                        |
 | `display`       | `"2d"` \| `"3d"`                  | `"3d"`    | Body geometry, independent of `shading`. `"3d"` draws each body as a soft-shaded sphere sprite so it reads as a ball; `"2d"` draws flat discs                                                           |
 | `shading`       | boolean                           | `true`    | Astronomical day/night: a dark layer over each body's anti-sunward half with a distinct terminator, the anti-sunward shadow across Saturn's rings, and the Sun's glow halo. `false` turns all three off |
@@ -171,6 +122,59 @@ a pipeline stall doesn't break the feed.
 | `location.latitude`  | number (-90 to 90)   | HA config | Overrides HA's latitude for hemisphere/season/twilight math. Requires `location.longitude` too, else ignored                                                                                                                                          |
 | `location.longitude` | number (-180 to 180) | HA config | Overrides HA's longitude. Requires `location.latitude` too, else ignored                                                                                                                                                                              |
 | `location.timezone`  | string (IANA)        | HA config | Only read when `location.latitude`/`location.longitude` override HA's own location — [find the name here][iana], e.g. `Europe/Warsaw`. Unset or unrecognised there, it's estimated from the longitude instead: no daylight saving, no half-hour zones |
+
+### Horizon twilight zones
+
+The visibility cone at Earth's orbit shades by how far the Sun is below your local horizon, using
+the standard astronomical twilight definitions:
+
+| Zone                  | Sun elevation | Meaning                                                          |
+| --------------------- | ------------- | ---------------------------------------------------------------- |
+| Day                   | ≥ -0.83°      | Sun is up — its upper limb still on the horizon                  |
+| Civil twilight        | -0.83° to -6° | Bright enough for outdoor activity without lights                |
+| Nautical twilight     | -6° to -12°   | Horizon still visible at sea; too dark for most outdoor activity |
+| Astronomical twilight | -12° to -18°  | Sky background glow, faint stars washed out                      |
+| Night                 | < -18°        | Full dark; the Sun no longer lights the sky                      |
+
+### Replay
+
+The **↺** button animates the recent past, always in 36 frames over roughly five seconds, ending on
+the date you were already viewing:
+
+| Last navigation     | Replay covers        | Each frame advances | Press                      |
+| ------------------- | -------------------- | ------------------- | -------------------------- |
+| hour steps, or none | last 12 hours        | 20 minutes          | **↺** alone — the default  |
+| day steps           | last 36 days         | 1 day               | **≪** or **≫**, then **↺** |
+| month steps         | last 180 days (~6mo) | 5 days              | **⋘** or **⋙**, then **↺** |
+
+### Live imagery
+
+A thumbnail strip beside the solar view. ☷ toggles it; clicking a NASA thumbnail opens it
+full-screen. Which tiles appear is `gallery.mymoon` / `gallery.moon` / `gallery.earth` /
+`gallery.sun`; left-to-right order is fixed (see [Gallery](#gallery)).
+
+| Thumbnail | Source            | Shows                                                   | We fetch     | Age of what you see |
+| --------- | ----------------- | ------------------------------------------------------- | ------------ | ------------------- |
+| MY MOON   | [NASA SVS][svs]   | The Moon in my sky — hidden when it's below the horizon | Nearest hour | ≤30 min             |
+| MOON      | [NASA SVS][svs]   | The Moon from Earth's centre — no Earth in frame        | Nearest hour | ≤30 min             |
+| EARTH     | [NASA EPIC][epic] | Earth's sunlit side, from L1                            | Hourly       | 1-2 days            |
+| SUN       | [NASA SDO][sdo]   | The Sun, from geosync orbit                             | 15 min       | 25-55 min           |
+
+Both Moon tiles are renders (LOLA + LROC + JPL DE421), not photographs — every hour of the year is
+already published, so there's no delay to wait out. The card just picks whichever hour is closest to
+now, which is why it's "nearest hour" rather than a fetch cadence like the other rows: there's no
+new data arriving to poll for. The product still ships a year at a time under an id that changes
+each December, so both tiles go blank on 1 January until a release adds the new one.
+
+Earth's and Sun's lags are NASA's own publish pipeline: EPIC runs a day or two behind, and SDO posts
+each frame 25-30 minutes after capture. The card learns SDO's actual lag rather than assuming it, so
+a pipeline stall doesn't break the feed.
+
+> **Thumbnails stuck on "unavailable"?** The browser fetches these images straight from NASA, so a
+> reverse proxy in front of Home Assistant (Nginx Proxy Manager, Cloudflare Tunnel, Traefik) can
+> block them with a strict `Content-Security-Policy`. Add `svs.gsfc.nasa.gov`, `epic.gsfc.nasa.gov`
+> and `sdo.gsfc.nasa.gov` to that policy's `img-src`. Nothing card-side can work around it — the
+> block happens before the card sees a response.
 
 <!-- Reference links -->
 

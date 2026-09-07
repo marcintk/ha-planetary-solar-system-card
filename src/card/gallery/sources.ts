@@ -107,12 +107,13 @@ export interface SourceSpec {
    * put every tile on equal footing, and staying under 1.0 everywhere leaves a safety margin
    * against `disc` being a sampled ceiling rather than a proven one (see its own comment).
    *
-   * Sun gets its own, smaller target rather than sharing the rest's 0.90: Moon and Earth are
-   * pinned to their largest measurement (see `disc`), so most days show them well under that —
-   * genuinely smaller, not just cropped differently, since their distance really varies. The
-   * Sun's distance barely does (~3% over a year, against the Moon's ~14%), so it renders at its
-   * full target on nearly every frame, and matching Moon/Earth's on-screen size means giving it
-   * a lower one of its own instead of counting on real-world variance to shrink it for free.
+   * Moon and Earth share one target (0.87) so their discs read as the same on-screen size;
+   * the Sun gets its own, smaller one (0.80). Moon and Earth are pinned to their largest
+   * measurement (see `disc`), so most days show them well under that — genuinely smaller, not
+   * just cropped differently, since their distance really varies. The Sun's distance barely
+   * does (~3% over a year, against the Moon's ~14%), so it renders at its full target on
+   * nearly every frame, and matching Moon/Earth's on-screen size means giving it a lower one
+   * of its own instead of counting on real-world variance to shrink it for free.
    */
   target: number;
   /**
@@ -148,7 +149,7 @@ export const SOURCES: Record<ImageSource, SourceSpec> = {
     verb: "rendered",
     instrument: "NASA SVS",
     disc: 0.95,
-    target: 0.89,
+    target: 0.87,
     onByDefault: true,
     debugRow: { url: "moon", img: "moon" },
     skyFrame: true,
@@ -161,7 +162,7 @@ export const SOURCES: Record<ImageSource, SourceSpec> = {
     verb: "rendered",
     instrument: "NASA SVS",
     disc: 0.95,
-    target: 0.89,
+    target: 0.87,
     onByDefault: false,
     debugRow: { url: "moon", img: "moon" },
     skyFrame: false,

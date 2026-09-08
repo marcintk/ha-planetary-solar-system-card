@@ -16,8 +16,9 @@ Have an idea or found a bug?
 [Open a GitHub issue](https://github.com/marcintk/ha-planetary-solar-system-card/issues/new).
 
 [![hacs_badge][hacs-shield]][hacs] [![GitHub Release][releases-shield]][releases]
-[![License][license-shield]][license] ![Maintenance][maintenance-shield] [![CI][ci-shield]][ci]
+[![License][license-shield]][license] ![Maintenance][maintenance-shield]
 [![Coverage][coverage-shield]][ci] [![Downloads][downloads-shield]][releases]
+[![Build and Test][ci-shield]][ci]
 
 ## Installation
 
@@ -198,7 +199,7 @@ a pipeline stall doesn't break the feed.
 [license-shield]: https://img.shields.io/github/license/marcintk/ha-planetary-solar-system-card.svg
 [maintenance-shield]: https://img.shields.io/maintenance/yes/2026
 [ci-shield]:
-  https://img.shields.io/github/actions/workflow/status/marcintk/ha-planetary-solar-system-card/build-and-test.yml?label=CI
+  https://github.com/marcintk/ha-planetary-solar-system-card/actions/workflows/build-and-test.yml/badge.svg
 [coverage-shield]: https://img.shields.io/badge/coverage-100%25-brightgreen
 [downloads-shield]:
   https://img.shields.io/github/downloads/marcintk/ha-planetary-solar-system-card/total?label=downloads

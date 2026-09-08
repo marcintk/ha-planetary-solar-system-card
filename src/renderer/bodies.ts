@@ -33,6 +33,22 @@ const shadeFill = (color: string): Record<string, string | number> => ({
   "fill-opacity": SHADE_OPACITY,
 });
 
+/**
+ * `#rgb` / `#rrggbb` -> canonical lowercase `#rrggbb`. Shorthand is expanded; anything else
+ * (a named colour, `rgb()`, a malformed string) throws instead of flowing `NaN` into the tint
+ * <feColorMatrix> `values`, which renders that body's 3d sprite untinted with no error (#230).
+ * Every current caller passes a 6-digit hex from planet-data / comet-data, so this only fires
+ * if bad colour data is introduced.
+ */
+export function normalizeHex(color: string): string {
+  const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(color);
+  if (!m) {
+    throw new Error(`expected an #rgb or #rrggbb colour, got ${JSON.stringify(color)}`);
+  }
+  const h = m[1].toLowerCase();
+  return `#${h.length === 3 ? h.replace(/./g, (c) => c + c) : h}`;
+}
+
 export const HALO_VIEW_FRACTION = 0.33;
 
 // Pre-rendered 128px Lambert sphere for `display: 3d`, generated once (scripts/gen-sphere-sprites.mjs) and
@@ -103,11 +119,12 @@ export function renderSphereSprite(
 ): void {
   const defs = getOrCreateDefs(svg);
   ensureSpriteSymbol(defs);
-  const tintId = `tint-${color.replace(/[^a-z0-9]/gi, "")}`;
+  const hex = normalizeHex(color);
+  const tintId = `tint-${hex.slice(1)}`;
   if (!defs.querySelector(`#${tintId}`)) {
-    const cr = Number.parseInt(color.slice(1, 3), 16) / 255;
-    const cg = Number.parseInt(color.slice(3, 5), 16) / 255;
-    const cb = Number.parseInt(color.slice(5, 7), 16) / 255;
+    const cr = Number.parseInt(hex.slice(1, 3), 16) / 255;
+    const cg = Number.parseInt(hex.slice(3, 5), 16) / 255;
+    const cb = Number.parseInt(hex.slice(5, 7), 16) / 255;
     const filter = createSvgElement("filter", {
       id: tintId,
       "color-interpolation-filters": "sRGB",

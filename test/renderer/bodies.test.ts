@@ -469,6 +469,25 @@ describe("renderSphereSprite", () => {
     expect(vals[6]).toBeCloseTo(0x7f / 255, 5);
     expect(vals[12]).toBeCloseTo(0xc4 / 255, 5);
   });
+
+  it("expands #rgb shorthand to the same tint as its #rrggbb form (#230)", () => {
+    const svg = createSvg();
+    renderSphereSprite(svg, 10, 10, 8, "#abc");
+
+    const fcm = svg.querySelector("defs filter#tint-aabbcc feColorMatrix");
+    expect(fcm).not.toBeNull();
+    const vals = fcm.getAttribute("values").trim().split(/\s+/).map(Number);
+    expect(vals[0]).toBeCloseTo(0xaa / 255, 5);
+    expect(vals[6]).toBeCloseTo(0xbb / 255, 5);
+    expect(vals[12]).toBeCloseTo(0xcc / 255, 5);
+  });
+
+  it("throws on a non-hex colour rather than emitting a NaN tint matrix (#230)", () => {
+    const svg = createSvg();
+    expect(() => renderSphereSprite(svg, 10, 10, 8, "rebeccapurple")).toThrow(/#rrggbb/);
+    expect(() => renderSphereSprite(svg, 10, 10, 8, "#12345")).toThrow(/#rrggbb/);
+    expect(svg.querySelector('defs filter[id^="tint-"]')).toBeNull();
+  });
 });
 
 describe("renderSunHalo", () => {

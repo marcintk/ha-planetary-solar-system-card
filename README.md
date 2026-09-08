@@ -12,8 +12,8 @@ sizes are stylized for readability, not real astronomical scale.
 
 [![Try the interactive demo](https://img.shields.io/badge/▶%20Try%20the%20interactive%20demo-CD5C5C?style=for-the-badge)](https://marcintk.github.io/ha-planetary-solar-system-card/)
 
-Have an idea or found a bug?
-[Open a GitHub issue](https://github.com/marcintk/ha-planetary-solar-system-card/issues/new).
+Bug or feature request? [Open an issue][new-issue]. Idea, question, or setup to share? [Start a
+discussion][discussions].
 
 [![hacs_badge][hacs-shield]][hacs] [![GitHub Release][releases-shield]][releases]
 [![License][license-shield]][license] ![Maintenance][maintenance-shield]
@@ -191,6 +191,8 @@ a pipeline stall doesn't break the feed.
   https://raw.githubusercontent.com/marcintk/ha-planetary-solar-system-card/main/docs/demo.gif
 [releases]: https://github.com/marcintk/ha-planetary-solar-system-card/releases
 [latest-release]: https://github.com/marcintk/ha-planetary-solar-system-card/releases/latest
+[new-issue]: https://github.com/marcintk/ha-planetary-solar-system-card/issues/new
+[discussions]: https://github.com/marcintk/ha-planetary-solar-system-card/discussions
 [ci]:
   https://github.com/marcintk/ha-planetary-solar-system-card/actions/workflows/build-and-test.yml
 [hacs]: https://hacs.xyz

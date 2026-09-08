@@ -10,14 +10,13 @@ export const cardStyles = css`
     color-scheme: light dark;
     background: var(--ha-card-background, var(--card-background-color, var(--primary-background-color, Canvas)));
     color: var(--primary-text-color, CanvasText);
-    /* :host is the same size as .card (see align-self above) and paints its own
-       background — without matching its radius+clip, that square background pokes out
-       past .card's rounded corners. */
-    border-radius: var(--ha-card-border-radius, 12px);
+    /* Square corners by design — the card fills its box edge to edge and does not
+       follow the HA theme's --ha-card-border-radius. */
+    border-radius: 0;
     overflow: hidden;
   }
   .card {
-    border-radius: var(--ha-card-border-radius, 12px);
+    border-radius: 0;
     overflow: hidden;
     padding: 0px;
     color: inherit;

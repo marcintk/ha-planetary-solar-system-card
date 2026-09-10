@@ -8,20 +8,20 @@ index.
 
 ## A displayed physical quantity reads wrong after a layout transform (packing, scaling, clamping)
 
-- **Root cause:** #239's orbit AU labels were computed by inverting the *drawn* ring's pixel radius
+- **Root cause:** #239's orbit AU labels were computed by inverting the _drawn_ ring's pixel radius
   through `radiusFromAU()`. `packOrbitRadii()` (`src/renderer/orbit-packing.ts`) pushes rings
   outward to stop orbits colliding; that anti-crowding push-out then read back as real distance —
-  Earth `1.0 → 1.5 AU`, Mars `1.5 → ~3.0`. The renderer already had `planet.au` / `eccentricity`
-  in hand and threw them away to reconstruct the number from geometry it had just distorted.
+  Earth `1.0 → 1.5 AU`, Mars `1.5 → ~3.0`. The renderer already had `planet.au` / `eccentricity` in
+  hand and threw them away to reconstruct the number from geometry it had just distorted.
 - **Guardrail:** a physical quantity is carried from its source data, never round-tripped through a
   layout transform's inverse. `src/renderer/orbit-labels.ts` precomputes `ORBIT_LABEL_AU` once at
-  module load — `au·(1 − e·cos E)` at each ring's two vertical-axis crossings, from `PLANETS` +
-  the fixed scale, with no packing offset — and `renderOrbit()` only *places* the given
+  module load — `au·(1 − e·cos E)` at each ring's two vertical-axis crossings, from `PLANETS` + the
+  fixed scale, with no packing offset — and `renderOrbit()` only _places_ the given
   `{ minAU, maxAU }` (nearer crossing → `minAU`). `test/renderer/accuracy-orbit-distance.test.ts`
   (repo `accuracy-*` convention) pins every planet's label to a golden physical table
-  (`toBeCloseTo(…, 3)`) and asserts each value lies in `[au(1−e), au(1+e)]`. Rule: if a layout
-  step (log scale, packing, clamp, zoom) sits between the data and the pixels, derive any
-  user-facing number from the data side, not by inverting the pixels.
+  (`toBeCloseTo(…, 3)`) and asserts each value lies in `[au(1−e), au(1+e)]`. Rule: if a layout step
+  (log scale, packing, clamp, zoom) sits between the data and the pixels, derive any user-facing
+  number from the data side, not by inverting the pixels.
 - **Ref:** [#239](https://github.com/marcintk/ha-planetary-solar-system-card/issues/239) ·
   2026-09-10
 

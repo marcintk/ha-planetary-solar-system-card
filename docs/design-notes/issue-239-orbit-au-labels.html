@@ -1,0 +1,553 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AU labels from data, not pixels</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,ital@9..144,300..700,0..1&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #eceef4;
+    --paper-raised: #ffffff;
+    --ink: #171b2b;
+    --ink-soft: #565d78;
+    --ink-faint: #888ea8;
+    --line: #d2d7e3;
+    --accent: #b3801f;
+    --accent-soft: #ecdaa8;
+    --cool: #3f6cae;
+    --ok: #1f7a4d;
+    --warn-bg: #fbf3e0;
+    --warn-line: #e0c078;
+    --shadow: 0 1px 2px rgba(23,27,43,0.06), 0 8px 24px rgba(23,27,43,0.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #0e1017;
+      --paper-raised: #161925;
+      --ink: #eceef4;
+      --ink-soft: #a6abc1;
+      --ink-faint: #6b718e;
+      --line: #282c3c;
+      --accent: #e0b256;
+      --accent-soft: #40361f;
+      --cool: #89a6dc;
+      --ok: #5cc48c;
+      --warn-bg: #2c2416;
+      --warn-line: #665328;
+      --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 12px 32px rgba(0,0,0,0.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #0e1017;
+    --paper-raised: #161925;
+    --ink: #eceef4;
+    --ink-soft: #a6abc1;
+    --ink-faint: #6b718e;
+    --line: #282c3c;
+    --accent: #e0b256;
+    --accent-soft: #40361f;
+    --cool: #89a6dc;
+    --ok: #5cc48c;
+    --warn-bg: #2c2416;
+    --warn-line: #665328;
+    --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 12px 32px rgba(0,0,0,0.35);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Source Serif 4", Georgia, "Times New Roman", serif;
+    font-size: 16px;
+    line-height: 1.6;
+    padding: 4.5rem 1.5rem 6rem;
+    margin: 0;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page { max-width: 880px; margin: 0 auto; }
+  .eyebrow {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 0.9rem;
+  }
+  h1 {
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 600;
+    font-size: clamp(2rem, 5vw, 2.9rem);
+    line-height: 1.06;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+    margin: 0 0 1rem;
+  }
+  h2 {
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 600;
+    font-size: 1.5rem;
+    margin: 3.5rem 0 1rem;
+    padding-top: 1.6rem;
+    border-top: 1px solid var(--line);
+    text-wrap: balance;
+  }
+  h3 {
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 600;
+    font-size: 1.13rem;
+    margin: 2rem 0 0.6rem;
+  }
+  p { margin: 0 0 1rem; }
+  a { color: var(--accent); text-underline-offset: 2px; }
+  .lede { font-size: 1.16rem; color: var(--ink-soft); margin-bottom: 1.6rem; text-wrap: pretty; }
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.4rem;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.76rem;
+    color: var(--ink-faint);
+    margin-bottom: 2.4rem;
+  }
+  .badge {
+    display: inline-block;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 0.28rem 0.66rem;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    border: 1px solid var(--warn-line);
+  }
+  ul, ol { margin: 0 0 1rem; padding-left: 1.3rem; }
+  li { margin-bottom: 0.45rem; }
+  code {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.86em;
+    background: var(--accent-soft);
+    color: inherit;
+    padding: 0.1em 0.36em;
+    border-radius: 4px;
+  }
+  pre {
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 1rem 1.15rem;
+    overflow-x: auto;
+    box-shadow: var(--shadow);
+    margin: 0 0 1.4rem;
+  }
+  pre code { background: none; padding: 0; font-size: 0.82rem; line-height: 1.55; }
+  pre .add { color: var(--ok); }
+  pre .del { color: #b3402f; }
+  :root:not([data-theme="light"]) pre .del { color: #e08a7a; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) pre .del { color: #e08a7a; } }
+  pre .dim { color: var(--ink-faint); }
+  table { width: 100%; border-collapse: collapse; margin: 0 0 1.6rem; font-size: 0.92rem; }
+  th, td { text-align: left; padding: 0.6rem 0.8rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+  td:first-child { white-space: nowrap; font-family: "JetBrains Mono", monospace; font-size: 0.82rem; }
+  td.num { text-align: right; font-family: "JetBrains Mono", monospace; font-size: 0.82rem; }
+  .verdict {
+    border-left: 3px solid var(--accent);
+    padding: 0.4rem 0 0.4rem 1.1rem;
+    margin: 1.4rem 0;
+    font-size: 1.03rem;
+  }
+  .callout {
+    background: var(--warn-bg);
+    border: 1px solid var(--warn-line);
+    border-left-width: 3px;
+    border-radius: 6px;
+    padding: 0.9rem 1.15rem;
+    margin: 0 0 1.4rem;
+    font-size: 0.95rem;
+  }
+  .callout strong { color: var(--accent); }
+  .demo {
+    background: radial-gradient(120% 120% at 50% 40%, #1d2740 0%, #10141f 60%, #0b0e16 100%);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 1.4rem 1.2rem 1rem;
+    margin: 0 0 1rem;
+    box-shadow: var(--shadow);
+  }
+  .demo svg { width: 100%; height: auto; display: block; }
+  .demo .cap {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.68rem;
+    line-height: 1.5;
+    color: #aeb9c8;
+    margin-top: 0.7rem;
+  }
+  .demo .cap b { color: #fff; font-weight: 500; }
+  .seq {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.95rem;
+    letter-spacing: 0.04em;
+  }
+  .seq .turn { color: var(--accent); font-weight: 500; }
+</style>
+</head>
+<body>
+<div class="page">
+  <p class="eyebrow">Issue #239 &middot; Design note</p>
+  <h1>AU labels from data, not pixels</h1>
+  <p><span class="badge">approved</span></p>
+  <p class="lede">
+    Every orbit ring carries a top and bottom &ldquo;<code>x.x&nbsp;AU</code>&rdquo; label.
+    <code>renderOrbit()</code> computes them by measuring the <em>drawn</em> ring &mdash; pixel
+    distance from the Sun, run back through the log scale. But the drawn ring is pushed outward by
+    <code>packOrbitRadii()</code> to stop orbits colliding, and that push is read back as real
+    distance. Earth reads <strong>1.5&nbsp;AU</strong>; Mars reads <strong>~3.0</strong>. Carry the
+    distance from the orbital data instead of reconstructing it from geometry.
+  </p>
+  <p class="meta">
+    <span><a href="https://github.com/marcintk/ha-planetary-solar-system-card/issues/239">#239</a></span>
+    <span>2026-09-09</span>
+    <span>1 slice</span>
+  </p>
+
+  <h2>Problem</h2>
+  <p>
+    Every planet orbit gets two AU labels, next to where the ring crosses the vertical
+    season-divider axis. Most read too high:
+  </p>
+  <table>
+    <tr><th>Planet</th><th class="num">True AU</th><th class="num">Label reads</th><th class="num">Off by</th></tr>
+    <tr><td>Mercury</td><td class="num">0.39</td><td class="num">0.4</td><td class="num">&mdash;</td></tr>
+    <tr><td>Venus</td><td class="num">0.72</td><td class="num">0.7</td><td class="num">&mdash;</td></tr>
+    <tr><td>Earth</td><td class="num">1.00</td><td class="num">1.5</td><td class="num">+0.5</td></tr>
+    <tr><td>Mars</td><td class="num">1.52</td><td class="num">3.0</td><td class="num">+1.5&nbsp;(~2&times;)</td></tr>
+    <tr><td>Jupiter</td><td class="num">5.20</td><td class="num">5.2</td><td class="num">&mdash;</td></tr>
+    <tr><td>Saturn</td><td class="num">9.58</td><td class="num">10.7</td><td class="num">+1.1</td></tr>
+    <tr><td>Uranus</td><td class="num">19.22</td><td class="num">19.7</td><td class="num">+0.5</td></tr>
+    <tr><td>Neptune</td><td class="num">30.05</td><td class="num">31.2</td><td class="num">+1.1</td></tr>
+  </table>
+  <p>
+    These numbers were reproduced independently by running <code>packOrbitRadii(PLANETS)</code> +
+    the log scale against the planet data &mdash; they match the issue's table to the digit.
+    Mercury, Venus and Jupiter read right; the rest are inflated by exactly the amount their ring
+    was pushed out.
+  </p>
+
+  <h2>Root cause</h2>
+  <p>
+    <code>renderOrbit()</code> in <code>src/renderer/bodies.ts</code> labels a ring purely from the
+    geometry it just drew. It solves where the drawn ellipse crosses <code>x&nbsp;=&nbsp;CENTER</code>,
+    then converts each crossing point's <em>pixel</em> distance from the Sun back to AU:
+  </p>
+  <pre><code>const auAt = (point) =&gt;
+  radiusFromAU(Math.hypot(point.x - CENTER, point.y - CENTER));</code></pre>
+  <p>
+    The drawn ring is not at its natural log-scale radius. <code>packOrbitRadii()</code>
+    (<code>src/renderer/orbit-packing.ts</code>) sweeps outward from the Sun and pushes each orbit
+    out just enough to keep a minimum gap from its inward neighbour. Earth's push is large because
+    Earth's spacing bubble has to enclose the whole Moon orbit
+    (<code>size&nbsp;10 + MOON_PIXEL_OFFSET&nbsp;22 + MOON.size&nbsp;5&nbsp;=&nbsp;37px</code>, vs
+    6&ndash;9px for the other inner planets). The push is <em>cumulative</em> down the outward
+    sweep &mdash; Mercury &rarr; Earth (+30px) &rarr; Mars (+51px, worst) &mdash; then resets at
+    any planet whose natural radius already clears its neighbour (Venus, Jupiter) and
+    re-accumulates across Saturn &rarr; Uranus &rarr; Neptune.
+    <code>computePlanetVisualEllipse()</code> adds that offset uniformly to perihelion and
+    aphelion, so it lands in <code>aPx</code>/<code>bPx</code> too.
+  </p>
+  <p>
+    <code>renderOrbit()</code> never receives <code>planet.au</code>, <code>planet.eccentricity</code>
+    or the packing offset, so every pushed ring is read back as extra distance. The ring position,
+    the planet marker and the Moon orbit are all fine &mdash; only the label <em>text</em> is
+    wrong. Comet orbits are unaffected: <code>renderCometOrbit()</code> is a fully independent
+    function that draws no AU labels and gets no packing offset.
+  </p>
+
+  <h2>The essence</h2>
+  <p>
+    The orbit ring is a <strong>pure function of static data</strong>. Its shape comes from
+    <code>planet.au</code>, <code>planet.eccentricity</code> and <code>planet.longitudeOfPerihelion</code>
+    in <code>src/astronomy/planet-data.ts</code> &mdash; none of which change with the date. What
+    moves per frame is the planet <em>marker</em> (<code>calculatePlanetOrbit(planet, date)</code>
+    gives its true anomaly on the fixed ring). The ring itself is identical on every render,
+    forever, until someone edits the data or the scale constants.
+  </p>
+  <p>
+    So the two label distances per planet are constants. And we already know them: at the point
+    where the ellipse is built we are holding <code>au</code> and <code>e</code>. The heliocentric
+    distance anywhere on a Kepler orbit is
+    <code>r&nbsp;=&nbsp;a&nbsp;(1&nbsp;&minus;&nbsp;e&nbsp;cos&nbsp;E)</code>, with <code>E</code>
+    the eccentric anomaly. The vertical-axis crossing solver already computes <code>E</code> as its
+    <code>phi&nbsp;&plusmn;&nbsp;delta</code> parameter (for an <code>a&nbsp;cos&nbsp;t</code>&thinsp;/&thinsp;<code>b&nbsp;sin&nbsp;t</code>
+    ellipse, that parameter <em>is</em> the eccentric anomaly). Evaluate
+    <code>au&nbsp;(1&nbsp;&minus;&nbsp;e&nbsp;cos&nbsp;E)</code> in AU and the pixel scale &mdash;
+    and therefore the packing offset &mdash; never enters.
+  </p>
+  <div class="demo">
+    <svg viewBox="0 0 620 260" role="img" aria-label="The two vertical-axis crossings of a rotated orbit ring, and their true heliocentric distances">
+      <g font-family="'JetBrains Mono',monospace" font-size="10" fill="#7d8aa0">
+        <text x="308" y="20" text-anchor="middle">season-divider axis (x = CENTER)</text>
+      </g>
+      <line x1="310" y1="26" x2="310" y2="248" stroke="#3b4763" stroke-width="1" stroke-dasharray="3 4"/>
+      <!-- Sun -->
+      <circle cx="310" cy="140" r="6" fill="#ffcf6b"/>
+      <text x="322" y="144" font-family="'JetBrains Mono',monospace" font-size="10" fill="#ffcf6b">Sun (focus &rarr; CENTER)</text>
+      <!-- rotated drawn ellipse -->
+      <ellipse cx="290" cy="132" rx="210" ry="150" fill="none" stroke="#5cc48c" stroke-width="2"
+        transform="rotate(-18 290 132)"/>
+      <!-- crossing dots -->
+      <circle cx="310" cy="34" r="4" fill="#e0b256"/>
+      <circle cx="310" cy="243" r="4" fill="#e0b256"/>
+      <g font-family="'JetBrains Mono',monospace" font-size="11" fill="#fff">
+        <text x="320" y="44">near crossing &rarr; min AU  = au(1 &minus; e&middot;cos E&#8321;)</text>
+        <text x="320" y="238">far crossing  &rarr; max AU  = au(1 &minus; e&middot;cos E&#8322;)</text>
+      </g>
+      <g font-family="'JetBrains Mono',monospace" font-size="9" fill="#aeb9c8">
+        <text x="320" y="57">smaller value next to the crossing physically closer to the Sun</text>
+      </g>
+    </svg>
+    <div class="cap">
+      <b style="color:#5cc48c">&mdash;&mdash;</b> the drawn ring (packed, rotated by
+      <b>longitudeOfPerihelion</b>) &nbsp;&middot;&nbsp; labels sit at the two axis crossings
+      &nbsp;&middot;&nbsp; each value is the <b>true</b> heliocentric distance at that crossing,
+      computed from <b>au</b> and <b>e</b> &mdash; not from the ring's pixel radius
+    </div>
+  </div>
+
+  <h2>The change</h2>
+  <ol>
+    <li>
+      <strong>New <code>src/renderer/orbit-labels.ts</code>.</strong> At module load, for each
+      planet: build the <em>natural</em> ellipse
+      (<code>ellipseFromApsides(auToRadius(au&middot;(1&minus;e)), auToRadius(au&middot;(1+e)))</code>,
+      rotation <code>longitudeOfPerihelion</code>), solve the two vertical-axis crossing eccentric
+      anomalies <code>E&nbsp;=&nbsp;phi&nbsp;&plusmn;&nbsp;delta</code> through the shared transform
+      + crossing solver, evaluate <code>au&nbsp;(1&nbsp;&minus;&nbsp;e&nbsp;cos&nbsp;E)</code> at
+      each, keep the sorted pair. Export
+      <code>ORBIT_LABEL_AU: Record&lt;string, { minAU: number; maxAU: number }&gt;</code>. View- and
+      date-independent; ~16 <code>Math.cos</code> calls, once, at import.
+    </li>
+    <li>
+      <strong><code>verticalAxisIntersections()</code></strong> in <code>bodies.ts</code> returns
+      each crossing's eccentric anomaly <code>E</code> alongside its <code>{ x, y }</code>, so the
+      label module and <code>renderOrbit</code> share one crossing solver rather than each
+      re-deriving the mirror/geometry by hand (the <a href="https://github.com/marcintk/ha-planetary-solar-system-card/issues/94">#94</a>
+      &ldquo;one mirror&rdquo; rule).
+    </li>
+    <li>
+      <strong><code>renderOrbit()</code></strong> gains a <code>{ minAU, maxAU }</code> argument
+      and <em>drops</em> <code>radiusFromAU(Math.hypot(&hellip;))</code> entirely. It assigns
+      <code>minAU</code> to whichever drawn crossing is nearer <code>CENTER</code> and
+      <code>maxAU</code> to the farther, then prints <code>"&lt;x.x&gt; AU"</code>. A uniform radial
+      packing offset can't flip which side is nearer the Sun, so &ldquo;nearer drawn crossing
+      &harr; smaller distance&rdquo; always holds &mdash; that is what puts the two values on
+      opposite sides of the ring by construction.
+    </li>
+    <li>
+      <strong><code>renderSolarSystem()</code></strong> (<code>src/renderer/index.ts</code>) passes
+      <code>ORBIT_LABEL_AU[planet.name]</code> into each <code>renderOrbit</code> call.
+    </li>
+  </ol>
+  <p>
+    <code>radiusFromAU()</code> keeps its other callers (none in <code>renderOrbit</code> after
+    this). Nothing about ring geometry, markers, the Moon orbit, comets, or the season overlay
+    moves.
+  </p>
+
+  <h2>Approach &mdash; designed twice</h2>
+  <h3>A. Stay in pixels &mdash; subtract the packing offset before inverting</h3>
+  <p>
+    Thread the already-computed <code>packedOffset</code> (<code>index.ts:80</code>) into
+    <code>renderOrbit</code>; label text becomes
+    <code>radiusFromAU(hypot(point&nbsp;&minus;&nbsp;CENTER)&nbsp;&minus;&nbsp;packedOffset)</code>.
+    The offset was added uniformly to both apsides, so subtracting it uniformly is exact. One new
+    param, one subtraction; geometry still drives value <em>and</em> placement.
+  </p>
+  <p>
+    <em>Why not:</em> it keeps a physical quantity round-tripping through a layout-space inverse
+    scale &mdash; the exact shape of the bug. The offset still perturbs the printed value through
+    the eccentric anomaly at the crossing (a few 0.01&nbsp;AU), and <code>renderOrbit</code> stays
+    coupled to the packing table. It patches the leak instead of removing the pipe.
+  </p>
+  <h3>B. Carry the distance from the data <span style="color:var(--ok)">&larr; chosen</span></h3>
+  <p>
+    Compute <code>au&nbsp;(1&nbsp;&minus;&nbsp;e&nbsp;cos&nbsp;E)</code> from
+    <code>planet.au</code> / <code>planet.eccentricity</code>, once, in a dedicated module; hand
+    <code>renderOrbit</code> two finished numbers. The pixel scale never touches the label.
+  </p>
+  <p>
+    <strong>Sub-choice inside B &mdash; which ellipse feeds the <code>E</code> solve:</strong>
+  </p>
+  <ul>
+    <li>
+      <em>Packed (drawn) ellipse.</em> Use the same <code>aPx/bPx/cPx</code> the renderer draws.
+      <code>E</code> shifts a hair when <code>packOrbitRadii</code> fattens a ring. Keeps one
+      geometry, but lets the visualization hack back into the number.
+    </li>
+    <li>
+      <em>Natural ellipse.</em> <span style="color:var(--ok)">Chosen.</span> Solve <code>E</code>
+      from the orbit's real shape, no packing offset. The label is pure orbital mechanics. Both go
+      through the identical <code>verticalAxisIntersections(rx, ry, orbitTransformComponents(&hellip;))</code>
+      &mdash; the natural variant just passes the unpacked <code>aPx/bPx/cPx</code>, no extra
+      hand-rolled mirror path. As a bonus, <code>orbit-labels.ts</code> depends only on
+      <code>PLANETS</code> + <code>svg-utils</code>, never on <code>orbit-packing.ts</code>.
+    </li>
+  </ul>
+  <div class="verdict">
+    <strong>B, natural ellipse.</strong> The AU label is a statement about the solar system, not
+    about the drawing. Placement stays on the drawn ring; the number comes from the data that
+    defines the orbit. That removes the contamination class entirely rather than cancelling one
+    instance of it, and it decouples the label from the packing machinery it never should have
+    been reading.
+  </div>
+
+  <h2>Slice</h2>
+  <table>
+    <tr><th>#</th><th>Change</th><th>Red test</th></tr>
+    <tr>
+      <td>1&nbsp;&check;</td>
+      <td>
+        <strong>Shipped.</strong> New <code>src/renderer/orbit-labels.ts</code> &mdash; module-load
+        <code>ORBIT_LABEL_AU: Record&lt;name, { minAU, maxAU }&gt;</code>, built from the natural
+        (un-packed) ellipse's two vertical-axis crossings, <code>au&middot;(1&nbsp;&minus;&nbsp;e&middot;cos&nbsp;E)</code>
+        at each. <code>verticalAxisIntersections()</code> is now exported and each crossing carries
+        its <code>eccentricAnomaly</code>. <code>renderOrbit()</code> gained a required
+        <code>labelAU</code> arg, dropped the <code>radiusFromAU(hypot(&hellip;))</code> inversion
+        and the <code>radiusFromAU</code> import; the crossing nearer <code>CENTER</code> prints
+        <code>minAU</code>, the farther <code>maxAU</code>. <code>renderSolarSystem()</code> passes
+        <code>ORBIT_LABEL_AU[PLANETS[i].name]</code>. <code>/simplify</code> turned the label-pick
+        closure into a plain boolean. Reviewer: no correctness bugs &mdash; the two crossings are a
+        focal chord, and both pixel-radius and true-AU are strictly monotonic in
+        <code>1&nbsp;&minus;&nbsp;cos&nbsp;E</code>, so &ldquo;nearer crossing &harr; smaller
+        AU&rdquo; holds at every rotation; the crossing <code>E</code> is independent of the
+        <code>&plusmn;1</code> mirror (verified numerically), so the fixed <code>-1</code> in
+        <code>orbit-labels.ts</code> is safe. Rendered result: Earth
+        <code>1.5&nbsp;/&nbsp;1.5&nbsp;&rarr;&nbsp;1.0&nbsp;/&nbsp;1.0</code>, Mars
+        <code>3.1&nbsp;/&nbsp;2.9&nbsp;&rarr;&nbsp;1.6&nbsp;/&nbsp;1.5</code>, Saturn
+        <code>10.1&nbsp;/&nbsp;11.3&nbsp;&rarr;&nbsp;9.0&nbsp;/&nbsp;10.1</code>, Uranus/Neptune
+        likewise; Mercury/Venus/Jupiter (zero pack offset) unchanged. Suite 1684 green,
+        <code>check:ci</code> clean, coverage 100%.
+        <em>Note: <code>eccentricAnomaly</code> is the log-scale <em>pixel</em> ellipse's, not the
+        physical orbit's &mdash; sub-print-precision even at Mercury's e&asymp;0.21; commented in
+        <code>orbit-labels.ts</code>.</em>
+      </td>
+      <td>
+        <code>test/renderer/index.test.ts</code> &mdash; <code>it.each(["Earth", "Mars"])</code>
+        &ldquo;&hellip;AU labels stay within its perihelion/aphelion range&rdquo;: each printed
+        value <code>&le;&nbsp;au&middot;(1+e)&nbsp;+&nbsp;0.05</code>. Failed at
+        <code>1.5&nbsp;&gt;&nbsp;1.067</code> (Earth) and <code>3.1&nbsp;&gt;&nbsp;1.712</code>
+        (Mars) &mdash; the label was <code>radiusFromAU(packed&nbsp;pixel&nbsp;radius)</code>.
+      </td>
+    </tr>
+  </table>
+
+  <h2>Test surface</h2>
+  <p>Changed and added:</p>
+  <table>
+    <tr><th>File</th><th>What moved</th></tr>
+    <tr>
+      <td>renderer/index.test.ts</td>
+      <td>
+        <strong>Red test added</strong> (this file, not the <code>~:1099</code> block):
+        <code>it.each(["Earth", "Mars"])</code> &mdash; each printed AU value stays
+        <code>&le;&nbsp;au&middot;(1+e)&nbsp;+&nbsp;0.05</code>. The predicted <code>~:1099</code>
+        Mercury-crossing rewrite <em>was not needed</em>: Mercury is innermost, gets zero pack
+        offset, so its old pixel-inversion and the new data value already agree &mdash; all 58
+        cases here still pass untouched.
+      </td>
+    </tr>
+    <tr>
+      <td>renderer/bodies.test.ts</td>
+      <td>
+        <code>describe("renderOrbit")</code> &mdash; 10 cases migrated to the 4-arg
+        <code>renderOrbit(svg, ellipse, dir, { minAU, maxAU })</code>. Geometry/placement/marker
+        cases pass a fixed literal pair; the three label-text cases assert against the passed
+        <code>minAU</code>/<code>maxAU</code>. <code>radiusFromAU</code> import dropped (now unused).
+      </td>
+    </tr>
+    <tr>
+      <td>renderer/orbit-labels.test.ts</td>
+      <td>
+        New &mdash; structural contract only: exactly one <code>ORBIT_LABEL_AU</code> entry per
+        planet, each <code>{ minAU, maxAU }</code> positive and ordered.
+      </td>
+    </tr>
+    <tr>
+      <td>renderer/accuracy-orbit-distance.test.ts</td>
+      <td>
+        New &mdash; follows the repo's <code>accuracy-*</code> convention. Per planet: the
+        precomputed distance matches a golden
+        <code>au&middot;(1&nbsp;&minus;&nbsp;e&middot;cos&nbsp;E)</code> table
+        (<code>toBeCloseTo(&hellip;,&nbsp;3)</code>) and lies within
+        <code>[au(1&minus;e),&nbsp;au(1+e)]</code>; a full <code>renderSolarSystem()</code> render
+        prints those pairs (1&nbsp;dp, in range) for all 16 labels; <code>#239</code> regression
+        guard (Earth&nbsp;<code>maxAU&nbsp;&lt;&nbsp;1.1</code>, Mars&nbsp;<code>&lt;&nbsp;1.7</code>).
+      </td>
+    </tr>
+    <tr>
+      <td>__snapshots__/snapshot.test.ts.snap</td>
+      <td>
+        Regenerated. Diff is exclusively <code>&lt;text font-size="9"&gt;</code> content &mdash; 10
+        AU-label tokens, identical <code>x</code>/<code>y</code>/<code>style</code>; no structural
+        change.
+      </td>
+    </tr>
+  </table>
+  <p>
+    Unaffected: the ring transform / marker-on-ring cases (<code>#94</code>), the collision
+    snapshot (<code>test/renderer/collision.test.ts</code>, <code>#62</code> &mdash; no geometry
+    change), comet orbits (<code>renderCometOrbit</code> untouched), <code>svg-utils.test.ts</code>
+    (<code>auToRadius</code>/<code>radiusFromAU</code> unchanged), <code>orbit-packing.test.ts</code>
+    (packing math unchanged).
+  </p>
+
+  <h2>Adjacent opportunities</h2>
+  <ul>
+    <li>
+      <strong>Not folded in.</strong> The vertical-axis crossing is not the perihelion/aphelion
+      point, so the two labels are the distances <em>where the ring meets the axis</em>, not the
+      orbit's true min/max. For near-circular orbits the difference is &lt;&nbsp;0.05&nbsp;AU and
+      the current design already labels the crossings; showing explicit perihelion/aphelion
+      instead is a product decision, its own issue if wanted.
+    </li>
+    <li>
+      <strong>Not folded in.</strong> <a href="https://github.com/marcintk/ha-planetary-solar-system-card/issues/203">#203</a>
+      (realistic-distance orbit mode) would make <code>packOrbitRadii</code>'s offset zero or
+      near-zero, at which point A and B converge numerically. B is still the right shape there
+      &mdash; the label should come from data regardless of how the ring is scaled &mdash; so this
+      change is a clean head start, not foreclosed work.
+    </li>
+    <li>
+      <strong>Enables.</strong> A per-planet AU table computed once at module load is a natural
+      home for any future static orbit-derived display value (orbital period, synodic period)
+      without re-threading data through the renderer.
+    </li>
+  </ul>
+
+  <h2>Design invariant preserved</h2>
+  <p>
+    &ldquo;Each orbit displays AU distance from Sun&rdquo; (CLAUDE.md) &mdash; still two labels per
+    ring, same position next to the season-divider axis, same <code>9px</code> sans-serif in
+    <code>ORBIT_COLOR</code>, same one-decimal format. Only the numbers change: they become
+    correct. Ring geometry, the log-scale spacing, the anti-crowding pack, the visibility cone at
+    Earth's orbit, and the back/forward date buttons are all untouched.
+  </p>
+  <div class="callout">
+    <strong>LESSONS.md.</strong> No prior entry for this class &mdash; a derived display quantity
+    reconstructed from post-layout pixels instead of carried from source data. If the build holds
+    the shape, <code>explain-it compound</code> logs it after the slice: <em>physical quantities
+    travel with the data; a layout transform is one-way &mdash; never invert it to recover a
+    number you already had.</em>
+  </div>
+</div>
+</body>
+</html>

@@ -13,7 +13,6 @@ import {
   getOrCreateDefs,
   type OrbitTransformComponents,
   orbitTransformComponents,
-  radiusFromAU,
   terminatorShadowPath,
   VIEW_SIZE,
 } from "./svg-utils.js";
@@ -158,12 +157,24 @@ export function renderSphereSprite(
  * so the labels can never drift off the ring the way a fixed
  * CENTER±semi-major-axis placement does once the ellipse is rotated (#94).
  * Returns [top, bottom] sorted by y.
+ *
+ * Each point also carries the `eccentricAnomaly` (the `t` parameter of the
+ * `rx·cos t / ry·sin t` ellipse — for this parametrisation `t` IS the eccentric
+ * anomaly measured from perihelion), so callers can recover the true
+ * heliocentric distance at the crossing without going back through the pixel
+ * scale.
  */
-function verticalAxisIntersections(
+export interface VerticalAxisIntersection {
+  x: number;
+  y: number;
+  eccentricAnomaly: number;
+}
+
+export function verticalAxisIntersections(
   rx: number,
   ry: number,
   { a, b, c, d, e, f }: OrbitTransformComponents
-): [{ x: number; y: number }, { x: number; y: number }] {
+): [VerticalAxisIntersection, VerticalAxisIntersection] {
   const A = a * rx;
   const B = c * ry;
   const radius = Math.hypot(A, B);
@@ -174,7 +185,11 @@ function verticalAxisIntersections(
   const points = [phi + delta, phi - delta].map((t) => {
     const localX = rx * Math.cos(t);
     const localY = ry * Math.sin(t);
-    return { x: a * localX + c * localY + e, y: b * localX + d * localY + f };
+    return {
+      x: a * localX + c * localY + e,
+      y: b * localX + d * localY + f,
+      eccentricAnomaly: t,
+    };
   });
   return points[0].y <= points[1].y ? [points[0], points[1]] : [points[1], points[0]];
 }
@@ -182,7 +197,8 @@ function verticalAxisIntersections(
 export function renderOrbit(
   svg: SVGElement,
   ellipse: CometVisualEllipse,
-  eclipticViewDirection: EclipticViewDirection
+  eclipticViewDirection: EclipticViewDirection,
+  labelAU: { minAU: number; maxAU: number }
 ): void {
   const orbitColor = ORBIT_COLOR;
   const { aPx, bPx, cPx, rotationDeg } = ellipse;
@@ -214,11 +230,16 @@ export function renderOrbit(
   };
   const [topPoint, bottomPoint] = verticalAxisIntersections(aPx, bPx, components);
   // The Sun's focus always maps to exactly (CENTER, CENTER) under this
-  // transform (a rigid rotation/reflection), so each label point's own
-  // distance from the Sun is just its distance from CENTER — no need to
-  // work back through local ellipse coordinates.
-  const auAt = (point: { x: number; y: number }) =>
-    radiusFromAU(Math.hypot(point.x - CENTER, point.y - CENTER));
+  // transform (a rigid rotation/reflection), so of the two crossings the one
+  // nearer CENTER is the ring's perihelion side (labelAU.minAU) and the other
+  // its aphelion side (labelAU.maxAU). The distances themselves come from the
+  // orbital data (see orbit-labels.ts), not from inverting the packed pixel
+  // radius, which read the anti-crowding push-out as extra distance (#239).
+  const distFromCenter = (point: { x: number; y: number }) =>
+    Math.hypot(point.x - CENTER, point.y - CENTER);
+  const topIsNear = distFromCenter(topPoint) <= distFromCenter(bottomPoint);
+  const topAU = topIsNear ? labelAU.minAU : labelAU.maxAU;
+  const bottomAU = topIsNear ? labelAU.maxAU : labelAU.minAU;
 
   // Top label
   svg.appendChild(
@@ -227,7 +248,7 @@ export function renderOrbit(
       y: topPoint.y - LABEL_OFFSET,
       ...labelAttrs,
     })
-  ).textContent = `${auAt(topPoint).toFixed(1)} AU`;
+  ).textContent = `${topAU.toFixed(1)} AU`;
 
   // Bottom label
   svg.appendChild(
@@ -236,7 +257,7 @@ export function renderOrbit(
       y: bottomPoint.y + LABEL_OFFSET + 6,
       ...labelAttrs,
     })
-  ).textContent = `${auAt(bottomPoint).toFixed(1)} AU`;
+  ).textContent = `${bottomAU.toFixed(1)} AU`;
 }
 
 /**

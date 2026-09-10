@@ -27,6 +27,7 @@ import { computeCometVisualEllipse, renderCometBody, renderCometOrbit } from "./
 import { type LabelTarget, renderDynamicLabels } from "./labels.js";
 import { renderDayNightSplit, renderObserverNeedle } from "./observer.js";
 import { MARKER_GROUP_ID, renderOffscreenMarkers } from "./offscreen-markers.js";
+import { ORBIT_LABEL_AU } from "./orbit-labels.js";
 import { computePlanetVisualEllipse, packOrbitRadii } from "./orbit-packing.js";
 import { renderSeasonOverlay } from "./seasons.js";
 import {
@@ -96,8 +97,8 @@ export function renderSolarSystem(
   renderSeasonOverlay(svg, hemisphere, colors, eclipticViewDirection);
 
   // Draw orbits (planets then comets, so all orbits are behind bodies)
-  planetEllipses.forEach((ellipse) => {
-    renderOrbit(svg, ellipse, eclipticViewDirection);
+  planetEllipses.forEach((ellipse, i) => {
+    renderOrbit(svg, ellipse, eclipticViewDirection, ORBIT_LABEL_AU[PLANETS[i].name]);
   });
   for (const comet of COMETS) {
     renderCometOrbit(svg, comet, eclipticViewDirection);

@@ -82,23 +82,38 @@ function makeDriver(page, framesDir, clip) {
 async function runScenario(page, d) {
   // gallery.mode is "off" in the harness so the strip starts closed and the click below is a
   // real, on-camera open — not just an already-open strip from load. Warm it up off-camera
-  // first (open, wait for the NASA thumbnails to load, close) so the recorded open beat never
-  // shows a "loading…" tile.
+  // first (open, wait for ALL the NASA thumbnails to load, close) so the recorded open beat
+  // never shows a "loading…" tile. `waitThumbs` throws on timeout rather than letting a
+  // half-loaded strip ship silently — a demo gif with "loading…" tiles is worse than a failed
+  // run.
+  const thumbState = () =>
+    page.evaluate(() => {
+      const imgs = [
+        ...document.getElementById("demo-card").shadowRoot.querySelectorAll(".gallery-thumb img"),
+      ];
+      return {
+        total: imgs.length,
+        loaded: imgs.filter((n) => n.src && n.complete && n.naturalWidth > 0).length,
+      };
+    });
+  const waitThumbs = async (label) => {
+    for (let i = 0; i < 120; i++) {
+      const { total, loaded } = await thumbState();
+      if (total >= 4 && loaded === total) return;
+      await sleep(500);
+    }
+    const { total, loaded } = await thumbState();
+    throw new Error(`gallery thumbnails never finished loading (${label}): ${loaded}/${total} after 60s`);
+  };
+
   await d.clickSel('[data-action="gallery"]');
-  for (let i = 0; i < 60; i++) {
-    const loaded = await page.evaluate(() =>
-      [...document.getElementById("demo-card").shadowRoot.querySelectorAll(".gallery-thumb img")].filter(
-        (n) => n.src && n.complete && n.naturalWidth > 0
-      ).length
-    );
-    if (loaded >= 2) break;
-    await sleep(500);
-  }
+  await waitThumbs("warm-up");
   await d.clickSel('[data-action="gallery"]');
   await sleep(300);
 
   await d.hold(6); // closed beat
   await d.clickSel('[data-action="gallery"]'); // the on-camera open
+  await waitThumbs("on-camera open"); // cache should make this instant; guard a slow re-decode
   await d.hold(25); // opening beat: all 4 tiles on camera for ~2.5s
   await d.clickSel('[data-action="gallery"]'); // close, then continue into the nav demo
   await sleep(500);

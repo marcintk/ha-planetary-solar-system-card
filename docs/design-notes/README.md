@@ -57,4 +57,5 @@ has a rendered URL — link to that, since GitHub shows `.html` as source, not r
   from the **natural** ellipse (`E` from the shared `verticalAxisIntersections` solver);
   `renderOrbit` drops the `radiusFromAU(hypot(…))` inversion and just places the two given values,
   smaller next to the crossing nearer the Sun. Comets and ring/marker geometry untouched.
-  Explain-diff `—` · PR `—`.
+  [Explain-diff](https://marcintk.github.io/ha-planetary-solar-system-card/design-notes/issue-239-explain-diff.html)
+  · PR `—`.

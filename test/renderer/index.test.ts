@@ -1099,4 +1099,29 @@ describe("renderSolarSystem — AU labels sit next to the drawn orbit ring (#94)
       expect(Number.parseFloat(bottomLabel.textContent)).toBeCloseTo(expectedBottomAU, 1);
     }
   );
+
+  // Every AU label on a planet's ring must lie inside that planet's real
+  // orbital distance range (perihelion..aphelion), give or take the 1-decimal
+  // rounding of the printed text. Earth (labels read "1.5 AU", aphelion
+  // ≈1.017) and Mars (labels ≈"3.0 AU", aphelion ≈1.666) are the clearest
+  // outliers.
+  it.each([["Earth"], ["Mars"]])(
+    "%s's AU labels stay within its perihelion/aphelion range",
+    (planetName) => {
+      const planet = PLANETS.find((p) => p.name === planetName);
+      const planetIndex = PLANETS.indexOf(planet);
+      const { svg } = renderSolarSystem(new Date("2026-02-14"), "north", null, {}, false);
+
+      const auLabels = Array.from(svg.querySelectorAll('text[font-size="9"]'));
+      const [topLabel, bottomLabel] = auLabels.slice(planetIndex * 2, planetIndex * 2 + 2);
+
+      const perihelion = planet.au * (1 - planet.eccentricity);
+      const aphelion = planet.au * (1 + planet.eccentricity);
+      for (const label of [topLabel, bottomLabel]) {
+        const shownAU = Number.parseFloat(label.textContent);
+        expect(shownAU).toBeGreaterThanOrEqual(perihelion - 0.05);
+        expect(shownAU).toBeLessThanOrEqual(aphelion + 0.05);
+      }
+    }
+  );
 });

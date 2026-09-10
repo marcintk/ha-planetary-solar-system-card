@@ -48,3 +48,13 @@ has a rendered URL — link to that, since GitHub shows `.html` as source, not r
   `zoom-animator.ts` (no velocity spike), duration and 60 s cadence unchanged.
   [Explain-diff](https://marcintk.github.io/ha-planetary-solar-system-card/design-notes/issue-222-explain-diff.html)
   · [PR #223](https://github.com/marcintk/ha-planetary-solar-system-card/pull/223).
+- [AU labels from data, not pixels](https://marcintk.github.io/ha-planetary-solar-system-card/design-notes/issue-239-orbit-au-labels.html)
+  — _approved_ ([#239](https://github.com/marcintk/ha-planetary-solar-system-card/issues/239)) — the
+  orbit AU labels read too high (Earth 1.5, Mars ~3.0) because `renderOrbit()` reconstructs each
+  ring's distance from its **drawn** pixel radius, which `packOrbitRadii()` has pushed outward to
+  keep orbits from colliding. Fix: a new `src/renderer/orbit-labels.ts` precomputes, once at module
+  load, the true heliocentric distance `au·(1 − e·cos E)` at each ring's two vertical-axis crossings
+  from the **natural** ellipse (`E` from the shared `verticalAxisIntersections` solver);
+  `renderOrbit` drops the `radiusFromAU(hypot(…))` inversion and just places the two given values,
+  smaller next to the crossing nearer the Sun. Comets and ring/marker geometry untouched.
+  Explain-diff `—` · PR `—`.

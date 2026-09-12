@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vendor the shared tooling, drop ha-card-shared</title>
+<style>
+  :root {
+    --bg: #fafaf8; --fg: #1a1a1a; --accent: #b5541f; --muted: #6b6b6b;
+    --code-bg: #282c34; --code-fg: #e6e6e6; --callout-bg: #fff4e8; --border: #e0ddd6;
+  }
+  body { font-family: Georgia, 'Times New Roman', serif; background: var(--bg); color: var(--fg);
+    max-width: 820px; margin: 0 auto; padding: 2rem 1.5rem 6rem; line-height: 1.65; }
+  h1 { font-size: 1.9rem; border-bottom: 3px solid var(--accent); padding-bottom: .5rem; }
+  h2 { font-size: 1.4rem; margin-top: 3rem; color: var(--accent); }
+  h3 { font-size: 1.1rem; margin-top: 1.8rem; }
+  code { font-family: 'SF Mono', Consolas, monospace; background: #eee; padding: .1rem .3rem;
+    border-radius: 3px; font-size: .92em; }
+  pre { background: var(--code-bg); color: var(--code-fg); padding: 1rem 1.2rem; border-radius: 8px;
+    overflow-x: auto; white-space: pre-wrap; font-family: 'SF Mono', Consolas, monospace;
+    font-size: .88rem; line-height: 1.5; }
+  pre code { background: none; padding: 0; color: inherit; }
+  .callout { background: var(--callout-bg); border-left: 4px solid var(--accent); padding: .9rem 1.2rem;
+    border-radius: 0 6px 6px 0; margin: 1.2rem 0; }
+  .toc { background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.5rem; margin: 1.5rem 0; }
+  .toc a { color: var(--accent); text-decoration: none; }
+  .toc ul { margin: .3rem 0; }
+  .diagram { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 1.2rem;
+    margin: 1.2rem 0; font-family: 'SF Mono', Consolas, monospace; font-size: .85rem; }
+  .flow { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; justify-content: center; padding: .5rem 0; }
+  .box { border: 2px solid var(--accent); border-radius: 8px; padding: .6rem 1rem; background: #fdf6ee;
+    text-align: center; min-width: 120px; }
+  .box.fail { border-color: #b91c1c; background: #fef2f2; }
+  .arrow { font-size: 1.4rem; color: var(--muted); }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: .92rem; }
+  th, td { border: 1px solid var(--border); padding: .5rem .7rem; text-align: left; }
+  th { background: #f0ede6; }
+  .quiz-q { background: #fff; border: 1px solid var(--border); border-radius: 10px;
+    padding: 1.2rem 1.5rem; margin: 1.2rem 0; }
+  .quiz-opt { display: block; width: 100%; text-align: left; padding: .6rem 1rem; margin: .4rem 0;
+    border: 1px solid var(--border); border-radius: 6px; background: #fff; cursor: pointer;
+    font-family: inherit; font-size: .95rem; }
+  .quiz-opt:hover { background: #f5f2ec; }
+  .quiz-opt:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .feedback { display: none; margin-top: .6rem; padding: .6rem 1rem; border-radius: 6px; font-size: .9rem; }
+  .feedback.correct { background: #ecfdf3; color: #166534; border-left: 3px solid #16a34a; }
+  .feedback.incorrect { background: #fef2f2; color: #991b1b; border-left: 3px solid #dc2626; }
+  @media (max-width: 600px) { body { padding: 1rem; } .flow { flex-direction: column; } }
+</style>
+</head>
+<body>
+
+<h1>Vendor the shared tooling, drop ha-card-shared</h1>
+<p style="color:var(--muted); margin-top:-.5rem;">Prepared 2026-09-12 · PR pending</p>
+
+<div class="toc">
+<strong>Contents</strong>
+<ul>
+  <li><a href="#background">Background</a></li>
+  <li><a href="#intuition">Why the version drifted</a></li>
+  <li><a href="#code">The change, file by file</a></li>
+  <li><a href="#quiz">Quiz</a></li>
+</ul>
+</div>
+
+<h2 id="background">Background</h2>
+<p>A GitHub Actions <strong>reusable workflow</strong> is one YAML file another workflow can call instead of copying its steps: a caller writes <code>uses: owner/repo/.github/workflows/x.yml@ref</code> and the logic runs as if it were written inline. It's a real feature, aimed at exactly this problem &mdash; several repositories that want the same CI. This card, and its siblings, called four of them from a separate repository named <code>ha-card-shared</code>.</p><p>A <strong>GitHub-tarball npm dependency</strong> is different from a normal npm package: instead of <code>registry.npmjs.org</code>, <code>package.json</code> points straight at a GitHub repo and commit &mdash; <code>"ha-card-shared": "github:marcintk/ha-card-shared#v2.1.0"</code>. npm fetches and builds it like any tarball, but none of the registry machinery applies: no listing, no provenance, and critically, no Dependabot version tracking. <code>ha-card-shared</code> used this shape to hand out its build config, lint rules and test setup to every card that installed it.</p><p>So <code>ha-card-shared</code> was doing two things at once: supplying CI workflows by reference (a legitimate use of the feature), and supplying dev tooling by dependency (a much more fragile use of a mechanism meant for runtime libraries). This change keeps the idea &mdash; every card behaving the same way &mdash; and removes the mechanism that was quietly failing at it.</p>
+
+<h2 id="intuition">Why the version drifted</h2>
+<p>Picture two clocks meant to read the same time, wound by two different hands. That's what <code>ha-card-shared</code>'s version became. Clock one: <code>package.json</code>'s <code>devDependencies</code> entry, <code>github:marcintk/ha-card-shared#v2.1.0</code>. Clock two: the string <code>@v2.1.0</code>, retyped separately inside each of four <code>.github/workflows/*.yml</code> files, because a reusable-workflow reference is just a string in a YAML file &mdash; nothing links it back to the dependency declaration a few directories over.</p><div class='diagram'><div class='flow'><div class='box'>package.json<br><small>devDependencies:<br>ha-card-shared@v2.1.0</small></div><div class='arrow'>&harr;</div><div class='box gone'>no link</div><div class='arrow'>&harr;</div><div class='box'>build-and-test.yml<br><small>uses: &hellip;@v2.1.0</small></div></div></div><p>Bump one clock &mdash; edit the dependency version &mdash; and the other four keep the old time. Nothing breaks loudly: the workflows still call a real ref, it's just the wrong one, one release behind. And because a git-tarball spec isn't an ecosystem Dependabot watches, <code>package.json</code>'s clock mostly never got wound at all; only the <code>github-actions</code> ecosystem (which <em>does</em> watch <code>uses:</code> lines) ever opened a bump PR, drifting the two further apart with every cycle rather than closer.</p><p>The fix isn't a better synchronization mechanism between two clocks. It's one clock. Every file that used to say "ask <code>ha-card-shared</code> what the rule is" now just <em>is</em> the rule &mdash; there's no second copy anywhere to disagree with the first.</p>
+
+<h2 id="code">The change, file by file</h2>
+<p>Almost none of this touches <code>src/</code> &mdash; the card's own logic imported zero runtime code from <code>ha-card-shared</code>, so the substance of this change lives in build config, CI, and docs instead.</p><ul><li><strong><code>rollup.config.mjs</code>, <code>vitest.config.mjs</code>, <code>biome.json</code>, <code>tsconfig.json</code></strong> &mdash; each used to <code>import</code> or <code>extend</code> a shared file inside <code>node_modules/ha-card-shared</code>. Now each carries that content directly: the bundle-name-pinning rollup config, the jsdom + 100%-coverage vitest config, the formatter/linter rules, the three base compiler options.</li><li><strong><code>package.json</code></strong> &mdash; the <code>ha-card-shared</code> devDependency and its <code>allowScripts</code> entry are gone; the <code>prettier</code> key changed from a path into the removed package to an inline two-key object.</li><li><strong><code>src/globals.d.ts</code></strong> (new) &mdash; the ambient <code>__CARD_VERSION__</code> declaration and the <code>window.customCards</code> shape, copied in from the dependency; <code>src/index.ts</code>'s one reference-path line now points at it locally instead of into <code>node_modules</code>.</li><li><strong>The three surviving CI workflows</strong> &mdash; each <code>uses: marcintk/ha-card-shared/.github/workflows/shared-*.yml@v2.1.0</code> line is replaced by the steps that reusable workflow actually ran (checkout, setup-node, install, build, test), with <code>actions/checkout</code> and <code>actions/setup-node</code> bumped from <code>@v5</code> to <code>@v7</code> to match what this repo's own demo-deploy workflow already used.</li><li><strong><code>publish-release.yml</code></strong> also absorbed a second hop: it used to call a reusable workflow which itself called a small composite action (<code>validate-tag</code>) to check a release tag's shape. That action's two shell steps &mdash; detect pre-release, confirm the tag is newer than the last release &mdash; are now inline in this one file, since nothing else ever called them.</li><li><strong><code>migration-check.yml</code></strong> (deleted) &mdash; its entire job was noticing when <code>ha-card-shared</code> shipped a version that needed manual migration steps. With the dependency gone, there is nothing left for it to watch.</li></ul><p>Guardrail: <code>test/tooling.test.ts</code> reads each of the files above as plain text and asserts none of them contain the string <code>ha-card-shared</code> any more &mdash; it failed on all nine files before this change and passes on all nine after, and stays in the suite so the dependency can't quietly come back.</p>
+
+<h2 id="quiz">Quiz</h2>
+
+<div class="quiz-q">
+<p><strong>What made ha-card-shared&#x27;s version drift out of sync with its own CI workflow pins?</strong></p>
+<button class="quiz-opt" data-correct="false">GitHub Actions caches reusable workflow files and ignores version bumps</button>
+<button class="quiz-opt" data-correct="false">The workflows were written before package.json had a version pin at all</button>
+<button class="quiz-opt" data-correct="true">The version lived in two places — package.json and each workflow&#x27;s own @ref — with no mechanism keeping them equal</button>
+<button class="quiz-opt" data-correct="false">npm silently downgrades git-tarball dependencies on every install</button>
+</div>
+
+<div class="quiz-q">
+<p><strong>Why did Dependabot never open an update PR for the ha-card-shared entry in package.json?</strong></p>
+<button class="quiz-opt" data-correct="false">ha-card-shared had no releases newer than the pinned one</button>
+<button class="quiz-opt" data-correct="false">Dependabot was not configured for the npm ecosystem in this repo</button>
+<button class="quiz-opt" data-correct="true">A GitHub-tarball dependency spec isn&#x27;t a registry package, so it isn&#x27;t a version Dependabot&#x27;s npm ecosystem tracks</button>
+<button class="quiz-opt" data-correct="false">The dependency was listed under peerDependencies, which Dependabot ignores entirely</button>
+</div>
+
+<div class="quiz-q">
+<p><strong>How much runtime code did the card&#x27;s bundle actually import from ha-card-shared?</strong></p>
+<button class="quiz-opt" data-correct="false">About half of the renderer logic</button>
+<button class="quiz-opt" data-correct="false">Only the DebugMetrics class</button>
+<button class="quiz-opt" data-correct="false">The entire card.js entry point was re-exported from it</button>
+<button class="quiz-opt" data-correct="true">None — only build/test configuration plus one 2-line test helper</button>
+</div>
+
+<div class="quiz-q">
+<p><strong>Why was migration-check.yml deleted rather than inlined like the other three workflows?</strong></p>
+<button class="quiz-opt" data-correct="false">GitHub deprecated scheduled workflows</button>
+<button class="quiz-opt" data-correct="true">Its entire purpose was tracking ha-card-shared version-bump recipes — a job with no remaining subject once the dependency is gone</button>
+<button class="quiz-opt" data-correct="false">It was failing on every run</button>
+<button class="quiz-opt" data-correct="false">It duplicated logic already in build-and-test.yml</button>
+</div>
+
+<div class="quiz-q">
+<p><strong>What replaces ha-card-shared as the mechanism for keeping future cards consistent with this one?</strong></p>
+<button class="quiz-opt" data-correct="false">A new, better-versioned npm package published to the public registry</button>
+<button class="quiz-opt" data-correct="true">A GitHub template repository — config and CI copied in at creation time, not pulled from a shared dependency</button>
+<button class="quiz-opt" data-correct="false">Nothing — each future card starts from a blank config</button>
+<button class="quiz-opt" data-correct="false">A post-install script that fetches the latest shared config at build time</button>
+</div>
+
+<script>
+document.querySelectorAll('.quiz-q').forEach(q => {
+  q.querySelectorAll('.quiz-opt').forEach(opt => {
+    opt.addEventListener('click', () => {
+      if (opt.disabled) return;
+      q.querySelectorAll('.quiz-opt').forEach(b => { b.disabled = true; });
+      const correct = opt.dataset.correct === 'true';
+      const fb = document.createElement('div');
+      fb.className = 'feedback ' + (correct ? 'correct' : 'incorrect');
+      fb.textContent = correct
+        ? '✅ Correct.'
+        : '❌ Not quite — reread the section above.';
+      opt.insertAdjacentElement('afterend', fb);
+      fb.style.display = 'block';
+    });
+  });
+});
+</script>
+
+</body>
+</html>

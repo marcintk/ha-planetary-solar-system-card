@@ -1,0 +1,44 @@
+name: Claude PR Review
+
+# Second-reviewer bot: only ever engages with PRs opened by the repo owner.
+# PRs from anyone else are left untouched — the owner remains the sole human
+# gate on external contributions.
+
+on:
+  pull_request:
+    branches: ["main"]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+  id-token: write
+
+jobs:
+  review:
+    if: github.event.pull_request.user.login == 'marcintk'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 1
+
+      - name: Load review persona
+        id: persona
+        env:
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          {
+            echo 'text<<PERSONA_EOF'
+            sed -e "s|{{REPO}}|$REPO|" -e "s|{{PR_NUMBER}}|$PR_NUMBER|" .github/claude-pr-review-prompt.md
+            echo 'PERSONA_EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - uses: anthropics/claude-code-action@9cdae7f0d995e3ba7c33f226087fdf82a59cd520 # v1.0.223
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: ${{ steps.persona.outputs.text }}
+          claude_args: |
+            --allowedTools "Read,Grep,Glob,Skill,mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr review:*)"

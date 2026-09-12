@@ -1,48 +1,53 @@
-# ha-planetary-solar-system-card
+# CLAUDE.md
 
-TypeScript + Rollup → `dist/card.js` | Vitest | Biome + Prettier | HACS plugin
+Home Assistant Lovelace custom card rendering a planetary solar system / sky view. TypeScript + Lit,
+bundled with Rollup to `dist/card.js`, distributed via HACS.
 
-## Commands
+## Project map
 
-```bash
-npm install
-npm run build          # bundle src/ → dist/card.js
-npm run build:prod     # minified build (VERSION env var stamps the bundle)
-npm run dev            # rollup watch mode
-npm test               # run tests
-npm run test:watch     # vitest watch mode
-npm run test:coverage  # run with coverage (must stay at 100%)
-npm run typecheck      # tsc --noEmit
-npm run check          # biome lint + format (src/ and test/, auto-fix)
-npm run format:md      # prettier for markdown files
-npm run check:ci       # CI gate: typecheck + biome check + prettier check
-```
+- `src/astronomy/` - ephemeris math (planet/moon/comet positions, orbital mechanics, solar position,
+  parallax)
+- `src/renderer/` - SVG rendering of bodies, orbits, labels, comets, seasons
+- `src/card/` - the Lovelace card itself (config, template, styles, zoom, navigation, theming)
+- `src/index.ts` - registers the custom element and `window.customCards` entry
+- `test/` - Vitest specs mirroring `src/`, plus `test/fixtures` and `test/helpers`
+- `scripts/demo/` - Playwright-based demo GIF recorder
+- `docs/` - GitHub Pages demo (`docs/index.html`, `docs/card.js`)
 
-## Design Invariants
+<important if="you need to run commands to build, test, lint, or generate code">
 
-Durable visual/UX constraints. Preserve unless the user explicitly changes them.
+| Command                 | What it does                                                           |
+| ----------------------- | ---------------------------------------------------------------------- |
+| `npm run build`         | Build `dist/card.js` via Rollup                                        |
+| `npm run dev`           | Rollup in watch mode                                                   |
+| `npm test`              | Run Vitest once                                                        |
+| `npm run test:coverage` | Run tests with coverage report                                         |
+| `npm run check`         | Biome lint + format, writes fixes                                      |
+| `npm run check:ci`      | Exact CI gate: typecheck + biome check (no writes) + prettier md check |
+| `npm run demo:record`   | Regenerate `docs/demo.gif` via Playwright                              |
 
-- Planets enlarged for visibility; Sun smaller to avoid interference with orbits
-- Earth and Moon larger than other objects to show relative positioning
-- Each orbit displays AU distance from Sun
-- Visibility cone at Earth's orbit level
-- Dark slate theme matching Home Assistant dark mode colors
-- Buttons to move back/forward (by 1 day, 1 month) plus a "back to today" button
+`check:ci` is what CI (`.github/workflows/card-build-and-test.yml`) runs verbatim, alongside `build`
+and `test:coverage` — run it locally before considering work done. Other granular scripts (`lint`,
+`format`, `typecheck`, etc.) exist in `package.json` if you need finer control. </important>
 
-## Architecture Notes
+<important if="you are writing or modifying tests, or about to report a task complete">
 
-- **SVG imperative rebuild**: solar system renders as raw SVG DOM inside `updated()` — `#solar-view`
-  is fully cleared and repopulated each update, not managed by Lit templates. Don't try to patch
-  individual SVG elements reactively.
-- **Synchronous render**: `_render()` calls `requestUpdate()` + `performUpdate()` back-to-back to
-  force a synchronous Lit flush. Lit's default async microtask schedule breaks synchronous tests and
-  delays the first frame in HA.
-- **Positions from renderer**: `renderSolarSystem()` returns `{ svg, positions, updateMarkers }`.
-  `positions` are screen coordinates: `updateMarkers` re-derives which bodies belong offscreen from
-  them, and tests read them to assert bodies never visually overlap at conjunction
-  (`test/renderer/collision.test.ts`, #62). No `src/` caller reads the field — there is no
-  click/hit-testing on the SVG.
-- **One mirror**: the ecliptic view is a `±1` (`eclipticViewDirection`), and every point derived
-  from an angle goes through `polarOffset()` in `renderer/svg-utils.ts`. Don't write
-  `y + dir * dist * Math.sin(angle)` by hand — `orbitTransformComponents()` is built to agree with
-  that exact expression (#94), so a second copy is how a marker drifts off its orbit ring.
+Coverage thresholds in `vitest.config.mjs` are set to 100% (statements, branches, functions, lines)
+for `src/**/*.ts`. Any new or changed source code needs matching test coverage — run
+`npm run test:coverage` before considering work done. </important>
+
+<important if="you are working on astronomy calculations (src/astronomy/) or renderer accuracy (src/renderer/), or a test in accuracy-*.test.ts is failing">
+
+`accuracy-*.test.ts` files (e.g. `test/astronomy/accuracy-ephemeris.test.ts`,
+`test/renderer/accuracy-horizon.test.ts`) check computed values against external reference ephemeris
+data — they are ground truth, not adjustable expectations. If one fails, the bug is in the source
+math; fix the implementation. Never loosen a tolerance, change an expected value, or edit these
+tests to make them pass. </important>
+
+<important if="you are changing the HACS manifest, release workflow, or how the card is distributed/versioned">
+
+- `hacs.json` names the distributed file as `card.js`; HACS renders the repo's README at the release
+  tag, not `main` — relative asset paths in README.md must resolve correctly from an old tag too.
+- Releases are read from GitHub Releases (see README release badges); the publish workflow is
+`.github/workflows/card-publish-release.yml`.
+</important>

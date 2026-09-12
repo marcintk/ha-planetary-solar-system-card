@@ -32,7 +32,7 @@ jobs:
         run: |
           {
             echo 'text<<PERSONA_EOF'
-            sed -e "s/{{REPO}}/$REPO/" -e "s/{{PR_NUMBER}}/$PR_NUMBER/" .github/claude-pr-review-prompt.md
+            sed -e "s|{{REPO}}|$REPO|" -e "s|{{PR_NUMBER}}|$PR_NUMBER|" .github/claude-pr-review-prompt.md
             echo 'PERSONA_EOF'
           } >> "$GITHUB_OUTPUT"
 

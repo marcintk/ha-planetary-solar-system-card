@@ -68,4 +68,4 @@ has a rendered URL — link to that, since GitHub shows `.html` as source, not r
   `migration-check.yml`, inline `validate-tag` as steps, normalize `actions/*` to `@v7`), drop the
   dependency, and get new-card consistency from a GitHub template repo instead.
   [Explain-diff](https://marcintk.github.io/ha-planetary-solar-system-card/design-notes/issue-243-explain-diff.html)
-  · PR —.
+  · [PR #245](https://github.com/marcintk/ha-planetary-solar-system-card/pull/245).

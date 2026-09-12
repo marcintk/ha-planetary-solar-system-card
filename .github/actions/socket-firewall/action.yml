@@ -1,0 +1,19 @@
+name: "Socket Firewall npm install"
+description: >
+  Runs an npm command through Socket Firewall (free edition, no API key) so a malicious/typosquat
+  package can't install even between Dependabot's weekly runs.
+inputs:
+  command:
+    description: 'npm subcommand to run through sfw, e.g. "ci" or "install"'
+    required: false
+    default: "ci"
+
+runs:
+  using: "composite"
+  steps:
+    - uses: SocketDev/action@ba6de6cc0565af1f42295590380973573297e31f # v1.3.2
+      with:
+        mode: firewall-free
+
+    - shell: bash
+      run: sfw npm ${{ inputs.command }}

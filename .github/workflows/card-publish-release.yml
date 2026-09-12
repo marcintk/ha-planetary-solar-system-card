@@ -3,8 +3,8 @@ name: Card Publish Release
 on:
   push:
     tags:
-      - 'v*.*.*'
-      - 'v*.*.*-*'
+      - "v*.*.*"
+      - "v*.*.*-*"
 
 permissions:
   contents: read
@@ -54,7 +54,10 @@ jobs:
           node-version: "24.x"
           cache: npm
 
-      - run: npm ci
+      - uses: ./.github/actions/socket-firewall
+        with:
+          command: ci
+
       - run: npm test
 
       - name: Derive version from tag

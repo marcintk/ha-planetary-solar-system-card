@@ -1,4 +1,4 @@
-name: Card: HACS Validation
+name: HACS Validation
 
 on:
   workflow_run:

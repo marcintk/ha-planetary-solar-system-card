@@ -32,7 +32,7 @@
   },
   "license": "ISC",
   "devDependencies": {
-    "@biomejs/biome": "^2.5.11",
+    "@biomejs/biome": "^2.5.12",
     "@rollup/plugin-node-resolve": "^16.0.3",
     "@rollup/plugin-terser": "^1.0.0",
     "@rollup/plugin-typescript": "^12.3.0",

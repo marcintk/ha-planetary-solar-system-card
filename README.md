@@ -209,7 +209,7 @@ a pipeline stall doesn't break the feed.
   https://img.shields.io/github/downloads/marcintk/ha-planetary-solar-system-card/total?label=downloads
 [codeql]: https://github.com/marcintk/ha-planetary-solar-system-card/security/code-scanning
 [codeql-shield]:
-  https://github.com/marcintk/ha-planetary-solar-system-card/actions/workflows/github-code-scanning/codeql/badge.svg
+  https://github.com/marcintk/ha-planetary-solar-system-card/actions/workflows/codeql-analysis.yml/badge.svg
 [scorecard]:
   https://securityscorecards.dev/viewer/?uri=github.com/marcintk/ha-planetary-solar-system-card
 [scorecard-shield]:

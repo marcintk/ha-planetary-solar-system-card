@@ -18,7 +18,8 @@ discussion][discussions].
 [![hacs_badge][hacs-shield]][hacs] [![GitHub Release][releases-shield]][releases]
 [![License][license-shield]][license] ![Maintenance][maintenance-shield]
 [![Coverage][coverage-shield]][ci] [![Downloads][downloads-shield]][releases]
-[![Build and Test][ci-shield]][ci]
+[![Build and Test][ci-shield]][ci] [![CodeQL][codeql-shield]][codeql]
+[![OpenSSF Scorecard][scorecard-shield]][scorecard]
 
 ## Installation
 
@@ -205,3 +206,10 @@ a pipeline stall doesn't break the feed.
 [coverage-shield]: https://img.shields.io/badge/coverage-100%25-brightgreen
 [downloads-shield]:
   https://img.shields.io/github/downloads/marcintk/ha-planetary-solar-system-card/total?label=downloads
+[codeql]: https://github.com/marcintk/ha-planetary-solar-system-card/security/code-scanning
+[codeql-shield]:
+  https://github.com/marcintk/ha-planetary-solar-system-card/actions/workflows/github-code-scanning/codeql/badge.svg
+[scorecard]:
+  https://securityscorecards.dev/viewer/?uri=github.com/marcintk/ha-planetary-solar-system-card
+[scorecard-shield]:
+  https://api.securityscorecards.dev/projects/github.com/marcintk/ha-planetary-solar-system-card/badge

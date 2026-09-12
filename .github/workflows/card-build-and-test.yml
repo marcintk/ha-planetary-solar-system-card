@@ -25,7 +25,10 @@ jobs:
           node-version: 24.x
           cache: npm
 
-      - run: npm ci
+      - uses: ./.github/actions/socket-firewall
+        with:
+          command: ci
+
       - run: npm run build --if-present
       - run: npm run check:ci
       - run: npm run test:coverage

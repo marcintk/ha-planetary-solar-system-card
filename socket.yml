@@ -1,0 +1,20 @@
+version: 2
+
+# Checked-in Socket.dev policy — makes explicit in the repo what would otherwise live only
+# in the dashboard. See docs/socket-yml at https://docs.socket.dev/docs/socket-yml.
+
+# Only the npm manifests actually gate installs/releases here — no need to re-scan on every
+# unrelated source change.
+triggerPaths:
+  - "package.json"
+  - "package-lock.json"
+
+issueRules:
+  malware: true
+  telemetry: false
+
+githubApp:
+  enabled: true
+  dependencyOverviewEnabled: true
+  pullRequestAlertsEnabled: true
+  projectReportsEnabled: true

@@ -57,7 +57,7 @@ export class DateNavigation {
   get currentDate(): Date {
     return this._currentDate;
   }
-  // ponytail: test-seeding setters only, mirrors the direct-field-poke pattern used
+  // Test-seeding setters only, mirrors the direct-field-poke pattern used
   // throughout this codebase's tests (no production call site needs to set these).
   set currentDate(date: Date) {
     this._currentDate = date;

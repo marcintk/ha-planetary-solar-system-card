@@ -13,7 +13,7 @@ export const MARKER_GROUP_ID = "offscreen-markers";
  * construction: a ray leaving through a corner yields the same `t` on both
  * slabs, so no rounding can reject it.
  *
- * ponytail: no guard for (px, py) === (cx, cy) — the caller skips every body
+ * No guard for (px, py) === (cx, cy) — the caller skips every body
  * inside the viewport, and the centre is always inside.
  */
 function edgeIntersection(

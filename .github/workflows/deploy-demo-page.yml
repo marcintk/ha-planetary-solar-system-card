@@ -1,8 +1,8 @@
 name: Deploy Demo Page
 
-# Self-contained (does not call ha-card-shared's shared-deploy-demo-page.yml): that shared job
-# stages only docs/index.html + the bundle, but this card also publishes the design-note pages
-# under docs/design-notes/. Everything else mirrors the shared job step for step.
+# This card publishes the design-note pages under docs/design-notes/ in addition to
+# docs/index.html + the bundle, so it stages its own Pages artifact rather than reusing a
+# generic deploy job.
 
 on:
   push:

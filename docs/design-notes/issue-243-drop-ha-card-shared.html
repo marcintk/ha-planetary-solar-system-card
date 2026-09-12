@@ -1,0 +1,421 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vendor the shared tooling, drop ha-card-shared</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,ital@9..144,300..700,0..1&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #eceef4;
+    --paper-raised: #ffffff;
+    --ink: #171b2b;
+    --ink-soft: #565d78;
+    --ink-faint: #888ea8;
+    --line: #d2d7e3;
+    --accent: #b3801f;
+    --accent-soft: #ecdaa8;
+    --cool: #3f6cae;
+    --ok: #1f7a4d;
+    --warn-bg: #fbf3e0;
+    --warn-line: #e0c078;
+    --shadow: 0 1px 2px rgba(23,27,43,0.06), 0 8px 24px rgba(23,27,43,0.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #0e1017;
+      --paper-raised: #161925;
+      --ink: #eceef4;
+      --ink-soft: #a6abc1;
+      --ink-faint: #6b718e;
+      --line: #282c3c;
+      --accent: #e0b256;
+      --accent-soft: #40361f;
+      --cool: #89a6dc;
+      --ok: #5cc48c;
+      --warn-bg: #2c2416;
+      --warn-line: #665328;
+      --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 12px 32px rgba(0,0,0,0.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #0e1017;
+    --paper-raised: #161925;
+    --ink: #eceef4;
+    --ink-soft: #a6abc1;
+    --ink-faint: #6b718e;
+    --line: #282c3c;
+    --accent: #e0b256;
+    --accent-soft: #40361f;
+    --cool: #89a6dc;
+    --ok: #5cc48c;
+    --warn-bg: #2c2416;
+    --warn-line: #665328;
+    --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 12px 32px rgba(0,0,0,0.35);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Source Serif 4", Georgia, "Times New Roman", serif;
+    font-size: 16px;
+    line-height: 1.6;
+    padding: 4.5rem 1.5rem 6rem;
+    margin: 0;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page { max-width: 880px; margin: 0 auto; }
+  .eyebrow {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 0.9rem;
+  }
+  h1 {
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 600;
+    font-size: clamp(2rem, 5vw, 2.9rem);
+    line-height: 1.06;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+    margin: 0 0 1rem;
+  }
+  h2 {
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 600;
+    font-size: 1.5rem;
+    margin: 3.5rem 0 1rem;
+    padding-top: 1.6rem;
+    border-top: 1px solid var(--line);
+    text-wrap: balance;
+  }
+  h3 {
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 600;
+    font-size: 1.13rem;
+    margin: 2rem 0 0.6rem;
+  }
+  p { margin: 0 0 1rem; }
+  a { color: var(--accent); text-underline-offset: 2px; }
+  .lede { font-size: 1.16rem; color: var(--ink-soft); margin-bottom: 1.6rem; text-wrap: pretty; }
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.4rem;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.76rem;
+    color: var(--ink-faint);
+    margin-bottom: 2.4rem;
+  }
+  .badge {
+    display: inline-block;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 0.28rem 0.66rem;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    border: 1px solid var(--warn-line);
+  }
+  ul, ol { margin: 0 0 1rem; padding-left: 1.3rem; }
+  li { margin-bottom: 0.45rem; }
+  code {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.86em;
+    background: var(--accent-soft);
+    color: inherit;
+    padding: 0.1em 0.36em;
+    border-radius: 4px;
+  }
+  pre {
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 1rem 1.15rem;
+    overflow-x: auto;
+    box-shadow: var(--shadow);
+    margin: 0 0 1.4rem;
+  }
+  pre code { background: none; padding: 0; font-size: 0.82rem; line-height: 1.55; }
+  pre .add { color: var(--ok); }
+  pre .del { color: #b3402f; }
+  :root:not([data-theme="light"]) pre .del { color: #e08a7a; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) pre .del { color: #e08a7a; } }
+  pre .dim { color: var(--ink-faint); }
+  table { width: 100%; border-collapse: collapse; margin: 0 0 1.6rem; font-size: 0.92rem; }
+  th, td { text-align: left; padding: 0.6rem 0.8rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+  td:first-child { white-space: nowrap; font-family: "JetBrains Mono", monospace; font-size: 0.82rem; }
+  .verdict {
+    border-left: 3px solid var(--accent);
+    padding: 0.4rem 0 0.4rem 1.1rem;
+    margin: 1.4rem 0;
+    font-size: 1.03rem;
+  }
+  .callout {
+    background: var(--warn-bg);
+    border: 1px solid var(--warn-line);
+    border-left-width: 3px;
+    border-radius: 6px;
+    padding: 0.9rem 1.15rem;
+    margin: 0 0 1.4rem;
+    font-size: 0.95rem;
+  }
+  .callout strong { color: var(--accent); }
+  .diagram {
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 1.2rem;
+    margin: 0 0 1.4rem;
+    box-shadow: var(--shadow);
+  }
+  .flow { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; font-family: "JetBrains Mono", monospace; font-size: 0.82rem; margin-bottom: 0.7rem; }
+  .flow:last-child { margin-bottom: 0; }
+  .flow .box {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 0.5rem 0.7rem;
+    line-height: 1.4;
+  }
+  .flow .box.gone { text-decoration: line-through; color: var(--ink-faint); border-style: dashed; }
+  .flow .arrow { color: var(--ink-faint); }
+  .tag {
+    display: inline-block;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 0.16rem 0.5rem;
+    border-radius: 4px;
+  }
+  .tag.inline { background: var(--accent-soft); color: var(--accent); }
+  .tag.vendor { background: var(--accent-soft); color: var(--accent); }
+  .tag.delete { background: var(--warn-bg); color: #b3402f; border: 1px solid var(--warn-line); }
+  :root:not([data-theme="light"]) .tag.delete { color: #e08a7a; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .tag.delete { color: #e08a7a; } }
+</style>
+</head>
+<body>
+<div class="page">
+  <p class="eyebrow">Issue #243 &middot; Design note</p>
+  <h1>Vendor the shared tooling, drop ha-card-shared</h1>
+  <p><span class="badge">approved</span></p>
+  <p class="lede">
+    <code>ha-card-shared</code> is a GitHub-tarball npm dependency carrying three unrelated
+    things &mdash; four reusable CI workflows, a build/lint/test config baseline, and (it turns
+    out) almost no runtime code. Its version lives in two places that don't know about each
+    other &mdash; <code>package.json</code> and every workflow's <code>@v2.1.0</code> pin &mdash;
+    and that split is the actual source of the upgrade friction. Delete the dependency, vendor
+    what this card really uses, and get new-card consistency from a GitHub template repo instead
+    of a shared package.
+  </p>
+  <p class="meta">
+    <span><a href="https://github.com/marcintk/ha-planetary-solar-system-card/issues/243">#243</a></span>
+    <span>2026-09-11</span>
+    <span>1 slice</span>
+  </p>
+
+  <h2>Problem</h2>
+  <p>
+    Every upgrade pain point traces back to the same structural mistake: treating a set of
+    conventions as an installable package.
+  </p>
+  <ul>
+    <li>
+      <strong>Two uncoordinated version pins.</strong> <code>package.json</code>'s
+      <code>devDependencies</code>/<code>allowScripts</code> pin
+      <code>github:marcintk/ha-card-shared#v2.1.0</code>; every
+      <code>.github/workflows/*.yml</code> separately pins the reusable-workflow ref
+      <code>@v2.1.0</code>. Bumping one silently leaves the other stale &mdash; there is no
+      mechanism that keeps them in sync.
+    </li>
+    <li><code>npm ci</code> fails against a git-tarball dependency in the sandbox harness (read-only npm cache).</li>
+    <li>
+      GitHub-tarball packages aren't a tracked ecosystem for Dependabot's <code>npm</code>
+      updates, so the <code>package.json</code> side never gets a bump PR at all &mdash; only the
+      workflow refs, on the <code>github-actions</code> side, do. Two trackers, one logical
+      version, no coordination between them.
+    </li>
+    <li>Any shared-file change needs a build-and-republish round trip in a second repo before it reaches this one.</li>
+  </ul>
+  <p>
+    None of that is inherent to sharing conventions across cards. It's inherent to sharing them
+    <em>as an npm package</em>.
+  </p>
+
+  <h2>What's actually consumed</h2>
+  <p>
+    Auditing every import turned up a much smaller surface than the dependency implies. The card
+    bundle imports <strong>zero runtime code</strong> from <code>ha-card-shared</code> &mdash;
+    only build/test configuration, plus one 2-line test helper.
+  </p>
+  <table>
+    <tr><th>From ha-card-shared</th><th>Used by</th><th>Fate</th></tr>
+    <tr><td>rollup.base.mjs</td><td>rollup.config.mjs</td><td><span class="tag inline">inline</span></td></tr>
+    <tr><td>vitest.base.mjs</td><td>vitest.config.mjs</td><td><span class="tag inline">inline</span></td></tr>
+    <tr><td>biome.json</td><td>biome.json extends</td><td><span class="tag inline">inline</span></td></tr>
+    <tr><td>tsconfig.base.json</td><td>tsconfig.json extends</td><td><span class="tag inline">inline</span></td></tr>
+    <tr><td>prettier.config.json</td><td>package.json prettier key</td><td><span class="tag inline">inline</span></td></tr>
+    <tr><td>globals.d.ts</td><td>src/index.ts reference path</td><td><span class="tag vendor">vendor</span> &rarr; src/globals.d.ts</td></tr>
+    <tr><td>test-utils (snapHtml)</td><td>test/snapshot.test.ts</td><td><span class="tag vendor">vendor</span> &rarr; test/test-utils.ts</td></tr>
+    <tr><td>shared-build-and-test.yml</td><td>build-and-test.yml</td><td><span class="tag inline">inline</span></td></tr>
+    <tr><td>shared-hacs-validation.yml</td><td>hacs-validation.yml</td><td><span class="tag inline">inline</span></td></tr>
+    <tr><td>shared-publish-release.yml</td><td>publish-release.yml</td><td><span class="tag inline">inline</span></td></tr>
+    <tr><td>validate-tag (composite action)</td><td>shared-publish-release.yml</td><td><span class="tag inline">inline as steps</span></td></tr>
+    <tr><td>shared-migration-check.yml</td><td>migration-check.yml</td><td><span class="tag delete">delete</span></td></tr>
+  </table>
+
+  <h2>Decisions</h2>
+  <p>
+    Five forks came out of the migration once the shared workflows' actual content was in hand.
+    All five went through <code>brainstorm-it</code> before design; one went against the
+    recommendation.
+  </p>
+  <table>
+    <tr><th>Fork</th><th>Chosen</th><th>Why</th></tr>
+    <tr>
+      <td>migration-check.yml</td>
+      <td>Delete</td>
+      <td>Its only job is tracking ha-card-shared recipe bumps &mdash; the premise disappears with the dependency.</td>
+    </tr>
+    <tr>
+      <td>validate-tag action</td>
+      <td>Inline as steps</td>
+      <td>One consumer, no reuse to justify a separate composite-action file.</td>
+    </tr>
+    <tr>
+      <td>actions/checkout, actions/setup-node</td>
+      <td>Normalize to @v7</td>
+      <td>Matches deploy-demo-page.yml (already @v7); satisfies the issue's own "pin to current major versions" task.</td>
+    </tr>
+    <tr>
+      <td>Slicing</td>
+      <td>One slice</td>
+      <td><em>Human call, against the staged-slices recommendation</em> &mdash; config, CI, dependency removal and docs land together.</td>
+    </tr>
+    <tr>
+      <td>CLAUDE.md / template toggle</td>
+      <td>CLAUDE.md in-slice; toggle manual</td>
+      <td>CLAUDE.md is a normal file edit. The GitHub "Template repository" checkbox is a Settings UI action &mdash; code-it cannot flip it.</td>
+    </tr>
+  </table>
+
+  <h3>The publish pipeline collapses by one hop</h3>
+  <p>
+    <code>publish-release.yml</code> today calls into a reusable workflow that itself calls a
+    composite action from the same shared repo. After this change it's one self-contained file:
+  </p>
+  <div class="diagram">
+    <div class="flow">
+      <span class="box">publish-release.yml</span>
+      <span class="arrow">&rarr;</span>
+      <span class="box">shared-publish-release.yml <small>@v2.1.0</small></span>
+      <span class="arrow">&rarr;</span>
+      <span class="box">validate-tag <small>composite action</small></span>
+    </div>
+    <div class="flow">
+      <span class="box">publish-release.yml <small>checkout &middot; validate tag &middot; setup-node &middot; build &middot; release</small></span>
+      <span class="arrow">&larr; collapses to</span>
+    </div>
+  </div>
+
+  <h2>Already shipped: the biome $schema fix</h2>
+  <p>
+    While investigating, the same drift pattern turned up inside a single file.
+    <code>biome.json</code>'s <code>$schema</code> was hardcoded to <code>2.4.6</code>; the shared
+    config it extends declared <code>2.5.12</code>; the installed binary was <code>2.5.11</code>.
+    Three numbers, three sources of truth, silently disagreeing.
+  </p>
+  <pre><code><span class="dim">  "$schema": </span><span class="del">"https://biomejs.dev/schemas/2.4.6/schema.json"</span><span class="dim">,</span>
+<span class="dim">  "$schema": </span><span class="add">"./node_modules/@biomejs/biome/configuration_schema.json"</span><span class="dim">,</span></code></pre>
+  <p>
+    Pointing at the schema Biome installs alongside itself removes the drift permanently rather
+    than fixing today's mismatch &mdash; the pointer can't fall behind because it <em>is</em>
+    whatever's installed, no version number to remember. Applied already (uncommitted); folded
+    into this slice rather than its own commit.
+  </p>
+
+  <h2>Plan</h2>
+  <p>One slice. Acceptance: <code>npm run check:ci</code>, <code>npm test</code> and <code>npm run build:prod</code> all green with no <code>ha-card-shared</code> anywhere in <code>node_modules</code>.</p>
+  <ul>
+    <li>Inline <code>rollup.config.mjs</code>, <code>vitest.config.mjs</code>, <code>biome.json</code>, <code>tsconfig.json</code>, prettier config.</li>
+    <li>Vendor <code>src/globals.d.ts</code> and <code>test/test-utils.ts</code>.</li>
+    <li>Inline the three surviving CI workflows at <code>@v7</code>; delete <code>migration-check.yml</code>; inline <code>validate-tag</code>'s two steps into <code>publish-release.yml</code>.</li>
+    <li>Remove <code>ha-card-shared</code> from <code>package.json</code> and regenerate <code>package-lock.json</code>.</li>
+    <li>Fold in the biome <code>$schema</code> fix above.</li>
+    <li>Update <code>CLAUDE.md</code> &mdash; fold in the relevant <code>CLAUDE-SHARED.md</code> content, drop the include and the "promote to ha-card-shared" note.</li>
+  </ul>
+
+  <h2>Shipped</h2>
+  <p>
+    The plan landed as one slice, exactly as scoped, plus one thing the plan didn't anticipate.
+    <code>test/tooling.test.ts</code> asserts none of <code>package.json</code>,
+    <code>biome.json</code>, <code>tsconfig.json</code>, <code>rollup.config.mjs</code>,
+    <code>vitest.config.mjs</code>, <code>src/index.ts</code>, or the three surviving workflow
+    files reference <code>ha-card-shared</code> &mdash; red before the migration, green after,
+    and it stays in the suite as the guardrail against the dependency creeping back.
+  </p>
+  <div class="callout">
+    <strong>Found mid-slice: a second, unrelated "skill lives in the wrong place" bug.</strong>
+    <code>CLAUDE.md</code> described <code>/show-it</code> as a project-local skill
+    (<code>.claude/skills/show-it/</code>, "not yet in the shared harness") &mdash; but the
+    directory didn't exist on disk at all, and every other skill in <code>.claude/skills/</code>
+    is already a symlink into the external <code>agent-harness</code> repo, not a project-local
+    file. Checked the harness: <code>show-it</code> was already there, just never symlinked in.
+    Fixed by symlinking it (matching the other seven exactly) and correcting
+    <code>CLAUDE.md</code>'s claim. Not part of the ha-card-shared removal, but directly
+    surfaced by running this slice's own review gate, and the same underlying policy applies:
+    skills come from the harness, never from files committed in a card repo.
+  </div>
+
+  <h2>Adjacent opportunities</h2>
+  <ul>
+    <li>
+      <strong>Enables, not folded in.</strong> Once workflows reference real
+      <code>actions/*</code> pins instead of a reusable-workflow indirection,
+      Dependabot's <code>github-actions</code> ecosystem tracks each action individually and
+      correctly &mdash; the two-tracker gap this note opens with resolves as a side effect. The
+      <code>ha-card-shared-version-bump-gap</code> memory entry can be retired once this ships.
+    </li>
+    <li>
+      <strong>Not folded in.</strong> Marking this repo as a GitHub template (Settings &rarr;
+      General &rarr; "Template repository") and archiving <code>ha-card-shared</code> once no
+      card references it are both manual, post-merge, human steps &mdash; listed in the issue,
+      not performed by code-it.
+    </li>
+    <li>
+      <strong>Not folded in.</strong> Quality and security scanning (CodeQL, OpenSSF Scorecard,
+      Socket.dev) is tracked separately as
+      <a href="https://github.com/marcintk/ha-planetary-solar-system-card/issues/244">#244</a>.
+    </li>
+  </ul>
+
+  <h2>Trade-off accepted</h2>
+  <p>
+    Config drift across future cards becomes possible: a <code>biome.json</code> rule tweak no
+    longer propagates automatically, it has to be copied by hand (or scripted) into each card. At
+    a handful of rarely-changing pipelines, that's less lifetime cost than a versioned shared
+    repo with two independent version pins that silently disagree.
+  </p>
+  <div class="callout">
+    <strong>Scope.</strong> This changes no card behavior &mdash; rendering, data sources, the
+    solar-system view, none of it moves. Pure build/CI/config plumbing.
+  </div>
+</div>
+</body>
+</html>

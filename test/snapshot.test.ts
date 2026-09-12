@@ -1,9 +1,9 @@
-import { snapHtml } from "ha-card-shared/test-utils";
 import { render, type TemplateResult } from "lit";
 import { describe, expect, it } from "vitest";
 import { cardStyles } from "../src/card/card-styles.js";
 import { buildStatusBar } from "../src/card/card-template.js";
 import { renderSolarSystem } from "../src/renderer/index.js";
+import { snapHtml } from "./test-utils.js";
 
 function doc(result: TemplateResult): string {
   const div = document.createElement("div");

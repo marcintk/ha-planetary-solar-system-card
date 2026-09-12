@@ -1,13 +1,29 @@
-@node_modules/ha-card-shared/CLAUDE-SHARED.md
-
 # ha-planetary-solar-system-card
+
+TypeScript + Rollup → `dist/card.js` | Vitest | Biome + Prettier | HACS plugin
+
+## Commands
+
+```bash
+npm install
+npm run build          # bundle src/ → dist/card.js
+npm run build:prod     # minified build (VERSION env var stamps the bundle)
+npm run dev            # rollup watch mode
+npm test               # run tests
+npm run test:watch     # vitest watch mode
+npm run test:coverage  # run with coverage (must stay at 100%)
+npm run typecheck      # tsc --noEmit
+npm run check          # biome lint + format (src/ and test/, auto-fix)
+npm run format:md      # prettier for markdown files
+npm run check:ci       # CI gate: typecheck + biome check + prettier check
+```
 
 ## Workflow
 
 - **Show every slice.** During `/code-it`, at each slice's `[HUMAN]` review gate, run `/show-it`
-  before asking accept-or-grill so the change can be eyeballed in the real card. `/show-it` is a
-  local project skill (`.claude/skills/show-it/`, not yet in the shared harness); promote it to
-  `ha-card-shared` once it has earned its shape, then this note and the manual step go away.
+  before asking accept-or-grill so the change can be eyeballed in the real card. `/show-it` lives
+  in the shared harness (symlinked in via `.claude/skills/show-it`, same as every other skill
+  here) — no project-local skill files.
 
 ## Show-It
 

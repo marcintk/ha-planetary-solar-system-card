@@ -26,7 +26,10 @@
     "lovelace",
     "solar-system"
   ],
-  "prettier": "ha-card-shared/prettier.config.json",
+  "prettier": {
+    "proseWrap": "always",
+    "printWidth": 100
+  },
   "license": "ISC",
   "devDependencies": {
     "@biomejs/biome": "^2.5.11",
@@ -34,7 +37,6 @@
     "@rollup/plugin-terser": "^1.0.0",
     "@rollup/plugin-typescript": "^12.3.0",
     "@vitest/coverage-v8": "^4.1.11",
-    "ha-card-shared": "github:marcintk/ha-card-shared#v2.1.0",
     "jsdom": "^30.0.1",
     "playwright": "^1.62.1",
     "prettier": "^3.9.6",
@@ -45,8 +47,5 @@
   },
   "dependencies": {
     "lit": "^3.3.3"
-  },
-  "allowScripts": {
-    "github:marcintk/ha-card-shared#a45697f7222ed148c14f4b3b78bac4b6a1fcbd04": true
   }
 }

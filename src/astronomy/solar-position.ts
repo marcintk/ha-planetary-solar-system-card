@@ -124,7 +124,7 @@ export function computeSolarElevationDeg(lat: number, lon: number, date: Date): 
  * self-consistent physical model, they agree exactly at the noon/midnight boundaries instead
  * of disagreeing there — eliminating the structural discontinuity.
  *
- * ponytail: near the Arctic/Antarctic Circle, right at the moment the sun grazes the horizon
+ * Caveat: near the Arctic/Antarctic Circle, right at the moment the sun grazes the horizon
  * at solstice, the projected zenith vector's in-plane component shrinks toward zero and the
  * angle becomes geometrically ill-defined (like a compass at the magnetic pole) — a brief,
  * rare visual glitch there, not a daily one. Add hysteresis (carry the previous frame's angle)

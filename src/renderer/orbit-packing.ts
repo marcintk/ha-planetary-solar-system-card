@@ -3,7 +3,7 @@ import type { CometVisualEllipse, Planet } from "../types.js";
 import { SATURN_RING_OUTER_RADIUS } from "./bodies.js";
 import { auToRadius, ellipseFromApsides } from "./svg-utils.js";
 
-// ponytail: fixed heuristic margin, revisit if a future body needs a wider gap.
+// Fixed heuristic margin, revisit if a future body needs a wider gap.
 const MIN_GAP = 8;
 
 function effectiveSize(planet: Planet): number {

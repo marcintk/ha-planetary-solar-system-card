@@ -14,6 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write # needed to create the GitHub Release
+      id-token: write # needed to mint the Sigstore/SLSA provenance attestation
+      attestations: write # needed to upload the attestation to this repo
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -75,11 +77,19 @@ jobs:
         # release, not ship a mystery asset. HACS resolves it via hacs.json "filename".
         run: echo "name=$(node -p "require('./package.json').name")" >> "$GITHUB_OUTPUT"
 
+      - name: Attest build provenance
+        id: attest
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: dist/${{ steps.name.outputs.name }}.js
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3
         with:
           tag_name: ${{ github.ref_name }}
-          files: dist/${{ steps.name.outputs.name }}.js
+          files: |
+            dist/${{ steps.name.outputs.name }}.js
+            ${{ steps.attest.outputs.bundle-path }}
           generate_release_notes: true
           draft: true # always a draft — a human publishes from the Releases UI after review
           prerelease: ${{ steps.prerelease.outputs.is_prerelease }}

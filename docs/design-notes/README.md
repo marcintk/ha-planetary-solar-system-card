@@ -59,3 +59,12 @@ has a rendered URL — link to that, since GitHub shows `.html` as source, not r
   smaller next to the crossing nearer the Sun. Comets and ring/marker geometry untouched.
   [Explain-diff](https://marcintk.github.io/ha-planetary-solar-system-card/design-notes/issue-239-explain-diff.html)
   · [PR #240](https://github.com/marcintk/ha-planetary-solar-system-card/pull/240).
+- [Vendor the shared tooling, drop ha-card-shared](https://marcintk.github.io/ha-planetary-solar-system-card/design-notes/issue-243-drop-ha-card-shared.html)
+  — _approved_ ([#243](https://github.com/marcintk/ha-planetary-solar-system-card/issues/243)) —
+  `ha-card-shared` is a GitHub-tarball npm dependency whose version lives in two uncoordinated
+  places (`package.json` and every workflow's `@v2.1.0` pin), breaks `npm ci` in the sandbox, and
+  isn't a Dependabot-tracked ecosystem. The card imports zero runtime code from it — only build/test
+  config plus a 2-line test helper. Vendor everything actually used, inline the CI workflows (delete
+  `migration-check.yml`, inline `validate-tag` as steps, normalize `actions/*` to `@v7`), drop the
+  dependency, and get new-card consistency from a GitHub template repo instead. Explain-diff — · PR
+  —.

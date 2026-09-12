@@ -1,6 +1,8 @@
 {
-  "extends": "ha-card-shared/tsconfig.base.json",
   "compilerOptions": {
+    "moduleResolution": "bundler",
+    "strict": true,
+    "skipLibCheck": true,
     "target": "ES2022",
     "lib": ["ES2022", "DOM"],
     "module": "ESNext",

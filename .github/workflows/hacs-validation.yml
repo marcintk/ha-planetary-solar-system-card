@@ -11,4 +11,11 @@ on:
 jobs:
   validate:
     if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
-    uses: marcintk/ha-card-shared/.github/workflows/shared-hacs-validation.yml@v2.1.0
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: HACS Action
+        uses: hacs/action@22.5.0
+        with:
+          category: plugin

@@ -1,4 +1,4 @@
-/// <reference path="../node_modules/ha-card-shared/globals.d.ts" />
+/// <reference path="./globals.d.ts" />
 import { SolarViewCard } from "./card/card.js";
 
 customElements.define("ha-planetary-solar-system-card", SolarViewCard);

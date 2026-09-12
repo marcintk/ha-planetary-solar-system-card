@@ -6,6 +6,20 @@ index.
 
 <!-- ponytail: single file; split by area if it outgrows one screen-scroll -->
 
+## A shared tooling dependency's version silently drifts out of sync with its own CI pins
+
+- **Root cause:** treating a set of build/CI conventions as an installable GitHub-tarball npm
+  package puts its version in two uncoordinated places — `package.json`'s `devDependencies` and
+  every `.github/workflows/*.yml`'s own pinned reusable-workflow ref. Nothing keeps them in sync;
+  bumping one silently leaves the other stale. Compounded by the tarball dep sitting outside any
+  Dependabot-tracked ecosystem, so the `package.json` side never even gets a bump PR.
+- **Guardrail:** vendor the config/CI content directly into each consumer instead of depending on
+  a shared package — `test/tooling.test.ts` asserts zero references to the removed dependency
+  name across every build/CI/config file, so it can't quietly creep back in. New-repo consistency
+  comes from a GitHub template repo (copied at creation time), not a shared runtime dependency.
+- **Ref:** [#243](https://github.com/marcintk/ha-planetary-solar-system-card/issues/243) ·
+  2026-09-12
+
 ## A displayed physical quantity reads wrong after a layout transform (packing, scaling, clamping)
 
 - **Root cause:** #239's orbit AU labels were computed by inverting the _drawn_ ring's pixel radius

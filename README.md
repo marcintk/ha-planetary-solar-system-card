@@ -196,14 +196,14 @@ a pipeline stall doesn't break the feed.
 [new-issue]: https://github.com/marcintk/ha-planetary-solar-system-card/issues/new
 [discussions]: https://github.com/marcintk/ha-planetary-solar-system-card/discussions
 [ci]:
-  https://github.com/marcintk/ha-planetary-solar-system-card/actions/workflows/build-and-test.yml
+  https://github.com/marcintk/ha-planetary-solar-system-card/actions/workflows/card-build-and-test.yml
 [hacs]: https://hacs.xyz
 [hacs-shield]: https://img.shields.io/badge/HACS-Default-41BDF5.svg
 [releases-shield]: https://img.shields.io/github/release/marcintk/ha-planetary-solar-system-card.svg
 [license-shield]: https://img.shields.io/github/license/marcintk/ha-planetary-solar-system-card.svg
 [maintenance-shield]: https://img.shields.io/maintenance/yes/2026
 [ci-shield]:
-  https://github.com/marcintk/ha-planetary-solar-system-card/actions/workflows/build-and-test.yml/badge.svg
+  https://github.com/marcintk/ha-planetary-solar-system-card/actions/workflows/card-build-and-test.yml/badge.svg
 [coverage-shield]: https://img.shields.io/badge/coverage-100%25-brightgreen
 [downloads-shield]:
   https://img.shields.io/github/downloads/marcintk/ha-planetary-solar-system-card/total?label=downloads

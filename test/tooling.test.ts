@@ -8,9 +8,9 @@ const FILES = [
   "rollup.config.mjs",
   "vitest.config.mjs",
   "src/index.ts",
-  ".github/workflows/build-and-test.yml",
+  ".github/workflows/card-build-and-test.yml",
   ".github/workflows/hacs-validation.yml",
-  ".github/workflows/publish-release.yml",
+  ".github/workflows/card-publish-release.yml",
 ];
 
 describe("no ha-card-shared dependency", () => {

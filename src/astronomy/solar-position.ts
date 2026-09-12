@@ -1,3 +1,6 @@
+import type { NextTransition } from "../types.js";
+import { greenwichSiderealDeg } from "./moon-position.js";
+
 /**
  * Extract local hours and minutes for a Date in a given IANA timezone string.
  * Falls back to UTC if the timezone is invalid or unrecognised.
@@ -5,9 +8,6 @@
  * @param {string} timezone - IANA timezone string (e.g. "America/Chicago")
  * @returns {{ hours: number, minutes: number }}
  */
-import type { NextTransition } from "../types.js";
-import { greenwichSiderealDeg } from "./moon-position.js";
-
 export function getLocalTimeInZone(
   date: Date,
   timezone: string
@@ -84,8 +84,9 @@ function solarHourAngle(lon: number, date: Date) {
  * astronomy. Returns degrees in [-90, 90].
  *
  * Formula:
- *   δ  = -23.45° × cos( 2π/365 × (dayOfYear + 10) )   ← solar declination
- *   H  = 15° × (localSolarHour - 12)                    ← hour angle
+ *   δ, H  from solarHourAngle() — the Sun's real declination and hour angle
+ *         (getSunPosition + sidereal time), not the idealized circular-orbit
+ *         approximation this replaced (see getSunPosition's docstring, #78)
  *   sin(alt) = sin(lat)×sin(δ) + cos(lat)×cos(δ)×cos(H)
  *
  * @param {number} lat - observer latitude in degrees

@@ -19,26 +19,10 @@ reviews:
     - "!dist/**"
     - "!**/*.min.js"
     - "!package-lock.json"
-  path_instructions:
-    - path: "src/**/*.ts"
-      instructions: >
-        This is a Home Assistant Lit custom card (TypeScript, Rollup build).
-        Flag correctness bugs and simplification opportunities. Note that
-        `src/renderer` draws the solar system via imperative SVG DOM
-        manipulation rebuilt on every update() call — this is intentional,
-        not a Lit anti-pattern. Any coordinate math derived from an angle
-        must go through `polarOffset()` in `renderer/svg-utils.ts`; a
-        hand-written `y + dir * dist * Math.sin(angle)` duplicate is a bug,
-        not a style nit.
-    - path: "test/**/*.ts"
-      instructions: >
-        Coverage must stay at 100% (project invariant). Flag any change
-        that reduces coverage or removes an assertion without a replacement.
-    - path: ".github/workflows/**"
-      instructions: >
-        Workflow actions must stay pinned to commit SHAs (not tags) per the
-        project's security hardening. Flag any action reference that is a
-        version tag instead of a full-length SHA.
+  # No path_instructions here: CodeRabbit auto-detects and applies root
+  # CLAUDE.md as coding guidelines, so the project's architecture invariants
+  # (SVG imperative rebuild, polarOffset mirror rule, 100% coverage, SHA-pinned
+  # workflow actions) live in one place instead of being duplicated here.
 
 chat:
   auto_reply: true

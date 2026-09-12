@@ -66,5 +66,6 @@ has a rendered URL — link to that, since GitHub shows `.html` as source, not r
   isn't a Dependabot-tracked ecosystem. The card imports zero runtime code from it — only build/test
   config plus a 2-line test helper. Vendor everything actually used, inline the CI workflows (delete
   `migration-check.yml`, inline `validate-tag` as steps, normalize `actions/*` to `@v7`), drop the
-  dependency, and get new-card consistency from a GitHub template repo instead. Explain-diff — · PR
-  —.
+  dependency, and get new-card consistency from a GitHub template repo instead.
+  [Explain-diff](https://marcintk.github.io/ha-planetary-solar-system-card/design-notes/issue-243-explain-diff.html)
+  · PR —.

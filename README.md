@@ -18,6 +18,7 @@ discussion][discussions].
 [![hacs_badge][hacs-shield]][hacs] [![GitHub Release][releases-shield]][releases]
 [![License][license-shield]][license] ![Maintenance][maintenance-shield]
 [![Coverage][coverage-shield]][ci] [![Downloads][downloads-shield]][releases]
+
 [![Build and Test][ci-shield]][ci] [![CodeQL][codeql-shield]][codeql]
 [![OpenSSF Scorecard][scorecard-shield]][scorecard]
 

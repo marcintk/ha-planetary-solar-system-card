@@ -13,10 +13,10 @@ index.
   every `.github/workflows/*.yml`'s own pinned reusable-workflow ref. Nothing keeps them in sync;
   bumping one silently leaves the other stale. Compounded by the tarball dep sitting outside any
   Dependabot-tracked ecosystem, so the `package.json` side never even gets a bump PR.
-- **Guardrail:** vendor the config/CI content directly into each consumer instead of depending on
-  a shared package — `test/tooling.test.ts` asserts zero references to the removed dependency
-  name across every build/CI/config file, so it can't quietly creep back in. New-repo consistency
-  comes from a GitHub template repo (copied at creation time), not a shared runtime dependency.
+- **Guardrail:** vendor the config/CI content directly into each consumer instead of depending on a
+  shared package — `test/tooling.test.ts` asserts zero references to the removed dependency name
+  across every build/CI/config file, so it can't quietly creep back in. New-repo consistency comes
+  from a GitHub template repo (copied at creation time), not a shared runtime dependency.
 - **Ref:** [#243](https://github.com/marcintk/ha-planetary-solar-system-card/issues/243) ·
   2026-09-12
 

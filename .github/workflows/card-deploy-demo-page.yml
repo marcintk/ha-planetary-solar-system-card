@@ -1,4 +1,4 @@
-name: Card: Deploy Demo Page
+name: "Card: Deploy Demo Page"
 
 # This card publishes the design-note pages under docs/design-notes/ in addition to
 # docs/index.html + the bundle, so it stages its own Pages artifact rather than reusing a

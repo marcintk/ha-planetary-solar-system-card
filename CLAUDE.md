@@ -13,6 +13,8 @@ bundled with Rollup to `dist/card.js`, distributed via HACS.
 - `test/` - Vitest specs mirroring `src/`, plus `test/fixtures` and `test/helpers`
 - `scripts/demo/` - Playwright-based demo GIF recorder
 - `docs/` - GitHub Pages demo (`docs/index.html`, `docs/card.js`)
+- `.github/workflows/claude-pr-review.yml` - second-reviewer bot for owner-authored PRs (see
+  `.github/claude-pr-review-prompt.md` for its persona)
 
 <important if="you need to run commands to build, test, lint, or generate code">
 

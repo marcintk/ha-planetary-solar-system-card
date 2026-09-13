@@ -95,7 +95,7 @@ describe("SolarViewCard gallery", () => {
       vi.setSystemTime(new Date("2026-08-22T10:15:00Z"));
       const card = document.createElement("ha-planetary-solar-system-card-test");
       card.setConfig({
-        gallery: { mode: "open" },
+        gallery: { mode: "open", mymoon_hide_on_no_moon_sky: false },
         location: { latitude: 33.2148, longitude: -97.1331, timezone: "America/Chicago" },
       });
       document.body.appendChild(card);
@@ -119,7 +119,9 @@ describe("SolarViewCard gallery", () => {
         vi.setSystemTime(new Date(iso));
         const card = document.createElement("ha-planetary-solar-system-card-test");
         card.setConfig({
-          gallery: { mode: "open" },
+          // Opts out of the default hide-on-no-moon-sky behavior — this block tests the
+          // placeholder/panel rendering itself, which stays reachable via this flag.
+          gallery: { mode: "open", mymoon_hide_on_no_moon_sky: false },
           location: { latitude: 33.2148, longitude: -97.1331, timezone: "America/Chicago" },
         });
         document.body.appendChild(card);
@@ -207,6 +209,58 @@ describe("SolarViewCard gallery", () => {
         for (const source of ["moon", "earth", "sun"]) {
           expect(card.shadowRoot.querySelector(`[data-source="${source}"] .no-sky`)).toBeNull();
         }
+        card.remove();
+        vi.useRealTimers();
+      });
+
+      // Default behaviour (mymoon_hide_on_no_moon_sky unset): the tile itself is dropped from
+      // the strip while the Moon is below the horizon, not just swapped for a placeholder.
+      it("hides the MY MOON tile entirely by default when the Moon is below the horizon", async () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date(DOWN));
+        const card = document.createElement("ha-planetary-solar-system-card-test");
+        card.setConfig({
+          gallery: { mode: "show", mymoon: true },
+          location: { latitude: 33.2148, longitude: -97.1331, timezone: "America/Chicago" },
+        });
+        document.body.appendChild(card);
+        await vi.advanceTimersByTimeAsync(0);
+        expect(card.shadowRoot.querySelector('[data-source="mymoon"]')).toBeNull();
+        card.remove();
+        vi.useRealTimers();
+      });
+
+      it("shows the MY MOON tile by default once the Moon is up", async () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date(UP));
+        const card = document.createElement("ha-planetary-solar-system-card-test");
+        card.setConfig({
+          gallery: { mode: "show", mymoon: true },
+          location: { latitude: 33.2148, longitude: -97.1331, timezone: "America/Chicago" },
+        });
+        document.body.appendChild(card);
+        await vi.advanceTimersByTimeAsync(0);
+        expect(card.shadowRoot.querySelector('[data-source="mymoon"]')).not.toBeNull();
+        card.remove();
+        vi.useRealTimers();
+      });
+
+      // mymoon_hide_on_no_moon_sky: false opts back into the old behaviour — the tile stays,
+      // swapped for the "No Moon Sky" placeholder.
+      it("keeps showing the tile with a placeholder when mymoon_hide_on_no_moon_sky is false", async () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date(DOWN));
+        const card = document.createElement("ha-planetary-solar-system-card-test");
+        card.setConfig({
+          gallery: { mode: "show", mymoon: true, mymoon_hide_on_no_moon_sky: false },
+          location: { latitude: 33.2148, longitude: -97.1331, timezone: "America/Chicago" },
+        });
+        document.body.appendChild(card);
+        await vi.advanceTimersByTimeAsync(0);
+        const tile = card.shadowRoot.querySelector('[data-source="mymoon"]');
+        expect(tile).not.toBeNull();
+        expect(tile.querySelector("img")).toBeNull();
+        expect(tile.querySelector(".no-sky").textContent.trim()).toBe("No MoonSky");
         card.remove();
         vi.useRealTimers();
       });
@@ -313,7 +367,9 @@ describe("SolarViewCard gallery", () => {
     // own photo (the tint layer), not the button behind it.
     it("keeps the tile's own background plain, unlike the tint on its photo", () => {
       const card = createAndMount({
-        gallery: { mode: "open" },
+        // Real wall-clock time here, so mymoon_hide_on_no_moon_sky: false keeps the tile
+        // deterministically present regardless of the actual current sky state.
+        gallery: { mode: "open", mymoon_hide_on_no_moon_sky: false },
         location: { latitude: 33.2148, longitude: -97.1331, timezone: "America/Chicago" },
       });
       expect(card.shadowRoot.querySelector('[data-source="mymoon"]').getAttribute("style")).toBe(
@@ -328,7 +384,10 @@ describe("SolarViewCard gallery", () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date("2026-08-22T18:00:00Z")); // Sun well up (irrelevant to the panel)
       const card = createAndMount({
-        gallery: { mode: "open" },
+        // Moon is below the horizon at this instant — opt out of the default hide so the tile
+        // (and its panel) stay reachable, since this test is about the panel frame's own
+        // background, not the hide behavior.
+        gallery: { mode: "open", mymoon_hide_on_no_moon_sky: false },
         location: { latitude: 33.2148, longitude: -97.1331, timezone: "America/Chicago" },
       });
       await vi.advanceTimersByTimeAsync(0);

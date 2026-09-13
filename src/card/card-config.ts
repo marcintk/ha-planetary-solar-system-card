@@ -24,6 +24,7 @@ export interface ParsedCardConfig {
   gallerySources: ImageSource[];
   galleryIntervalMs: number;
   mymoonTint: boolean;
+  mymoonHideOnNoMoonSky: boolean;
 }
 
 // Resolves config.height into an inline style for #solar-view/.image-view. A px value caps
@@ -155,6 +156,7 @@ export function parseCardConfig(config: CardConfig): ParsedCardConfig {
       ? rawInterval * 1000
       : DEFAULT_GALLERY_INTERVAL_MS;
   const mymoonTint = config.gallery?.mymoon_tint === true;
+  const mymoonHideOnNoMoonSky = config.gallery?.mymoon_hide_on_no_moon_sky !== false;
 
   return {
     zoomLevel,
@@ -175,5 +177,6 @@ export function parseCardConfig(config: CardConfig): ParsedCardConfig {
     gallerySources,
     galleryIntervalMs,
     mymoonTint,
+    mymoonHideOnNoMoonSky,
   };
 }

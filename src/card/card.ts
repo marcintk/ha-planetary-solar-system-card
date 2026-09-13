@@ -63,6 +63,7 @@ export class SolarViewCard extends LitElement {
   private _galleryPosition: GalleryPosition;
   private _galleryShape: GalleryShape;
   private _mymoonTint: boolean;
+  private _mymoonHideOnNoMoonSky: boolean;
   private _colors: Colors;
   private _refreshMs: number;
   private _eclipticView: boolean;
@@ -87,6 +88,7 @@ export class SolarViewCard extends LitElement {
     this._galleryPosition = "overlay";
     this._galleryShape = "square";
     this._mymoonTint = false;
+    this._mymoonHideOnNoMoonSky = true;
     this._colors = {};
     this._refreshMs = 60000;
     this._eclipticView = false;
@@ -122,6 +124,7 @@ export class SolarViewCard extends LitElement {
     this._galleryPosition = parsed.galleryPosition;
     this._galleryShape = parsed.galleryShape;
     this._mymoonTint = parsed.mymoonTint;
+    this._mymoonHideOnNoMoonSky = parsed.mymoonHideOnNoMoonSky;
     this._gallery.configure(parsed.galleryMode, parsed.gallerySources, parsed.galleryIntervalMs);
 
     if (this._autoUpdateTimer != null) {
@@ -169,6 +172,12 @@ export class SolarViewCard extends LitElement {
     const now = new Date();
     let skyFrame: SkyFrame | null = null;
     const sky = () => (skyFrame ??= this._location.skyFrame(now));
+
+    const hidden = new Set<ImageSource>();
+    if (this._mymoonHideOnNoMoonSky && SOURCES.mymoon.skyFrame && sky().belowHorizon) {
+      hidden.add("mymoon");
+    }
+    this._gallery.setHidden(hidden);
 
     const gallery = this._gallery.viewModel(this._galleryPosition);
     // The open panel's own sky, or null when the panel is closed or shows a source that has no

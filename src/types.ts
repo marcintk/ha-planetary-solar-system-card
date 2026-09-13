@@ -140,6 +140,7 @@ export interface CardConfig {
     earth?: boolean;
     sun?: boolean;
     mymoon_tint?: boolean;
+    mymoon_hide_on_no_moon_sky?: boolean;
   };
   location?: { latitude?: number; longitude?: number; name?: string; timezone?: string };
 }

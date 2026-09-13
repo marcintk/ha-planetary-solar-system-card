@@ -22,6 +22,7 @@ describe("parseCardConfig", () => {
       gallerySources: ["mymoon"],
       galleryIntervalMs: 60000,
       mymoonTint: false,
+      mymoonHideOnNoMoonSky: true,
       shade: { sphere: true, dayNight: true },
     });
   });
@@ -279,6 +280,23 @@ describe("parseCardConfig", () => {
       });
       it("enables when set true", () => {
         expect(parseCardConfig({ gallery: { mymoon_tint: true } }).mymoonTint).toBe(true);
+      });
+    });
+
+    describe("mymoon_hide_on_no_moon_sky", () => {
+      it("defaults to true", () => {
+        expect(parseCardConfig({}).mymoonHideOnNoMoonSky).toBe(true);
+        expect(parseCardConfig({ gallery: {} }).mymoonHideOnNoMoonSky).toBe(true);
+      });
+      it("false only when === false", () => {
+        expect(
+          parseCardConfig({ gallery: { mymoon_hide_on_no_moon_sky: false } }).mymoonHideOnNoMoonSky
+        ).toBe(false);
+      });
+      it("stays true when explicitly set true", () => {
+        expect(
+          parseCardConfig({ gallery: { mymoon_hide_on_no_moon_sky: true } }).mymoonHideOnNoMoonSky
+        ).toBe(true);
       });
     });
   });

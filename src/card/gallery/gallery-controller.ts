@@ -102,6 +102,7 @@ export class GalleryController {
   private _resolver: ImageResolver;
   private _sources: ImageSource[];
   private _hidden: Set<ImageSource>;
+  private _overrideHidden = false;
 
   // resolver defaults to a real, network-backed ImageResolver for production callers — tests
   // that only exercise panel/strip/slide state can pass a fake instead (matching the pattern
@@ -156,15 +157,23 @@ export class GalleryController {
   // Sources rendered as thumbnails right now — the configured list verbatim, except in
   // "slide" where only the source the rotation currently sits on is shown.
   get displaySources(): ImageSource[] {
+    const effectiveHidden = this._overrideHidden ? new Set<ImageSource>() : this._hidden;
     if (this._mode === "slide") {
       const count = this._sources.length;
       for (let i = 0; i < count; i++) {
         const source = this._sources[(this._slideIndex + i) % count];
-        if (!this._hidden.has(source)) return [source];
+        if (!effectiveHidden.has(source)) return [source];
       }
       return [];
     }
-    return this._sources.filter((source) => !this._hidden.has(source));
+    return this._sources.filter((source) => !effectiveHidden.has(source));
+  }
+
+  // Whether displaySources would currently render empty due to _hidden alone (ignoring any
+  // active override) — used by toggle() to decide whether a second press should reveal
+  // everything instead of closing the strip.
+  private _isEmptyWithHiding(): boolean {
+    return this._sources.length > 0 && this._sources.every((source) => this._hidden.has(source));
   }
 
   // Called synchronously by card.ts right before it reads displaySources/viewModel() within
@@ -205,6 +214,7 @@ export class GalleryController {
     // A shorter list would otherwise leave the rotation pointing past its end, so
     // displaySources would read undefined until the next tick wrapped it.
     if (this._slideIndex >= sources.length) this._slideIndex = 0;
+    this._overrideHidden = false;
     if (this._autoSwitchTimer != null) {
       this._startAutoSwitchTimer();
     }
@@ -232,14 +242,21 @@ export class GalleryController {
   }
 
   toggle(): void {
-    this._open = !this._open;
     if (!this._open) {
-      this.closePanel();
-    } else {
+      this._open = true;
       this._panel.error = null;
       this._onChange();
       void this.refresh();
+      return;
     }
+    if (!this._overrideHidden && this._isEmptyWithHiding()) {
+      this._overrideHidden = true;
+      this._onChange();
+      return;
+    }
+    this._open = false;
+    this._overrideHidden = false;
+    this.closePanel();
   }
 
   // A click is a pure view switch, nothing more: no fetch, no preload, no async gap. Every

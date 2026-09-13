@@ -231,6 +231,55 @@ describe("GalleryController.toggle", () => {
     expect(gallery.isOpen).toBe(false);
     expect(gallery.panelMode).toBe("none");
   });
+
+  // Ordinary case unchanged: with at least one non-hidden source, nothing is ever empty, so
+  // there is no 3-state detour — a press just closes directly, exactly as before.
+  it("with a visible source, a press just closes directly (no 3-state detour)", () => {
+    const gallery = new GalleryController(() => {});
+    gallery.configure("show", ["mymoon"], 60000);
+    expect(gallery.isOpen).toBe(true); // configure() opens by default
+    expect(gallery.displaySources).toEqual(["mymoon"]);
+
+    gallery.toggle(); // closes directly
+    expect(gallery.isOpen).toBe(false);
+  });
+
+  describe("when everything enabled is hidden", () => {
+    it("opens (via configure) still showing nothing (existing filtering)", () => {
+      const gallery = new GalleryController(() => {});
+      gallery.configure("show", ["mymoon"], 60000);
+      gallery.setHidden(new Set(["mymoon"]));
+
+      expect(gallery.isOpen).toBe(true); // configure() opens by default
+      expect(gallery.displaySources).toEqual([]);
+    });
+
+    it("the very first real press (on an already-open, filtered-empty strip) overrides the hide instead of closing", () => {
+      const gallery = new GalleryController(() => {});
+      gallery.configure("show", ["mymoon"], 60000);
+      gallery.setHidden(new Set(["mymoon"]));
+      expect(gallery.isOpen).toBe(true); // configure() opens by default, filtered empty
+      expect(gallery.displaySources).toEqual([]);
+
+      gallery.toggle(); // 1st real press while open+empty: override, not close
+      expect(gallery.isOpen).toBe(true);
+      expect(gallery.displaySources).toEqual(["mymoon"]);
+    });
+
+    it("a second press closes the strip and forgets the override", () => {
+      const gallery = new GalleryController(() => {});
+      gallery.configure("show", ["mymoon"], 60000);
+      gallery.setHidden(new Set(["mymoon"]));
+      gallery.toggle(); // override
+
+      gallery.toggle(); // 2nd press: closes
+      expect(gallery.isOpen).toBe(false);
+
+      gallery.toggle(); // reopen: override should be forgotten, back to filtered/empty
+      expect(gallery.isOpen).toBe(true);
+      expect(gallery.displaySources).toEqual([]);
+    });
+  });
 });
 
 describe("GalleryController.openPanel / closePanel", () => {

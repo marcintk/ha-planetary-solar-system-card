@@ -117,6 +117,27 @@ describe("GalleryController.configure", () => {
     gallery.configure("show", IMAGE_SOURCES, 60000);
     expect(gallery.displaySources).toEqual(["mymoon", "moon", "earth", "sun"]);
   });
+
+  it("setHidden excludes hidden sources from displaySources", () => {
+    const gallery = new GalleryController(() => {});
+    gallery.configure("show", ["mymoon", "moon"], 60000);
+    gallery.setHidden(new Set(["mymoon"]));
+    expect(gallery.displaySources).toEqual(["moon"]);
+  });
+
+  it("setHidden in slide mode skips a hidden source at the current slide index", () => {
+    const gallery = new GalleryController(() => {});
+    gallery.configure("slide", ["mymoon", "moon"], 60000);
+    gallery.setHidden(new Set(["mymoon"]));
+    expect(gallery.displaySources).toEqual(["moon"]);
+  });
+
+  it("setHidden in slide mode with every source hidden shows nothing", () => {
+    const gallery = new GalleryController(() => {});
+    gallery.configure("slide", ["mymoon", "moon"], 60000);
+    gallery.setHidden(new Set(["mymoon", "moon"]));
+    expect(gallery.displaySources).toEqual([]);
+  });
 });
 
 describe("GalleryController moon sources", () => {

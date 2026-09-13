@@ -101,6 +101,7 @@ export class GalleryController {
   private _debugStartedAt: number;
   private _resolver: ImageResolver;
   private _sources: ImageSource[];
+  private _hidden: Set<ImageSource>;
 
   // resolver defaults to a real, network-backed ImageResolver for production callers — tests
   // that only exercise panel/strip/slide state can pass a fake instead (matching the pattern
@@ -111,6 +112,7 @@ export class GalleryController {
     this._open = false;
     this._mode = "off";
     this._sources = DEFAULT_GALLERY_SOURCES;
+    this._hidden = new Set();
     this._autoIntervalMs = DEFAULT_GALLERY_INTERVAL_MS;
     this._slideIndex = 0;
     this._autoSwitchTimer = null;
@@ -154,7 +156,21 @@ export class GalleryController {
   // Sources rendered as thumbnails right now — the configured list verbatim, except in
   // "slide" where only the source the rotation currently sits on is shown.
   get displaySources(): ImageSource[] {
-    return this._mode === "slide" ? [this._sources[this._slideIndex]] : this._sources;
+    if (this._mode === "slide") {
+      const count = this._sources.length;
+      for (let i = 0; i < count; i++) {
+        const source = this._sources[(this._slideIndex + i) % count];
+        if (!this._hidden.has(source)) return [source];
+      }
+      return [];
+    }
+    return this._sources.filter((source) => !this._hidden.has(source));
+  }
+
+  // Called synchronously by card.ts right before it reads displaySources/viewModel() within
+  // the same render pass, so no re-render trigger is needed here (mirrors configure()).
+  setHidden(hidden: Set<ImageSource>): void {
+    this._hidden = hidden;
   }
 
   // position defaults to "overlay" (the strip must hide there, since it floats over the

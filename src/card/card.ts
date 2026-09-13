@@ -64,6 +64,7 @@ export class SolarViewCard extends LitElement {
   private _galleryShape: GalleryShape;
   private _mymoonTint: boolean;
   private _mymoonHideOnNoMoonSky: boolean;
+  private _mymoonEnabled: boolean;
   private _colors: Colors;
   private _refreshMs: number;
   private _eclipticView: boolean;
@@ -89,6 +90,7 @@ export class SolarViewCard extends LitElement {
     this._galleryShape = "square";
     this._mymoonTint = false;
     this._mymoonHideOnNoMoonSky = true;
+    this._mymoonEnabled = true;
     this._colors = {};
     this._refreshMs = 60000;
     this._eclipticView = false;
@@ -125,6 +127,7 @@ export class SolarViewCard extends LitElement {
     this._galleryShape = parsed.galleryShape;
     this._mymoonTint = parsed.mymoonTint;
     this._mymoonHideOnNoMoonSky = parsed.mymoonHideOnNoMoonSky;
+    this._mymoonEnabled = parsed.gallerySources.includes("mymoon");
     this._gallery.configure(parsed.galleryMode, parsed.gallerySources, parsed.galleryIntervalMs);
 
     if (this._autoUpdateTimer != null) {
@@ -174,7 +177,7 @@ export class SolarViewCard extends LitElement {
     const sky = () => (skyFrame ??= this._location.skyFrame(now));
 
     const hidden = new Set<ImageSource>();
-    if (this._mymoonHideOnNoMoonSky && sky().belowHorizon) {
+    if (this._mymoonHideOnNoMoonSky && this._mymoonEnabled && sky().belowHorizon) {
       hidden.add("mymoon");
     }
     this._gallery.setHidden(hidden);

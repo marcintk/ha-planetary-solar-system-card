@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { EPIC_BASE_URL } from "../../src/card/gallery/source-resolver-dscovr-earth.js";
+import { ViewingLocation } from "../../src/card/viewing-location.js";
 import { clickButton, createAndMount, setupCardTest } from "./helpers.js";
 
 setupCardTest();
@@ -261,6 +262,72 @@ describe("SolarViewCard gallery", () => {
         expect(tile).not.toBeNull();
         expect(tile.querySelector("img")).toBeNull();
         expect(tile.querySelector(".no-sky").textContent.trim()).toBe("No MoonSky");
+        card.remove();
+        vi.useRealTimers();
+      });
+
+      // Regression: computing the hidden-set check used to call sky() (moon ephemeris + solar
+      // elevation) unconditionally on every render whenever mymoon_hide_on_no_moon_sky is true,
+      // even for a card whose gallery doesn't include mymoon at all — defeating the laziness
+      // sky() is meant to have for exactly that case.
+      it("never computes the sky frame when mymoon isn't a configured gallery source", async () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date(DOWN));
+        const skyFrameSpy = vi.spyOn(ViewingLocation.prototype, "skyFrame");
+        const card = document.createElement("ha-planetary-solar-system-card-test");
+        card.setConfig({
+          gallery: { mode: "show", mymoon: false, sun: true },
+          location: { latitude: 33.2148, longitude: -97.1331, timezone: "America/Chicago" },
+        });
+        document.body.appendChild(card);
+        await vi.advanceTimersByTimeAsync(0);
+        expect(skyFrameSpy).not.toHaveBeenCalled();
+        card.remove();
+        skyFrameSpy.mockRestore();
+        vi.useRealTimers();
+      });
+
+      // Regression: showStrip used to ignore thumbnails.length, so a "below" strip with its
+      // only source hidden still rendered an empty, visible strip container.
+      it("renders no gallery strip at all when the only source is hidden, in the below position", async () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date(DOWN));
+        const card = document.createElement("ha-planetary-solar-system-card-test");
+        card.setConfig({
+          gallery: { mode: "show", mymoon: true, position: "below" },
+          location: { latitude: 33.2148, longitude: -97.1331, timezone: "America/Chicago" },
+        });
+        document.body.appendChild(card);
+        await vi.advanceTimersByTimeAsync(0);
+        expect(card.shadowRoot.querySelector(".gallery-below")).toBeNull();
+        card.remove();
+        vi.useRealTimers();
+      });
+
+      // Regression: with the strip's only source hidden and its full-screen panel left open
+      // from when the Moon was still up, a single gallery-button press used to have no visible
+      // effect (it flipped the reveal override instead of closing) — a second press was needed.
+      it("closes both the panel and the strip with one press of the gallery button", async () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date(UP));
+        const card = document.createElement("ha-planetary-solar-system-card-test");
+        card.setConfig({
+          gallery: { mode: "show", mymoon: true },
+          location: { latitude: 33.2148, longitude: -97.1331, timezone: "America/Chicago" },
+        });
+        document.body.appendChild(card);
+        await vi.advanceTimersByTimeAsync(0);
+        card.shadowRoot.querySelector('[data-source="mymoon"]').click();
+        await vi.advanceTimersByTimeAsync(0);
+        expect(card._gallery.panelMode).toBe("mymoon");
+
+        vi.setSystemTime(new Date(DOWN));
+        await vi.advanceTimersByTimeAsync(0);
+
+        clickButton(card, "gallery");
+        await vi.advanceTimersByTimeAsync(0);
+        expect(card._gallery.panelMode).toBe("none");
+        expect(card._gallery.isOpen).toBe(false);
         card.remove();
         vi.useRealTimers();
       });

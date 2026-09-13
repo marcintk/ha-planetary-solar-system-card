@@ -279,6 +279,24 @@ describe("GalleryController.toggle", () => {
       expect(gallery.isOpen).toBe(true);
       expect(gallery.displaySources).toEqual([]);
     });
+
+    // Regression: with a panel open (e.g. the source that was showing became hidden while its
+    // full-screen panel stayed open), a press must still close everything in one go — the
+    // reveal-instead-of-close detour has no visible effect while a panel covers the strip, so
+    // it must not intercept the press.
+    it("with a panel open, a single press closes both the panel and the strip", () => {
+      const gallery = new GalleryController(() => {});
+      gallery.configure("show", ["mymoon"], 60000);
+      gallery.openPanel("mymoon");
+      gallery.setHidden(new Set(["mymoon"]));
+      expect(gallery.panelMode).toBe("mymoon");
+      expect(gallery.displaySources).toEqual([]);
+
+      gallery.toggle();
+
+      expect(gallery.isOpen).toBe(false);
+      expect(gallery.panelMode).toBe("none");
+    });
   });
 });
 

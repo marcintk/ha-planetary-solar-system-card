@@ -154,26 +154,35 @@ export class GalleryController {
     return this._resolver.debugStats();
   }
 
-  // Sources rendered as thumbnails right now — the configured list verbatim, except in
-  // "slide" where only the source the rotation currently sits on is shown.
-  get displaySources(): ImageSource[] {
-    const effectiveHidden = this._overrideHidden ? new Set<ImageSource>() : this._hidden;
+  // Filters _sources by a given hidden set — "slide" only shows the source the rotation
+  // currently sits on, so it cycles until it finds one that isn't hidden. Shared by
+  // displaySources (against the effective hidden set) and _isEmptyWithHiding (against _hidden
+  // alone) so the two can't drift apart.
+  private _sourcesWithHiddenApplied(hidden: Set<ImageSource>): ImageSource[] {
     if (this._mode === "slide") {
       const count = this._sources.length;
       for (let i = 0; i < count; i++) {
         const source = this._sources[(this._slideIndex + i) % count];
-        if (!effectiveHidden.has(source)) return [source];
+        if (!hidden.has(source)) return [source];
       }
       return [];
     }
-    return this._sources.filter((source) => !effectiveHidden.has(source));
+    return this._sources.filter((source) => !hidden.has(source));
+  }
+
+  // Sources rendered as thumbnails right now — the configured list verbatim, except in
+  // "slide" where only the source the rotation currently sits on is shown.
+  get displaySources(): ImageSource[] {
+    return this._sourcesWithHiddenApplied(
+      this._overrideHidden ? new Set<ImageSource>() : this._hidden
+    );
   }
 
   // Whether displaySources would currently render empty due to _hidden alone (ignoring any
   // active override) — used by toggle() to decide whether a second press should reveal
   // everything instead of closing the strip.
   private _isEmptyWithHiding(): boolean {
-    return this._sources.length > 0 && this._sources.every((source) => this._hidden.has(source));
+    return this._sources.length > 0 && this._sourcesWithHiddenApplied(this._hidden).length === 0;
   }
 
   // Called synchronously by card.ts right before it reads displaySources/viewModel() within
@@ -186,17 +195,24 @@ export class GalleryController {
   // full-screen view it would otherwise sit on top of) — "below" is a normal flow sibling of
   // that view instead, so it has no need to hide just because a panel opened.
   viewModel(position: GalleryPosition = "overlay"): GalleryViewModel {
+    const thumbnails = this.displaySources.map((source) => {
+      const image = this._images[source];
+      return { source, url: image?.url ?? null, date: image?.date ?? null };
+    });
     return {
       error: this._panel.error,
       panelSource: this._panel.mode,
       imageUrl: this._panel.url,
       imageDate: this._panel.date,
       imageLoaded: this._panel.loaded,
-      showStrip: this._open && (position === "below" || this._panel.mode === "none"),
-      thumbnails: this.displaySources.map((source) => {
-        const image = this._images[source];
-        return { source, url: image?.url ?? null, date: image?.date ?? null };
-      }),
+      // thumbnails.length guards against an empty strip flashing into view when the only
+      // configured source is hidden (e.g. mymoon below the horizon) — nothing to show, so the
+      // container itself shouldn't render either.
+      showStrip:
+        this._open &&
+        thumbnails.length > 0 &&
+        (position === "below" || this._panel.mode === "none"),
+      thumbnails,
       debugStats: this.debugStats,
       debugStartedAt: this._debugStartedAt,
     };
@@ -249,7 +265,11 @@ export class GalleryController {
       void this.refresh();
       return;
     }
-    if (!this._overrideHidden && this._isEmptyWithHiding()) {
+    // The reveal-instead-of-close detour only makes sense for the strip itself — if a panel
+    // is open (e.g. the Moon set while the MY MOON panel stayed open, showing its placeholder),
+    // a press must still close everything in one go rather than silently flip an override that
+    // has no visible effect while the strip is covered by the panel.
+    if (!this._overrideHidden && this._panel.mode === "none" && this._isEmptyWithHiding()) {
       this._overrideHidden = true;
       this._onChange();
       return;

@@ -340,16 +340,21 @@ export class GalleryController {
     this._onChange();
   }
 
-  // Fetches every configured source — called on open (start/configure), on click for a
-  // source that isn't known yet (openPanel), and on each auto-update tick while the strip or
-  // a panel stays open. Each source is cache-guarded (earth hourly, sun every 15min —
-  // matching each source's own publish cadence), so this only hits the network once the
-  // relevant cache has expired. This is the single place _images is written, so it's also
-  // the single place that keeps an open full-screen panel in sync with the same source. The
-  // fetch/dedupe/retry mechanics live in ImageResolver — this only applies its settled
-  // results to view state (which image is shown, which error banner, when to re-render).
+  // Fetches every configured, currently-visible source — called on open (start/configure), on
+  // click for a source that isn't known yet (openPanel), and on each auto-update tick while the
+  // strip or a panel stays open. A source in _hidden (mymoon below the horizon) is skipped: its
+  // tile always renders the noMoonSky() placeholder regardless of _images/override state while
+  // that's true, so fetching its photo would be bytes spent on something never shown. Each
+  // fetched source is cache-guarded (earth hourly, sun every 15min — matching each source's own
+  // publish cadence), so this only hits the network once the relevant cache has expired. This is
+  // the single place _images is written, so it's also the single place that keeps an open
+  // full-screen panel in sync with the same source. The fetch/dedupe/retry mechanics live in
+  // ImageResolver — this only applies its settled results to view state (which image is shown,
+  // which error banner, when to re-render).
   private async refresh(): Promise<void> {
-    const results = await this._resolver.resolveAll(this._sources);
+    const results = await this._resolver.resolveAll(
+      this._sources.filter((source) => !this._hidden.has(source))
+    );
     for (const { source, result } of results) {
       if (result.status === "fulfilled") {
         this._images[source] = result.value;

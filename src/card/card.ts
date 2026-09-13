@@ -174,7 +174,7 @@ export class SolarViewCard extends LitElement {
     const sky = () => (skyFrame ??= this._location.skyFrame(now));
 
     const hidden = new Set<ImageSource>();
-    if (this._mymoonHideOnNoMoonSky && SOURCES.mymoon.skyFrame && sky().belowHorizon) {
+    if (this._mymoonHideOnNoMoonSky && sky().belowHorizon) {
       hidden.add("mymoon");
     }
     this._gallery.setHidden(hidden);

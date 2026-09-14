@@ -244,6 +244,21 @@ describe("GalleryController.toggle", () => {
     expect(gallery.isOpen).toBe(false);
   });
 
+  // Regression: with zero configured sources (e.g. parseCardConfig({ gallery: { mymoon: false }
+  // }) alone yields gallerySources: []), _isEmptyWithHiding()'s `_sources.length > 0` guard must
+  // keep this out of the reveal branch — there is nothing to reveal — so a press still closes
+  // directly instead of getting stuck flipping an override that can never produce a thumbnail.
+  it("with zero configured sources, a press closes directly instead of reveal-detouring", () => {
+    const gallery = new GalleryController(() => {});
+    gallery.configure("show", [], 60000);
+    expect(gallery.isOpen).toBe(true); // configure() opens by default
+    expect(gallery.displaySources).toEqual([]);
+
+    gallery.toggle();
+
+    expect(gallery.isOpen).toBe(false);
+  });
+
   describe("when everything enabled is hidden", () => {
     it("opens (via configure) still showing nothing (existing filtering)", () => {
       const gallery = new GalleryController(() => {});

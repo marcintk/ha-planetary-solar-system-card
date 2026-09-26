@@ -6,6 +6,7 @@ import { DEBUG_ROW_SPECS, DEBUG_ROWS } from "./gallery/sources.js";
 import { formatDate, formatDuration } from "./relative-time.js";
 
 export const DEBUG_ROW_LABELS: Record<DebugRowId, string> = {
+  mymoon: "SVS/MM",
   moon: "SVS/M",
   sun: "SDO/S",
   "earth-url": "DSCOVR/E url",

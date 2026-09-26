@@ -48,7 +48,8 @@ describe("SOURCES catalog", () => {
     expect(SOURCES.moon.disc).toBe(0.95);
     expect(SOURCES.earth.disc).toBe(0.82);
     expect(SOURCES.sun.disc).toBe(0.945);
-    expect(SOURCES.moon.target).toBe(0.87);
+    expect(SOURCES.mymoon.target).toBe(0.79);
+    expect(SOURCES.moon.target).toBe(0.79);
     expect(SOURCES.earth.target).toBe(0.87);
     expect(SOURCES.sun.target).toBe(0.8);
   });
@@ -61,8 +62,8 @@ describe("SOURCES catalog", () => {
     expect(IMAGE_SOURCES.filter((s) => SOURCES[s].skyFrame)).toEqual(["mymoon"]);
   });
 
-  it("collapses both moon tiles into one debug row, and splits earth's two network calls", () => {
-    expect(SOURCES.mymoon.debugRow).toEqual({ url: "moon", img: "moon" });
+  it("gives mymoon its own debug row, separate from moon, and splits earth's two network calls", () => {
+    expect(SOURCES.mymoon.debugRow).toEqual({ url: "mymoon", img: "mymoon" });
     expect(SOURCES.moon.debugRow).toEqual({ url: "moon", img: "moon" });
     expect(SOURCES.sun.debugRow).toEqual({ url: "sun", img: "sun" });
     expect(SOURCES.earth.debugRow).toEqual({ url: "earth-url", img: "earth-img" });

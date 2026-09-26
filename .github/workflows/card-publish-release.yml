@@ -77,11 +77,29 @@ jobs:
         # release, not ship a mystery asset. HACS resolves it via hacs.json "filename".
         run: echo "name=$(node -p "require('./package.json').name")" >> "$GITHUB_OUTPUT"
 
-      - name: Attest build provenance
+      - name: Generate build provenance attestation
         id: attest
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: dist/${{ steps.name.outputs.name }}.js
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      - name: Sign release artifact (keyless)
+        run: |
+          cosign sign-blob --yes \
+            --bundle dist/${{ steps.name.outputs.name }}.js.sigstore.json \
+            dist/${{ steps.name.outputs.name }}.js
+
+      - name: Extract provenance DSSE envelope for OSSF Scorecard detection
+        # Scorecard's Signed-Releases check greps release asset filenames for known signature
+        # (.sigstore.json, etc.) and provenance (.intoto.jsonl) suffixes — it doesn't query
+        # GitHub's Artifact Attestations API, so the attestation above is invisible to it under
+        # its real filename. The attest-build-provenance bundle wraps a DSSE-enveloped in-toto
+        # statement plus verification material; pull out just the envelope (the actual in-toto
+        # attestation) as JSON Lines, rather than renaming the whole bundle.
+        run: jq -ec .dsseEnvelope "${{ steps.attest.outputs.bundle-path }}" > dist/${{ steps.name.outputs.name }}.js.intoto.jsonl
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3
@@ -89,7 +107,8 @@ jobs:
           tag_name: ${{ github.ref_name }}
           files: |
             dist/${{ steps.name.outputs.name }}.js
-            ${{ steps.attest.outputs.bundle-path }}
+            dist/${{ steps.name.outputs.name }}.js.sigstore.json
+            dist/${{ steps.name.outputs.name }}.js.intoto.jsonl
           generate_release_notes: true
           draft: true # always a draft — a human publishes from the Releases UI after review
           prerelease: ${{ steps.prerelease.outputs.is_prerelease }}

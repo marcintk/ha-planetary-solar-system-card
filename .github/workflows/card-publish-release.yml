@@ -71,11 +71,13 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
 
-      - name: Derive bundle name from package.json
+      - name: Derive bundle name from hacs.json
         id: name
         # Named explicitly rather than globbing dist/ — a wrong filename must fail the
-        # release, not ship a mystery asset. HACS resolves it via hacs.json "filename".
-        run: echo "name=$(node -p "require('./package.json').name")" >> "$GITHUB_OUTPUT"
+        # release, not ship a mystery asset. hacs.json "filename" is what HACS actually
+        # resolves and what rollup.config.mjs's output.file is named after — package.json's
+        # "name" is a different string and must not be used here.
+        run: echo "name=$(node -p "require('./hacs.json').filename.replace(/\.js$/, '')")" >> "$GITHUB_OUTPUT"
 
       - name: Generate build provenance attestation
         id: attest

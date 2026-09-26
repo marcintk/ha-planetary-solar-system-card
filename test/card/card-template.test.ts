@@ -171,13 +171,13 @@ describe("discStyle", () => {
 
   // The invariant the two numbers exist to satisfy. clip-path resolves in the element's own
   // coordinates and transform applies to the result, so clip radius x scale must land exactly
-  // on the source's target — any more and the circle escapes the tile. Sun's target is lower
-  // than the rest (see TARGET_FRACTION) — it's the one source whose real apparent size barely
-  // varies, so without its own lower target it would render at full size on nearly every frame
-  // while Moon and Earth, pinned to their rarely-hit maximum, mostly don't.
+  // on the source's target — any more and the circle escapes the tile. Each source has its own
+  // target now (see SourceSpec.target): Earth's stays the highest since its ~74-82% DSCOVR crop
+  // swing rarely nears its own ceiling, while Moon's and the Sun's are both lower and close to
+  // each other, since both bodies spend more of the year near their own maximum.
   const EXPECTED_TARGET: Record<(typeof SOURCES)[number], number> = {
-    moon: 43.5,
-    mymoon: 43.5,
+    moon: 39.5,
+    mymoon: 39.5,
     earth: 43.5,
     sun: 40,
   };

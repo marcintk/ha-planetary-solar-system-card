@@ -460,6 +460,7 @@ describe("GalleryController.debugStats", () => {
   it("starts at zero for every source", () => {
     const gallery = new GalleryController(() => {});
     expect(gallery.debugStats).toEqual({
+      mymoon: zeroStats,
       moon: zeroStats,
       sun: zeroStats,
       "earth-url": zeroStats,
@@ -573,15 +574,16 @@ describe("GalleryController.debugStats", () => {
   });
 
   // Every source is fetched now, including while "slide" shows one at a time — rotating onto
-  // a tile must never be the moment its image starts loading. moon's row sees 2, not 1: mymoon
-  // and moon share the row (see debug.ts), and both still ask once a tick even though only one
-  // of them does the real network work.
+  // a tile must never be the moment its image starts loading. mymoon and moon each have their
+  // own row now, and each still asks once a tick even though they share one underlying image
+  // cache slot (see SvsMoonResolver.cacheKey) — only one of them does the real network work.
   it("counts a refresh for every source, even the ones slide mode is not showing", async () => {
     const gallery = new GalleryController(() => {});
     gallery.configure("slide", IMAGE_SOURCES, 60000);
     gallery.start();
     await vi.waitFor(() => expect(gallery.debugStats["earth-url"].gets).toBe(1));
     expect(gallery.debugStats.sun.gets).toBe(1);
-    expect(gallery.debugStats.moon.gets).toBe(2);
+    expect(gallery.debugStats.mymoon.gets).toBe(1);
+    expect(gallery.debugStats.moon.gets).toBe(1);
   });
 });

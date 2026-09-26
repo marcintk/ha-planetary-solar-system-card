@@ -15,24 +15,22 @@ export const IMAGE_SOURCES: ImageSource[] = ["mymoon", "moon", "earth", "sun"];
 // has no separate URL-discovery network call (its candidate URL is pure math), so it stays a
 // single row — ImageResolver passes the same accumulator as both url and img debug for sun.
 //
-// mymoon and moon collapse into one "moon" row for the same reason sun is one row rather than
-// two: they share a cache key (SvsMoonResolver's cacheKey, see source-resolver-svs-moon.ts) and
-// resolve to the same frame, so separate rows would show one real fetch as two — mymoon's own
-// row always at 0 fetches (permanent cache hit), reading as broken rather than shared. Both
-// still bump `gets` independently into the shared row, since each tile really does ask
-// once a tick; only the network-facing counters (fetches, cacheHits, ...) tell the merged story.
-export type DebugRowId = "moon" | "sun" | "earth-url" | "earth-img";
+// mymoon and moon get their own debug rows even though they share a cache key
+// (SvsMoonResolver's cacheKey, see source-resolver-svs-moon.ts) and resolve to the same frame:
+// each tile still asks once a tick, and readers of the overlay want to see that mymoon's row is
+// a permanent cache hit (0 fetches) rather than have it silently folded into moon's counters.
+export type DebugRowId = "mymoon" | "moon" | "sun" | "earth-url" | "earth-img";
 
 // The canonical row set, in the overlay's own display order — the one place this list is
 // written out; every other consumer (GalleryController's debug bookkeeping, debug-view.ts's
-// overlay) iterates this instead of re-listing the same four keys.
-export const DEBUG_ROWS: DebugRowId[] = ["moon", "sun", "earth-url", "earth-img"];
+// overlay) iterates this instead of re-listing the same five keys.
+export const DEBUG_ROWS: DebugRowId[] = ["mymoon", "moon", "sun", "earth-url", "earth-img"];
 
 /**
  * Which overlay columns a debug row's own resolve() can actually produce a real value for —
  * see debug-view.ts's own use of these. Row-level, not source-level: unlike SourceSpec above,
- * these apply to DebugRowId (a row can be an earth split-half, or a moon pair collapsed into
- * one), so they live beside DEBUG_ROWS rather than inside SOURCES.
+ * these apply to DebugRowId (a row can be an earth split-half, or one of the two moon tiles),
+ * so they live beside DEBUG_ROWS rather than inside SOURCES.
  */
 export interface DebugRowSpec {
   /** False for earth-img: the image-byte fetch has no cache/URL-identity step of its own — see earth-url. */
@@ -42,6 +40,7 @@ export interface DebugRowSpec {
 }
 
 export const DEBUG_ROW_SPECS: Record<DebugRowId, DebugRowSpec> = {
+  mymoon: { hasCacheStep: true, canRetry: false },
   moon: { hasCacheStep: true, canRetry: false },
   sun: { hasCacheStep: true, canRetry: true },
   "earth-url": { hasCacheStep: true, canRetry: false },
@@ -107,13 +106,16 @@ export interface SourceSpec {
    * put every tile on equal footing, and staying under 1.0 everywhere leaves a safety margin
    * against `disc` being a sampled ceiling rather than a proven one (see its own comment).
    *
-   * Moon and Earth share one target (0.87) so their discs read as the same on-screen size;
-   * the Sun gets its own, smaller one (0.80). Moon and Earth are pinned to their largest
-   * measurement (see `disc`), so most days show them well under that — genuinely smaller, not
-   * just cropped differently, since their distance really varies. The Sun's distance barely
-   * does (~3% over a year, against the Moon's ~14%), so it renders at its full target on
-   * nearly every frame, and matching Moon/Earth's on-screen size means giving it a lower one
-   * of its own instead of counting on real-world variance to shrink it for free.
+   * Moon and Earth each get their own target rather than sharing one: Earth's is 0.87, but the
+   * Moon's is a lower 0.79. Both are pinned to their largest measurement (see `disc`), so most
+   * days show them well under that ceiling — genuinely smaller, not just cropped differently,
+   * since their distance really varies. In practice the Moon's ~14% distance swing lands it at
+   * or near its own ceiling far more often than Earth's reaches its wider one, so an equal
+   * target didn't produce an equal apparent size across real frames; the Moon needed a target
+   * of its own to match. The Sun's distance barely varies at all (~3% over a year), so it
+   * renders at its full target on nearly every frame, and matching the others' on-screen size
+   * means giving it a lower target of its own instead of counting on real-world variance to
+   * shrink it for free.
    */
   target: number;
   /**
@@ -149,9 +151,9 @@ export const SOURCES: Record<ImageSource, SourceSpec> = {
     verb: "rendered",
     instrument: "NASA SVS",
     disc: 0.95,
-    target: 0.87,
+    target: 0.79,
     onByDefault: true,
-    debugRow: { url: "moon", img: "moon" },
+    debugRow: { url: "mymoon", img: "mymoon" },
     skyFrame: true,
   },
   moon: {
@@ -162,7 +164,7 @@ export const SOURCES: Record<ImageSource, SourceSpec> = {
     verb: "rendered",
     instrument: "NASA SVS",
     disc: 0.95,
-    target: 0.87,
+    target: 0.79,
     onByDefault: false,
     debugRow: { url: "moon", img: "moon" },
     skyFrame: false,

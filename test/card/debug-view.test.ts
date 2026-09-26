@@ -24,6 +24,7 @@ function renderToDOM(result) {
 
 describe("buildDebugOverlay", () => {
   const stats = {
+    mymoon: zeroDebugStats,
     moon: zeroDebugStats,
     "earth-url": zeroDebugStats,
     "earth-img": zeroDebugStats,
@@ -85,8 +86,9 @@ describe("buildDebugOverlay", () => {
     const rows = root.querySelectorAll("tbody tr, table tr");
     const cells = [...rows].slice(1).map((row) => [...row.children].map((td) => td.textContent));
     expect(cells).toEqual([
-      // The moon row can't retry either: every frame of the year is pre-published, so an
+      // Neither moon row can retry: every frame of the year is pre-published, so an
       // earlier one is never a better guess (see source-resolver-svs-moon.ts).
+      ["SVS/MM", "0", "0", "0", "0", "0", "0", "—", "—", "—"],
       ["SVS/M", "0", "0", "0", "0", "0", "0", "—", "—", "—"],
       // backoffs isn't gated by hasCacheStep — it's the same "did resolve() even get past the
       // top gate" question as gets, so it lands right after cache like sun's non-zero 2.
@@ -96,7 +98,7 @@ describe("buildDebugOverlay", () => {
       // earth-img also has no cache/URL-identity step of its own — those columns show "—" too,
       // but backoffs still shows a real 0 since it applies before the cache step ever runs.
       ["DSCOVR/E img", "0", "—", "0", "—", "0", "0", "—", "—", "—"],
-      // total: gets max()s (4 vs. 0 vs. 0) rather than summing, cacheHits/backoffs/others
+      // total: gets max()s (4 vs. 0 vs. 0 vs. 0) rather than summing, cacheHits/backoffs/others
       // sum the raw underlying values (not the dashed display), elapsed avg()s the non-null
       // values (just sun's 123.4 here), last is always "—" — see summarizeDebugStats.
       ["total", "4", "2", "2", "5", "3", "1", "2", "123ms", "—"],
@@ -105,18 +107,20 @@ describe("buildDebugOverlay", () => {
 
   it("shows seconds in the last column under a minute, not a floored 'just now'", () => {
     const recent = {
+      mymoon: zeroDebugStats,
       moon: zeroDebugStats,
       "earth-url": zeroDebugStats,
       "earth-img": zeroDebugStats,
       sun: { ...zeroDebugStats, lastAttemptAt: Date.now() - 45_000 },
     };
     const root = renderToDOM(buildDebugOverlay(recent, Date.now()));
-    const sunRow = [...root.querySelectorAll("table tr")[2].children].map((td) => td.textContent);
+    const sunRow = [...root.querySelectorAll("table tr")[3].children].map((td) => td.textContent);
     expect(sunRow[sunRow.length - 1]).toBe("45s");
   });
 
   it("sums the total row's gets with max() instead of add(), for lockstep both/slide modes", () => {
     const lockstep = {
+      mymoon: zeroDebugStats,
       moon: zeroDebugStats,
       sun: { ...zeroDebugStats, gets: 5, elapsed: 100 },
       "earth-url": { ...zeroDebugStats, gets: 5, elapsed: 200 },

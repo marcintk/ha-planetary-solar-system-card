@@ -1,27 +1,35 @@
 name: Claude PR Review
 
-# Second-reviewer bot: only ever engages with PRs opened by the repo owner.
-# PRs from anyone else are left untouched — the owner remains the sole human
-# gate on external contributions.
+# Second-reviewer bot: only ever engages with PRs opened by the repo owner. Called as a
+# workflow_call step from pr-pipeline.yml, after that orchestrator's `build` and `codeql` jobs have
+# both succeeded (enforced there via `needs:`), so ordering and single-run-per-push are structural
+# instead of hand-rolled here.
 
 on:
-  pull_request:
-    branches: ["main"]
-    types: [opened, synchronize, reopened]
+  workflow_call:
 
-permissions:
-  contents: read
-  pull-requests: write
-  id-token: write
+permissions: {}
 
 jobs:
   review:
     if: github.event.pull_request.user.login == 'marcintk'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      # claude-code-action requests an OIDC token to exchange for its scoped GitHub App token; it
+      # fails without this.
+      id-token: write
 
     steps:
+      # Deliberately does NOT check out the PR's head SHA: this job holds secrets
+      # (CLAUDE_CODE_OAUTH_TOKEN) and pull-requests:write. Pinning `ref` to the PR's base branch
+      # (rather than omitting it, which under a pull_request-triggered run would resolve to the PR's
+      # merge ref) keeps Read/Grep/Glob on trusted content only — Claude reviews the PR's actual
+      # diff via `gh pr diff` (one of the fixed `--allowedTools` `gh pr *` subcommands) instead.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          ref: ${{ github.event.pull_request.base.ref }}
           fetch-depth: 1
 
       - name: Load review persona
@@ -36,7 +44,7 @@ jobs:
             echo 'PERSONA_EOF'
           } >> "$GITHUB_OUTPUT"
 
-      - uses: anthropics/claude-code-action@9cdae7f0d995e3ba7c33f226087fdf82a59cd520 # v1.0.223
+      - uses: anthropics/claude-code-action@7b0b255830a1fab6e602658672acad11c12d841d # v1.0.226
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: ${{ steps.persona.outputs.text }}

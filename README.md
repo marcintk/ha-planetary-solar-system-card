@@ -15,7 +15,6 @@ discussion][discussions].
 [![hacs_badge][hacs-shield]][hacs] [![GitHub Release][releases-shield]][releases]
 [![License][license-shield]][license] [![Last Commit][last-commit-shield]][commits]
 [![Downloads][downloads-shield]][releases] [![Issues][issues-shield]][issues]
-[![PRs][prs-shield]][prs]
 
 [![Build and Test][ci-shield]][ci] [![Coverage][coverage-shield]][ci]
 [![CodeQL][codeql-shield]][codeql] [![OpenSSF][scorecard-shield]][scorecard]
@@ -209,8 +208,6 @@ a pipeline stall doesn't break the feed.
   https://my.home-assistant.io/redirect/hacs_repository/?owner=marcintk&repository=ha-planetary-solar-system-card&category=plugin
 [my-hacs-shield]: https://my.home-assistant.io/badges/hacs_repository.svg
 [new-issue]: https://github.com/marcintk/ha-planetary-solar-system-card/issues/new
-[prs]: https://github.com/marcintk/ha-planetary-solar-system-card/pulls
-[prs-shield]: https://img.shields.io/github/issues-pr/marcintk/ha-planetary-solar-system-card
 [releases]: https://github.com/marcintk/ha-planetary-solar-system-card/releases
 [releases-shield]: https://img.shields.io/github/release/marcintk/ha-planetary-solar-system-card.svg
 [scorecard]:

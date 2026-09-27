@@ -1,0 +1,4 @@
+#!/bin/sh
+set -e   # abort on the first failing command, so a failed check doesn't get treated as a pass
+
+npm run test:coverage   # vitest: run full test suite with coverage

@@ -7,40 +7,13 @@ if [ "$branch" = "main" ]; then
   exit 1
 fi
 
-git_dir=$(git rev-parse --git-dir)
-patch_file="$git_dir/PRE_COMMIT_UNSTAGED.patch"
-rm -f "$patch_file"
-
-# Auto-fixers run against the working tree, so any unstaged changes need to be out of the way —
-# otherwise `git add -u` afterward would sweep unrelated WIP (or leftover hunks from a partial
-# `git add -p`) into this commit. Save the unstaged diff as a patch and reset tracked files to
-# match the index, so the fixers only ever see what's actually staged. (`git stash --keep-index`
-# looks like the obvious tool here, but its pop does a 3-way merge against HEAD, not the index —
-# it spuriously conflicts on any file that's *also* got staged changes, i.e. exactly a partial
-# `git add -p`. A plain patch save/reapply doesn't have that problem.)
-has_unstaged=0
 if [ -n "$(git diff --name-only)" ]; then
-  git diff --binary > "$patch_file"
-  git checkout -- .
-  has_unstaged=1
+  echo "Unstaged changes present — stage, stash, or discard them before committing." >&2
+  echo "(Auto-fixers run on the whole working tree, so \`git add -u\` afterward could otherwise sweep unrelated WIP into this commit.)" >&2
+  exit 1
 fi
-
-# Reapplying the patch has to happen after `git commit` builds the commit object (a failed apply
-# must never touch the index git is about to snapshot), so only restore immediately when the hook
-# itself is aborting (commit won't happen); on success, defer to post-commit.
-restore_on_abort() {
-  status=$?
-  if [ "$has_unstaged" = 1 ] && [ "$status" -ne 0 ]; then
-    if git apply --whitespace=nowarn "$patch_file" 2>/dev/null; then
-      rm -f "$patch_file"
-    else
-      echo "Could not reapply unstaged changes automatically — they're saved at $patch_file; apply with 'git apply $patch_file'." >&2
-    fi
-  fi
-}
-trap restore_on_abort EXIT
 
 npm run check                    # biome: lint + auto-fix formatting in src/, test/
 npm run --if-present format:md   # prettier: auto-fix markdown (skipped if script absent)
-git add -u                       # safe now — working tree only ever held staged + fixer changes
+git add -u                       # safe now — nothing unstaged exists to sweep in
 npm run typecheck                # tsc --noEmit: fail if types don't compile

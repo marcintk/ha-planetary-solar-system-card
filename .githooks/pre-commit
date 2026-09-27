@@ -7,15 +7,24 @@ if [ "$branch" = "main" ]; then
   exit 1
 fi
 
-# Remember what was staged before the auto-fixers run (excluding deletions, which need no
-# re-staging and would abort a literal `git add` with "pathspec did not match any files" once
-# gone), so re-staging afterward can't sweep in unrelated tree-wide fixer drift the way
-# `git add -u` would.
-staged=$(git diff --cached --name-only --diff-filter=d)
+# Auto-fixers run against the working tree, so any unstaged changes need to be out of the way —
+# otherwise `git add -u` afterward would sweep unrelated WIP (or leftover hunks from a partial
+# `git add -p`) into this commit. `--keep-index` stashes everything but leaves the index's
+# content in the working tree, so the fixers only ever see what's actually staged.
+stashed=0
+if [ -n "$(git diff --name-only)" ]; then
+  git stash push --keep-index --quiet -m "pre-commit: unstaged changes"
+  stashed=1
+fi
+
+restore_stash() {
+  if [ "$stashed" = 1 ]; then
+    git stash pop --quiet || echo "Could not restore stashed changes automatically — resolve with 'git stash pop'." >&2
+  fi
+}
+trap restore_stash EXIT
 
 npm run check                    # biome: lint + auto-fix formatting in src/, test/
 npm run --if-present format:md   # prettier: auto-fix markdown (skipped if script absent)
-
-[ -n "$staged" ] && echo "$staged" | git add --pathspec-from-file=-
-
+git add -u                       # safe now — working tree only ever held staged + fixer changes
 npm run typecheck                # tsc --noEmit: fail if types don't compile

@@ -7,8 +7,6 @@ Sun, with live NASA imagery of the Moon, Earth and the Sun — including the Moo
 own sky. Navigate time, zoom, and pan interactively. Orbit distances use a log scale and planet
 sizes are stylized for readability, not real astronomical scale.
 
-[![Try the interactive demo](https://img.shields.io/badge/▶%20Try%20the%20interactive%20demo-CD5C5C?style=for-the-badge)](https://marcintk.github.io/ha-planetary-solar-system-card/)
-
 [![hacs_badge][hacs-shield]][hacs] [![GitHub Release][releases-shield]][releases]
 [![License][license-shield]][license] [![Downloads][downloads-shield]][releases]
 [![Issues][issues-shield]][issues] [![PRs][prs-shield]][prs]
@@ -17,6 +15,8 @@ sizes are stylized for readability, not real astronomical scale.
 [![Build and Test][ci-shield]][ci] [![Coverage][coverage-shield]][ci]
 [![CodeQL][codeql-shield]][codeql] [![OpenSSF][scorecard-shield]][scorecard]
 [![Socket.dev][socket-shield]][socket]
+
+[![Try the interactive demo](https://img.shields.io/badge/▶%20Try%20the%20interactive%20demo-CD5C5C?style=for-the-badge)](https://marcintk.github.io/ha-planetary-solar-system-card/)
 
 Bug or feature request? [Open an issue][new-issue]. Idea, question, or setup to share? [Start a
 discussion][discussions].

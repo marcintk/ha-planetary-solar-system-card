@@ -1,0 +1,19 @@
+#!/bin/sh
+set -e   # abort on the first failing command, so a failed check doesn't get treated as a pass
+
+branch=$(git rev-parse --abbrev-ref HEAD)
+if [ "$branch" = "main" ]; then
+  echo "Direct commits to main are not allowed. Please use a feature branch." >&2
+  exit 1
+fi
+
+if [ -n "$(git diff --name-only)" ]; then
+  echo "Unstaged changes present — stage, stash, or discard them before committing." >&2
+  echo "(Auto-fixers run on the whole working tree, so \`git add -u\` afterward could otherwise sweep unrelated WIP into this commit.)" >&2
+  exit 1
+fi
+
+npm run check                    # biome: lint + auto-fix formatting in src/, test/
+npm run --if-present format:md   # prettier: auto-fix markdown (skipped if script absent)
+git add -u                       # safe now — nothing unstaged exists to sweep in
+npm run typecheck                # tsc --noEmit: fail if types don't compile

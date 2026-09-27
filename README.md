@@ -1,8 +1,5 @@
 # Planetary Solar System Card
 
-<!-- docs/hero.png is unreferenced on purpose: it is the 1280x640 GitHub social-preview asset,
-     uploaded manually under Settings -> General -> Social preview. -->
-
 [![Planetary Solar System Card][demo-gif]](https://marcintk.github.io/ha-planetary-solar-system-card/)
 
 Home Assistant custom Lovelace card showing all 8 planets, Moon and comet Halley aligned around the
@@ -16,9 +13,10 @@ Bug or feature request? [Open an issue][new-issue]. Idea, question, or setup to 
 discussion][discussions].
 
 [![hacs_badge][hacs-shield]][hacs] [![GitHub Release][releases-shield]][releases]
-[![License][license-shield]][license] ![Maintenance][maintenance-shield]
+[![License][license-shield]][license] [![Last commit][last-commit-shield]][commits]
 [![Coverage][coverage-shield]][ci] [![Downloads][downloads-shield]][releases]
 
+[![Open issues][issues-shield]][issues] [![Open PRs][prs-shield]][prs]
 [![Build and Test][ci-shield]][ci] [![CodeQL][codeql-shield]][codeql]
 [![OpenSSF][scorecard-shield]][scorecard] [![Socket.dev][socket-shield]][socket]
 
@@ -181,38 +179,44 @@ a pipeline stall doesn't break the feed.
 
 <!-- Reference links -->
 
-[my-hacs]:
-  https://my.home-assistant.io/redirect/hacs_repository/?owner=marcintk&repository=ha-planetary-solar-system-card&category=plugin
-[my-hacs-shield]: https://my.home-assistant.io/badges/hacs_repository.svg
-[epic]: https://epic.gsfc.nasa.gov/
-[sdo]: https://sdo.gsfc.nasa.gov/
-[svs]: https://svs.gsfc.nasa.gov/5587/
-[license]: https://github.com/marcintk/ha-planetary-solar-system-card/blob/main/LICENSE
-[iana]: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
-[demo-gif]:
-  https://raw.githubusercontent.com/marcintk/ha-planetary-solar-system-card/main/docs/demo.gif
-[releases]: https://github.com/marcintk/ha-planetary-solar-system-card/releases
-[latest-release]: https://github.com/marcintk/ha-planetary-solar-system-card/releases/latest
-[new-issue]: https://github.com/marcintk/ha-planetary-solar-system-card/issues/new
-[discussions]: https://github.com/marcintk/ha-planetary-solar-system-card/discussions
 [ci]:
   https://github.com/marcintk/ha-planetary-solar-system-card/actions/workflows/card-build-and-test.yml
-[hacs]: https://hacs.xyz
-[hacs-shield]: https://img.shields.io/badge/HACS-Default-41BDF5.svg
-[releases-shield]: https://img.shields.io/github/release/marcintk/ha-planetary-solar-system-card.svg
-[license-shield]: https://img.shields.io/github/license/marcintk/ha-planetary-solar-system-card.svg
-[maintenance-shield]: https://img.shields.io/maintenance/yes/2026
 [ci-shield]:
   https://img.shields.io/github/actions/workflow/status/marcintk/ha-planetary-solar-system-card/card-build-and-test.yml?branch=main&label=Build%20and%20Test
-[coverage-shield]: https://img.shields.io/badge/coverage-100%25-brightgreen
-[downloads-shield]:
-  https://img.shields.io/github/downloads/marcintk/ha-planetary-solar-system-card/total?label=downloads
 [codeql]: https://github.com/marcintk/ha-planetary-solar-system-card/security/code-scanning
 [codeql-shield]:
   https://img.shields.io/github/actions/workflow/status/marcintk/ha-planetary-solar-system-card/codeql-analysis.yml?branch=main&label=CodeQL
+[commits]: https://github.com/marcintk/ha-planetary-solar-system-card/commits/main
+[coverage-shield]: https://img.shields.io/badge/coverage-100%25-brightgreen
+[demo-gif]:
+  https://raw.githubusercontent.com/marcintk/ha-planetary-solar-system-card/main/docs/demo.gif
+[discussions]: https://github.com/marcintk/ha-planetary-solar-system-card/discussions
+[downloads-shield]:
+  https://img.shields.io/github/downloads/marcintk/ha-planetary-solar-system-card/total?label=downloads
+[epic]: https://epic.gsfc.nasa.gov/
+[hacs]: https://hacs.xyz
+[hacs-shield]: https://img.shields.io/badge/HACS-Default-41BDF5.svg
+[iana]: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+[issues]: https://github.com/marcintk/ha-planetary-solar-system-card/issues
+[issues-shield]: https://img.shields.io/github/issues/marcintk/ha-planetary-solar-system-card
+[last-commit-shield]:
+  https://img.shields.io/github/last-commit/marcintk/ha-planetary-solar-system-card
+[latest-release]: https://github.com/marcintk/ha-planetary-solar-system-card/releases/latest
+[license]: https://github.com/marcintk/ha-planetary-solar-system-card/blob/main/LICENSE
+[license-shield]: https://img.shields.io/github/license/marcintk/ha-planetary-solar-system-card.svg
+[my-hacs]:
+  https://my.home-assistant.io/redirect/hacs_repository/?owner=marcintk&repository=ha-planetary-solar-system-card&category=plugin
+[my-hacs-shield]: https://my.home-assistant.io/badges/hacs_repository.svg
+[new-issue]: https://github.com/marcintk/ha-planetary-solar-system-card/issues/new
+[prs]: https://github.com/marcintk/ha-planetary-solar-system-card/pulls
+[prs-shield]: https://img.shields.io/github/issues-pr/marcintk/ha-planetary-solar-system-card
+[releases]: https://github.com/marcintk/ha-planetary-solar-system-card/releases
+[releases-shield]: https://img.shields.io/github/release/marcintk/ha-planetary-solar-system-card.svg
 [scorecard]:
   https://securityscorecards.dev/viewer/?uri=github.com/marcintk/ha-planetary-solar-system-card
 [scorecard-shield]:
   https://img.shields.io/ossf-scorecard/github.com/marcintk/ha-planetary-solar-system-card?label=OpenSSF&style=flat
+[sdo]: https://sdo.gsfc.nasa.gov/
 [socket]: https://github.com/marcintk/ha-planetary-solar-system-card/blob/main/socket.yml
 [socket-shield]: https://img.shields.io/badge/Socket.dev-Firewall%20%2B%20Scanning-fb3387.svg
+[svs]: https://svs.gsfc.nasa.gov/5587/

@@ -9,7 +9,7 @@ REPO: {{REPO}} PR NUMBER: {{PR_NUMBER}}
 
 ## How to review
 
-1. Invoke the `code-review` skill at `high` effort against this PR's diff. Let it do the actual
+1. Invoke the `code-review` skill at `low` effort against this PR's diff. Let it do the actual
    correctness/simplification/reuse/efficiency analysis — don't freelance a review by eyeballing the
    diff yourself.
 2. This repo's `CLAUDE.md` is already in your project instructions (coverage thresholds, the rule

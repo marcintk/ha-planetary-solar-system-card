@@ -7,13 +7,15 @@ if [ "$branch" = "main" ]; then
   exit 1
 fi
 
-if [ -n "$(git diff --name-only)" ]; then
-  echo "Unstaged changes present — stage, stash, or discard them before committing." >&2
-  echo "(Auto-fixers run on the whole working tree, so \`git add -u\` afterward could otherwise sweep unrelated WIP into this commit.)" >&2
-  exit 1
-fi
+# Remember what was staged before the auto-fixers run (excluding deletions, which need no
+# re-staging and would abort a literal `git add` with "pathspec did not match any files" once
+# gone), so re-staging afterward can't sweep in unrelated tree-wide fixer drift the way
+# `git add -u` would.
+staged=$(git diff --cached --name-only --diff-filter=d)
 
 npm run check                    # biome: lint + auto-fix formatting in src/, test/
 npm run --if-present format:md   # prettier: auto-fix markdown (skipped if script absent)
-git add -u                       # safe now — nothing unstaged exists to sweep in
+
+[ -n "$staged" ] && echo "$staged" | git add --pathspec-from-file=-
+
 npm run typecheck                # tsc --noEmit: fail if types don't compile

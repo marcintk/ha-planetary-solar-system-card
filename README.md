@@ -13,12 +13,13 @@ Bug or feature request? [Open an issue][new-issue]. Idea, question, or setup to 
 discussion][discussions].
 
 [![hacs_badge][hacs-shield]][hacs] [![GitHub Release][releases-shield]][releases]
-[![License][license-shield]][license] [![Last commit][last-commit-shield]][commits]
-[![Coverage][coverage-shield]][ci] [![Downloads][downloads-shield]][releases]
+[![License][license-shield]][license] [![Last Commit][last-commit-shield]][commits]
+[![Downloads][downloads-shield]][releases] [![Issues][issues-shield]][issues]
+[![PRs][prs-shield]][prs]
 
-[![Open issues][issues-shield]][issues] [![Open PRs][prs-shield]][prs]
-[![Build and Test][ci-shield]][ci] [![CodeQL][codeql-shield]][codeql]
-[![OpenSSF][scorecard-shield]][scorecard] [![Socket.dev][socket-shield]][socket]
+[![Build and Test][ci-shield]][ci] [![Coverage][coverage-shield]][ci]
+[![CodeQL][codeql-shield]][codeql] [![OpenSSF][scorecard-shield]][scorecard]
+[![Socket.dev][socket-shield]][socket]
 
 ## Installation
 

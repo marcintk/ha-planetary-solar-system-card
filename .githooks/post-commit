@@ -1,0 +1,16 @@
+#!/bin/sh
+set -e
+
+git_dir=$(git rev-parse --git-dir)
+patch_file="$git_dir/PRE_COMMIT_UNSTAGED.patch"
+
+# Reapplies the unstaged changes pre-commit set aside (as a patch) to isolate the auto-fixers from
+# them. This runs after the commit object is already built, so a failed apply here just leaves the
+# patch on disk for manual recovery — it can't corrupt the commit.
+if [ -f "$patch_file" ]; then
+  if git apply --whitespace=nowarn "$patch_file"; then
+    rm -f "$patch_file"
+  else
+    echo "Could not reapply unstaged changes automatically — they're saved at $patch_file; apply with 'git apply $patch_file'." >&2
+  fi
+fi

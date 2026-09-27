@@ -13,9 +13,9 @@ Bug or feature request? [Open an issue][new-issue]. Idea, question, or setup to 
 discussion][discussions].
 
 [![hacs_badge][hacs-shield]][hacs] [![GitHub Release][releases-shield]][releases]
-[![License][license-shield]][license] [![Last Commit][last-commit-shield]][commits]
-[![Downloads][downloads-shield]][releases] [![Issues][issues-shield]][issues]
-[![PRs][prs-shield]][prs]
+[![License][license-shield]][license] [![Downloads][downloads-shield]][releases]
+[![Issues][issues-shield]][issues] [![PRs][prs-shield]][prs]
+[![Last Commit][last-commit-shield]][commits]
 
 [![Build and Test][ci-shield]][ci] [![Coverage][coverage-shield]][ci]
 [![CodeQL][codeql-shield]][codeql] [![OpenSSF][scorecard-shield]][scorecard]

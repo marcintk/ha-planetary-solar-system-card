@@ -16,10 +16,10 @@ sizes are stylized for readability, not real astronomical scale.
 [![CodeQL][codeql-shield]][codeql] [![OpenSSF][scorecard-shield]][scorecard]
 [![Socket.dev][socket-shield]][socket]
 
-[![Try the interactive demo](https://img.shields.io/badge/▶%20Try%20the%20interactive%20demo-CD5C5C?style=for-the-badge)](https://marcintk.github.io/ha-planetary-solar-system-card/)
-
 Bug or feature request? [Open an issue][new-issue]. Idea, question, or setup to share? [Start a
 discussion][discussions].
+
+[![Try the interactive demo](https://img.shields.io/badge/▶%20Try%20the%20interactive%20demo-CD5C5C?style=for-the-badge)](https://marcintk.github.io/ha-planetary-solar-system-card/)
 
 ## Installation
 

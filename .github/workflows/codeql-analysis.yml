@@ -3,14 +3,15 @@ name: CodeQL Analysis
 on:
   push:
     branches: ["main"]
-  workflow_call:
+  pull_request:
+    branches: ["main"]
 
 permissions:
   contents: read
 
 jobs:
   analyze:
-    name: Analyze (javascript-typescript)
+    name: analyze
     runs-on: ubuntu-latest
     permissions:
       security-events: write

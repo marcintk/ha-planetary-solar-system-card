@@ -193,7 +193,7 @@ a pipeline stall doesn't break the feed.
   https://raw.githubusercontent.com/marcintk/ha-planetary-solar-system-card/main/docs/demo.gif
 [discussions]: https://github.com/marcintk/ha-planetary-solar-system-card/discussions
 [downloads-shield]:
-  https://img.shields.io/github/downloads/marcintk/ha-planetary-solar-system-card/total?label=downloads
+  https://img.shields.io/github/downloads/marcintk/ha-planetary-solar-system-card/latest/card.js?label=downloads
 [epic]: https://epic.gsfc.nasa.gov/
 [hacs]: https://hacs.xyz
 [hacs-shield]: https://img.shields.io/badge/HACS-Default-41BDF5.svg

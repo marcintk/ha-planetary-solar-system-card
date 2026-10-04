@@ -129,7 +129,7 @@ export interface CardConfig {
   shading?: boolean;
   display?: "2d" | "3d";
   show_version?: boolean;
-  /** Show tonight's visible planets in the status bar. */
+  /** Show tonight's visible planets in the status bar (default true). */
   show_night_sky_planets?: boolean;
   debug?: boolean;
   gallery?: {

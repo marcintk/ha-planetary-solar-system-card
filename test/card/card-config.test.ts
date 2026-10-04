@@ -23,7 +23,7 @@ describe("parseCardConfig", () => {
       galleryIntervalMs: 60000,
       mymoonTint: false,
       shade: { sphere: true, dayNight: true },
-      showNightSkyPlanets: false,
+      showNightSkyPlanets: true,
     });
   });
 
@@ -113,9 +113,10 @@ describe("parseCardConfig", () => {
   });
 
   describe("showNightSkyPlanets", () => {
-    it("is false when absent and true only when show_night_sky_planets is true", () => {
-      expect(parseCardConfig({}).showNightSkyPlanets).toBe(false);
+    it("is true when absent and false only when show_night_sky_planets is false", () => {
+      expect(parseCardConfig({}).showNightSkyPlanets).toBe(true);
       expect(parseCardConfig({ show_night_sky_planets: true }).showNightSkyPlanets).toBe(true);
+      expect(parseCardConfig({ show_night_sky_planets: false }).showNightSkyPlanets).toBe(false);
     });
   });
 

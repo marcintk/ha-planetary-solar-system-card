@@ -13,26 +13,23 @@ import type { ImageSource } from "./gallery/sources.js";
 import { SOURCES } from "./gallery/sources.js";
 import { formatDate, formatRelativeWhen } from "./relative-time.js";
 
-const PLANET_LABELS: Record<string, string> = {
-  Mercury: "Me",
-  Venus: "V",
-  Mars: "Ma",
-  Jupiter: "J",
-  Saturn: "S",
-  Uranus: "U",
-  Neptune: "N",
-};
-
 // Dark text on a light badge, light text on a dark one (perceived luminance of "#rrggbb").
 function badgeTextColor(hex: string): string {
   const [r, g, b] = [1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16));
   return 0.299 * r + 0.587 * g + 0.114 * b > 150 ? "#111" : "#fff";
 }
 
-// <i>, not <span>: the status bar's two-span structure must stay intact.
+// <i>, not <span>: the status bar's span rules (ellipsis, first-child sizing) must not apply.
 function planetBadge(name: string): TemplateResult {
   const color = PLANETS.find((p) => p.name === name)?.color ?? "#888888";
-  return html`<i class="planet-badge" title="${name}" aria-label="${name}" style="background:${color};color:${badgeTextColor(color)}">${PLANET_LABELS[name] ?? name.charAt(0)}</i>`;
+  return html`<i class="planet-badge" title="${name}" aria-label="${name}" style="background:${color};color:${badgeTextColor(color)}">${name.charAt(0)}</i>`;
+}
+
+// A flex item of its own, outside the status bar's ellipsized spans, so a long location name can't
+// clip the badges.
+function planetsBlock(visiblePlanets: readonly string[]): TemplateResult | typeof nothing {
+  if (visiblePlanets.length === 0) return nothing;
+  return html`<i class="planets"><i aria-hidden="true">|</i><svg class="telescope" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l14-6 2 5-14 6zM9 16l-3 5M12 15l3 6" /></svg>${visiblePlanets.map(planetBadge)}</i>`;
 }
 
 export function buildStatusBar(
@@ -69,18 +66,9 @@ export function buildStatusBar(
     next && formatter
       ? html`<span>Next: ${next.toMode} (${formatter.format(next.time)})</span>`
       : nothing;
-  if (visiblePlanets.length === 0) {
-    return html`<div class="status-bar">
-    <span>${name} | ${mode} (${elevRounded}°) | Moon (${moonElevRounded}°)</span>
-    ${nextSpan}
-  </div>`;
-  }
-  // Separate template: an optional `${nothing}` child would add a lit marker
-  // comment to the no-planets output and change its rendered DOM.
   return html`<div class="status-bar">
-    <span>${name} | ${mode} (${elevRounded}°) | Moon (${moonElevRounded}°) |
-      <svg class="telescope" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l14-6 2 5-14 6zM9 16l-3 5M12 15l3 6" /></svg>
-      ${visiblePlanets.map(planetBadge)}</span>
+    <span>${name} | ${mode} (${elevRounded}°) | Moon (${moonElevRounded}°)</span>
+    ${planetsBlock(visiblePlanets)}
     ${nextSpan}
   </div>`;
 }

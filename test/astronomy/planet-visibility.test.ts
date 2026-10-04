@@ -30,12 +30,39 @@ describe("getTonightsPlanets", () => {
   });
 });
 
+describe("getTonightsPlanets whole night", () => {
+  const lat = 50.0647;
+  const lon = 19.945;
+
+  it("gives the same planets and a window back to dusk whether asked at dusk or late at night", () => {
+    const early = getTonightsPlanets(lat, lon, new Date("2026-10-03T20:00:00Z"));
+    const late = getTonightsPlanets(lat, lon, new Date("2026-10-04T01:00:00Z"));
+    expect(late.planets).toEqual(early.planets);
+    expect(late.validFrom.getTime()).toBeLessThan(new Date("2026-10-03T20:00:00Z").getTime());
+    expect(late.validFrom.getTime()).toBe(early.validFrom.getTime());
+    expect(late.validUntil.getTime()).toBe(early.validUntil.getTime());
+  });
+
+  it("starts the window at the requested date when it is not dark yet", () => {
+    const date = new Date("2026-10-03T10:00:00Z");
+    expect(getTonightsPlanets(lat, lon, date).validFrom.getTime()).toBe(date.getTime());
+  });
+});
+
 describe("getTonightsPlanets edge cases", () => {
   it("returns no planets and a 36 h validity during polar day", () => {
     const date = new Date("2026-06-21T12:00:00Z");
     const { planets, validUntil } = getTonightsPlanets(78, 15, date);
     expect(planets).toEqual([]);
     expect(validUntil.getTime()).toBe(date.getTime() + 36 * 3600 * 1000);
+  });
+
+  it("scans a bounded span during polar night", () => {
+    const date = new Date("2026-12-21T12:00:00Z");
+    const { planets, validFrom, validUntil } = getTonightsPlanets(89, 15, date);
+    expect(planets.length).toBeGreaterThan(0);
+    expect(validFrom.getTime()).toBe(date.getTime() - 36 * 3600 * 1000);
+    expect(validUntil.getTime()).toBeGreaterThanOrEqual(date.getTime() + 36 * 3600 * 1000);
   });
 
   it("looks ahead to the coming night when called during the day", () => {

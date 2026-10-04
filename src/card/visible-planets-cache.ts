@@ -1,11 +1,12 @@
 interface VisiblePlanetsResult {
   planets: readonly string[];
+  validFrom: Date;
   validUntil: Date;
 }
 
 interface CacheEntry {
   planets: readonly string[];
-  computedFor: number;
+  validFrom: number;
   validUntil: number;
   lat: number;
   lon: number;
@@ -15,8 +16,8 @@ const round1 = (x: number): number => Math.round(x * 10) / 10;
 
 /**
  * Memoises the last "visible tonight" result. Planets move slowly, so the list can only change when
- * the night window rolls over (past `validUntil`), the location moves (0.1 degree granularity), or
- * the user navigates to a date earlier than the one the entry was computed for.
+ * the night window rolls over (outside `validFrom`..`validUntil`) or the location moves (0.1 degree
+ * granularity).
  */
 export function createVisiblePlanetsCache(
   compute: (lat: number, lon: number, date: Date) => VisiblePlanetsResult
@@ -30,7 +31,7 @@ export function createVisiblePlanetsCache(
       entry &&
       entry.lat === rLat &&
       entry.lon === rLon &&
-      entry.computedFor <= t &&
+      entry.validFrom <= t &&
       t <= entry.validUntil
     ) {
       return entry.planets;
@@ -38,7 +39,7 @@ export function createVisiblePlanetsCache(
     const result = compute(lat, lon, date);
     entry = {
       planets: result.planets,
-      computedFor: t,
+      validFrom: result.validFrom.getTime(),
       validUntil: result.validUntil.getTime(),
       lat: rLat,
       lon: rLon,

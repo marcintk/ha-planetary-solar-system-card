@@ -2,9 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 import { createVisiblePlanetsCache } from "../../src/card/visible-planets-cache.js";
 
 describe("createVisiblePlanetsCache", () => {
-  it("memoises until validUntil, and recomputes on rollover, earlier date, or location change", () => {
+  it("memoises until validUntil, and recomputes on rollover, date before the window, or location change", () => {
     const compute = vi.fn(() => ({
       planets: ["Jupiter"],
+      validFrom: new Date("2026-10-03T17:00:00Z"),
       validUntil: new Date("2026-10-04T04:00:00Z"),
     }));
     const get = createVisiblePlanetsCache(compute);
@@ -23,8 +24,8 @@ describe("createVisiblePlanetsCache", () => {
     get(lat, lon, new Date("2026-10-04T04:01:00Z"));
     expect(compute).toHaveBeenCalledTimes(2);
 
-    // Earlier than the date the cache entry was computed for -> recompute.
-    get(lat, lon, new Date("2026-10-03T22:00:00Z"));
+    // Earlier than the start of the cached night window -> recompute.
+    get(lat, lon, new Date("2026-10-03T16:00:00Z"));
     expect(compute).toHaveBeenCalledTimes(3);
 
     // Same 0.1 degree rounding -> reuse.

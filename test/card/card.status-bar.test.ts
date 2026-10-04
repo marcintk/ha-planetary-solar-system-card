@@ -157,17 +157,17 @@ describe("SolarViewCard status bar", () => {
       return card;
     }
 
-    it("shows a telescope and a Jupiter badge only when show_night_sky_planets is on", () => {
-      const on = createKrakowCard({ show_night_sky_planets: true });
-      const firstSpan = on.shadowRoot.querySelector(".status-bar span:first-child");
-      expect(firstSpan.querySelector("svg.telescope")).toBeTruthy();
-      const titles = [...firstSpan.querySelectorAll(".planet-badge")].map((b) =>
+    it("shows a telescope and a Jupiter badge by default, and hides them when show_night_sky_planets is false", () => {
+      const on = createKrakowCard();
+      const planets = on.shadowRoot.querySelector(".status-bar .planets");
+      expect(planets.querySelector("svg.telescope")).toBeTruthy();
+      const titles = [...planets.querySelectorAll(".planet-badge")].map((b) =>
         b.getAttribute("title")
       );
       expect(titles).toContain("Jupiter");
       on.remove();
 
-      const off = createKrakowCard();
+      const off = createKrakowCard({ show_night_sky_planets: false });
       expect(off.shadowRoot.querySelector("svg.telescope")).toBeNull();
       expect(off.shadowRoot.querySelector(".planet-badge")).toBeNull();
       off.remove();

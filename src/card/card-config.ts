@@ -156,7 +156,7 @@ export function parseCardConfig(config: CardConfig): ParsedCardConfig {
       ? rawInterval * 1000
       : DEFAULT_GALLERY_INTERVAL_MS;
   const mymoonTint = config.gallery?.mymoon_tint === true;
-  const showNightSkyPlanets = config.show_night_sky_planets === true;
+  const showNightSkyPlanets = config.show_night_sky_planets !== false;
 
   return {
     zoomLevel,

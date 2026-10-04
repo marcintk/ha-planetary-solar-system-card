@@ -91,7 +91,7 @@ export class SolarViewCard extends LitElement {
     this._galleryPosition = "overlay";
     this._galleryShape = "square";
     this._mymoonTint = false;
-    this._showNightSkyPlanets = false;
+    this._showNightSkyPlanets = true;
     this._colors = {};
     this._refreshMs = 60000;
     this._eclipticView = false;

@@ -55,24 +55,33 @@ export const cardStyles = css`
     overflow: hidden;
     text-overflow: ellipsis;
   }
+  .status-bar .planets {
+    display: inline-flex;
+    align-items: center;
+    flex: 0 0 auto;
+    margin: 0 auto 0 3px;
+    font-style: normal;
+    white-space: nowrap;
+  }
   .status-bar svg.telescope {
     display: inline-block;
     width: 1em;
     height: 1em;
     vertical-align: middle;
-    margin: 0 2px;
+    margin: 0 2px 0 3px;
   }
   .status-bar .planet-badge {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     box-sizing: border-box;
-    min-width: 1.5em;
-    height: 1.5em;
-    padding: 0 0.3em;
-    border-radius: 999px;
+    flex: 0 0 auto;
+    width: 1.8em;
+    height: 1.8em;
+    padding: 0;
+    border-radius: 50%;
     font-style: normal;
-    font-size: 0.85em;
+    font-size: 0.8em;
     font-weight: bold;
     line-height: 1;
     margin: 0 1px;

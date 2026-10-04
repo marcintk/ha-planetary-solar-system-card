@@ -105,7 +105,7 @@ describe("buildStatusBar", () => {
     expect(spans[1].textContent).toMatch(/^Next: .+ \(\d{2}:\d{2}\)$/);
   });
 
-  it("shows a telescope icon and one colored letter badge per visible planet in the first span", () => {
+  it("shows a telescope icon and one colored letter badge per visible planet in their own block outside the spans", () => {
     const root = renderToDOM(
       buildStatusBar(
         { lat: 51.5, lon: -0.1, timezone: "Europe/London", zoneOverride: false },
@@ -116,12 +116,15 @@ describe("buildStatusBar", () => {
     );
     const spans = root.querySelectorAll(".status-bar span");
     expect(spans.length).toBe(2);
-    expect(spans[0].querySelector("svg.telescope")).not.toBeNull();
-    const badges = spans[0].querySelectorAll(".planet-badge");
+    const planets = root.querySelector(".status-bar .planets");
+    expect(planets?.querySelector("svg.telescope")).not.toBeNull();
+    expect(spans[0].contains(planets)).toBe(false);
+    expect(planets?.firstElementChild?.textContent).toBe("|");
+    const badges = (planets as Element).querySelectorAll(".planet-badge");
     expect(badges.length).toBe(2);
     const expected = [
       { name: "Jupiter", label: "J" },
-      { name: "Mars", label: "Ma" },
+      { name: "Mars", label: "M" },
     ];
     expected.forEach(({ name, label }, i) => {
       const badge = badges[i] as HTMLElement;
@@ -414,6 +417,19 @@ describe("buildStatusBarView", () => {
       )
     );
     expect(root.querySelector(".status-bar span").textContent).toContain(formatDate(imageDate));
+  });
+
+  it("does not show the planets on the image status bar", () => {
+    const root = renderToDOM(
+      buildStatusBarView(
+        galleryViewModel({ panelSource: "earth", imageLoaded: true }),
+        locationData,
+        "London",
+        currentDate,
+        ["Saturn"]
+      )
+    );
+    expect(root.querySelector(".planets")).toBeNull();
   });
 
   it("passes an empty date text to buildImageStatusBar when imageDate is null", () => {

@@ -38,13 +38,25 @@ function planetAltitudeDeg(
   return Math.asin(Math.max(-1, Math.min(1, sinAlt))) / DEG;
 }
 
-/** Instants of the coming astronomical night: from `date` if already dark, else from next dusk. */
+/**
+ * Instants of the astronomical night that contains `date`, or of the next one when it is not dark
+ * yet: the whole night, from dusk to dawn, so a late-night view still counts planets that set
+ * earlier. Empty when there is no night in the scanned span.
+ */
 function nightSamples(lat: number, lon: number, date: Date): Date[] {
-  const samples: Date[] = [];
+  const isNightAt = (ms: number) =>
+    computeSolarElevationDeg(lat, lon, new Date(ms)) < ASTRONOMICAL_NIGHT_DEG;
+  const start = date.getTime();
+  const before: Date[] = [];
+  if (isNightAt(start)) {
+    for (let i = 1; i <= MAX_STEPS && isNightAt(start - i * STEP_MS); i++) {
+      before.unshift(new Date(start - i * STEP_MS));
+    }
+  }
+  const samples = before;
   for (let i = 0; i <= MAX_STEPS; i++) {
-    const t = new Date(date.getTime() + i * STEP_MS);
-    const isNight = computeSolarElevationDeg(lat, lon, t) < ASTRONOMICAL_NIGHT_DEG;
-    if (isNight) samples.push(t);
+    const t = new Date(start + i * STEP_MS);
+    if (isNightAt(t.getTime())) samples.push(t);
     else if (samples.length > 0) break;
   }
   return samples;
@@ -66,15 +78,15 @@ function nightEnd(lat: number, lon: number, lastNight: Date): Date {
 
 /**
  * Names of the planets (never Earth) that rise above 10 degrees at some point during the coming
- * astronomical night, plus the instant until which that result stays valid (end of the night, or
- * of the scanned span when there is no night in it). Geometric and approximate: the planet model
- * is 2D, so ecliptic latitude is ignored.
+ * astronomical night, plus the span of instants the result covers: from the start of that night
+ * (or `date` when it is not dark yet) until its end (or the end of the scanned span when there is no
+ * night in it). Geometric and approximate: the planet model is 2D, so ecliptic latitude is ignored.
  */
 export function getTonightsPlanets(
   lat: number,
   lon: number,
   date: Date
-): { planets: string[]; validUntil: Date } {
+): { planets: string[]; validFrom: Date; validUntil: Date } {
   const samples = nightSamples(lat, lon, date);
   const earthAt = samples.map((t) => calculatePlanetOrbit(EARTH, t));
   const planets = PLANETS.filter(
@@ -86,5 +98,6 @@ export function getTonightsPlanets(
     samples.length > 0
       ? nightEnd(lat, lon, samples[samples.length - 1])
       : new Date(date.getTime() + MAX_STEPS * STEP_MS);
-  return { planets, validUntil };
+  const validFrom = samples.length > 0 && samples[0].getTime() < date.getTime() ? samples[0] : date;
+  return { planets, validFrom, validUntil };
 }

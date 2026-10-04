@@ -5,6 +5,8 @@ import type { ImageSource } from "./gallery/sources.js";
 import { IMAGE_SOURCES, SOURCES } from "./gallery/sources.js";
 import { DEFAULT_ZOOM_LEVEL, MAX_ZOOM, MIN_ZOOM } from "./zoom-levels.js";
 
+export const DEFAULT_SHOW_NIGHT_SKY_PLANETS = true;
+
 export interface ParsedCardConfig {
   zoomLevel: ZoomLevel;
   refreshMs: number;
@@ -156,7 +158,10 @@ export function parseCardConfig(config: CardConfig): ParsedCardConfig {
       ? rawInterval * 1000
       : DEFAULT_GALLERY_INTERVAL_MS;
   const mymoonTint = config.gallery?.mymoon_tint === true;
-  const showNightSkyPlanets = config.show_night_sky_planets !== false;
+  const showNightSkyPlanets =
+    typeof config.show_night_sky_planets === "boolean"
+      ? config.show_night_sky_planets
+      : DEFAULT_SHOW_NIGHT_SKY_PLANETS;
 
   return {
     zoomLevel,

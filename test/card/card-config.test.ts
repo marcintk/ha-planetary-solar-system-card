@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseCardConfig } from "../../src/card/card-config.js";
+import { DEFAULT_SHOW_NIGHT_SKY_PLANETS, parseCardConfig } from "../../src/card/card-config.js";
 
 describe("parseCardConfig", () => {
   it("applies all defaults for an empty config", () => {
@@ -117,6 +117,10 @@ describe("parseCardConfig", () => {
       expect(parseCardConfig({}).showNightSkyPlanets).toBe(true);
       expect(parseCardConfig({ show_night_sky_planets: true }).showNightSkyPlanets).toBe(true);
       expect(parseCardConfig({ show_night_sky_planets: false }).showNightSkyPlanets).toBe(false);
+      // A non-boolean value falls back to the default rather than counting as "off".
+      expect(
+        parseCardConfig({ show_night_sky_planets: "no" as unknown as boolean }).showNightSkyPlanets
+      ).toBe(DEFAULT_SHOW_NIGHT_SKY_PLANETS);
     });
   });
 

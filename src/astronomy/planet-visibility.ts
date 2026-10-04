@@ -38,25 +38,28 @@ function planetAltitudeDeg(
   return Math.asin(Math.max(-1, Math.min(1, sinAlt))) / DEG;
 }
 
+function isNight(lat: number, lon: number, ms: number): boolean {
+  return computeSolarElevationDeg(lat, lon, new Date(ms)) < ASTRONOMICAL_NIGHT_DEG;
+}
+
 /**
  * Instants of the astronomical night that contains `date`, or of the next one when it is not dark
  * yet: the whole night, from dusk to dawn, so a late-night view still counts planets that set
  * earlier. Empty when there is no night in the scanned span.
  */
 function nightSamples(lat: number, lon: number, date: Date): Date[] {
-  const isNightAt = (ms: number) =>
-    computeSolarElevationDeg(lat, lon, new Date(ms)) < ASTRONOMICAL_NIGHT_DEG;
   const start = date.getTime();
-  const before: Date[] = [];
-  if (isNightAt(start)) {
-    for (let i = 1; i <= MAX_STEPS && isNightAt(start - i * STEP_MS); i++) {
-      before.unshift(new Date(start - i * STEP_MS));
+  const samples: Date[] = [];
+  // Already dark: walk back to dusk first, so the whole night is covered.
+  if (isNight(lat, lon, start)) {
+    for (let i = 1; i <= MAX_STEPS && isNight(lat, lon, start - i * STEP_MS); i++) {
+      samples.push(new Date(start - i * STEP_MS));
     }
+    samples.reverse();
   }
-  const samples = before;
   for (let i = 0; i <= MAX_STEPS; i++) {
     const t = new Date(start + i * STEP_MS);
-    if (isNightAt(t.getTime())) samples.push(t);
+    if (isNight(lat, lon, t.getTime())) samples.push(t);
     else if (samples.length > 0) break;
   }
   return samples;
@@ -66,11 +69,9 @@ function nightSamples(lat: number, lon: number, date: Date): Date[] {
 function nightEnd(lat: number, lon: number, lastNight: Date): Date {
   let lo = lastNight.getTime();
   let hi = lo + STEP_MS;
-  const isNight = (ms: number) =>
-    computeSolarElevationDeg(lat, lon, new Date(ms)) < ASTRONOMICAL_NIGHT_DEG;
   for (let i = 0; i < 10; i++) {
     const mid = (lo + hi) / 2;
-    if (isNight(mid)) lo = mid;
+    if (isNight(lat, lon, mid)) lo = mid;
     else hi = mid;
   }
   return new Date(lo);

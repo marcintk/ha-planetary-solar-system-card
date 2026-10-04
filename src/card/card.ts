@@ -8,7 +8,7 @@ import {
   type HASSConfig,
   type ShadeOptions,
 } from "../types.js";
-import { parseCardConfig } from "./card-config.js";
+import { DEFAULT_SHOW_NIGHT_SKY_PLANETS, parseCardConfig } from "./card-config.js";
 import { cardStyles } from "./card-styles.js";
 import { buildGalleryCaption, buildStatusBarView, discStyle } from "./card-template.js";
 import { DateNavigation } from "./date-navigation.js";
@@ -91,7 +91,7 @@ export class SolarViewCard extends LitElement {
     this._galleryPosition = "overlay";
     this._galleryShape = "square";
     this._mymoonTint = false;
-    this._showNightSkyPlanets = true;
+    this._showNightSkyPlanets = DEFAULT_SHOW_NIGHT_SKY_PLANETS;
     this._colors = {};
     this._refreshMs = 60000;
     this._eclipticView = false;

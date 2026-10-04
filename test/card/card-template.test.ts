@@ -119,6 +119,9 @@ describe("buildStatusBar", () => {
     const planets = root.querySelector(".status-bar .planets");
     expect(planets?.querySelector("svg.telescope")).not.toBeNull();
     expect(spans[0].contains(planets)).toBe(false);
+    for (const badge of planets?.querySelectorAll(".planet-badge") ?? []) {
+      expect(badge.getAttribute("role")).toBe("img");
+    }
     expect(planets?.firstElementChild?.textContent).toBe("|");
     const badges = (planets as Element).querySelectorAll(".planet-badge");
     expect(badges.length).toBe(2);

@@ -60,6 +60,7 @@ export const cardStyles = css`
     align-items: center;
     flex: 0 0 auto;
     margin: 0 auto 0 3px;
+    padding-right: 6px;
     font-style: normal;
     white-space: nowrap;
   }

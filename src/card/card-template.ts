@@ -22,7 +22,7 @@ function badgeTextColor(hex: string): string {
 // <i>, not <span>: the status bar's span rules (ellipsis, first-child sizing) must not apply.
 function planetBadge(name: string): TemplateResult {
   const color = PLANETS.find((p) => p.name === name)?.color ?? "#888888";
-  return html`<i class="planet-badge" title="${name}" aria-label="${name}" style="background:${color};color:${badgeTextColor(color)}">${name.charAt(0)}</i>`;
+  return html`<i class="planet-badge" role="img" title="${name}" aria-label="${name}" style="background:${color};color:${badgeTextColor(color)}">${name.charAt(0)}</i>`;
 }
 
 // A flex item of its own, outside the status bar's ellipsized spans, so a long location name can't

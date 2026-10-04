@@ -1,5 +1,6 @@
 import { nothing, render } from "lit";
 import { describe, expect, it } from "vitest";
+import { PLANETS } from "../../src/astronomy/planet-data.js";
 import {
   buildImageStatusBar,
   buildStatusBar,
@@ -102,6 +103,78 @@ describe("buildStatusBar", () => {
     const spans = root.querySelectorAll(".status-bar span");
     expect(spans.length).toBe(2);
     expect(spans[1].textContent).toMatch(/^Next: .+ \(\d{2}:\d{2}\)$/);
+  });
+
+  it("shows a telescope icon and one colored letter badge per visible planet in the first span", () => {
+    const root = renderToDOM(
+      buildStatusBar(
+        { lat: 51.5, lon: -0.1, timezone: "Europe/London", zoneOverride: false },
+        "London",
+        new Date("2026-03-05T12:00:00Z"),
+        ["Jupiter", "Mars"]
+      )
+    );
+    const spans = root.querySelectorAll(".status-bar span");
+    expect(spans.length).toBe(2);
+    expect(spans[0].querySelector("svg.telescope")).not.toBeNull();
+    const badges = spans[0].querySelectorAll(".planet-badge");
+    expect(badges.length).toBe(2);
+    const expected = [
+      { name: "Jupiter", label: "J" },
+      { name: "Mars", label: "Ma" },
+    ];
+    expected.forEach(({ name, label }, i) => {
+      const badge = badges[i] as HTMLElement;
+      const scratch = document.createElement("div");
+      scratch.style.background = PLANETS.find((p) => p.name === name)?.color ?? "";
+      expect(badge.textContent?.trim()).toBe(label);
+      expect(badge.getAttribute("title")).toBe(name);
+      expect(badge.getAttribute("aria-label")).toBe(name);
+      expect(scratch.style.background).not.toBe("");
+      expect(badge.style.background).toBe(scratch.style.background);
+    });
+    expect(spans[0].textContent).not.toContain("Jupiter");
+    expect(spans[0].textContent).not.toContain("Saturn");
+  });
+
+  it("falls back to a neutral grey badge with the initial for an unknown planet", () => {
+    const root = renderToDOM(
+      buildStatusBar(
+        { lat: 51.5, lon: -0.1, timezone: "Europe/London", zoneOverride: false },
+        "London",
+        new Date("2026-03-05T12:00:00Z"),
+        ["Pluto"]
+      )
+    );
+    const badges = root.querySelectorAll(".planet-badge");
+    expect(badges.length).toBe(1);
+    const badge = badges[0] as HTMLElement;
+    const scratch = document.createElement("div");
+    scratch.style.background = "#888888";
+    expect(badge.getAttribute("title")).toBe("Pluto");
+    expect(badge.textContent?.trim()).toBe("P");
+    expect(badge.style.background).toBe(scratch.style.background);
+  });
+
+  it("uses dark text on light planet badges and white text on dark ones", () => {
+    const root = renderToDOM(
+      buildStatusBar(
+        { lat: 51.5, lon: -0.1, timezone: "Europe/London", zoneOverride: false },
+        "London",
+        new Date("2026-03-05T12:00:00Z"),
+        ["Venus", "Saturn", "Mars", "Neptune"]
+      )
+    );
+    const badges = root.querySelectorAll(".planet-badge");
+    const colorOf = (css: string) => {
+      const scratch = document.createElement("div");
+      scratch.style.color = css;
+      return scratch.style.color;
+    };
+    const expected = ["#111", "#111", "#fff", "#fff"];
+    expected.forEach((css, i) => {
+      expect((badges[i] as HTMLElement).style.color).toBe(colorOf(css));
+    });
   });
 
   it("appends the zone offset to the Next span when the zone is longitude-derived", () => {

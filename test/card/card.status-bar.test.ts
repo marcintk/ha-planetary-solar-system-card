@@ -139,6 +139,41 @@ describe("SolarViewCard status bar", () => {
     });
   });
 
+  describe("tonight's planets", () => {
+    function createKrakowCard(config) {
+      const card = document.createElement("ha-planetary-solar-system-card-test");
+      if (config) card.setConfig(config);
+      card.hass = {
+        config: {
+          latitude: 50.0647,
+          longitude: 19.945,
+          time_zone: "Europe/Warsaw",
+          location_name: "Kraków",
+        },
+      };
+      card._dateNav.currentDate = new Date("2026-10-03T20:00:00Z");
+      document.body.appendChild(card);
+      card._render();
+      return card;
+    }
+
+    it("shows a telescope and a Jupiter badge only when show_night_sky_planets is on", () => {
+      const on = createKrakowCard({ show_night_sky_planets: true });
+      const firstSpan = on.shadowRoot.querySelector(".status-bar span:first-child");
+      expect(firstSpan.querySelector("svg.telescope")).toBeTruthy();
+      const titles = [...firstSpan.querySelectorAll(".planet-badge")].map((b) =>
+        b.getAttribute("title")
+      );
+      expect(titles).toContain("Jupiter");
+      on.remove();
+
+      const off = createKrakowCard();
+      expect(off.shadowRoot.querySelector("svg.telescope")).toBeNull();
+      expect(off.shadowRoot.querySelector(".planet-badge")).toBeNull();
+      off.remove();
+    });
+  });
+
   describe("version display", () => {
     it("hides version by default", () => {
       const card = createAndMount();

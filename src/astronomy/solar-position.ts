@@ -179,6 +179,9 @@ export function computeZenithAngleFromSun(lat: number, lon: number, date: Date):
  */
 export const SUNSET_ELEVATION_DEG = -0.8333;
 
+/** The Sun's centre altitude below which the sky is fully dark (end of astronomical twilight). */
+export const ASTRONOMICAL_NIGHT_DEG = -18;
+
 /**
  * Classify a solar elevation angle into a sky mode string.
  * @param {number} elevDeg
@@ -188,7 +191,7 @@ export function getSkyMode(elevDeg: number): string {
   if (elevDeg >= SUNSET_ELEVATION_DEG) return "Day";
   if (elevDeg >= -6) return "Civil Twilight";
   if (elevDeg >= -12) return "Nautical Twilight";
-  if (elevDeg >= -18) return "Astronomical Twilight";
+  if (elevDeg >= ASTRONOMICAL_NIGHT_DEG) return "Astronomical Twilight";
   return "Night";
 }
 

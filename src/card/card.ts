@@ -1,5 +1,6 @@
 import type { TemplateResult } from "lit";
 import { html, LitElement, nothing } from "lit";
+import { getTonightsPlanets } from "../astronomy/planet-visibility.js";
 import {
   type CardConfig,
   type Colors,
@@ -22,6 +23,7 @@ import { SolarView } from "./solar-view.js";
 import { resolveTheme, THEME_OVERRIDE_VARS } from "./theme.js";
 import type { SkyFrame } from "./viewing-location.js";
 import { ViewingLocation } from "./viewing-location.js";
+import { createVisiblePlanetsCache } from "./visible-planets-cache.js";
 import { ZoomController } from "./zoom-controller.js";
 
 export type { GalleryMode };
@@ -63,6 +65,8 @@ export class SolarViewCard extends LitElement {
   private _galleryPosition: GalleryPosition;
   private _galleryShape: GalleryShape;
   private _mymoonTint: boolean;
+  private _showNightSkyPlanets: boolean;
+  private readonly _visiblePlanets = createVisiblePlanetsCache(getTonightsPlanets);
   private _colors: Colors;
   private _refreshMs: number;
   private _eclipticView: boolean;
@@ -87,6 +91,7 @@ export class SolarViewCard extends LitElement {
     this._galleryPosition = "overlay";
     this._galleryShape = "square";
     this._mymoonTint = false;
+    this._showNightSkyPlanets = false;
     this._colors = {};
     this._refreshMs = 60000;
     this._eclipticView = false;
@@ -122,6 +127,7 @@ export class SolarViewCard extends LitElement {
     this._galleryPosition = parsed.galleryPosition;
     this._galleryShape = parsed.galleryShape;
     this._mymoonTint = parsed.mymoonTint;
+    this._showNightSkyPlanets = parsed.showNightSkyPlanets;
     this._gallery.configure(parsed.galleryMode, parsed.gallerySources, parsed.galleryIntervalMs);
 
     if (this._autoUpdateTimer != null) {
@@ -175,11 +181,17 @@ export class SolarViewCard extends LitElement {
     // observer frame — same question _renderGalleryTile asks per tile, asked once for the panel.
     const panelSky =
       gallery.panelSource !== "none" && SOURCES[gallery.panelSource].skyFrame ? sky() : null;
+    const loc = this._location.data;
+    const visiblePlanets =
+      this._showNightSkyPlanets && loc
+        ? this._visiblePlanets(loc.lat, loc.lon, this._dateNav.currentDate)
+        : [];
     const statusBar = buildStatusBarView(
       gallery,
-      this._location.data,
+      loc,
       this._location.name,
-      this._dateNav.currentDate
+      this._dateNav.currentDate,
+      visiblePlanets
     );
     const zoomLevel = this._zoom.displayZoomLevel;
     const theme = resolveTheme(this._theme, this._colors.background);

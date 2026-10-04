@@ -23,6 +23,7 @@ describe("parseCardConfig", () => {
       galleryIntervalMs: 60000,
       mymoonTint: false,
       shade: { sphere: true, dayNight: true },
+      showNightSkyPlanets: false,
     });
   });
 
@@ -108,6 +109,13 @@ describe("parseCardConfig", () => {
     it("true only when ecliptic_view === 'south'", () => {
       expect(parseCardConfig({ ecliptic_view: "south" }).eclipticView).toBe(true);
       expect(parseCardConfig({ ecliptic_view: "north" }).eclipticView).toBe(false);
+    });
+  });
+
+  describe("showNightSkyPlanets", () => {
+    it("is false when absent and true only when show_night_sky_planets is true", () => {
+      expect(parseCardConfig({}).showNightSkyPlanets).toBe(false);
+      expect(parseCardConfig({ show_night_sky_planets: true }).showNightSkyPlanets).toBe(true);
     });
   });
 

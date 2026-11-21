@@ -59,6 +59,12 @@ export function createAndMount(config) {
   return card;
 }
 
+export function getCardCss(card) {
+  return Array.from(card.shadowRoot.adoptedStyleSheets, (sheet) =>
+    Array.from(sheet.cssRules, (rule) => rule.cssText).join("\n")
+  ).join("\n");
+}
+
 export function clickButton(card, action) {
   const btn = card.shadowRoot.querySelector(`button[data-action="${action}"]`);
   btn.click();

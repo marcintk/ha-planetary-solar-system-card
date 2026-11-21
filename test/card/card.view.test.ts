@@ -3,6 +3,7 @@ import {
   clickButton,
   createAndMount,
   dragView,
+  getCardCss,
   getSvgViewBox,
   parseViewBox,
   setupCardTest,
@@ -159,8 +160,7 @@ describe("SolarViewCard view", () => {
 
     it("nav has minimal margin-top (2px or less)", () => {
       const card = createAndMount();
-      const styleEl = card.shadowRoot.querySelector("style");
-      const match = styleEl.textContent.match(/\.nav\s*\{[^}]*margin-top:\s*(\d+)px/);
+      const match = getCardCss(card).match(/\.nav\s*\{[^}]*margin-top:\s*(\d+)px/);
       expect(match).not.toBeNull();
       expect(Number(match[1])).toBeLessThanOrEqual(2);
       card.remove();
@@ -170,9 +170,9 @@ describe("SolarViewCard view", () => {
       const card = createAndMount();
       const wrapper = card.shadowRoot.querySelector(".solar-view-wrapper");
       expect(wrapper).toBeTruthy();
-      const styleEl = card.shadowRoot.querySelector("style");
-      expect(styleEl.textContent).toContain(".solar-view-wrapper");
-      expect(styleEl.textContent).toContain("overflow: hidden");
+      const css = getCardCss(card);
+      expect(css).toContain(".solar-view-wrapper");
+      expect(css).toContain("overflow: hidden");
       card.remove();
     });
   });
@@ -348,16 +348,16 @@ describe("SolarViewCard view", () => {
   describe("drag-to-pan", () => {
     it("SVG has grab cursor style", () => {
       const card = createAndMount();
-      const styleEl = card.shadowRoot.querySelector("style");
-      expect(styleEl.textContent).toContain("cursor: grab");
+      const css = getCardCss(card);
+      expect(css).toContain("cursor: grab");
       card.remove();
     });
 
     it("SVG has user-select none and touch-action none", () => {
       const card = createAndMount();
-      const styleEl = card.shadowRoot.querySelector("style");
-      expect(styleEl.textContent).toContain("user-select: none");
-      expect(styleEl.textContent).toContain("touch-action: none");
+      const css = getCardCss(card);
+      expect(css).toContain("user-select: none");
+      expect(css).toContain("touch-action: none");
       card.remove();
     });
 

@@ -24,7 +24,7 @@ export const MOON_FULL_SIZE = "730x730_1x1_30p";
 export const MOON_FRAME_MS = 3600000;
 
 // The one thing about this source that cannot be derived. SVS assigns each annual product a
-// new id with no pattern to it (+93, +139, +228, +172 across these five), and the id is in
+// new id with no pattern to it (+93, +139, +228, +172, +104 across these six), and the id is in
 // the path. It has to ship as a constant and gain a row each December, when the following
 // year's product is released — historically between 9 Nov and 11 Dec.
 export const MOON_PRODUCT_IDS: Record<number, number> = {
@@ -33,6 +33,7 @@ export const MOON_PRODUCT_IDS: Record<number, number> = {
   2024: 5187,
   2025: 5415,
   2026: 5587,
+  2027: 5691,
 };
 
 /**
@@ -89,7 +90,7 @@ export class SvsMoonResolver extends SourceResolver {
  *
  * Throws rather than degrading for an unmapped year, and that is deliberate. SVS answers an
  * out-of-range date with the *last frame of the current product* under a 200, not a 404 — ask
- * it for March 2027 today and it returns a Moon at 38% when the truth is 9%. A source that
+ * it for the first unmapped year and it returns a wrong Moon. A source that
  * failed quietly here would show a confidently wrong Moon instead of no Moon.
  */
 export function moonFrameUrl(at: Date, size: string): string {

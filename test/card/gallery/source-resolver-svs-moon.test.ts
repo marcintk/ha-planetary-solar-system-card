@@ -69,6 +69,25 @@ describe("source-resolver-svs-moon", () => {
       );
     });
 
+    it("builds the 2027 product 5691 URL for thumbnail and full size", () => {
+      const instant = new Date("2027-03-04T07:00:00Z");
+      expect(moonFrameUrl(instant, MOON_THUMB_SIZE)).toBe(
+        `${SVS_BASE_URL}/a005600/a005691/frames/${MOON_THUMB_SIZE}/moon.1496.jpg`
+      );
+      expect(moonFrameUrl(instant, MOON_FULL_SIZE)).toBe(
+        `${SVS_BASE_URL}/a005600/a005691/frames/${MOON_FULL_SIZE}/moon.1496.jpg`
+      );
+    });
+
+    it("maps the first and last hours of 2027 to frames 1 and 8760 of product 5691", () => {
+      const first = moonFrameUrl(new Date("2027-01-01T00:00:00Z"), MOON_THUMB_SIZE);
+      const last = moonFrameUrl(new Date("2027-12-31T23:00:00Z"), MOON_THUMB_SIZE);
+      expect(first).toContain("a005691");
+      expect(first).toContain("moon.0001.jpg");
+      expect(last).toContain("a005691");
+      expect(last).toContain("moon.8760.jpg");
+    });
+
     // Every frame for a mapped year is pre-published, so a miss can only mean the year has no
     // product constant yet. Failing loudly is the point: SVS answers an out-of-range date with
     // the last frame of the current product rather than a 404, so a silent fallback would show

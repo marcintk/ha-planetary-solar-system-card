@@ -20,7 +20,8 @@
     "check:ci": "tsc --noEmit && biome check src/ test/ && prettier --check \"**/*.md\"",
     "format:md": "prettier --write \"**/*.md\"",
     "format:md:check": "prettier --check \"**/*.md\"",
-    "demo:record": "node scripts/demo/record-demo.mjs"
+    "demo:record": "node scripts/demo/record-demo.mjs",
+    "quantify": "node \"$(node -p \"require(process.env.HOME+'/.claude/plugins/installed_plugins.json').plugins['human-factor@marcintk-plugins'][0].installPath\")/src/tools/quantify.mjs\""
   },
   "keywords": [
     "home-assistant",

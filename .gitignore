@@ -18,3 +18,7 @@ docs/design-notes/.work/
 .vscode
 .zprofile
 .zshrc
+
+# Stryker mutation testing output
+.stryker-tmp/
+reports/

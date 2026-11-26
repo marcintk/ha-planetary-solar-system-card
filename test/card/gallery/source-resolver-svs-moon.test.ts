@@ -79,6 +79,25 @@ describe("source-resolver-svs-moon", () => {
       );
     });
 
+    it("uses the literal NASA base URL and size segments", () => {
+      const instant = new Date("2027-03-04T07:00:00Z");
+      expect(SVS_BASE_URL).toBe("https://svs.gsfc.nasa.gov/vis/a000000");
+      expect(MOON_FULL_SIZE).toBe("730x730_1x1_30p");
+      expect(moonFrameUrl(instant, "216x216_1x1_30p")).toBe(
+        "https://svs.gsfc.nasa.gov/vis/a000000/a005600/a005691/frames/216x216_1x1_30p/moon.1496.jpg"
+      );
+      expect(moonFrameUrl(instant, "730x730_1x1_30p")).toBe(
+        "https://svs.gsfc.nasa.gov/vis/a000000/a005600/a005691/frames/730x730_1x1_30p/moon.1496.jpg"
+      );
+      expect(
+        fullSizeMoonUrl(
+          "https://svs.gsfc.nasa.gov/vis/a000000/a005600/a005691/frames/216x216_1x1_30p/moon.1496.jpg"
+        )
+      ).toBe(
+        "https://svs.gsfc.nasa.gov/vis/a000000/a005600/a005691/frames/730x730_1x1_30p/moon.1496.jpg"
+      );
+    });
+
     it("maps the first and last hours of 2027 to frames 1 and 8760 of product 5691", () => {
       const first = moonFrameUrl(new Date("2027-01-01T00:00:00Z"), MOON_THUMB_SIZE);
       const last = moonFrameUrl(new Date("2027-12-31T23:00:00Z"), MOON_THUMB_SIZE);

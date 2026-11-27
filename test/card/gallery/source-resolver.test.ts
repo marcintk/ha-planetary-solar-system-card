@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DebugAccumulator } from "../../../src/card/gallery/debug-stats.js";
 import { emptyDebugAccumulator } from "../../../src/card/gallery/debug-stats.js";
-import { SourceResolver } from "../../../src/card/gallery/source-resolver.js";
+import { NoProductError, SourceResolver } from "../../../src/card/gallery/source-resolver.js";
 import type { SourcedImage, UrlCache } from "../../../src/card/gallery/url-cache.js";
 import { UrlCache as UrlCacheClass } from "../../../src/card/gallery/url-cache.js";
 
@@ -242,6 +242,87 @@ describe("SourceResolver engine", () => {
       stubImageDecode(new Set([good.url]));
       await resolver.resolve(debug, debug);
       expect(cache.failureCount("sun")).toBe(0);
+    });
+  });
+
+  describe("availability and failure delegation", () => {
+    it("isPermanentlyUnavailable is false initially", () => {
+      expect(new MockResolver(cache).isPermanentlyUnavailable()).toBe(false);
+    });
+
+    it("a NoProductError sets the flag, rethrows, and arms no cooldown or failure", async () => {
+      const resolver = new MockResolver(cache);
+      resolver.fetchCandidateUrlImpl = () => Promise.reject(new NoProductError("none"));
+      const debug = emptyDebugAccumulator();
+
+      await expect(resolver.resolve(debug, debug)).rejects.toBeInstanceOf(NoProductError);
+
+      expect(resolver.isPermanentlyUnavailable()).toBe(true);
+      expect(cache.inCooldown("sun")).toBe(false);
+      expect(resolver.failureCount()).toBe(0);
+    });
+
+    it("a later successful resolve clears the permanently-unavailable flag", async () => {
+      const resolver = new MockResolver(cache);
+      const fresh = image("https://example.test/fresh.jpg");
+      resolver.fetchCandidateUrlImpl = () => Promise.reject(new NoProductError("none"));
+      const debug = emptyDebugAccumulator();
+      await expect(resolver.resolve(debug, debug)).rejects.toBeInstanceOf(NoProductError);
+      expect(resolver.isPermanentlyUnavailable()).toBe(true);
+
+      resolver.fetchCandidateUrlImpl = () => Promise.resolve(fresh);
+      stubImageDecode(new Set([fresh.url]));
+      await resolver.resolve(debug, debug);
+
+      expect(resolver.isPermanentlyUnavailable()).toBe(false);
+    });
+
+    it("an ordinary failure leaves the flag unset and counts a failure", async () => {
+      const resolver = new MockResolver(cache);
+      resolver.fetchCandidateUrlImpl = () => Promise.reject(new Error("boom"));
+      const debug = emptyDebugAccumulator();
+
+      await expect(resolver.resolve(debug, debug)).rejects.toThrow("boom");
+
+      expect(resolver.isPermanentlyUnavailable()).toBe(false);
+      expect(resolver.failureCount()).toBe(1);
+    });
+
+    it("a failure carrying a numeric retryAfterMs arms cooldown for that long", async () => {
+      const resolver = new MockResolver(cache);
+      const rateLimited = Object.assign(new Error("429"), { retryAfterMs: 600000 });
+      resolver.fetchCandidateUrlImpl = () => Promise.reject(rateLimited);
+      vi.spyOn(Date, "now").mockReturnValue(0);
+      const debug = emptyDebugAccumulator();
+
+      await expect(resolver.resolve(debug, debug)).rejects.toThrow("429");
+
+      vi.spyOn(Date, "now").mockReturnValue(300000);
+      expect(cache.inCooldown("sun")).toBe(true);
+    });
+
+    it("recordFailure records a real failure for the cache key", () => {
+      const resolver = new MockResolver(cache);
+
+      resolver.recordFailure();
+
+      expect(resolver.failureCount()).toBe(1);
+      expect(cache.failureCount("sun")).toBe(1);
+      expect(cache.inCooldown("sun")).toBe(true);
+    });
+  });
+
+  describe("hydrate", () => {
+    it("returns undefined when nothing was ever confirmed", () => {
+      expect(new MockResolver(cache).hydrate()).toBeUndefined();
+    });
+
+    it("returns the last confirmed image", () => {
+      const resolver = new MockResolver(cache);
+      const confirmed = image("https://example.test/confirmed.jpg");
+      cache.recordSuccess("sun", confirmed);
+
+      expect(resolver.hydrate()).toEqual(confirmed);
     });
   });
 });

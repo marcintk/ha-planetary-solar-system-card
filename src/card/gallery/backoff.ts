@@ -1,11 +1,13 @@
 import type { SourcedImage } from "./url-cache.js";
 
 // Cooldown after repeated fetch failures, so a sustained NASA outage/rate-limit doesn't
-// retry at full TTL cadence forever. Doubles per consecutive failure up to MAX_BACKOFF_MS;
+// retry at full TTL cadence forever. Doubles per consecutive failure up to MAX_BACKOFF_MS
+// (NO_IMAGE_MAX_BACKOFF_MS while no image has ever been confirmed for the key);
 // a server-supplied Retry-After (EPIC 429s only — SDO's <img> loads expose no HTTP status)
 // acts as a floor over the computed value, never shortens it.
 const BASE_BACKOFF_MS = 60000;
 const MAX_BACKOFF_MS = 6 * 3600000;
+const NO_IMAGE_MAX_BACKOFF_MS = 5 * 60000;
 
 // Per-source cooldown/backoff state, keyed the same as UrlCache (one instance owned by it).
 // Split out from UrlCache's TTL-cache/decode-identity concerns since this answers a different
@@ -38,7 +40,8 @@ export class Backoff {
   recordFailure(key: string, retryAfterMs?: number): void {
     const failures = (this.failures.get(key) ?? 0) + 1;
     this.failures.set(key, failures);
-    const backoffMs = Math.min(MAX_BACKOFF_MS, BASE_BACKOFF_MS * 2 ** (failures - 1));
+    const maxMs = this.lastConfirmed.has(key) ? MAX_BACKOFF_MS : NO_IMAGE_MAX_BACKOFF_MS;
+    const backoffMs = Math.min(maxMs, BASE_BACKOFF_MS * 2 ** (failures - 1));
     this.cooldowns.set(key, Date.now() + Math.max(backoffMs, retryAfterMs ?? 0));
   }
 

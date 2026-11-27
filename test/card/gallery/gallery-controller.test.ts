@@ -674,31 +674,61 @@ describe("GalleryController unavailable sources", () => {
     expect(gallery.images.sun).toBeUndefined();
   });
 
-  it("hides a source with no image once it has 5 consecutive failures, but not at 4", () => {
-    const failures = { count: 4 };
+  it("hides a source with no image after its first failure, keeps it at zero failures, and restores it once an image arrives", async () => {
+    const state = { count: 0, arrived: [] as unknown[] };
+    const onChange = vi.fn();
+    const resolver = {
+      hydrate: () => ({}),
+      debugStats: () => ({}),
+      resolveAll: () => Promise.resolve(state.arrived),
+      failureCount: () => state.count,
+      isPermanentlyUnavailable: () => false,
+    } as unknown as ImageResolver;
+    const gallery = new GalleryController(onChange, resolver);
+    gallery.configure("show", IMAGE_SOURCES, 60000);
+
+    expect(gallery.viewModel().thumbnails.map((t) => t.source)).toContain("earth");
+
+    state.count = 1;
+
+    expect(gallery.viewModel().thumbnails.map((t) => t.source)).not.toContain("earth");
+
+    state.arrived = [
+      {
+        source: "earth",
+        result: {
+          status: "fulfilled",
+          value: { url: "https://example.test/earth.jpg", date: new Date(0) },
+        },
+      },
+    ];
+    onChange.mockClear();
+    gallery.tick();
+    await vi.waitFor(() => expect(onChange).toHaveBeenCalled());
+
+    expect(gallery.viewModel().thumbnails.map((t) => t.source)).toContain("earth");
+  });
+
+  it("reports nothingDrawable when every source has no image and one failure", () => {
     const resolver = {
       hydrate: () => ({}),
       debugStats: () => ({}),
       resolveAll: () => Promise.resolve([]),
-      failureCount: () => failures.count,
+      failureCount: () => 1,
       isPermanentlyUnavailable: () => false,
     } as unknown as ImageResolver;
     const gallery = new GalleryController(() => {}, resolver);
     gallery.configure("show", IMAGE_SOURCES, 60000);
 
-    expect(gallery.viewModel().thumbnails.map((t) => t.source)).toContain("earth");
-
-    failures.count = 5;
-
-    expect(gallery.viewModel().thumbnails.map((t) => t.source)).not.toContain("earth");
+    expect(gallery.viewModel().nothingDrawable).toBe(true);
   });
 
-  it("keeps a source that already has an image even after many consecutive failures", () => {
+  it("keeps a source that already has an image even after a failure", () => {
     const resolver = {
       hydrate: () => ({ earth: { url: "https://example.test/earth.jpg", date: new Date(0) } }),
       debugStats: () => ({}),
       resolveAll: () => Promise.resolve([]),
-      failureCount: () => 9,
+      failureCount: () => 1,
       isPermanentlyUnavailable: () => false,
     } as unknown as ImageResolver;
     const gallery = new GalleryController(() => {}, resolver);

@@ -79,6 +79,43 @@ describe("Backoff", () => {
     expect(backoff.inCooldown("earth")).toBe(true);
   });
 
+  it("without a confirmed image the cooldown is capped at 5 minutes", () => {
+    const backoff = new Backoff();
+    vi.spyOn(Date, "now").mockReturnValue(0);
+    for (let i = 0; i < 6; i++) backoff.recordFailure("sun");
+
+    vi.spyOn(Date, "now").mockReturnValue(300000 - 1);
+    expect(backoff.inCooldown("sun")).toBe(true);
+
+    vi.spyOn(Date, "now").mockReturnValue(300000);
+    expect(backoff.inCooldown("sun")).toBe(false);
+  });
+
+  it("with a confirmed image the cooldown still grows past 5 minutes", () => {
+    const backoff = new Backoff();
+    vi.spyOn(Date, "now").mockReturnValue(0);
+    backoff.recordSuccess("sun", { url: "https://example.com/x.jpg", date: new Date() });
+    for (let i = 0; i < 6; i++) backoff.recordFailure("sun");
+
+    vi.spyOn(Date, "now").mockReturnValue(300000);
+    expect(backoff.inCooldown("sun")).toBe(true);
+
+    vi.spyOn(Date, "now").mockReturnValue(32 * 60000);
+    expect(backoff.inCooldown("sun")).toBe(false);
+  });
+
+  it("a Retry-After beyond 5 minutes is honoured when there is no confirmed image", () => {
+    const backoff = new Backoff();
+    vi.spyOn(Date, "now").mockReturnValue(0);
+    for (let i = 0; i < 6; i++) backoff.recordFailure("earth", 3600000);
+
+    vi.spyOn(Date, "now").mockReturnValue(3600000 - 1);
+    expect(backoff.inCooldown("earth")).toBe(true);
+
+    vi.spyOn(Date, "now").mockReturnValue(3600000);
+    expect(backoff.inCooldown("earth")).toBe(false);
+  });
+
   it("recordSuccess clears an active cooldown", () => {
     const backoff = new Backoff();
     vi.spyOn(Date, "now").mockReturnValue(0);

@@ -4,7 +4,7 @@ import type { DebugRowId, ImageSource } from "./sources.js";
 import { IMAGE_SOURCES, SOURCES } from "./sources.js";
 import type { SourcedImage } from "./url-cache.js";
 
-const UNAVAILABLE_AFTER_FAILURES = 5;
+const UNAVAILABLE_AFTER_FAILURES = 1;
 
 export type ImagePanelMode = "none" | ImageSource;
 

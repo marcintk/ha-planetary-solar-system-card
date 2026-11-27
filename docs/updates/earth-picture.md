@@ -36,6 +36,13 @@ the narrowest sampled day lands at about 0.75.
       never unavailable.
 - [x] Revision: while a source has no confirmed image, `Backoff` caps the retry wait at 5 minutes;
       with a confirmed image the wait still doubles up to 6 hours.
+- [x] Revision: a new `SourceAvailability` class (`src/card/gallery/source-availability.ts`) answers
+      `isUnavailable(source)` (no image and a permanent failure or at least one failure; an image
+      always wins) and `nothingDrawable(sources)`; the threshold constant moves into it.
+- [x] Revision: `SourceAvailability` reports once when nothing-drawable ends
+      (`recoveredFromNothingDrawable(sources)`) and resets with `reset(sources)`.
+- [x] Revision: `GalleryController` delegates to `SourceAvailability` and its own unavailability
+      code is gone; behavior unchanged, every existing test still passes.
 
 ## Seam and behavior to pin
 
@@ -76,3 +83,6 @@ that Earth's ceiling is 0.83.
   retries back off up to 6 h. Human asked to fix it on this branch: hide after the first failure
   when there is no image, and cap the retry wait at 5 minutes while there is no image. Not
   reproduced in a browser; a curl probe got 403 from NASA.
+- Human asked to move the "image is not available" logic out of GalleryController into its own class
+  on this branch, instead of after the PR. Behavior-preserving refactor: threshold, backoff and
+  strip behavior stay as they are.

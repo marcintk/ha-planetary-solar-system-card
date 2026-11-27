@@ -1,10 +1,9 @@
 import type { SourceDebugStats } from "./debug-stats.js";
 import { ImageResolver } from "./image-resolver.js";
+import { SourceAvailability } from "./source-availability.js";
 import type { DebugRowId, ImageSource } from "./sources.js";
 import { IMAGE_SOURCES, SOURCES } from "./sources.js";
 import type { SourcedImage } from "./url-cache.js";
-
-const UNAVAILABLE_AFTER_FAILURES = 1;
 
 export type ImagePanelMode = "none" | ImageSource;
 
@@ -95,7 +94,7 @@ class PanelState {
 export class GalleryController {
   private _panel: PanelState;
   private _open: boolean;
-  private _wasNothingDrawable: boolean;
+  private _availability: SourceAvailability;
   private _images: Partial<Record<ImageSource, SourcedImage>>;
   private _mode: GalleryMode;
   private _autoIntervalMs: number;
@@ -113,7 +112,6 @@ export class GalleryController {
   constructor(onChange: () => void, resolver: ImageResolver = new ImageResolver()) {
     this._panel = new PanelState();
     this._open = false;
-    this._wasNothingDrawable = false;
     this._mode = "off";
     this._sources = DEFAULT_GALLERY_SOURCES;
     this._autoIntervalMs = DEFAULT_GALLERY_INTERVAL_MS;
@@ -122,6 +120,7 @@ export class GalleryController {
     this._onChange = onChange;
     this._debugStartedAt = Date.now();
     this._resolver = resolver;
+    this._availability = new SourceAvailability(this._resolver, () => this._images);
     // Recovers each source's still-fresh cache into this instance's own known-URL
     // state — without this, a remount (this._images always starts empty) would otherwise
     // force a redundant preload of bytes the module cache already confirmed are current.
@@ -168,7 +167,7 @@ export class GalleryController {
   private _availableSlideIndices(firstOffset: number): number[] {
     return this._sources
       .map((_, step) => (this._slideIndex + firstOffset + step) % this._sources.length)
-      .filter((index) => !this._isUnavailable(this._sources[index]));
+      .filter((index) => !this._availability.isUnavailable(this._sources[index]));
   }
 
   // position defaults to "overlay" (the strip must hide there, since it floats over the
@@ -182,9 +181,9 @@ export class GalleryController {
       imageDate: this._panel.date,
       imageLoaded: this._panel.loaded,
       showStrip: this._open && (position === "below" || this._panel.mode === "none"),
-      nothingDrawable: this._isNothingDrawable(),
+      nothingDrawable: this._availability.nothingDrawable(this._sources),
       thumbnails: this.displaySources
-        .filter((source) => !this._isUnavailable(source))
+        .filter((source) => !this._availability.isUnavailable(source))
         .map((source) => {
           const image = this._images[source];
           return { source, url: image?.url ?? null, date: image?.date ?? null };
@@ -194,18 +193,6 @@ export class GalleryController {
     };
   }
 
-  private _isNothingDrawable(): boolean {
-    return this._sources.every((source) => this._isUnavailable(source));
-  }
-
-  private _isUnavailable(source: ImageSource): boolean {
-    return (
-      !this._images[source] &&
-      (this._resolver.isPermanentlyUnavailable(source) ||
-        this._resolver.failureCount(source) >= UNAVAILABLE_AFTER_FAILURES)
-    );
-  }
-
   // Applies config.gallery on every setConfig: resets the strip's open state from mode and
   // restarts the auto-switch timer if one is already running.
   configure(mode: GalleryMode, sources: ImageSource[], autoIntervalMs: number): void {
@@ -213,7 +200,7 @@ export class GalleryController {
     this._sources = sources;
     this._autoIntervalMs = autoIntervalMs;
     this._open = mode !== "off";
-    this._wasNothingDrawable = this._isNothingDrawable();
+    this._availability.reset(this._sources);
     // A shorter list would otherwise leave the rotation pointing past its end, so
     // displaySources would read undefined until the next tick wrapped it.
     if (this._slideIndex >= sources.length) this._slideIndex = 0;
@@ -333,7 +320,9 @@ export class GalleryController {
   }
 
   private _refreshWhatIsNeeded(): void {
-    this._returnToDefaultOnceDrawable();
+    if (this._availability.recoveredFromNothingDrawable(this._sources)) {
+      this._open = this._mode !== "off";
+    }
     const sources = this._open
       ? this._sources
       : this._sources.filter((source) => !this._images[source]);
@@ -363,13 +352,9 @@ export class GalleryController {
         this._panel.fail(`${SOURCES[source].label} image unavailable`);
       }
     }
-    this._returnToDefaultOnceDrawable();
+    if (this._availability.recoveredFromNothingDrawable(this._sources)) {
+      this._open = this._mode !== "off";
+    }
     this._onChange();
-  }
-
-  private _returnToDefaultOnceDrawable(): void {
-    const nothingDrawable = this._isNothingDrawable();
-    if (this._wasNothingDrawable && !nothingDrawable) this._open = this._mode !== "off";
-    this._wasNothingDrawable = nothingDrawable;
   }
 }

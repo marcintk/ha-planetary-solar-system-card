@@ -513,6 +513,20 @@ describe("SolarViewCard gallery", () => {
       vi.useRealTimers();
     });
 
+    it("marks thumbnails with the circle class only when gallery.shape is circle", () => {
+      const classesFor = (shape) => {
+        const card = createAndMount({
+          gallery: { mode: "open", shape, moon: true, earth: true, sun: true },
+        });
+        const thumbs = [...card.shadowRoot.querySelectorAll(".gallery-thumb")];
+        const flags = thumbs.map((t) => t.classList.contains("gallery-thumb-circle"));
+        card.remove();
+        return flags;
+      };
+      expect(classesFor("circle").every(Boolean)).toBe(true);
+      expect(classesFor("square").some(Boolean)).toBe(false);
+    });
+
     // gallery.shape flips the crop between a round puck and a square one — both are scaled
     // to the same shared target size.
     it("crops to a square puck when gallery.shape is square", () => {
@@ -683,6 +697,8 @@ describe("SolarViewCard gallery", () => {
         await flush();
         card.shadowRoot.querySelector('.gallery-thumb[data-source="sun"]').click();
         await flush();
+        card._gallery._panel.loaded = false;
+        expect(card._gallery.imageLoaded).toBe(false);
 
         card.shadowRoot.querySelector("#image-view").dispatchEvent(new Event("load"));
         await flush();

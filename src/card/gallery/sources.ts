@@ -106,16 +106,12 @@ export interface SourceSpec {
    * put every tile on equal footing, and staying under 1.0 everywhere leaves a safety margin
    * against `disc` being a sampled ceiling rather than a proven one (see its own comment).
    *
-   * Moon and Earth each get their own target rather than sharing one: Earth's is 0.87, but the
-   * Moon's is a lower 0.79. Both are pinned to their largest measurement (see `disc`), so most
-   * days show them well under that ceiling — genuinely smaller, not just cropped differently,
-   * since their distance really varies. In practice the Moon's ~14% distance swing lands it at
-   * or near its own ceiling far more often than Earth's reaches its wider one, so an equal
-   * target didn't produce an equal apparent size across real frames; the Moon needed a target
-   * of its own to match. The Sun's distance barely varies at all (~3% over a year), so it
-   * renders at its full target on nearly every frame, and matching the others' on-screen size
-   * means giving it a lower target of its own instead of counting on real-world variance to
-   * shrink it for free.
+   * Moon and Earth share a target of 0.75, lower than the Sun's 0.80. Both are pinned to their
+   * largest measurement (see `disc`), so most days show them well under that ceiling — genuinely
+   * smaller, not just cropped differently, since their distance really varies. The Sun's
+   * distance barely varies at all (~3% over a year), so it renders at its full target on nearly
+   * every frame, and matching the others' on-screen size means giving it a higher target of its
+   * own instead of counting on real-world variance to shrink it for free.
    */
   target: number;
   /**
@@ -151,7 +147,7 @@ export const SOURCES: Record<ImageSource, SourceSpec> = {
     verb: "rendered",
     instrument: "NASA SVS",
     disc: 0.95,
-    target: 0.79,
+    target: 0.75,
     onByDefault: true,
     debugRow: { url: "mymoon", img: "mymoon" },
     skyFrame: true,
@@ -164,7 +160,7 @@ export const SOURCES: Record<ImageSource, SourceSpec> = {
     verb: "rendered",
     instrument: "NASA SVS",
     disc: 0.95,
-    target: 0.79,
+    target: 0.75,
     onByDefault: false,
     debugRow: { url: "moon", img: "moon" },
     skyFrame: false,
@@ -177,7 +173,7 @@ export const SOURCES: Record<ImageSource, SourceSpec> = {
     verb: "captured",
     instrument: "NOAA DSCOVR EPIC",
     disc: 0.82,
-    target: 0.87,
+    target: 0.75,
     onByDefault: false,
     debugRow: { url: "earth-url", img: "earth-img" },
     skyFrame: false,

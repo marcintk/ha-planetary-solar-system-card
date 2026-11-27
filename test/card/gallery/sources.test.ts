@@ -48,9 +48,9 @@ describe("SOURCES catalog", () => {
     expect(SOURCES.moon.disc).toBe(0.95);
     expect(SOURCES.earth.disc).toBe(0.82);
     expect(SOURCES.sun.disc).toBe(0.945);
-    expect(SOURCES.mymoon.target).toBe(0.79);
-    expect(SOURCES.moon.target).toBe(0.79);
-    expect(SOURCES.earth.target).toBe(0.87);
+    expect(SOURCES.mymoon.target).toBe(0.75);
+    expect(SOURCES.moon.target).toBe(0.75);
+    expect(SOURCES.earth.target).toBe(0.75);
     expect(SOURCES.sun.target).toBe(0.8);
   });
 

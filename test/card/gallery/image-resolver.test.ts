@@ -147,6 +147,21 @@ describe("ImageResolver", () => {
       expect(resolver.failureCount("moon")).toBe(0);
     });
 
+    it.each(["moon", "mymoon"] as const)(
+      "%s names itself in the cooldown error when nothing stale is cached",
+      async (source) => {
+        const resolver = new ImageResolver();
+        for (let i = 0; i < 10; i++) resolver.recordFailure(source);
+
+        const [outcome] = await resolver.resolveAll([source]);
+
+        expect(outcome.result.status).toBe("rejected");
+        expect((outcome.result as PromiseRejectedResult).reason.message).toBe(
+          `${source} is in cooldown after repeated failures`
+        );
+      }
+    );
+
     it("mymoon resolving an unpublished year is flagged on its own instance", async () => {
       vi.setSystemTime(new Date("2035-06-01T00:00:00Z"));
       const resolver = new ImageResolver();

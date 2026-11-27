@@ -17,6 +17,18 @@ describe("SolarViewCard date navigation", () => {
     });
   });
 
+  describe("day-forward navigation", () => {
+    it("day-forward advances by 1 day, not a month", () => {
+      const card = createAndMount();
+      card._dateNav.currentDate = new Date("2026-03-15T12:00:00");
+      card._render();
+      clickButton(card, "day-forward");
+      expect(card._dateNav.currentDate.getMonth()).toBe(2);
+      expect(card._dateNav.currentDate.getDate()).toBe(16);
+      card.remove();
+    });
+  });
+
   describe("hour navigation", () => {
     it("hour-forward advances by 1 hour", () => {
       const card = createAndMount();
@@ -106,6 +118,20 @@ describe("SolarViewCard date navigation", () => {
       clickButton(card, "month-forward");
       expect(title()).toBe("Replay last 6mo");
       clickButton(card, "today");
+      expect(title()).toBe("Replay last 12h");
+      card.remove();
+    });
+
+    it("hour and day steps set the replay span label of their own unit", () => {
+      const card = createAndMount();
+      const title = () =>
+        card.shadowRoot.querySelector('button[data-action="replay"]').getAttribute("title");
+      clickButton(card, "day-back");
+      clickButton(card, "hour-back");
+      expect(title()).toBe("Replay last 12h");
+      clickButton(card, "day-forward");
+      expect(title()).toBe("Replay last 36d");
+      clickButton(card, "hour-forward");
       expect(title()).toBe("Replay last 12h");
       card.remove();
     });

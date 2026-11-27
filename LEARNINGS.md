@@ -12,3 +12,9 @@
   all-shared or all-separate will be wrong for these two (#312).
 - In the sandbox `.git/config` is protected, so `git push -u` pushes but cannot record upstream
   tracking; set it outside the sandbox if needed (#312).
+- Treat a source's `disc` in `src/card/gallery/sources.ts` as a sampled ceiling to re-measure, not a
+  constant. DSCOVR's Earth disc measured 83.7% against a 0.82 ceiling, so the circle clip cut the
+  limb until `disc` was widened to 0.84 (#313).
+- Stub Earth's fetch (`stubEarthFetch()`) in any test that mounts the card with Earth enabled. A
+  source hides after its first failure with no image, so an unstubbed fetch now removes the tile and
+  breaks thumbnail assertions (#313).

@@ -172,12 +172,13 @@ Earth's and Sun's lags are NASA's own publish pipeline: EPIC runs a day or two b
 each frame 25-30 minutes after capture. The card learns SDO's actual lag rather than assuming it, so
 a pipeline stall doesn't break the feed.
 
-> **Thumbnails missing or stuck on "unavailable"?** A thumbnail that keeps failing is hidden, and
-> the ☷ button is disabled once every tile is. The browser fetches these images straight from NASA,
-> so a reverse proxy in front of Home Assistant (Nginx Proxy Manager, Cloudflare Tunnel, Traefik)
-> can block them with a strict `Content-Security-Policy`. Add `svs.gsfc.nasa.gov`,
-> `epic.gsfc.nasa.gov` and `sdo.gsfc.nasa.gov` to that policy's `img-src`. Nothing card-side can
-> work around it — the block happens before the card sees a response.
+> **Thumbnails missing or stuck on "unavailable"?** A thumbnail whose image failed to load is hidden
+> after the first failure (retrying every few minutes until one loads), and the ☷ button is
+> disabled once every tile is. The browser fetches these images straight from NASA, so a reverse
+> proxy in front of Home Assistant (Nginx Proxy Manager, Cloudflare Tunnel, Traefik) can block them
+> with a strict `Content-Security-Policy`. Add `svs.gsfc.nasa.gov`, `epic.gsfc.nasa.gov` and
+> `sdo.gsfc.nasa.gov` to that policy's `img-src`. Nothing card-side can work around it — the block
+> happens before the card sees a response.
 
 <!-- Reference links -->
 

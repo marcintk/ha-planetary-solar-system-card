@@ -29,6 +29,8 @@ the narrowest sampled day lands at about 0.75.
 - [x] Revision: `target` is 0.75 for `SOURCES.earth`, `SOURCES.moon` and `SOURCES.mymoon`; the Sun
       stays 0.80 (comments in `sources.ts` and `EXPECTED_TARGET` in
       `test/card/card-template.test.ts` follow).
+- [x] Revision: Earth's `disc` is 0.84 in `SOURCES.earth`, so the clip no longer cuts the limb (the
+      `disc` comment in `sources.ts` names the new measurement).
 
 ## Seam and behavior to pin
 
@@ -61,3 +63,6 @@ that Earth's ceiling is 0.83.
 - Human asked for Earth, Moon and MyMoon targets all at 0.75 (Earth 0.80 -> 0.75, Moon and MyMoon
   0.79 -> 0.75); the Sun stays at 0.80. This widens scope from Earth only to the Moon sources, at
   the human's explicit request.
+- Human found Earth's thumbnail cut on all four sides; today's EPIC photo (2026-11-24 22:13 UTC)
+  measures 83.6-83.7% of the frame against disc 0.82. Human asked to raise Earth's disc to 0.84.
+  0.84 is a guess at the ceiling from one new sample.

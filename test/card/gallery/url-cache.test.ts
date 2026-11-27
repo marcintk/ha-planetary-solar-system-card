@@ -104,4 +104,62 @@ describe("UrlCache", () => {
       expect(cache.inCooldown("sun")).toBe(false);
     });
   });
+
+  describe("getEntry", () => {
+    it("returns null for a key that was never set", () => {
+      expect(new UrlCache().getEntry("earth")).toBeNull();
+    });
+
+    it("returns the image with its fetch instant, bypassing the TTL", () => {
+      const cache = new UrlCache();
+      const image = { url: "https://example.com/a.jpg", date: new Date() };
+      vi.spyOn(Date, "now").mockReturnValue(1000);
+      cache.set("earth", image);
+
+      vi.spyOn(Date, "now").mockReturnValue(1000 + 10_000_000);
+      expect(cache.getEntry("earth")).toEqual({ image, fetchedAt: 1000 });
+    });
+  });
+
+  describe("lastChecked", () => {
+    it("is undefined until recordChecked stamps the key", () => {
+      const cache = new UrlCache();
+      expect(cache.getLastCheckedAt("sun")).toBeUndefined();
+      vi.spyOn(Date, "now").mockReturnValue(5000);
+      cache.recordChecked("sun");
+      expect(cache.getLastCheckedAt("sun")).toBe(5000);
+      expect(cache.getLastCheckedAt("earth")).toBeUndefined();
+    });
+
+    it("is not written by set()", () => {
+      const cache = new UrlCache();
+      cache.set("sun", { url: "https://example.com/a.jpg", date: new Date() });
+      expect(cache.getLastCheckedAt("sun")).toBeUndefined();
+    });
+
+    it("clear resets it", () => {
+      const cache = new UrlCache();
+      cache.recordChecked("sun");
+      cache.clear();
+      expect(cache.getLastCheckedAt("sun")).toBeUndefined();
+    });
+  });
+
+  describe("failureCount delegation", () => {
+    it("counts consecutive failures per key, resets on success and clear", () => {
+      const cache = new UrlCache();
+      expect(cache.failureCount("sun")).toBe(0);
+      cache.recordFailure("sun");
+      cache.recordFailure("sun");
+      expect(cache.failureCount("sun")).toBe(2);
+      expect(cache.failureCount("earth")).toBe(0);
+
+      cache.recordSuccess("sun", { url: "https://example.com/x.jpg", date: new Date() });
+      expect(cache.failureCount("sun")).toBe(0);
+
+      cache.recordFailure("sun");
+      cache.clear();
+      expect(cache.failureCount("sun")).toBe(0);
+    });
+  });
 });

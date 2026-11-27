@@ -870,6 +870,65 @@ describe("GalleryController recovery from nothingDrawable", () => {
   );
 });
 
+describe("GalleryController recovery detected inside refresh", () => {
+  // Unavailability only clears once refresh() itself stores the arriving images (the failure
+  // count never drops), so the recovery is first seen by refresh(), not by the pre-refresh check.
+  function gatedResolver() {
+    const state = { up: false };
+    const resolver = {
+      hydrate: () => ({}),
+      debugStats: () => ({}),
+      resolveAll: (sources: string[]) =>
+        Promise.resolve(
+          state.up
+            ? sources.map((source) => ({
+                source,
+                result: {
+                  status: "fulfilled",
+                  value: { url: `https://example.test/${source}.jpg`, date: new Date(0) },
+                },
+              }))
+            : []
+        ),
+      failureCount: () => 1,
+      isPermanentlyUnavailable: () => false,
+    } as unknown as ImageResolver;
+    return { state, resolver };
+  }
+
+  it.each(["show", "slide"] as const)(
+    "reopens a user-closed strip in %s mode when images arrive after an outage",
+    async (mode) => {
+      const { state, resolver } = gatedResolver();
+      const gallery = new GalleryController(() => {}, resolver);
+      gallery.configure(mode, IMAGE_SOURCES, 60000);
+      gallery.toggle();
+      expect(gallery.viewModel().showStrip).toBe(false);
+
+      state.up = true;
+      gallery.tick();
+      await vi.waitFor(() => expect(gallery.viewModel().nothingDrawable).toBe(false));
+
+      expect(gallery.isOpen).toBe(true);
+      expect(gallery.viewModel().showStrip).toBe(true);
+    }
+  );
+
+  it("keeps the strip closed in off mode when images arrive after an outage", async () => {
+    const { state, resolver } = gatedResolver();
+    const gallery = new GalleryController(() => {}, resolver);
+    gallery.configure("off", IMAGE_SOURCES, 60000);
+    expect(gallery.viewModel().nothingDrawable).toBe(true);
+
+    state.up = true;
+    gallery.toggle();
+    await vi.waitFor(() => expect(gallery.viewModel().nothingDrawable).toBe(false));
+
+    expect(gallery.isOpen).toBe(false);
+    expect(gallery.viewModel().showStrip).toBe(false);
+  });
+});
+
 describe("GalleryController re-render notifications", () => {
   function countedGallery(imagesPresent?: string[]) {
     const { resolver, requested } = fakeResolver(imagesPresent);

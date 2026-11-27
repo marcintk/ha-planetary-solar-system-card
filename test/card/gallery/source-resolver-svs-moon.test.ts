@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { emptyDebugAccumulator } from "../../../src/card/gallery/debug-stats.js";
+import { NoProductError } from "../../../src/card/gallery/source-resolver.js";
 import {
   fullSizeMoonUrl,
   getMoonFrameImage,
@@ -113,6 +114,12 @@ describe("source-resolver-svs-moon", () => {
     // a confidently wrong Moon.
     it("throws for a year with no published product", () => {
       expect(() => moonFrameUrl(new Date("2019-06-01T00:00:00Z"), MOON_THUMB_SIZE)).toThrow(/2019/);
+    });
+
+    it("throws a NoProductError for a year with no published product", () => {
+      expect(() => moonFrameUrl(new Date("2019-06-01T00:00:00Z"), MOON_THUMB_SIZE)).toThrow(
+        NoProductError
+      );
     });
 
     it("maps every product id it knows to a distinct year", () => {

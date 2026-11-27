@@ -4,6 +4,8 @@ import type { DebugRowId, ImageSource } from "./sources.js";
 import { IMAGE_SOURCES, SOURCES } from "./sources.js";
 import type { SourcedImage } from "./url-cache.js";
 
+const UNAVAILABLE_AFTER_FAILURES = 5;
+
 export type ImagePanelMode = "none" | ImageSource;
 
 // How the strip presents itself — purely presentation now, unrelated to which sources are
@@ -38,6 +40,7 @@ export interface GalleryViewModel {
   imageDate: Date | null;
   imageLoaded: boolean;
   showStrip: boolean;
+  nothingDrawable: boolean;
   thumbnails: { source: ImageSource; url: string | null; date: Date | null }[];
   debugStats: Record<DebugRowId, SourceDebugStats>;
   debugStartedAt: number;
@@ -92,6 +95,7 @@ class PanelState {
 export class GalleryController {
   private _panel: PanelState;
   private _open: boolean;
+  private _wasNothingDrawable: boolean;
   private _images: Partial<Record<ImageSource, SourcedImage>>;
   private _mode: GalleryMode;
   private _autoIntervalMs: number;
@@ -109,6 +113,7 @@ export class GalleryController {
   constructor(onChange: () => void, resolver: ImageResolver = new ImageResolver()) {
     this._panel = new PanelState();
     this._open = false;
+    this._wasNothingDrawable = false;
     this._mode = "off";
     this._sources = DEFAULT_GALLERY_SOURCES;
     this._autoIntervalMs = DEFAULT_GALLERY_INTERVAL_MS;
@@ -154,7 +159,16 @@ export class GalleryController {
   // Sources rendered as thumbnails right now — the configured list verbatim, except in
   // "slide" where only the source the rotation currently sits on is shown.
   get displaySources(): ImageSource[] {
-    return this._mode === "slide" ? [this._sources[this._slideIndex]] : this._sources;
+    if (this._mode !== "slide") return this._sources;
+    return this._availableSlideIndices(0)
+      .slice(0, 1)
+      .map((index) => this._sources[index]);
+  }
+
+  private _availableSlideIndices(firstOffset: number): number[] {
+    return this._sources
+      .map((_, step) => (this._slideIndex + firstOffset + step) % this._sources.length)
+      .filter((index) => !this._isUnavailable(this._sources[index]));
   }
 
   // position defaults to "overlay" (the strip must hide there, since it floats over the
@@ -168,24 +182,38 @@ export class GalleryController {
       imageDate: this._panel.date,
       imageLoaded: this._panel.loaded,
       showStrip: this._open && (position === "below" || this._panel.mode === "none"),
-      thumbnails: this.displaySources.map((source) => {
-        const image = this._images[source];
-        return { source, url: image?.url ?? null, date: image?.date ?? null };
-      }),
+      nothingDrawable: this._isNothingDrawable(),
+      thumbnails: this.displaySources
+        .filter((source) => !this._isUnavailable(source))
+        .map((source) => {
+          const image = this._images[source];
+          return { source, url: image?.url ?? null, date: image?.date ?? null };
+        }),
       debugStats: this.debugStats,
       debugStartedAt: this._debugStartedAt,
     };
   }
 
-  // Applies config.gallery: mode + auto-switch interval, and whether the strip starts open (matches setConfig's previous behavior of
-  // resetting _galleryOpen from mode every call). Restarts the auto-switch timer if one is
-  // already running, same as the old `if (this._autoSwitchTimer != null)
-  // this._startAutoSwitchTimer()` in setConfig.
+  private _isNothingDrawable(): boolean {
+    return this._sources.every((source) => this._isUnavailable(source));
+  }
+
+  private _isUnavailable(source: ImageSource): boolean {
+    return (
+      !this._images[source] &&
+      (this._resolver.isPermanentlyUnavailable(source) ||
+        this._resolver.failureCount(source) >= UNAVAILABLE_AFTER_FAILURES)
+    );
+  }
+
+  // Applies config.gallery on every setConfig: resets the strip's open state from mode and
+  // restarts the auto-switch timer if one is already running.
   configure(mode: GalleryMode, sources: ImageSource[], autoIntervalMs: number): void {
     this._mode = mode;
     this._sources = sources;
     this._autoIntervalMs = autoIntervalMs;
     this._open = mode !== "off";
+    this._wasNothingDrawable = this._isNothingDrawable();
     // A shorter list would otherwise leave the rotation pointing past its end, so
     // displaySources would read undefined until the next tick wrapped it.
     if (this._slideIndex >= sources.length) this._slideIndex = 0;
@@ -196,9 +224,7 @@ export class GalleryController {
 
   start(): void {
     this._startAutoSwitchTimer();
-    if (this._open) {
-      void this.refresh();
-    }
+    this._refreshWhatIsNeeded();
   }
 
   stop(): void {
@@ -207,12 +233,10 @@ export class GalleryController {
     this._autoSwitchTimer = null;
   }
 
-  // Auto-update tick: keeps the strip/panel fresh only while something is showing (avoids
-  // unconditional background polling of NASA's servers for every install regardless of use).
+  // Auto-update tick: refreshes every source while the strip is open, and only the sources
+  // with no image yet while it is closed.
   tick(): void {
-    if (this._open) {
-      void this.refresh();
-    }
+    this._refreshWhatIsNeeded();
   }
 
   toggle(): void {
@@ -222,7 +246,7 @@ export class GalleryController {
     } else {
       this._panel.error = null;
       this._onChange();
-      void this.refresh();
+      void this.refresh(this._sources);
     }
   }
 
@@ -252,7 +276,7 @@ export class GalleryController {
       this._panel.url = null;
       this._panel.date = null;
       this._panel.loaded = false;
-      void this.refresh();
+      void this.refresh(this._sources);
     }
     this._onChange();
   }
@@ -281,6 +305,7 @@ export class GalleryController {
   // real error here means no retry is left — drop the thumbnail (falls back to the
   // transparent placeholder) rather than retrying forever.
   onSunThumbError(): void {
+    this._resolver.recordFailure("sun");
     delete this._images.sun;
     this._onChange();
   }
@@ -303,20 +328,26 @@ export class GalleryController {
   // <img> may show the previous bitmap for a frame while the new one decodes — cosmetic, not
   // worth a pre-decode step.
   private _advanceSlide(): void {
-    this._slideIndex = (this._slideIndex + 1) % this._sources.length;
+    [this._slideIndex] = [...this._availableSlideIndices(1), this._slideIndex];
     this._onChange();
   }
 
-  // Fetches every configured source — called on open (start/configure), on click for a
-  // source that isn't known yet (openPanel), and on each auto-update tick while the strip or
-  // a panel stays open. Each source is cache-guarded (earth hourly, sun every 15min —
-  // matching each source's own publish cadence), so this only hits the network once the
-  // relevant cache has expired. This is the single place _images is written, so it's also
-  // the single place that keeps an open full-screen panel in sync with the same source. The
-  // fetch/dedupe/retry mechanics live in ImageResolver — this only applies its settled
-  // results to view state (which image is shown, which error banner, when to re-render).
-  private async refresh(): Promise<void> {
-    const results = await this._resolver.resolveAll(this._sources);
+  private _refreshWhatIsNeeded(): void {
+    this._returnToDefaultOnceDrawable();
+    const sources = this._open
+      ? this._sources
+      : this._sources.filter((source) => !this._images[source]);
+    if (sources.length > 0) {
+      void this.refresh(sources);
+    }
+  }
+
+  // Applies each source's settled result to view state (which image is shown, which error
+  // banner, when to re-render). This is the single place _images is written, so it also keeps
+  // an open full-screen panel in sync with the same source. Fetch/dedupe/retry and the
+  // per-source cache guards live in ImageResolver.
+  private async refresh(sources: ImageSource[]): Promise<void> {
+    const results = await this._resolver.resolveAll(sources);
     for (const { source, result } of results) {
       if (result.status === "fulfilled") {
         this._images[source] = result.value;
@@ -332,6 +363,13 @@ export class GalleryController {
         this._panel.fail(`${SOURCES[source].label} image unavailable`);
       }
     }
+    this._returnToDefaultOnceDrawable();
     this._onChange();
+  }
+
+  private _returnToDefaultOnceDrawable(): void {
+    const nothingDrawable = this._isNothingDrawable();
+    if (this._wasNothingDrawable && !nothingDrawable) this._open = this._mode !== "off";
+    this._wasNothingDrawable = nothingDrawable;
   }
 }

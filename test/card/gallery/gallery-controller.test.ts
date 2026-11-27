@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GalleryController } from "../../../src/card/gallery/gallery-controller.js";
+import type { ImageResolver } from "../../../src/card/gallery/image-resolver.js";
 import { EARTH_CACHE_TTL_MS } from "../../../src/card/gallery/source-resolver-dscovr-earth.js";
 import { IMAGE_SOURCES } from "../../../src/card/gallery/sources.js";
 import { urlCache } from "../../../src/card/gallery/url-cache.js";
@@ -49,6 +50,27 @@ function stubFetch(identifier = "20260810234950") {
       json: () => Promise.resolve([{ identifier }]),
     })
   );
+}
+
+function resolverWithAllImages() {
+  const requested: string[][] = [];
+  const hydrated = Object.fromEntries(
+    ["mymoon", "moon", "earth", "sun"].map((source) => [
+      source,
+      { url: `https://example.test/${source}.jpg`, date: new Date(0) },
+    ])
+  );
+  const resolver = {
+    hydrate: () => hydrated,
+    debugStats: () => ({}),
+    resolveAll: (sources: string[]) => {
+      requested.push([...sources]);
+      return Promise.resolve([]);
+    },
+    failureCount: () => 0,
+    isPermanentlyUnavailable: () => false,
+  } as unknown as ImageResolver;
+  return { resolver, requested };
 }
 
 beforeEach(() => {
@@ -166,29 +188,93 @@ describe("GalleryController.start / tick", () => {
     expect(gallery.images.sun).toBeDefined();
   });
 
-  it("does not fetch when started closed", () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve([]) });
-    vi.stubGlobal("fetch", fetchMock);
-    const gallery = new GalleryController(() => {});
+  it("with all images present, does not fetch when started closed", async () => {
+    const { resolver, requested } = resolverWithAllImages();
+    const gallery = new GalleryController(() => {}, resolver);
     gallery.configure("off", IMAGE_SOURCES, 60000);
     gallery.start();
-    expect(fetchMock).not.toHaveBeenCalled();
+    await Promise.resolve();
+    expect(requested).toEqual([]);
   });
 
-  it("tick refreshes only while open", async () => {
-    const gallery = new GalleryController(() => {});
+  it("tick fetches every source while open, even with all images present", async () => {
+    const { resolver, requested } = resolverWithAllImages();
+    const gallery = new GalleryController(() => {}, resolver);
     gallery.configure("show", IMAGE_SOURCES, 60000);
     gallery.tick();
-    await vi.waitFor(() => expect(gallery.images.earth).toBeDefined());
+    await Promise.resolve();
+    expect(requested).toEqual([["mymoon", "moon", "earth", "sun"]]);
   });
 
-  it("tick is a no-op while closed", () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve([]) });
-    vi.stubGlobal("fetch", fetchMock);
-    const gallery = new GalleryController(() => {});
+  it("with all images present, tick is a no-op while closed", async () => {
+    const { resolver, requested } = resolverWithAllImages();
+    const gallery = new GalleryController(() => {}, resolver);
     gallery.configure("off", IMAGE_SOURCES, 60000);
     gallery.tick();
-    expect(fetchMock).not.toHaveBeenCalled();
+    await Promise.resolve();
+    expect(requested).toEqual([]);
+  });
+});
+
+describe("GalleryController closed strip", () => {
+  function fakeResolver(imagesPresent: string[]) {
+    const requested: string[][] = [];
+    const hydrated = Object.fromEntries(
+      imagesPresent.map((source) => [
+        source,
+        { url: `https://example.test/${source}.jpg`, date: new Date(0) },
+      ])
+    );
+    const resolver = {
+      hydrate: () => hydrated,
+      debugStats: () => ({}),
+      resolveAll: (sources: string[]) => {
+        requested.push([...sources]);
+        return Promise.resolve([]);
+      },
+      failureCount: () => 0,
+      isPermanentlyUnavailable: () => false,
+    } as unknown as ImageResolver;
+    return { resolver, requested };
+  }
+
+  it("makes no request when every source already has an image", async () => {
+    const { resolver, requested } = fakeResolver(["mymoon", "moon", "earth", "sun"]);
+    const gallery = new GalleryController(() => {}, resolver);
+    gallery.configure("off", IMAGE_SOURCES, 60000);
+    gallery.start();
+    gallery.tick();
+    await Promise.resolve();
+    expect(requested).toEqual([]);
+  });
+
+  it("requests only the sources with no image, without opening the strip", async () => {
+    const { resolver, requested } = fakeResolver(["earth", "sun"]);
+    const gallery = new GalleryController(() => {}, resolver);
+    gallery.configure("off", IMAGE_SOURCES, 60000);
+    gallery.start();
+    await Promise.resolve();
+    gallery.tick();
+    await Promise.resolve();
+    expect(requested).toEqual([
+      ["mymoon", "moon"],
+      ["mymoon", "moon"],
+    ]);
+    expect(gallery.isOpen).toBe(false);
+    expect(gallery.viewModel().showStrip).toBe(false);
+  });
+
+  it("requests only the sources with no image after the strip is toggled closed", async () => {
+    const { resolver, requested } = fakeResolver(["mymoon", "moon", "sun"]);
+    const gallery = new GalleryController(() => {}, resolver);
+    gallery.configure("show", IMAGE_SOURCES, 60000);
+    gallery.toggle();
+    await Promise.resolve();
+    requested.length = 0;
+    gallery.tick();
+    await Promise.resolve();
+    expect(requested).toEqual([["earth"]]);
+    expect(gallery.isOpen).toBe(false);
   });
 });
 
@@ -586,4 +672,191 @@ describe("GalleryController.debugStats", () => {
     expect(gallery.debugStats.mymoon.gets).toBe(1);
     expect(gallery.debugStats.moon.gets).toBe(1);
   });
+});
+
+describe("GalleryController unavailable sources", () => {
+  it("records a sun thumbnail load error as one failure for the sun source and drops the image", () => {
+    const recordFailure = vi.fn();
+    const resolver = {
+      hydrate: () => ({ sun: { url: "https://example.test/sun.jpg", date: new Date(0) } }),
+      debugStats: () => ({}),
+      resolveAll: () => Promise.resolve([]),
+      failureCount: () => 0,
+      isPermanentlyUnavailable: () => false,
+      recordFailure,
+    } as unknown as ImageResolver;
+    const gallery = new GalleryController(() => {}, resolver);
+    gallery.configure("show", IMAGE_SOURCES, 60000);
+
+    gallery.onSunThumbError();
+
+    expect(recordFailure).toHaveBeenCalledTimes(1);
+    expect(recordFailure).toHaveBeenCalledWith("sun");
+    expect(gallery.images.sun).toBeUndefined();
+  });
+
+  it("hides a source with no image once it has 5 consecutive failures, but not at 4", () => {
+    const failures = { count: 4 };
+    const resolver = {
+      hydrate: () => ({}),
+      debugStats: () => ({}),
+      resolveAll: () => Promise.resolve([]),
+      failureCount: () => failures.count,
+      isPermanentlyUnavailable: () => false,
+    } as unknown as ImageResolver;
+    const gallery = new GalleryController(() => {}, resolver);
+    gallery.configure("show", IMAGE_SOURCES, 60000);
+
+    expect(gallery.viewModel().thumbnails.map((t) => t.source)).toContain("earth");
+
+    failures.count = 5;
+
+    expect(gallery.viewModel().thumbnails.map((t) => t.source)).not.toContain("earth");
+  });
+
+  it("keeps a source that already has an image even after many consecutive failures", () => {
+    const resolver = {
+      hydrate: () => ({ earth: { url: "https://example.test/earth.jpg", date: new Date(0) } }),
+      debugStats: () => ({}),
+      resolveAll: () => Promise.resolve([]),
+      failureCount: () => 9,
+      isPermanentlyUnavailable: () => false,
+    } as unknown as ImageResolver;
+    const gallery = new GalleryController(() => {}, resolver);
+    gallery.configure("show", IMAGE_SOURCES, 60000);
+
+    const sources = gallery.viewModel().thumbnails.map((t) => t.source);
+
+    expect(sources).toContain("earth");
+  });
+
+  it("hides mymoon and moon together while the moon is permanently unavailable and restores both once it resolves", () => {
+    const state = { permanent: true, images: {} as Record<string, unknown> };
+    const resolver = {
+      hydrate: () => state.images,
+      debugStats: () => ({}),
+      resolveAll: () => Promise.resolve([]),
+      failureCount: () => 0,
+      isPermanentlyUnavailable: (source: string) =>
+        state.permanent && (source === "mymoon" || source === "moon"),
+    } as unknown as ImageResolver;
+    const gallery = new GalleryController(() => {}, resolver);
+    gallery.configure("show", IMAGE_SOURCES, 60000);
+
+    expect(gallery.viewModel().thumbnails.map((t) => t.source)).toEqual(["earth", "sun"]);
+
+    state.permanent = false;
+
+    expect(gallery.viewModel().thumbnails.map((t) => t.source)).toEqual([
+      "mymoon",
+      "moon",
+      "earth",
+      "sun",
+    ]);
+  });
+
+  it("slide mode never shows an unavailable source and moves off one that becomes unavailable", async () => {
+    vi.useFakeTimers();
+    const state = { permanent: false };
+    const resolver = {
+      hydrate: () => ({}),
+      debugStats: () => ({}),
+      resolveAll: () => Promise.resolve([]),
+      failureCount: () => 0,
+      isPermanentlyUnavailable: (source: string) =>
+        state.permanent && (source === "mymoon" || source === "moon"),
+    } as unknown as ImageResolver;
+    const gallery = new GalleryController(() => {}, resolver);
+    gallery.configure("slide", IMAGE_SOURCES, 1000);
+    gallery.start();
+    const shown = () => gallery.viewModel().thumbnails.map((t) => t.source);
+
+    expect(shown()).toEqual(["mymoon"]);
+
+    state.permanent = true;
+
+    expect(shown()).toHaveLength(1);
+    expect(["earth", "sun"]).toContain(shown()[0]);
+
+    const seen: string[][] = [];
+    for (let i = 0; i < 4; i++) {
+      await vi.advanceTimersByTimeAsync(1000);
+      seen.push(shown());
+    }
+
+    expect(seen.map((s) => s.length)).toEqual([1, 1, 1, 1]);
+    expect(new Set(seen.map((s) => s[0]))).toEqual(new Set(["earth", "sun"]));
+  });
+
+  it("nothingDrawable is true only when every configured source is unavailable and leaves the open state alone", () => {
+    const state = { unavailable: new Set<string>(IMAGE_SOURCES) };
+    const resolver = {
+      hydrate: () => ({}),
+      debugStats: () => ({}),
+      resolveAll: () => Promise.resolve([]),
+      failureCount: () => 0,
+      isPermanentlyUnavailable: (source: string) => state.unavailable.has(source),
+    } as unknown as ImageResolver;
+    const gallery = new GalleryController(() => {}, resolver);
+    gallery.configure("show", IMAGE_SOURCES, 60000);
+
+    expect(gallery.viewModel().nothingDrawable).toBe(true);
+    expect(gallery.viewModel().showStrip).toBe(true);
+
+    state.unavailable.delete("earth");
+
+    expect(gallery.viewModel().nothingDrawable).toBe(false);
+    expect(gallery.viewModel().showStrip).toBe(true);
+
+    gallery.configure("slide", IMAGE_SOURCES, 60000);
+
+    expect(gallery.viewModel().nothingDrawable).toBe(false);
+
+    state.unavailable = new Set<string>(IMAGE_SOURCES);
+
+    expect(gallery.viewModel().nothingDrawable).toBe(true);
+  });
+});
+
+describe("GalleryController recovery from nothingDrawable", () => {
+  it.each([
+    { mode: "show", userToggles: 1, open: true },
+    { mode: "slide", userToggles: 1, open: true },
+    { mode: "off", userToggles: 1, open: false },
+    { mode: "show", userToggles: 2, open: true },
+  ] as const)(
+    "returns to the $mode default (open: $open) after $userToggles user toggle(s) during the outage",
+    async ({ mode, userToggles, open }) => {
+      const state = { down: true };
+      const resolver = {
+        hydrate: () => ({}),
+        debugStats: () => ({}),
+        resolveAll: (sources: string[]) =>
+          Promise.resolve(
+            state.down
+              ? []
+              : sources.map((source) => ({
+                  source,
+                  result: {
+                    status: "fulfilled",
+                    value: { url: `https://example.test/${source}.jpg`, date: new Date(0) },
+                  },
+                }))
+          ),
+        failureCount: () => 0,
+        isPermanentlyUnavailable: () => state.down,
+      } as unknown as ImageResolver;
+      const gallery = new GalleryController(() => {}, resolver);
+      gallery.configure(mode, IMAGE_SOURCES, 60000);
+      expect(gallery.viewModel().nothingDrawable).toBe(true);
+
+      for (let i = 0; i < userToggles; i++) gallery.toggle();
+      state.down = false;
+      gallery.tick();
+      await vi.waitFor(() => expect(gallery.viewModel().nothingDrawable).toBe(false));
+
+      expect(gallery.isOpen).toBe(open);
+      expect(gallery.viewModel().showStrip).toBe(open);
+    }
+  );
 });

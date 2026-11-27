@@ -218,5 +218,30 @@ describe("SourceResolver engine", () => {
       expect(debug.backoffs).toBe(1);
       expect(failuresBefore).toBe(true); // cooldown was already armed going in, from the one recordFailure above
     });
+
+    it("failureCount rises on a real failure, holds during cooldown, and resets on success", async () => {
+      const resolver = new MockResolver(cache);
+      const good = image("https://example.test/good.jpg");
+      const debug = emptyDebugAccumulator();
+      vi.spyOn(Date, "now").mockReturnValue(0);
+      expect(cache.failureCount("sun")).toBe(0);
+
+      resolver.fetchCandidateUrlImpl = () => Promise.reject(new Error("boom"));
+      await expect(resolver.resolve(debug, debug)).rejects.toThrow("boom");
+      expect(cache.failureCount("sun")).toBe(1);
+
+      await expect(resolver.resolve(debug, debug)).rejects.toThrow(/cooldown/);
+      expect(cache.failureCount("sun")).toBe(1);
+
+      vi.spyOn(Date, "now").mockReturnValue(60000);
+      await expect(resolver.resolve(debug, debug)).rejects.toThrow("boom");
+      expect(cache.failureCount("sun")).toBe(2);
+
+      vi.spyOn(Date, "now").mockReturnValue(60000 + 120000);
+      resolver.fetchCandidateUrlImpl = () => Promise.resolve(good);
+      stubImageDecode(new Set([good.url]));
+      await resolver.resolve(debug, debug);
+      expect(cache.failureCount("sun")).toBe(0);
+    });
   });
 });

@@ -1,5 +1,5 @@
 import { padLeft } from "./pad.js";
-import { SourceResolver } from "./source-resolver.js";
+import { NoProductError, SourceResolver } from "./source-resolver.js";
 import type { ImageSource } from "./sources.js";
 import type { SourcedImage, UrlCache } from "./url-cache.js";
 
@@ -97,7 +97,7 @@ export function moonFrameUrl(at: Date, size: string): string {
   const year = at.getUTCFullYear();
   const product = MOON_PRODUCT_IDS[year];
   if (product == null) {
-    throw new Error(`No NASA SVS moon product is published for ${year}`);
+    throw new NoProductError(`No NASA SVS moon product is published for ${year}`);
   }
   // Products are filed in hundreds: 5587 lives under a005500/a005587.
   const group = Math.floor(product / 100) * 100;

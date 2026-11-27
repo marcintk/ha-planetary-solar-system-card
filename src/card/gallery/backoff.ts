@@ -31,6 +31,10 @@ export class Backoff {
     return this.lastConfirmed.get(key) ?? null;
   }
 
+  failureCount(key: string): number {
+    return this.failures.get(key) ?? 0;
+  }
+
   recordFailure(key: string, retryAfterMs?: number): void {
     const failures = (this.failures.get(key) ?? 0) + 1;
     this.failures.set(key, failures);

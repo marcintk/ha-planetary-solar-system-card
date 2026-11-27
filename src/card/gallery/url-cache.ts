@@ -68,6 +68,10 @@ export class UrlCache {
     return this.backoff.inCooldown(key);
   }
 
+  failureCount(key: string): number {
+    return this.backoff.failureCount(key);
+  }
+
   recordChecked(key: string): void {
     this.lastChecked.set(key, Date.now());
   }

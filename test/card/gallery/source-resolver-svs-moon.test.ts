@@ -228,6 +228,22 @@ describe("source-resolver-svs-moon", () => {
       ).rejects.toThrow();
     });
 
+    it("is unavailable after one failed resolve for an unmapped year and recovers once a mapped year resolves", async () => {
+      stubImageDecode();
+      let reference = new Date(Date.UTC(2099, 0, 1, 12));
+      const resolver = new SvsMoonResolver("moon", () => reference, cache);
+      expect(resolver.isPermanentlyUnavailable()).toBe(false);
+
+      await expect(
+        resolver.resolve(emptyDebugAccumulator(), emptyDebugAccumulator())
+      ).rejects.toThrow("No NASA SVS moon product is published for 2099");
+      expect(resolver.isPermanentlyUnavailable()).toBe(true);
+
+      reference = new Date(Date.UTC(2026, 7, 21, 12));
+      await resolver.resolve(emptyDebugAccumulator(), emptyDebugAccumulator());
+      expect(resolver.isPermanentlyUnavailable()).toBe(false);
+    });
+
     it("hydrates from a still-fresh cache after a remount", async () => {
       vi.spyOn(Date, "now").mockReturnValue(NOW);
       stubImageDecode();

@@ -839,3 +839,266 @@ describe("GalleryController recovery from nothingDrawable", () => {
     }
   );
 });
+
+describe("GalleryController re-render notifications", () => {
+  function countedGallery(imagesPresent?: string[]) {
+    const { resolver, requested } = fakeResolver(imagesPresent);
+    (resolver as unknown as { recordFailure: () => void }).recordFailure = () => {};
+    const onChange = vi.fn();
+    const gallery = new GalleryController(onChange, resolver);
+    gallery.configure("show", IMAGE_SOURCES, 60000);
+    return { gallery, onChange, requested };
+  }
+
+  it("openPanel on a known source notifies once", () => {
+    const { gallery, onChange } = countedGallery();
+    gallery.openPanel("earth");
+    expect(onChange).toHaveBeenCalledTimes(1);
+  });
+
+  it("openPanel on an unknown source notifies once before the fetch settles", () => {
+    const { gallery, onChange } = countedGallery([]);
+    gallery.openPanel("earth");
+    expect(onChange).toHaveBeenCalledTimes(1);
+  });
+
+  it("toggling the strip open notifies once before the refresh settles", () => {
+    const { gallery, onChange } = countedGallery();
+    gallery.toggle();
+    onChange.mockClear();
+    gallery.toggle();
+    expect(onChange).toHaveBeenCalledTimes(1);
+  });
+
+  it("closePanel notifies once", () => {
+    const { gallery, onChange } = countedGallery();
+    gallery.closePanel();
+    expect(onChange).toHaveBeenCalledTimes(1);
+  });
+
+  it("onImageLoad notifies once", () => {
+    const { gallery, onChange } = countedGallery();
+    gallery.onImageLoad();
+    expect(onChange).toHaveBeenCalledTimes(1);
+  });
+
+  it("onImageLoadError notifies once", () => {
+    const { gallery, onChange } = countedGallery();
+    gallery.openPanel("earth");
+    onChange.mockClear();
+    gallery.onImageLoadError();
+    expect(onChange).toHaveBeenCalledTimes(1);
+  });
+
+  it("onSunThumbError notifies once", () => {
+    const { gallery, onChange } = countedGallery();
+    gallery.onSunThumbError();
+    expect(onChange).toHaveBeenCalledTimes(1);
+  });
+
+  it("a settled refresh notifies once", async () => {
+    const { gallery, onChange } = countedGallery();
+    gallery.tick();
+    await vi.waitFor(() => expect(onChange).toHaveBeenCalledTimes(1));
+    await Promise.resolve();
+    expect(onChange).toHaveBeenCalledTimes(1);
+  });
+
+  it("each slide advance notifies once", async () => {
+    vi.useFakeTimers();
+    const { gallery, onChange } = countedGallery();
+    gallery.configure("slide", IMAGE_SOURCES, 1000);
+    gallery.start();
+    await vi.advanceTimersByTimeAsync(0);
+    onChange.mockClear();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(onChange).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("GalleryController.configure timer restart", () => {
+  it("applies a new interval to an already-running slide timer", async () => {
+    vi.useFakeTimers();
+    const { resolver } = fakeResolver();
+    const gallery = new GalleryController(() => {}, resolver);
+    gallery.configure("slide", IMAGE_SOURCES, 1000);
+    gallery.start();
+    gallery.configure("slide", IMAGE_SOURCES, 500);
+    await vi.advanceTimersByTimeAsync(500);
+    expect(gallery.displaySources).toEqual(["moon"]);
+  });
+});
+
+describe("GalleryController timer replacement", () => {
+  it("restarting the slide timer clears the previous interval", async () => {
+    vi.useFakeTimers();
+    const { resolver } = fakeResolver();
+    const gallery = new GalleryController(() => {}, resolver);
+    gallery.configure("slide", IMAGE_SOURCES, 1000);
+    gallery.start();
+    gallery.configure("slide", IMAGE_SOURCES, 500);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(gallery.displaySources).toEqual(["earth"]);
+  });
+
+  it("reconfiguring away from slide stops the interval from notifying", async () => {
+    vi.useFakeTimers();
+    const { resolver } = fakeResolver();
+    const onChange = vi.fn();
+    const gallery = new GalleryController(onChange, resolver);
+    gallery.configure("slide", IMAGE_SOURCES, 1000);
+    gallery.start();
+    await vi.advanceTimersByTimeAsync(0);
+    gallery.configure("show", IMAGE_SOURCES, 1000);
+    onChange.mockClear();
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("starting while not in slide mode runs no interval", async () => {
+    vi.useFakeTimers();
+    const { resolver } = fakeResolver();
+    const onChange = vi.fn();
+    const gallery = new GalleryController(onChange, resolver);
+    gallery.configure("show", IMAGE_SOURCES, 1000);
+    gallery.start();
+    await vi.advanceTimersByTimeAsync(0);
+    onChange.mockClear();
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+});
+
+describe("GalleryController refresh result handling", () => {
+  function scriptedResolver(
+    images: string[],
+    results: () => { source: string; result: unknown }[]
+  ) {
+    const { resolver } = fakeResolver(images);
+    (resolver as unknown as { resolveAll: () => Promise<unknown> }).resolveAll = () =>
+      Promise.resolve(results());
+    return resolver;
+  }
+
+  it("applies a fulfilled result for the open panel's source to the panel", async () => {
+    const resolver = scriptedResolver([], () => [
+      {
+        source: "earth",
+        result: {
+          status: "fulfilled",
+          value: { url: "https://example.test/new-earth.jpg", date: new Date(5) },
+        },
+      },
+    ]);
+    const gallery = new GalleryController(() => {}, resolver);
+    gallery.configure("show", IMAGE_SOURCES, 60000);
+    gallery.openPanel("earth");
+    await vi.waitFor(() => expect(gallery.imageLoaded).toBe(true));
+    expect(gallery.imageUrl).toBe("https://example.test/new-earth.jpg");
+    expect(gallery.imageDate).toEqual(new Date(5));
+  });
+
+  it("a failure for a different source leaves a loading panel alone", async () => {
+    const resolver = scriptedResolver([], () => [
+      { source: "sun", result: { status: "rejected", reason: new Error("x") } },
+    ]);
+    const onChange = vi.fn();
+    const gallery = new GalleryController(onChange, resolver);
+    gallery.configure("show", IMAGE_SOURCES, 60000);
+    gallery.openPanel("earth");
+    await vi.waitFor(() => expect(onChange).toHaveBeenCalledTimes(2));
+    expect(gallery.panelMode).toBe("earth");
+    expect(gallery.error).toBeNull();
+  });
+
+  it("a failure for the open source that already has an image keeps showing it", async () => {
+    const resolver = scriptedResolver(["earth"], () => [
+      { source: "earth", result: { status: "rejected", reason: new Error("x") } },
+    ]);
+    const onChange = vi.fn();
+    const gallery = new GalleryController(onChange, resolver);
+    gallery.configure("show", IMAGE_SOURCES, 60000);
+    gallery.openPanel("earth");
+    onChange.mockClear();
+    gallery.tick();
+    await vi.waitFor(() => expect(onChange).toHaveBeenCalledTimes(1));
+    expect(gallery.panelMode).toBe("earth");
+    expect(gallery.error).toBeNull();
+    expect(gallery.imageUrl).toBe("https://example.test/earth.jpg");
+  });
+});
+
+describe("GalleryController refresh side effects", () => {
+  it("a fulfilled result for another source does not overwrite the open panel", async () => {
+    const { resolver } = fakeResolver(["earth"]);
+    (resolver as unknown as { resolveAll: () => Promise<unknown> }).resolveAll = () =>
+      Promise.resolve([
+        {
+          source: "sun",
+          result: {
+            status: "fulfilled",
+            value: { url: "https://example.test/new-sun.jpg", date: new Date(9) },
+          },
+        },
+      ]);
+    const onChange = vi.fn();
+    const gallery = new GalleryController(onChange, resolver);
+    gallery.configure("show", IMAGE_SOURCES, 60000);
+    gallery.openPanel("earth");
+    onChange.mockClear();
+    gallery.tick();
+    await vi.waitFor(() => expect(onChange).toHaveBeenCalledTimes(1));
+    expect(gallery.images.sun?.url).toBe("https://example.test/new-sun.jpg");
+    expect(gallery.imageUrl).toBe("https://example.test/earth.jpg");
+    expect(gallery.imageDate).toEqual(new Date(0));
+  });
+
+  it("returns to the default open state once a settled fetch makes a source drawable", async () => {
+    const { resolver } = fakeResolver([]);
+    const stubbed = resolver as unknown as {
+      resolveAll: (sources: string[]) => Promise<unknown>;
+      isPermanentlyUnavailable: () => boolean;
+    };
+    stubbed.isPermanentlyUnavailable = () => true;
+    stubbed.resolveAll = (sources) =>
+      Promise.resolve(
+        sources.map((source) => ({
+          source,
+          result: {
+            status: "fulfilled",
+            value: { url: `https://example.test/${source}.jpg`, date: new Date(0) },
+          },
+        }))
+      );
+    const gallery = new GalleryController(() => {}, resolver);
+    gallery.configure("show", IMAGE_SOURCES, 60000);
+    gallery.toggle();
+    expect(gallery.isOpen).toBe(false);
+
+    gallery.tick();
+    expect(gallery.isOpen).toBe(false);
+    await vi.waitFor(() => expect(gallery.isOpen).toBe(true));
+  });
+});
+
+describe("GalleryController recovery timing", () => {
+  it("returns to the default open state as soon as a tick starts, not only once its fetch settles", () => {
+    const state = { down: true };
+    const { resolver } = fakeResolver([]);
+    const stubbed = resolver as unknown as {
+      resolveAll: () => Promise<unknown>;
+      isPermanentlyUnavailable: () => boolean;
+    };
+    stubbed.resolveAll = () => new Promise(() => {});
+    stubbed.isPermanentlyUnavailable = () => state.down;
+    const gallery = new GalleryController(() => {}, resolver);
+    gallery.configure("show", IMAGE_SOURCES, 60000);
+    gallery.toggle();
+    expect(gallery.isOpen).toBe(false);
+
+    state.down = false;
+    gallery.tick();
+
+    expect(gallery.isOpen).toBe(true);
+  });
+});

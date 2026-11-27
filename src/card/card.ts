@@ -262,7 +262,12 @@ export class SolarViewCard extends LitElement {
           </span>
           <span class="nav-spacer"></span>
           <span class="btn-group">
-            <button data-action="gallery" title="Show image gallery" @click=${this._onNavClick}>
+            <button
+              data-action="gallery"
+              ?disabled=${gallery.nothingDrawable}
+              title=${gallery.nothingDrawable ? "No images available" : "Show image gallery"}
+              @click=${this._onNavClick}
+            >
               <span class="icon">☷</span>
             </button>
           </span>

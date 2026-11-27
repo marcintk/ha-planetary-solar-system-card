@@ -49,6 +49,29 @@ describe("SolarViewCard gallery", () => {
       card.remove();
     });
 
+    it("disables the gallery button with a 'No images available' title while nothing is drawable and re-enables it after recovery", () => {
+      const card = createAndMount({ gallery: { mode: "closed" } });
+      const real = card._gallery.viewModel.bind(card._gallery);
+      let nothingDrawable = true;
+      vi.spyOn(card._gallery, "viewModel").mockImplementation((position) => ({
+        ...real(position),
+        nothingDrawable,
+      }));
+      const button = () => card.shadowRoot.querySelector('button[data-action="gallery"]');
+
+      card._render();
+      expect(button().disabled).toBe(true);
+      expect(button().title).toBe("No images available");
+      button().click();
+      expect(card.shadowRoot.querySelector(".gallery")).toBeNull();
+
+      nothingDrawable = false;
+      card._render();
+      expect(button().disabled).toBe(false);
+      expect(button().title).toBe("Show image gallery");
+      card.remove();
+    });
+
     it("opening the default gallery shows only mymoon, the one tile enabled by default", async () => {
       const card = document.createElement("ha-planetary-solar-system-card-test");
       document.body.appendChild(card);

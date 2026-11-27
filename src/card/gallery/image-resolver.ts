@@ -45,6 +45,18 @@ export class ImageResolver {
     ) as Record<DebugRowId, SourceDebugStats>;
   }
 
+  failureCount(source: ImageSource): number {
+    return this._resolvers[source].failureCount();
+  }
+
+  recordFailure(source: ImageSource): void {
+    this._resolvers[source].recordFailure();
+  }
+
+  isPermanentlyUnavailable(source: ImageSource): boolean {
+    return this._resolvers[source].isPermanentlyUnavailable();
+  }
+
   hydrate(sources: readonly ImageSource[]): Partial<Record<ImageSource, SourcedImage>> {
     const images: Partial<Record<ImageSource, SourcedImage>> = {};
     for (const source of sources) {

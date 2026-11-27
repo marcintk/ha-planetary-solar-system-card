@@ -21,6 +21,8 @@ export const IMAGE_TIMEOUT_MESSAGE = "Image load timed out";
 // browser reports promptly is a miss like any 404, and the search should keep walking.
 export const IMAGE_LOAD_ERROR_MESSAGE = "Image failed to load";
 
+export class NoProductError extends Error {}
+
 // One resolver instance per NASA source, each owning that source's own cache TTL, decode-gate
 // state, and candidate-fetch quirks (see source-resolver-dscovr-earth.ts / source-resolver-sdo-sun.ts).
 // resolve() is the shared protocol (cache check, decode gate, preload, counters); getCached(),
@@ -28,6 +30,8 @@ export const IMAGE_LOAD_ERROR_MESSAGE = "Image failed to load";
 // extending this and providing those three, without touching the shared protocol.
 export abstract class SourceResolver {
   abstract readonly source: ImageSource;
+
+  private permanentlyUnavailable = false;
 
   // Defaults to the shared module-level cache so production (and any test that doesn't care
   // about isolation) behaves exactly as before — HA remounting the card element rebuilds this
@@ -44,6 +48,18 @@ export abstract class SourceResolver {
   // identical bytes.
   protected get cacheKey(): string {
     return this.source;
+  }
+
+  isPermanentlyUnavailable(): boolean {
+    return this.permanentlyUnavailable;
+  }
+
+  failureCount(): number {
+    return this.cache.failureCount(this.cacheKey);
+  }
+
+  recordFailure(): void {
+    this.cache.recordFailure(this.cacheKey);
   }
 
   // Required hook #1. Answers "do we already have a still-valid candidate?" without touching
@@ -129,6 +145,10 @@ export abstract class SourceResolver {
       if (imgDebug !== urlDebug) recordGet(imgDebug);
       return await this.fetchAndDecode(candidate, imgDebug);
     } catch (err) {
+      if (err instanceof NoProductError) {
+        this.permanentlyUnavailable = true;
+        throw err;
+      }
       this.cache.recordFailure(this.cacheKey, retryAfterMsFrom(err));
       throw err;
     }
@@ -183,6 +203,7 @@ export abstract class SourceResolver {
   // (recordSuccess), clearing any cooldown. Reached from the dup check above, hits the same
   // markDecoded() write it already implies — cheap and idempotent, not a second decode.
   private commit(image: SourcedImage): SourcedImage {
+    this.permanentlyUnavailable = false;
     this.cache.markDecoded(this.cacheKey, image.url);
     this.cache.recordSuccess(this.cacheKey, image);
     return image;

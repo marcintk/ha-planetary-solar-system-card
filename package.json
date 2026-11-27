@@ -51,5 +51,9 @@
   },
   "dependencies": {
     "lit": "^3.3.3"
+  },
+  "overrides": {
+    "minimatch": "^11.0.1",
+    "qs": "^6.16.1"
   }
 }

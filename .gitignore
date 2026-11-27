@@ -22,3 +22,6 @@ docs/design-notes/.work/
 # Stryker mutation testing output
 .stryker-tmp/
 reports/
+
+# Local planning notes, not for the repo
+docs/updates/

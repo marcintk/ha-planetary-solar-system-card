@@ -52,10 +52,10 @@ function stubFetch(identifier = "20260810234950") {
   );
 }
 
-function resolverWithAllImages() {
+function fakeResolver(imagesPresent: string[] = ["mymoon", "moon", "earth", "sun"]) {
   const requested: string[][] = [];
   const hydrated = Object.fromEntries(
-    ["mymoon", "moon", "earth", "sun"].map((source) => [
+    imagesPresent.map((source) => [
       source,
       { url: `https://example.test/${source}.jpg`, date: new Date(0) },
     ])
@@ -189,7 +189,7 @@ describe("GalleryController.start / tick", () => {
   });
 
   it("with all images present, does not fetch when started closed", async () => {
-    const { resolver, requested } = resolverWithAllImages();
+    const { resolver, requested } = fakeResolver();
     const gallery = new GalleryController(() => {}, resolver);
     gallery.configure("off", IMAGE_SOURCES, 60000);
     gallery.start();
@@ -198,7 +198,7 @@ describe("GalleryController.start / tick", () => {
   });
 
   it("tick fetches every source while open, even with all images present", async () => {
-    const { resolver, requested } = resolverWithAllImages();
+    const { resolver, requested } = fakeResolver();
     const gallery = new GalleryController(() => {}, resolver);
     gallery.configure("show", IMAGE_SOURCES, 60000);
     gallery.tick();
@@ -207,7 +207,7 @@ describe("GalleryController.start / tick", () => {
   });
 
   it("with all images present, tick is a no-op while closed", async () => {
-    const { resolver, requested } = resolverWithAllImages();
+    const { resolver, requested } = fakeResolver();
     const gallery = new GalleryController(() => {}, resolver);
     gallery.configure("off", IMAGE_SOURCES, 60000);
     gallery.tick();
@@ -217,27 +217,6 @@ describe("GalleryController.start / tick", () => {
 });
 
 describe("GalleryController closed strip", () => {
-  function fakeResolver(imagesPresent: string[]) {
-    const requested: string[][] = [];
-    const hydrated = Object.fromEntries(
-      imagesPresent.map((source) => [
-        source,
-        { url: `https://example.test/${source}.jpg`, date: new Date(0) },
-      ])
-    );
-    const resolver = {
-      hydrate: () => hydrated,
-      debugStats: () => ({}),
-      resolveAll: (sources: string[]) => {
-        requested.push([...sources]);
-        return Promise.resolve([]);
-      },
-      failureCount: () => 0,
-      isPermanentlyUnavailable: () => false,
-    } as unknown as ImageResolver;
-    return { resolver, requested };
-  }
-
   it("makes no request when every source already has an image", async () => {
     const { resolver, requested } = fakeResolver(["mymoon", "moon", "earth", "sun"]);
     const gallery = new GalleryController(() => {}, resolver);

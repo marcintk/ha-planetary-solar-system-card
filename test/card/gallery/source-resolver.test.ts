@@ -149,7 +149,7 @@ describe("SourceResolver engine", () => {
     stubImageDecode(new Set()); // nothing decodes
     const debug = emptyDebugAccumulator();
 
-    await expect(resolver.resolve(debug, debug)).rejects.toThrow();
+    await expect(resolver.resolve(debug, debug)).rejects.toThrow("decode failed");
 
     expect(debug.failures).toBe(1);
     expect(cache.inCooldown("sun")).toBe(true);
@@ -299,6 +299,29 @@ describe("SourceResolver engine", () => {
 
       vi.spyOn(Date, "now").mockReturnValue(300000);
       expect(cache.inCooldown("sun")).toBe(true);
+    });
+
+    it("ignores a retryAfterMs that is not a number, keeping the plain backoff", async () => {
+      const resolver = new MockResolver(cache);
+      const odd = Object.assign(new Error("429"), { retryAfterMs: "600000" });
+      resolver.fetchCandidateUrlImpl = () => Promise.reject(odd);
+      vi.spyOn(Date, "now").mockReturnValue(0);
+      const debug = emptyDebugAccumulator();
+
+      await expect(resolver.resolve(debug, debug)).rejects.toThrow("429");
+
+      vi.spyOn(Date, "now").mockReturnValue(300000);
+      expect(cache.inCooldown("sun")).toBe(false);
+    });
+
+    it("rethrows an undefined rejection as-is and still arms backoff", async () => {
+      const resolver = new MockResolver(cache);
+      resolver.fetchCandidateUrlImpl = () => Promise.reject(undefined);
+      const debug = emptyDebugAccumulator();
+
+      await expect(resolver.resolve(debug, debug)).rejects.toBeUndefined();
+
+      expect(resolver.failureCount()).toBe(1);
     });
 
     it("recordFailure records a real failure for the cache key", () => {

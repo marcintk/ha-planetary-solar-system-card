@@ -72,6 +72,24 @@ describe("SolarViewCard gallery", () => {
       card.remove();
     });
 
+    it("disables the gallery button once the real controller sees its only source fail repeatedly", () => {
+      stubEarthFetch();
+      const card = mountWithGallery({
+        gallery: { mode: "closed", mymoon: false, moon: false, earth: true, sun: false },
+      });
+      const button = () => card.shadowRoot.querySelector('button[data-action="gallery"]');
+      expect(button().disabled).toBe(false);
+      expect(button().title).toBe("Show image gallery");
+
+      for (let i = 0; i < 5; i++) card._gallery._resolver.recordFailure("earth");
+      card._render();
+
+      expect(card._gallery.viewModel("below").nothingDrawable).toBe(true);
+      expect(button().disabled).toBe(true);
+      expect(button().title).toBe("No images available");
+      card.remove();
+    });
+
     it("opening the default gallery shows only mymoon, the one tile enabled by default", async () => {
       const card = document.createElement("ha-planetary-solar-system-card-test");
       document.body.appendChild(card);

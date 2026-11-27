@@ -31,6 +31,11 @@ the narrowest sampled day lands at about 0.75.
       `test/card/card-template.test.ts` follow).
 - [x] Revision: Earth's `disc` is 0.84 in `SOURCES.earth`, so the clip no longer cuts the limb (the
       `disc` comment in `sources.ts` names the new measurement).
+- [x] Revision: a source with no image is unavailable after its first failure
+      (`UNAVAILABLE_AFTER_FAILURES` is 1 in `gallery-controller.ts`); a source with an image is
+      never unavailable.
+- [x] Revision: while a source has no confirmed image, `Backoff` caps the retry wait at 5 minutes;
+      with a confirmed image the wait still doubles up to 6 hours.
 
 ## Seam and behavior to pin
 
@@ -66,3 +71,8 @@ that Earth's ceiling is 0.83.
 - Human found Earth's thumbnail cut on all four sides; today's EPIC photo (2026-11-24 22:13 UTC)
   measures 83.6-83.7% of the frame against disc 0.82. Human asked to raise Earth's disc to 0.84.
   0.84 is a guess at the ceiling from one new sample.
+- Human reported the Moon tile randomly stuck on "loading…" while NASA is failing. Cause from the
+  code: a source with no image only hides after 5 failures (about 15 min of growing cooldowns) and
+  retries back off up to 6 h. Human asked to fix it on this branch: hide after the first failure
+  when there is no image, and cap the retry wait at 5 minutes while there is no image. Not
+  reproduced in a browser; a curl probe got 403 from NASA.

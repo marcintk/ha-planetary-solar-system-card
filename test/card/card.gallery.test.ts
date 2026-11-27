@@ -741,6 +741,7 @@ describe("SolarViewCard gallery", () => {
     it.each(["earth", "sun", "both"])(
       "legacy gallery.mode: %s opens the whole strip",
       async (mode) => {
+        stubEarthFetch();
         const card = mountWithGallery({ gallery: { mode } });
         await flush();
         const thumbs = card.shadowRoot.querySelectorAll(".gallery-thumb");

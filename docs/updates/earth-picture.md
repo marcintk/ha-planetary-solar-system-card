@@ -6,17 +6,25 @@ Task: "gallery, earth, while earth move to winter zone, it is shown bigger, can 
 
 ## Summary
 
-The gallery's Earth thumbnail is a live DSCOVR photo, and its disc size changes with the satellite's
-distance from Earth. The card scales every photo by one fixed constant, so on the widest days Earth
-fills 0.87 of the tile. We lower that ceiling to 0.83. Earth can then only be at or below 0.83, and
-the narrowest sampled day lands at about 0.75.
+The gallery's Earth thumbnail is a live DSCOVR photo whose disc size changes with the satellite's
+distance, and the card scales every photo by one fixed constant. This branch shrinks the Earth, Moon
+and MyMoon thumbnails (`target` 0.75; the Sun stays 0.80) and widens Earth's `disc` to 0.84 so the
+circular clip stops cutting its limb. It also makes a source that cannot load disappear after its
+first failure, and retry within 5 minutes while it has no image, instead of sitting on "loading…".
+That rule moves out of `GalleryController` into a new `SourceAvailability` class.
 
 ## Changes
 
-- `src/card/gallery/sources.ts:180`: Earth `target` goes from 0.87 to 0.83.
-- `src/card/gallery/sources.ts:109`: update the "Earth's is 0.87" number in the comment. Leave the
-  Moon and Sun wording as it is.
-- `test/card/gallery/sources.test.ts:53`: change the expected value from 0.87 to 0.83.
+- `src/card/gallery/sources.ts`: `target` 0.75 for Earth, Moon and MyMoon; Earth `disc` 0.84; doc
+  comments updated.
+- `src/card/gallery/backoff.ts`: while a key has no confirmed image, the retry wait is capped at 5
+  minutes; with an image it still doubles up to 6 hours.
+- `src/card/gallery/source-availability.ts` (new): `SourceAvailability` decides which sources are
+  unavailable (no image and at least one failure, or a permanent failure) and when the strip
+  recovers.
+- `src/card/gallery/gallery-controller.ts`: delegates to `SourceAvailability`.
+- Tests for each of the above, and `card.gallery.test.ts` now stubs Earth's fetch where it relied on
+  the old five-failure rule.
 
 ## Checklist
 
@@ -46,27 +54,29 @@ the narrowest sampled day lands at about 0.75.
 
 ## Seam and behavior to pin
 
-The seam is `SOURCES.earth.target` in `test/card/gallery/sources.test.ts`. The behavior pinned is
-that Earth's ceiling is 0.83.
+`SOURCES.<source>.target` and `SOURCES.earth.disc` in `test/card/gallery/sources.test.ts`;
+`Backoff.recordFailure` in `backoff.test.ts`; `SourceAvailability` in `source-availability.test.ts`.
 
 ## Impact
 
-- Earth's thumbnail shrinks by about 5% at its widest and about 5% at its narrowest.
-- Moon and Sun, the shapes, and the full-screen view are unchanged.
-- `docs/card.js` is a built copy for the demo page. Not checked whether it should be rebuilt as part
-  of this change.
-- Earth is not clipped at the limb, because the disc and scale pair is unchanged.
+- Earth's thumbnail tops out at 0.75 of the tile instead of 0.87 and is no longer clipped at the
+  limb on today's photo; the Moon tiles drop from 0.79 to 0.75.
+- A tile that cannot load is hidden after one failure and retried at most every 5 minutes; a source
+  that already has an image keeps the slow backoff.
+- `docs/card.js` is a built copy for the demo page. Not checked whether it should be rebuilt.
+- `disc` 0.84 is a guess from one new measurement; a wider day could cut the limb again.
+- Not reproduced in a browser; a curl probe of the Moon frame got 403 from NASA.
 
 ## Decisions
 
-- Keep the per-image logic as it is and only lower the ceiling.
+- Keep the per-image logic as it is and only lower the ceilings.
 - No per-image scaling and no seasonal scaling.
 
 ## Assumptions
 
 - The change is for the gallery thumbnail, not the main orbit view.
 - The four sampled dates represent the real range of disc sizes. Real images were not measured.
-- 0.83 is a judgment call chosen to try. It can be adjusted later.
+- The targets and Earth's disc are judgment calls and can be adjusted later.
 
 ## Revisions
 

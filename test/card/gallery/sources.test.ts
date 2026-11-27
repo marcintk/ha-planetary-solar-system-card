@@ -40,13 +40,13 @@ describe("SOURCES catalog", () => {
   });
 
   it("keeps every on-screen target under a full tile", () => {
-    // Earth's target sits *above* its disc on purpose — its loose DSCOVR crop is scaled up to
-    // meet the shared size the tighter Moon and Sun frames are scaled down to.
+    // Earth's target sits *below* its disc, like the Moon's and the Sun's — every frame is
+    // scaled down to its target, and Earth's looser DSCOVR crop is scaled down the least.
     for (const source of IMAGE_SOURCES) {
       expect(SOURCES[source].target).toBeLessThan(1);
     }
     expect(SOURCES.moon.disc).toBe(0.95);
-    expect(SOURCES.earth.disc).toBe(0.82);
+    expect(SOURCES.earth.disc).toBe(0.84);
     expect(SOURCES.sun.disc).toBe(0.945);
     expect(SOURCES.mymoon.target).toBe(0.75);
     expect(SOURCES.moon.target).toBe(0.75);

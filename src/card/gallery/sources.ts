@@ -84,16 +84,13 @@ export interface SourceSpec {
    * Every source ships a disc centred on black, but each leaves a different margin, and the
    * margin is not constant: apparent size changes as the geometry does. Measured from the
    * imagery — Moon 96.3% at perigee (from SVS's own `diameter` arcsec, anchored on a measured
-   * full-moon frame), Sun 94.3% at perihelion, Earth 74.4-82.2% across DSCOVR's Lissajous orbit
-   * around L1, which is much the widest swing of the three.
+   * full-moon frame), Sun 94.3% at perihelion, Earth 74.4-82.2% across four sampled dates of
+   * DSCOVR's Lissajous orbit around L1, which is much the widest swing of the three.
    *
-   * Earth is pinned to exactly its largest sampled measurement rather than padded above it:
-   * this value is also what every source gets rescaled against to reach a shared on-screen size
-   * (see `target`), so slack here no longer just leaves a thin black ring — it stays visible as
-   * Earth reading smaller than Sun and Moon on every day but its widest. Four sampled dates are
-   * not the whole orbit, so a day beyond all of them could still slice the limb — accepted
-   * deliberately, since DSCOVR's orbit repeats roughly every six months and is unlikely to
-   * clear the sampled ceiling by much.
+   * Earth's later frame epic_1b_20261124221300 (2026-11-24 22:13 UTC, 1080x1080) measured about
+   * 83.7% (disc spanning 83.6-83.7% at a brightness cut-off of 20/255), so Earth is now 0.84,
+   * just above that newest measurement. It is still a sampled ceiling: a wider day could exceed
+   * it. This value is also what every source gets rescaled against (see `target`).
    */
   disc: number;
   /**
@@ -172,7 +169,7 @@ export const SOURCES: Record<ImageSource, SourceSpec> = {
     body: "EARTH",
     verb: "captured",
     instrument: "NOAA DSCOVR EPIC",
-    disc: 0.82,
+    disc: 0.84,
     target: 0.75,
     onByDefault: false,
     debugRow: { url: "earth-url", img: "earth-img" },

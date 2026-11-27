@@ -101,6 +101,31 @@ describe("Backoff", () => {
     expect(backoff.inCooldown("sun")).toBe(false); // back to the 1-minute base, not the doubled value
   });
 
+  it("failureCount is zero for a key with no recorded failures", () => {
+    const backoff = new Backoff();
+    expect(backoff.failureCount("sun")).toBe(0);
+  });
+
+  it("failureCount counts consecutive failures per key and resets on success", () => {
+    const backoff = new Backoff();
+    backoff.recordFailure("sun");
+    backoff.recordFailure("sun");
+    backoff.recordFailure("earth");
+    expect(backoff.failureCount("sun")).toBe(2);
+    expect(backoff.failureCount("earth")).toBe(1);
+
+    backoff.recordSuccess("sun", { url: "https://example.com/x.jpg", date: new Date() });
+    expect(backoff.failureCount("sun")).toBe(0);
+    expect(backoff.failureCount("earth")).toBe(1);
+  });
+
+  it("clear resets the failure count", () => {
+    const backoff = new Backoff();
+    backoff.recordFailure("sun");
+    backoff.clear();
+    expect(backoff.failureCount("sun")).toBe(0);
+  });
+
   it("cooldown state is independent per key", () => {
     const backoff = new Backoff();
     vi.spyOn(Date, "now").mockReturnValue(0);
